@@ -148,14 +148,14 @@ export async function transferStudentAction(
   data: TransferStudentInput
 ): Promise<ActionResult> {
   if (process.env.USE_MOCK_DATA === "true") {
-    const student = mockStudents.find((s) => s.id === id);
-    if (!student) {
-      return { success: false, error: "Student not found." };
-    }
-
     const newClass = mockClasses.find((c) => c.id === data.classId);
     if (!newClass) {
       return { success: false, error: "Class not found." };
+    }
+
+    const student = mockStudents.find((s) => s.id === id);
+    if (!student) {
+      return { success: false, error: "Student not found." };
     }
 
     student.classId = newClass.id;
