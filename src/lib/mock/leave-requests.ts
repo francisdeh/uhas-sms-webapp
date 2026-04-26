@@ -1,0 +1,41 @@
+import type { LeaveRequest } from "@/features/attendance/types";
+
+export const mockLeaveRequests: LeaveRequest[] = [
+  {
+    id: "leave-001",
+    schoolId: "school-uhas-001",
+    staffId: "STAFF-005",
+    staffName: "Kwame Darko",
+    type: "sick",
+    startDate: "2026-04-28",
+    endDate: "2026-04-29",
+    reason: "Illness",
+    status: "pending",
+    createdAt: "2026-04-26T08:00:00Z",
+  },
+  {
+    id: "leave-002",
+    schoolId: "school-uhas-001",
+    staffId: "STAFF-006",
+    staffName: "Gifty Acheampong",
+    type: "personal",
+    startDate: "2026-04-30",
+    endDate: "2026-04-30",
+    reason: "Personal matter",
+    status: "approved",
+    approvedById: "STAFF-003",
+    approvedByName: "Kofi Boateng",
+    createdAt: "2026-04-25T10:00:00Z",
+  },
+  {
+    id: "leave-003",
+    schoolId: "school-uhas-001",
+    staffId: "STAFF-004",
+    staffName: "Ama Owusu",
+    type: "maternity",
+    startDate: "2026-05-01",
+    endDate: "2026-05-30",
+    status: "pending",
+    createdAt: "2026-04-26T09:00:00Z",
+  },
+];

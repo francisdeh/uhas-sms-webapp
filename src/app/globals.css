@@ -192,3 +192,32 @@ body {
     border-color: var(--color-border);
   }
 }
+
+@media print {
+  @page {
+    size: 85.6mm 54mm;
+    margin: 0;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #id-card-print-area,
+  #id-card-print-area * {
+    visibility: visible;
+  }
+
+  #id-card-print-area {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 85.6mm;
+    height: 54mm;
+  }
+}

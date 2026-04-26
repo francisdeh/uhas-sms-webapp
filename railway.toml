@@ -1,0 +1,10 @@
+[build]
+builder = "railpack"
+
+[build.args]
+NODE_VERSION = "20"
+
+[deploy]
+startCommand = "npm run start"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5

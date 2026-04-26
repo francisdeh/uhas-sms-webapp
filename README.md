@@ -16,7 +16,7 @@ A web-based School Management System for UHAS Basic School, Ghana. Covers studen
 | File Storage | Firebase Cloud Storage |
 | Client Data | TanStack Query v5 |
 | Notifications | Sonner (toasts) |
-| Hosting | Vercel |
+| Hosting | Railway |
 
 ---
 
@@ -108,6 +108,7 @@ App runs at `http://localhost:3000`.
 | `npm run db:push` | Apply Drizzle schema to database |
 | `npm run db:studio` | Open Drizzle Studio (DB GUI) |
 | `npm run seed:emulator` | Seed Firebase Auth Emulator with test users |
+| `seed:firebase` | Seed real Firebase project with production users + custom claims (requires `.env.seed`) |
 
 ---
 
@@ -161,7 +162,20 @@ src/
 | `USE_MOCK_DATA` | `true` skips DB and returns fixture data |
 | `NEXT_PUBLIC_USE_FIREBASE_EMULATOR` | `true` connects Auth to localhost:9099 |
 | `DATABASE_URL` | PostgreSQL connection string |
-| `NEXT_PUBLIC_FIREBASE_*` | Firebase project config (not needed with emulator) |
+| `NEXT_PUBLIC_FIREBASE_*` | Firebase client SDK config (API key, project ID, etc.) |
+| `FIREBASE_PROJECT_ID` | Firebase project ID (Admin SDK — server-side only) |
+| `FIREBASE_CLIENT_EMAIL` | Service account client email (Admin SDK) |
+| `FIREBASE_PRIVATE_KEY` | Service account private key (Admin SDK, use `\n` for newlines in `.env`) |
+
+### Seeding a real Firebase project
+
+To create users in a real Firebase project (production or staging), create a `.env.seed` file (gitignored) with the Admin SDK credentials and run:
+
+```bash
+npx dotenv -e .env.seed -- npx tsx scripts/seed-firebase-users.ts
+```
+
+This creates one Firebase Auth account per role with the correct custom claims (`{ role, linkedId }`) that map to the mock data IDs. Delete `.env.seed` after seeding.
 
 ---
 
@@ -194,10 +208,13 @@ Classes: KG 1–2 · Primary 1–6 · JHS 1–3
 | Phase | Status | Deliverables |
 |---|---|---|
 | 0 — Foundation | ✅ Done | DB schema, Firebase emulator, mock fixtures, middleware, folder structure |
-| 1 — Auth & User Management | 🔧 Mostly done | Login, role routing, change-password, reset-password, admin user management UI (stats, DataTable, invite flow), dashboard shell (Sidebar, Header, profile page, academic year switcher, search, notifications, dark mode toggle). **Deferred:** reset-password email not yet wired to Firebase (`sendPasswordResetEmail`); session expiry warning modal (5-min before 8h expiry) not yet built. Non-admin dashboard page content deferred to Phase 7. |
-| 2 — Students & Staff | 🔜 Next | Registration, records, ID cards |
-| 3 — Attendance | ⏳ | Daily attendance, leave requests |
+| 1 — Auth & User Management | 🔧 Mostly done | Login, role routing, change-password, reset-password, admin user management UI (stats, DataTable, invite flow), dashboard shell (Sidebar, Header, profile page, academic year switcher, search, notifications, dark mode toggle). Non-admin dashboards (Deputy Head, HOD, Teacher, Parent) built with live attendance stats and role-scoped content. **Deferred:** reset-password email not yet wired to Firebase (`sendPasswordResetEmail`); session expiry warning modal (5-min before 8h expiry) not yet built. |
+| 2a — Student Records | ✅ Done | Student list (Admin + Deputy Head scoped), registration form, soft-deactivate/reactivate, division + status filter pills |
+| 2b — Student Detail & ID Card | ✅ Done | Student detail view, edit profile, class transfer (with confirmation), printable ID card (browser print + @media print CSS) |
+| 2c — Staff Management | ✅ Done | Staff list (Admin-scoped), registration form, role assignment, staff detail + edit + deactivate/reactivate. All on mock data. |
+| 2d — Classes & Subjects | ✅ Done | Class list + create (fixed names), subject list + create, class detail with subjects/teacher assignment + student roster. All on mock data. |
+| 3 — Attendance | ✅ Done | Student daily attendance (teacher + admin), staff attendance + leave requests (deputy head), parent attendance calendar view. Live attendance stats on Teacher, Deputy Head, and Parent dashboards. All on mock data. |
 | 4 — Exams & Results | ⏳ | Score entry, grading, report cards |
 | 5 — Lesson Plans | ⏳ | Plan creation, approval workflow |
 | 6 — Announcements | ⏳ | School-wide and division announcements |
-| 7 — Reports & QA | ⏳ | Analytics, exports, UAT + non-admin dashboard content (Deputy Head, HOD, Teacher, Parent) |
+| 7 — Reports & QA | ⏳ | Analytics, exports, UAT |

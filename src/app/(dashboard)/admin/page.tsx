@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { useMotionValue, useSpring } from "motion/react";
 import { Users, GraduationCap, BookOpen, Bell, TrendingUp, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { mockStudents } from "@/lib/mock/students";
 import { mockStaff } from "@/lib/mock/staff";
 import { mockAnnouncements } from "@/lib/mock/announcements";
@@ -32,7 +31,7 @@ const stats = [
     icon: Users,
     iconClass: "bg-orange-50 text-accent-orange",
     trend: "Fully staffed",
-    href: "/admin/users",
+    href: "/admin/staff",
   },
   {
     label: "Active Classes",
@@ -51,24 +50,6 @@ const stats = [
     href: "#",
   },
 ];
-
-function AnimatedNumber({ value }: { value: number }) {
-  const motionVal = useMotionValue(0);
-  const spring = useSpring(motionVal, { stiffness: 80, damping: 20 });
-  const ref = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    motionVal.set(value);
-  }, [value, motionVal]);
-
-  useEffect(() => {
-    return spring.on("change", (v) => {
-      if (ref.current) ref.current.textContent = Math.round(v).toString();
-    });
-  }, [spring]);
-
-  return <span ref={ref}>0</span>;
-}
 
 export default function AdminDashboardPage() {
   return (
@@ -202,7 +183,7 @@ export default function AdminDashboardPage() {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Quick Links</p>
                 {[
                   { label: "Manage Students", href: "/admin/students" },
-                  { label: "Manage Staff", href: "/admin/users" },
+                  { label: "Manage Staff", href: "/admin/staff" },
                   { label: "View Reports", href: "/admin/reports" },
                 ].map((link) => (
                   <Link

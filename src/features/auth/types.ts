@@ -1,5 +1,7 @@
 export type UserRole = "Admin" | "DeputyHead" | "HOD" | "Teacher" | "Parent";
 
+export const USER_ROLES: UserRole[] = ["Admin", "DeputyHead", "HOD", "Teacher", "Parent"];
+
 export type SessionUser = {
   uid: string;
   email: string;

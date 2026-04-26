@@ -102,6 +102,10 @@ export function Header({ user, onMobileMenuOpen }: HeaderProps) {
   }
 
   const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setMounted(true); }, []);
+
   const profileHref = `${ROLE_DASHBOARD[user.role]}/profile`;
   const unreadCount = MOCK_NOTIFICATIONS.filter((n) => n.unread).length;
 
@@ -156,9 +160,9 @@ export function Header({ user, onMobileMenuOpen }: HeaderProps) {
           <button
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
             className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-            title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={mounted ? (resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode") : "Toggle theme"}
           >
-            {resolvedTheme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            {mounted && (resolvedTheme === "dark" ? <Sun size={15} /> : <Moon size={15} />)}
           </button>
 
           {/* Notifications */}

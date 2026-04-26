@@ -1,0 +1,28 @@
+import type { ClassSubject } from "@/features/classes/types";
+
+export const mockClassSubjects: ClassSubject[] = [
+  // JHS 1A
+  { classId: "class-jhs1a", subjectId: "sub-jhs-001", subjectName: "English Language", teacherId: "STAFF-005", teacherName: "Kwame Darko" },
+  { classId: "class-jhs1a", subjectId: "sub-jhs-002", subjectName: "Mathematics", teacherId: "STAFF-004", teacherName: "Ama Owusu" },
+  { classId: "class-jhs1a", subjectId: "sub-jhs-003", subjectName: "Integrated Science", teacherId: "STAFF-009", teacherName: "Nana Agyeman" },
+  { classId: "class-jhs1a", subjectId: "sub-jhs-004", subjectName: "Social Studies", teacherId: null, teacherName: null },
+  { classId: "class-jhs1a", subjectId: "sub-jhs-005", subjectName: "ICT", teacherId: null, teacherName: null },
+  { classId: "class-jhs1a", subjectId: "sub-jhs-007", subjectName: "Ghanaian Language", teacherId: "STAFF-011", teacherName: "Samuel Owusu-Ansah" },
+  // JHS 2A
+  { classId: "class-jhs2a", subjectId: "sub-jhs-001", subjectName: "English Language", teacherId: "STAFF-008", teacherName: "Benjamin Owusu" },
+  { classId: "class-jhs2a", subjectId: "sub-jhs-002", subjectName: "Mathematics", teacherId: "STAFF-009", teacherName: "Nana Agyeman" },
+  { classId: "class-jhs2a", subjectId: "sub-jhs-003", subjectName: "Integrated Science", teacherId: "STAFF-011", teacherName: "Samuel Owusu-Ansah" },
+  { classId: "class-jhs2a", subjectId: "sub-jhs-004", subjectName: "Social Studies", teacherId: "STAFF-005", teacherName: "Kwame Darko" },
+  { classId: "class-jhs2a", subjectId: "sub-jhs-005", subjectName: "ICT", teacherId: null, teacherName: null },
+  { classId: "class-jhs2a", subjectId: "sub-jhs-007", subjectName: "Ghanaian Language", teacherId: null, teacherName: null },
+  // JHS 3A
+  { classId: "class-jhs3a", subjectId: "sub-jhs-001", subjectName: "English Language", teacherId: "STAFF-005", teacherName: "Kwame Darko" },
+  { classId: "class-jhs3a", subjectId: "sub-jhs-002", subjectName: "Mathematics", teacherId: null, teacherName: null },
+  { classId: "class-jhs3a", subjectId: "sub-jhs-003", subjectName: "Integrated Science", teacherId: "STAFF-009", teacherName: "Nana Agyeman" },
+  { classId: "class-jhs3a", subjectId: "sub-jhs-004", subjectName: "Social Studies", teacherId: null, teacherName: null },
+  { classId: "class-jhs3a", subjectId: "sub-jhs-005", subjectName: "ICT", teacherId: "STAFF-011", teacherName: "Samuel Owusu-Ansah" },
+  { classId: "class-jhs3a", subjectId: "sub-jhs-007", subjectName: "Ghanaian Language", teacherId: null, teacherName: null },
+  // Primary 4
+  { classId: "class-p4", subjectId: "sub-pri-001", subjectName: "English Language", teacherId: "STAFF-006", teacherName: "Gifty Acheampong" },
+  { classId: "class-p4", subjectId: "sub-pri-002", subjectName: "Mathematics", teacherId: "STAFF-006", teacherName: "Gifty Acheampong" },
+];

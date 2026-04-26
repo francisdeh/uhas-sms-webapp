@@ -1,17 +1,6 @@
-export type MockStaff = {
-  id: string;
-  schoolId: string;
-  firstName: string;
-  lastName: string;
-  rank: string;
-  systemRole: string;
-  division: string | null;
-  phone: string;
-  email: string;
-  isActive: boolean;
-};
+import { Staff } from "@/features/staff/types";
 
-export const mockStaff: MockStaff[] = [
+export const mockStaff: Staff[] = [
   {
     id: "STAFF-001",
     schoolId: "school-uhas-001",
@@ -23,6 +12,7 @@ export const mockStaff: MockStaff[] = [
     phone: "0244000001",
     email: "e.asante@uhas.edu.gh",
     isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
   },
   {
     id: "STAFF-002",
@@ -35,6 +25,7 @@ export const mockStaff: MockStaff[] = [
     phone: "0244000002",
     email: "a.mensah@uhas.edu.gh",
     isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
   },
   {
     id: "STAFF-003",
@@ -47,18 +38,20 @@ export const mockStaff: MockStaff[] = [
     phone: "0244000003",
     email: "k.boateng@uhas.edu.gh",
     isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
   },
   {
     id: "STAFF-004",
     schoolId: "school-uhas-001",
     firstName: "Ama",
     lastName: "Owusu",
-    rank: "Subject Head",
+    rank: "Subject Head - Mathematics",
     systemRole: "HOD",
     division: "JHS",
     phone: "0244000004",
     email: "a.owusu@uhas.edu.gh",
     isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
   },
   {
     id: "STAFF-005",
@@ -71,6 +64,7 @@ export const mockStaff: MockStaff[] = [
     phone: "0244000005",
     email: "k.darko@uhas.edu.gh",
     isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
   },
   {
     id: "STAFF-006",
@@ -83,5 +77,123 @@ export const mockStaff: MockStaff[] = [
     phone: "0244000006",
     email: "g.acheampong@uhas.edu.gh",
     isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
+  },
+  {
+    id: "STAFF-007",
+    schoolId: "school-uhas-001",
+    firstName: "Ofosua",
+    lastName: "Akosua",
+    rank: "Deputy Head",
+    systemRole: "DeputyHead",
+    division: "KG",
+    phone: "0244000007",
+    email: "o.akosua@uhas.edu.gh",
+    isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
+  },
+  {
+    id: "STAFF-008",
+    schoolId: "school-uhas-001",
+    firstName: "Benjamin",
+    lastName: "Owusu",
+    rank: "Subject Head - English",
+    systemRole: "HOD",
+    division: "JHS",
+    phone: "0244000008",
+    email: "b.owusu@uhas.edu.gh",
+    isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
+  },
+  {
+    id: "STAFF-009",
+    schoolId: "school-uhas-001",
+    firstName: "Nana",
+    lastName: "Agyeman",
+    rank: "Teacher",
+    systemRole: "Teacher",
+    division: "JHS",
+    phone: "0244000009",
+    email: "n.agyeman@uhas.edu.gh",
+    isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
+  },
+  {
+    id: "STAFF-010",
+    schoolId: "school-uhas-001",
+    firstName: "Vivian",
+    lastName: "Quartey",
+    rank: "Teacher",
+    systemRole: "Teacher",
+    division: "Primary",
+    phone: "0244000010",
+    email: "v.quartey@uhas.edu.gh",
+    isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
+  },
+  {
+    id: "STAFF-011",
+    schoolId: "school-uhas-001",
+    firstName: "Samuel",
+    lastName: "Owusu-Ansah",
+    rank: "Teacher",
+    systemRole: "Teacher",
+    division: "JHS",
+    phone: "0244000011",
+    email: "s.owusu-ansah@uhas.edu.gh",
+    isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
+  },
+  {
+    id: "STAFF-012",
+    schoolId: "school-uhas-001",
+    firstName: "Esther",
+    lastName: "Amoah",
+    rank: "Class Teacher",
+    systemRole: "Teacher",
+    division: "KG",
+    phone: "0244000012",
+    email: "e.amoah@uhas.edu.gh",
+    isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
+  },
+  {
+    id: "STAFF-013",
+    schoolId: "school-uhas-001",
+    firstName: "Adeyemi",
+    lastName: "Mensah",
+    rank: "Teacher",
+    systemRole: "Teacher",
+    division: "Primary",
+    phone: "0244000013",
+    email: "ad.mensah@uhas.edu.gh",
+    isActive: false,
+    createdAt: "2026-01-05T08:00:00Z",
+  },
+  {
+    id: "STAFF-014",
+    schoolId: "school-uhas-001",
+    firstName: "Patricia",
+    lastName: "Kunto",
+    rank: "Class Teacher",
+    systemRole: "Teacher",
+    division: "KG",
+    phone: "0244000014",
+    email: "p.kunto@uhas.edu.gh",
+    isActive: false,
+    createdAt: "2026-01-05T08:00:00Z",
+  },
+  {
+    id: "STAFF-015",
+    schoolId: "school-uhas-001",
+    firstName: "Robert",
+    lastName: "Boateneng",
+    rank: "Teacher",
+    systemRole: "Teacher",
+    division: "JHS",
+    phone: "0244000015",
+    email: "r.boateneng@uhas.edu.gh",
+    isActive: false,
+    createdAt: "2026-01-05T08:00:00Z",
   },
 ];
