@@ -21,7 +21,7 @@ export async function loginAction(idToken: string): Promise<LoginResult> {
 
     if (process.env.USE_MOCK_DATA === "true") {
       // Local dev: look up user from mock fixture (emulator has no custom claims)
-      const mockUser = mockUsers.find((u) => u.uid === uid);
+      const mockUser = mockUsers.find((u) => u.email === decoded.email);
       if (!mockUser) {
         return { success: false, error: "Account not found. Contact your administrator." };
       }
