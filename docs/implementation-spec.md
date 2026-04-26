@@ -50,7 +50,7 @@ Seed users (one per role) are created via the Emulator UI or a `scripts/seed-emu
 | Server Mutations | Next.js Server Actions |
 | Client Data | TanStack Query v5 (cache, optimistic UI) |
 | Toasts | Sonner |
-| Hosting | Vercel |
+| Hosting | Railway |
 
 > **Firestore vs PostgreSQL:** The SRS listed Firestore. The Drizzle schema doc supersedes this — all relational data lives in Neon PostgreSQL. Firebase is used only for Auth, Storage, and push notifications.
 
@@ -247,8 +247,8 @@ Classes: KG 1, KG 2, Primary 1–6, JHS 1–3
 
 | Phase | Duration | Deliverables |
 |---|---|---|
-| **0 — Foundation** | 1 week | ✅ Firebase emulator setup, Drizzle schema file, root layout with Providers + Toaster, auth middleware skeleton, mock data fixtures, CI/CD to Vercel; Neon DB provisioned but migrations deferred until Phase 1 |
-| **1 — Auth & User Management** | 2 weeks | 🔧 Login, reset-password, change-password pages (all using shadcn + react-hook-form + Zod); role-based routing via proxy.ts; session cookie pipeline (uid, role, email, linkedId); Admin user management UI — stats bar, DataTable with filter pills, create/edit modal, deactivate confirmation, invite-link flow; dashboard shell — Sidebar, Header, academic year switcher, global search (⌘K), notifications, dark mode toggle; per-role profile + security settings pages. **Deferred items:** (a) `ResetPasswordForm` shows success UI but does not call `sendPasswordResetEmail` — needs real Firebase call; (b) session expiry warning modal (5-min before 8h expiry, with extend option) not yet implemented; (c) `mustChangePassword` enforcement hardcoded to `false` — will be wired when real DB replaces mock in Phase 1 cutover; (d) non-admin dashboard page content (Deputy Head, HOD, Teacher, Parent) deferred to Phase 7. |
+| **0 — Foundation** | 1 week | ✅ Firebase emulator setup, Drizzle schema file, root layout with Providers + Toaster, auth middleware skeleton, mock data fixtures, Railway deployment config (`railway.toml`); Neon DB provisioned but migrations deferred until Phase 1 |
+| **1 — Auth & User Management** | 2 weeks | 🔧 Login, reset-password, change-password pages (all using shadcn + react-hook-form + Zod); role-based routing via proxy.ts; session cookie pipeline (uid, role, email, linkedId); Admin user management UI — stats bar, DataTable with filter pills, create/edit modal, deactivate confirmation, invite-link flow; dashboard shell — Sidebar, Header, academic year switcher, global search (⌘K), notifications, dark mode toggle; per-role profile + security settings pages. Non-admin role dashboards (Deputy Head, HOD, Teacher, Parent) built with role-scoped content and live attendance stats. Firebase custom claims pipeline wired: `seed:firebase` script seeds production users, `loginAction` reads `{ role, linkedId }` claims in production. **Deferred items:** (a) `ResetPasswordForm` shows success UI but does not call `sendPasswordResetEmail` — needs real Firebase call; (b) session expiry warning modal (5-min before 8h expiry, with extend option) not yet implemented; (c) `mustChangePassword` enforcement hardcoded to `false` — will be wired when real DB replaces mock in Phase 1 cutover. |
 | **2a — Student Records** | 1 week | ✅ Student list (Admin + Deputy Head scoped), registration form, soft-deactivate/reactivate, division + status filter pills. All on mock data. |
 | **2b — Student Detail & ID Card** | 1 week | ✅ Student detail view, edit profile, class transfer (with AlertDialog confirmation), printable ID card (browser print + @media print CSS). All on mock data. |
 | **2c — Staff Management** | 1 week | ✅ Staff list (Admin-scoped, role + status filter pills), registration form with invite-link flow, staff detail with edit/change-role/deactivate/reactivate. All on mock data. |
@@ -302,4 +302,4 @@ Tests are written **per feature, as each module's mock data is swapped out for r
 
 ---
 
-*Last updated: 2026-04-26 — Phases 0, 2a, 2b, 2c, 2d, 3 complete. Phase 1 mostly done (2 deferred items: reset-password email + session expiry modal). Role dashboards (Deputy Head, HOD, Teacher, Parent) built with live attendance stats. Phase 4 (Exams & Results) next.*
+*Last updated: 2026-04-26 — Phases 0, 2a, 2b, 2c, 2d, 3 complete. Phase 1 mostly done (2 deferred items: reset-password email + session expiry modal). Role dashboards (Deputy Head, HOD, Teacher, Parent) built with live attendance stats. Deployment configured for Railway. Firebase production pipeline (custom claims + seed script) ready. Phase 4 (Exams & Results) next.*
