@@ -195,9 +195,12 @@ Classes: KG 1–2 · Primary 1–6 · JHS 1–3
 |---|---|---|
 | 0 — Foundation | ✅ Done | DB schema, Firebase emulator, mock fixtures, middleware, folder structure |
 | 1 — Auth & User Management | 🔧 Mostly done | Login, role routing, change-password, reset-password, admin user management UI (stats, DataTable, invite flow), dashboard shell (Sidebar, Header, profile page, academic year switcher, search, notifications, dark mode toggle). **Deferred:** reset-password email not yet wired to Firebase (`sendPasswordResetEmail`); session expiry warning modal (5-min before 8h expiry) not yet built. Non-admin dashboard page content deferred to Phase 7. |
-| 2 — Students & Staff | 🔜 Next | Registration, records, ID cards |
-| 3 — Attendance | ⏳ | Daily attendance, leave requests |
+| 2a — Student Records | ✅ Done | Student list (Admin + Deputy Head scoped), registration form, soft-deactivate/reactivate, division + status filter pills |
+| 2b — Student Detail & ID Card | ✅ Done | Student detail view, edit profile, class transfer (with confirmation), printable ID card (browser print + @media print CSS) |
+| 2c — Staff Management | ✅ Done | Staff list (Admin-scoped), registration form, role assignment, staff detail + edit + deactivate/reactivate. All on mock data. |
+| 2d — Classes & Subjects | ✅ Done | Class list + create (fixed names), subject list + create, class detail with subjects/teacher assignment + student roster. All on mock data. |
+| 3 — Attendance | ✅ Done | Student daily attendance (teacher + admin), staff attendance + leave requests (deputy head), parent attendance calendar view. Live attendance stats on Teacher, Deputy Head, and Parent dashboards. All on mock data. |
 | 4 — Exams & Results | ⏳ | Score entry, grading, report cards |
 | 5 — Lesson Plans | ⏳ | Plan creation, approval workflow |
 | 6 — Announcements | ⏳ | School-wide and division announcements |
-| 7 — Reports & QA | ⏳ | Analytics, exports, UAT + non-admin dashboard content (Deputy Head, HOD, Teacher, Parent) |
+| 7 — Reports & QA | ⏳ | Analytics, exports, UAT |

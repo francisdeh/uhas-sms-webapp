@@ -16,6 +16,7 @@ import {
 import type { ColumnDef } from "@tanstack/react-table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DataTable } from "@/components/ui/data-table";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,30 +56,6 @@ function formatDob(dob: string) {
     month: "short",
     year: "numeric",
   });
-}
-
-function StatCard({
-  label,
-  value,
-  icon,
-  iconBg,
-}: {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  iconBg: string;
-}) {
-  return (
-    <div className="bg-card border border-border/60 rounded-xl p-4 flex items-center gap-3">
-      <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0", iconBg)}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-2xl font-bold leading-none">{value}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-      </div>
-    </div>
-  );
 }
 
 interface StudentsTableProps {
@@ -286,7 +263,7 @@ export default function StudentsTable({
         </div>
         <Link
           href={`${listHref}/new`}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 dark:bg-slate-700 text-white px-5 py-2 text-sm font-medium hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 text-white px-5 py-2 text-sm font-medium hover:bg-slate-900 active:bg-slate-950 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors"
         >
           <Plus size={14} /> Register student
         </Link>

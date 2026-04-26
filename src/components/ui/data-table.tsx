@@ -45,6 +45,7 @@ export function DataTable<TData>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
@@ -70,7 +71,7 @@ export function DataTable<TData>({
         />
       )}
 
-      <div className="rounded-md border border-border/60 overflow-hidden">
+      <div className="rounded-md border border-border/60 overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

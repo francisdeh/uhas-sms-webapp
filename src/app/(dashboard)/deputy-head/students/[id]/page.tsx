@@ -1,8 +1,12 @@
 import { redirect, notFound } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { mockStudents } from "@/lib/mock/students";
-import { Card, CardContent } from "@/components/ui/card";
-import Link from "next/link";
+import {
+  listStudentsAction,
+  listClassesAction,
+  getStudentGuardianAction,
+} from "@/features/students/actions";
+import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
+import StudentDetail from "@/features/students/components/StudentDetail";
 
 export default async function DeputyHeadStudentDetailPage({
   params,
@@ -13,30 +17,17 @@ export default async function DeputyHeadStudentDetailPage({
   if (!user) redirect("/login");
 
   const { id } = await params;
-  const student = mockStudents.find((s) => s.id === id);
+
+  const division = await getDeputyHeadDivision(user.linkedId);
+
+  const [students, classes, guardian] = await Promise.all([
+    listStudentsAction(division),
+    listClassesAction(division),
+    getStudentGuardianAction(id),
+  ]);
+
+  const student = students.find((s) => s.id === id);
   if (!student) notFound();
 
-  return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">
-            {student.firstName} {student.lastName}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{student.id}</p>
-        </div>
-        <Link
-          href="/deputy-head/students"
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ← Back to Students
-        </Link>
-      </div>
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground text-sm">
-          Full student profile coming in Phase 2b.
-        </CardContent>
-      </Card>
-    </div>
-  );
+  return <StudentDetail student={student} classes={classes} guardian={guardian} />;
 }

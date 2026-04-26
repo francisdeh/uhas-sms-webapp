@@ -26,7 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { createStudentAction } from "@/features/students/actions";
-import type { MockClass } from "@/lib/mock/classes";
+import type { ClassRecord } from "@/features/students/types";
 
 const schema = z.object({
   firstName: z.string().min(2, { message: "Must be at least 2 characters" }),
@@ -57,7 +57,7 @@ type FormValues = z.infer<typeof schema>;
 interface StudentRegistrationFormProps {
   division?: string;
   listHref: string;
-  classes: MockClass[];
+  classes: ClassRecord[];
 }
 
 export default function StudentRegistrationForm({
@@ -132,7 +132,7 @@ export default function StudentRegistrationForm({
               </Field>
 
               {/* 2-col: Gender + Date of Birth */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel>Gender</FieldLabel>
                   <Controller
@@ -245,7 +245,7 @@ export default function StudentRegistrationForm({
               </Field>
 
               {/* 2-col: Nationality + Religion */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel htmlFor="nationality">Nationality</FieldLabel>
                   <Input
@@ -272,7 +272,7 @@ export default function StudentRegistrationForm({
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40"
+                  className="bg-slate-800 text-white hover:bg-slate-900 active:bg-slate-950 dark:bg-slate-700 dark:hover:bg-slate-600"
                 >
                   {isSubmitting && (
                     <Loader2 size={15} className="animate-spin mr-2" />

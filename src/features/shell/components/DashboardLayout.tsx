@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { AutoBreadcrumb } from "./AutoBreadcrumb";
 import type { SessionUser } from "@/features/auth/types";
 
 interface DashboardLayoutProps {
@@ -32,8 +33,9 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.18 }}
-            className="flex-1 overflow-y-auto p-6"
+            className="flex-1 overflow-y-auto p-4 sm:p-6"
           >
+            <AutoBreadcrumb />
             {children}
           </motion.main>
         </AnimatePresence>

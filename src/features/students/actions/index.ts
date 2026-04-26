@@ -2,12 +2,15 @@
 
 import { mockStudents } from "@/lib/mock/students";
 import { mockClasses } from "@/lib/mock/classes";
-import type { MockClass } from "@/lib/mock/classes";
+import { mockStudentGuardians } from "@/lib/mock/student-guardians";
+import { mockGuardianProfiles } from "@/lib/mock/guardians";
 import type {
   Student,
   CreateStudentInput,
   UpdateStudentInput,
   TransferStudentInput,
+  ClassRecord,
+  GuardianProfile,
 } from "@/features/students/types";
 
 type ActionResult = { success: true } | { success: false; error: string };
@@ -20,7 +23,7 @@ const DIVISION_WEIGHT: Record<"KG" | "Primary" | "JHS", number> = {
 
 export async function listClassesAction(
   division?: "KG" | "Primary" | "JHS"
-): Promise<MockClass[]> {
+): Promise<ClassRecord[]> {
   if (process.env.USE_MOCK_DATA === "true") {
     const filtered = division
       ? mockClasses.filter((c) => c.division === division)
@@ -158,6 +161,10 @@ export async function transferStudentAction(
       return { success: false, error: "Student not found." };
     }
 
+    if (student.classId === data.classId) {
+      return { success: false, error: "Student is already in this class." };
+    }
+
     student.classId = newClass.id;
     student.className = newClass.name;
     student.division = newClass.division;
@@ -166,4 +173,17 @@ export async function transferStudentAction(
   }
 
   return { success: false, error: "DB not connected" };
+}
+
+export async function getStudentGuardianAction(
+  studentId: string
+): Promise<GuardianProfile | null> {
+  if (process.env.USE_MOCK_DATA !== "true") return null;
+
+  const guardianId = Object.entries(mockStudentGuardians).find(([, ids]) =>
+    ids.includes(studentId)
+  )?.[0];
+
+  if (!guardianId) return null;
+  return mockGuardianProfiles[guardianId] ?? null;
 }

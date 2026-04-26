@@ -43,3 +43,17 @@ export type UpdateStudentInput = {
 export type TransferStudentInput = {
   classId: string;
 };
+
+export type ClassRecord = {
+  id: string;
+  name: string;
+  division: "KG" | "Primary" | "JHS";
+};
+
+export type GuardianProfile = {
+  id: string;
+  name: string;
+  relationship: string;
+  phone?: string;
+  email?: string;
+};
