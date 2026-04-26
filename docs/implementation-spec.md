@@ -249,7 +249,34 @@ Classes: KG 1, KG 2, Primary 1–6, JHS 1–3
 | **5 — Lesson Plans** | 2 weeks | Lesson plan + SoW creation, file upload to Cloud Storage, approval workflow UI, notifications |
 | **6 — Announcements & Communication** | 1 week | Announcement creation + targeting, email notifications via SendGrid, parent notification flow |
 | **7 — Reports & QA** | 2 weeks | Analytics dashboards, PSC report, academic calendar, export to PDF, UAT with pilot school |
-| **Total** | ~15 weeks | Launchable MVP |
+| **8 — Testing** | 2 weeks | See section below |
+| **Total** | ~17 weeks | Launchable MVP + test coverage |
+
+### Phase 8 — Testing (when mock data is replaced with real DB)
+
+Tests are written **per feature, as each module's mock data is swapped out for real DB integration.** Do not write tests while a feature still uses mock fixtures — the tests would be testing fake data, not real behaviour.
+
+**Stack**
+- **Unit / integration:** Vitest + React Testing Library
+- **E2E:** Playwright
+
+**What to test per feature (when real DB is wired):**
+
+| Feature | Test focus |
+|---|---|
+| Auth | Login flow, role-based redirect, session expiry, first-password-change enforcement |
+| Students | Registration validation, auto-ID generation, soft-delete, class transfer |
+| Staff | Registration, role assignment, welcome email trigger |
+| Attendance | Mark present/absent/late, same-day-only edit rule, Admin past-date override |
+| Exams & Scores | Score entry, `computeGrade()` logic for all GES bands, locked-after-publish rule, Admin override audit log |
+| Lesson Plans | Status transitions (draft → submitted → approved/rejected), approval chain per division |
+| Announcements | Audience targeting (all / division / class), critical flag triggers email |
+| Reports | Correct aggregations (attendance %, pass/fail rates), PDF export output |
+| Middleware | Each role is redirected to correct dashboard; cross-role access blocked |
+
+**Test data:** Use the existing `src/lib/mock/` fixtures as seed input for integration tests — they are the canonical representative data set.
+
+**Coverage target:** All Server Actions and query functions must have integration tests. UI components need tests only for non-trivial conditional logic (e.g. approval workflow state machine, grade display based on score).
 
 ---
 
