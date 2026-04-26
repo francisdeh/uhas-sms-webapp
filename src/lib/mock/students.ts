@@ -1,25 +1,29 @@
-export type MockStudent = {
-  id: string;
-  schoolId: string;
-  firstName: string;
-  lastName: string;
-  dob: string;
-  gender: "Male" | "Female";
-  classId: string;
-  className: string;
-  division: string;
-  isActive: boolean;
-};
+import { Student } from "@/features/students/types";
 
-export const mockStudents: MockStudent[] = [
-  { id: "UHAS-2026-0001", schoolId: "school-uhas-001", firstName: "Akosua", lastName: "Boateng", dob: "2012-03-15", gender: "Female", classId: "class-jhs1a", className: "JHS 1A", division: "JHS", isActive: true },
-  { id: "UHAS-2026-0002", schoolId: "school-uhas-001", firstName: "Yaw", lastName: "Asiedu", dob: "2012-07-22", gender: "Male", classId: "class-jhs1a", className: "JHS 1A", division: "JHS", isActive: true },
-  { id: "UHAS-2026-0003", schoolId: "school-uhas-001", firstName: "Efua", lastName: "Mensah", dob: "2011-11-08", gender: "Female", classId: "class-jhs2a", className: "JHS 2A", division: "JHS", isActive: true },
-  { id: "UHAS-2026-0004", schoolId: "school-uhas-001", firstName: "Kweku", lastName: "Amponsah", dob: "2011-01-30", gender: "Male", classId: "class-jhs2a", className: "JHS 2A", division: "JHS", isActive: true },
-  { id: "UHAS-2026-0005", schoolId: "school-uhas-001", firstName: "Adwoa", lastName: "Antwi", dob: "2013-05-18", gender: "Female", classId: "class-p5", className: "Primary 5", division: "Primary", isActive: true },
-  { id: "UHAS-2026-0006", schoolId: "school-uhas-001", firstName: "Kojo", lastName: "Frimpong", dob: "2013-09-02", gender: "Male", classId: "class-p5", className: "Primary 5", division: "Primary", isActive: true },
-  { id: "UHAS-2026-0007", schoolId: "school-uhas-001", firstName: "Abena", lastName: "Sarpong", dob: "2014-12-14", gender: "Female", classId: "class-p4", className: "Primary 4", division: "Primary", isActive: true },
-  { id: "UHAS-2026-0008", schoolId: "school-uhas-001", firstName: "Fiifi", lastName: "Tetteh", dob: "2018-04-25", gender: "Male", classId: "class-kg2", className: "KG 2", division: "KG", isActive: true },
-  { id: "UHAS-2026-0009", schoolId: "school-uhas-001", firstName: "Nana", lastName: "Owusu", dob: "2018-08-11", gender: "Female", classId: "class-kg2", className: "KG 2", division: "KG", isActive: true },
-  { id: "UHAS-2026-0010", schoolId: "school-uhas-001", firstName: "Ato", lastName: "Quaye", dob: "2010-06-19", gender: "Male", classId: "class-jhs3a", className: "JHS 3A", division: "JHS", isActive: true },
+export const mockStudents: Student[] = [
+  { id: "UHAS-2026-0001", schoolId: "school-uhas-001", firstName: "Akosua", lastName: "Boateng", dob: "2012-03-15", gender: "Female", classId: "class-jhs1a", className: "JHS 1A", division: "JHS", phone: "0244123456", nationality: "Ghanaian", religion: "Christianity", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0002", schoolId: "school-uhas-001", firstName: "Yaw", lastName: "Asiedu", dob: "2012-07-22", gender: "Male", classId: "class-jhs1a", className: "JHS 1A", division: "JHS", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0003", schoolId: "school-uhas-001", firstName: "Efua", lastName: "Mensah", dob: "2011-11-08", gender: "Female", classId: "class-jhs2a", className: "JHS 2A", division: "JHS", nationality: "Ghanaian", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0004", schoolId: "school-uhas-001", firstName: "Kweku", lastName: "Amponsah", dob: "2011-01-30", gender: "Male", classId: "class-jhs2a", className: "JHS 2A", division: "JHS", phone: "0208765432", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0005", schoolId: "school-uhas-001", firstName: "Ato", lastName: "Quaye", dob: "2010-06-19", gender: "Male", classId: "class-jhs3a", className: "JHS 3A", division: "JHS", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0006", schoolId: "school-uhas-001", firstName: "Abena", lastName: "Agyemang", dob: "2010-09-04", gender: "Female", classId: "class-jhs3a", className: "JHS 3A", division: "JHS", phone: "0277334455", nationality: "Ghanaian", religion: "Islam", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0007", schoolId: "school-uhas-001", firstName: "Kofi", lastName: "Darko", dob: "2012-12-01", gender: "Male", classId: "class-jhs1a", className: "JHS 1A", division: "JHS", isActive: false, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0008", schoolId: "school-uhas-001", firstName: "Ama", lastName: "Asante", dob: "2011-04-17", gender: "Female", classId: "class-jhs2a", className: "JHS 2A", division: "JHS", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0009", schoolId: "school-uhas-001", firstName: "Kwame", lastName: "Osei", dob: "2010-02-28", gender: "Male", classId: "class-jhs3a", className: "JHS 3A", division: "JHS", nationality: "Ghanaian", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0010", schoolId: "school-uhas-001", firstName: "Adwoa", lastName: "Antwi", dob: "2013-05-18", gender: "Female", classId: "class-p5", className: "Primary 5", division: "Primary", phone: "0554112233", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0011", schoolId: "school-uhas-001", firstName: "Kojo", lastName: "Frimpong", dob: "2013-09-02", gender: "Male", classId: "class-p5", className: "Primary 5", division: "Primary", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0012", schoolId: "school-uhas-001", firstName: "Akua", lastName: "Sarpong", dob: "2014-12-14", gender: "Female", classId: "class-p4", className: "Primary 4", division: "Primary", nationality: "Ghanaian", religion: "Christianity", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0013", schoolId: "school-uhas-001", firstName: "Fiifi", lastName: "Tetteh", dob: "2015-07-08", gender: "Male", classId: "class-p3", className: "Primary 3", division: "Primary", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0014", schoolId: "school-uhas-001", firstName: "Afia", lastName: "Boateng", dob: "2015-03-22", gender: "Female", classId: "class-p3", className: "Primary 3", division: "Primary", phone: "0201998877", isActive: false, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0015", schoolId: "school-uhas-001", firstName: "Nana", lastName: "Owusu", dob: "2014-10-30", gender: "Male", classId: "class-p4", className: "Primary 4", division: "Primary", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0016", schoolId: "school-uhas-001", firstName: "Yaa", lastName: "Acheampong", dob: "2013-01-11", gender: "Female", classId: "class-p6", className: "Primary 6", division: "Primary", nationality: "Ghanaian", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0017", schoolId: "school-uhas-001", firstName: "Kwabena", lastName: "Poku", dob: "2013-06-25", gender: "Male", classId: "class-p6", className: "Primary 6", division: "Primary", phone: "0264556677", religion: "Christianity", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0018", schoolId: "school-uhas-001", firstName: "Maame", lastName: "Yeboah", dob: "2016-08-14", gender: "Female", classId: "class-p1", className: "Primary 1", division: "Primary", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0019", schoolId: "school-uhas-001", firstName: "Kwesi", lastName: "Adu", dob: "2016-04-03", gender: "Male", classId: "class-p1", className: "Primary 1", division: "Primary", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0020", schoolId: "school-uhas-001", firstName: "Abiba", lastName: "Issah", dob: "2015-11-19", gender: "Female", classId: "class-p2", className: "Primary 2", division: "Primary", nationality: "Ghanaian", religion: "Islam", isActive: false, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0021", schoolId: "school-uhas-001", firstName: "Kofi", lastName: "Nyarko", dob: "2015-02-07", gender: "Male", classId: "class-p2", className: "Primary 2", division: "Primary", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0022", schoolId: "school-uhas-001", firstName: "Nana Yaa", lastName: "Asante", dob: "2018-05-20", gender: "Female", classId: "class-kg1", className: "KG 1", division: "KG", phone: "0233667788", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0023", schoolId: "school-uhas-001", firstName: "Kwabena", lastName: "Tawiah", dob: "2019-01-16", gender: "Male", classId: "class-kg1", className: "KG 1", division: "KG", nationality: "Ghanaian", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0024", schoolId: "school-uhas-001", firstName: "Akosua", lastName: "Mensah", dob: "2018-10-09", gender: "Female", classId: "class-kg2", className: "KG 2", division: "KG", isActive: false, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "UHAS-2026-0025", schoolId: "school-uhas-001", firstName: "Ebow", lastName: "Koomson", dob: "2019-03-28", gender: "Male", classId: "class-kg2", className: "KG 2", division: "KG", phone: "0245889900", religion: "Christianity", isActive: true, createdAt: "2026-01-10T08:00:00Z" },
 ];

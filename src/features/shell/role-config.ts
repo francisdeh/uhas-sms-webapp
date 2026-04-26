@@ -57,6 +57,12 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
         items: [{ label: "Overview", href: "/deputy-head", icon: LayoutDashboard }],
       },
       {
+        groupLabel: "People",
+        items: [
+          { label: "Students", href: "/deputy-head/students", icon: GraduationCap },
+        ],
+      },
+      {
         groupLabel: "Academic",
         items: [
           { label: "Classes", href: "/deputy-head/classes", icon: School },
