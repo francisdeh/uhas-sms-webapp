@@ -61,17 +61,23 @@ Seed users (one per role) are created via the Emulator UI or a `scripts/seed-emu
 ```
 src/
 ├── app/                        # Next.js App Router pages
-│   ├── (auth)/                 # Login, first-password-change
+│   ├── (auth)/                 # Unauthenticated pages
+│   │   ├── login/
+│   │   ├── reset-password/
+│   │   └── change-password/
 │   ├── (dashboard)/            # Role-specific dashboards
 │   │   ├── admin/
 │   │   ├── deputy-head/
+│   │   ├── hod/
 │   │   ├── teacher/
 │   │   └── parent/
 │   └── layout.tsx              # Root layout with Providers + Toaster
-├── components/                 # Shared UI primitives
-│   └── dashboard/              # Current shell (Sidebar, Header, etc.)
+├── components/
+│   └── ui/                     # shadcn/ui primitives
 ├── features/                   # Domain modules (one folder per feature)
-│   ├── auth/
+│   ├── auth/                   # Login, session, user management
+│   ├── shell/                  # Dashboard layout, Sidebar, Header, nav config
+│   ├── profile/                # User profile + security settings
 │   ├── students/
 │   ├── staff/
 │   ├── classes/
@@ -130,7 +136,7 @@ All tables include `schoolId` for multi-tenant scoping.
 | Teacher / Class Teacher | `/teacher` | Mark student attendance, enter scores, create lesson plans |
 | Parent / Guardian | `/parent` | Read-only — child profile, results, attendance, announcements |
 
-Middleware (`middleware.ts`) reads the user's role from the `users` table (via session cookie) and redirects to the correct dashboard on login.
+The routing proxy (`proxy.ts`) reads the user's role from the session cookie and redirects to the correct dashboard on login.
 
 ---
 
@@ -241,8 +247,8 @@ Classes: KG 1, KG 2, Primary 1–6, JHS 1–3
 
 | Phase | Duration | Deliverables |
 |---|---|---|
-| **0 — Foundation** | 1 week | Firebase emulator setup, Drizzle schema file, root layout with Providers + Toaster, auth middleware skeleton, mock data fixtures, CI/CD to Vercel; Neon DB provisioned but migrations deferred until Phase 1 |
-| **1 — Auth & User Management** | 2 weeks | Login page (emulator-backed), first-login password change, role-based routing, Admin user management UI (mock data → real DB by end of phase), school setup |
+| **0 — Foundation** | 1 week | ✅ Firebase emulator setup, Drizzle schema file, root layout with Providers + Toaster, auth middleware skeleton, mock data fixtures, CI/CD to Vercel; Neon DB provisioned but migrations deferred until Phase 1 |
+| **1 — Auth & User Management** | 2 weeks | 🔧 Login, reset-password, change-password pages (all using shadcn + react-hook-form + Zod); role-based routing via proxy.ts; session cookie pipeline (uid, role, email, linkedId); Admin user management UI — stats bar, DataTable with filter pills, create/edit modal, deactivate confirmation, invite-link flow; dashboard shell — Sidebar, Header, academic year switcher, global search (⌘K), notifications, dark mode toggle; per-role profile + security settings pages. **Deferred items:** (a) `ResetPasswordForm` shows success UI but does not call `sendPasswordResetEmail` — needs real Firebase call; (b) session expiry warning modal (5-min before 8h expiry, with extend option) not yet implemented; (c) `mustChangePassword` enforcement hardcoded to `false` — will be wired when real DB replaces mock in Phase 1 cutover; (d) non-admin dashboard page content (Deputy Head, HOD, Teacher, Parent) deferred to Phase 7. |
 | **2 — Students & Staff** | 2 weeks | Student registration + records + ID card PDF, Staff registration + role assignment, class + subject creation |
 | **3 — Attendance** | 2 weeks | Student daily attendance UI, staff attendance, leave request workflow, attendance reports |
 | **4 — Exams & Results** | 3 weeks | Score entry UI, auto-grading Server Action, report card PDF generation, Head review workflow, publish results, parent results view |
@@ -293,4 +299,4 @@ Tests are written **per feature, as each module's mock data is swapped out for r
 
 ---
 
-*End of spec — source of truth for Phase 0 kickoff.*
+*Last updated: 2026-04-26 — Phase 0 complete. Phase 1 mostly done (2 deferred items: reset-password email + session expiry modal). Phase 2 next.*

@@ -116,7 +116,10 @@ App runs at `http://localhost:3000`.
 ```
 src/
 ├── app/
-│   ├── (auth)/login/           # Login page
+│   ├── (auth)/                 # Unauthenticated pages
+│   │   ├── login/
+│   │   ├── reset-password/
+│   │   └── change-password/
 │   └── (dashboard)/            # Role-specific dashboards
 │       ├── admin/
 │       ├── deputy-head/
@@ -124,13 +127,15 @@ src/
 │       ├── teacher/
 │       └── parent/
 ├── components/
-│   ├── dashboard/              # Shell UI (Sidebar, Header, DashboardLayout)
+│   ├── ui/                     # shadcn/ui primitives
 │   └── providers.tsx           # TanStack Query provider
 ├── db/
 │   ├── index.ts                # Neon + Drizzle client
 │   └── schema.ts               # All table definitions (15 tables)
 ├── features/                   # Domain modules
-│   ├── auth/
+│   ├── auth/                   # Login, session, user management
+│   ├── shell/                  # Dashboard layout, Sidebar, Header, nav config
+│   ├── profile/                # User profile + security settings
 │   ├── students/
 │   ├── staff/
 │   ├── classes/
@@ -144,7 +149,7 @@ src/
 │   ├── firebase.ts             # Firebase app + Auth emulator detection
 │   ├── mock/                   # Fixture data (active when USE_MOCK_DATA=true)
 │   └── utils.ts
-└── middleware.ts               # Role-based routing
+└── proxy.ts                    # Role-based routing (Next.js middleware)
 ```
 
 ---
@@ -189,10 +194,10 @@ Classes: KG 1–2 · Primary 1–6 · JHS 1–3
 | Phase | Status | Deliverables |
 |---|---|---|
 | 0 — Foundation | ✅ Done | DB schema, Firebase emulator, mock fixtures, middleware, folder structure |
-| 1 — Auth & User Management | 🔜 Next | Login, role routing, user management |
-| 2 — Students & Staff | ⏳ | Registration, records, ID cards |
+| 1 — Auth & User Management | 🔧 Mostly done | Login, role routing, change-password, reset-password, admin user management UI (stats, DataTable, invite flow), dashboard shell (Sidebar, Header, profile page, academic year switcher, search, notifications, dark mode toggle). **Deferred:** reset-password email not yet wired to Firebase (`sendPasswordResetEmail`); session expiry warning modal (5-min before 8h expiry) not yet built. Non-admin dashboard page content deferred to Phase 7. |
+| 2 — Students & Staff | 🔜 Next | Registration, records, ID cards |
 | 3 — Attendance | ⏳ | Daily attendance, leave requests |
 | 4 — Exams & Results | ⏳ | Score entry, grading, report cards |
 | 5 — Lesson Plans | ⏳ | Plan creation, approval workflow |
 | 6 — Announcements | ⏳ | School-wide and division announcements |
-| 7 — Reports & QA | ⏳ | Analytics, exports, UAT |
+| 7 — Reports & QA | ⏳ | Analytics, exports, UAT + non-admin dashboard content (Deputy Head, HOD, Teacher, Parent) |

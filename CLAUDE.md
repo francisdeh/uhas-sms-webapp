@@ -14,11 +14,9 @@ It is a real production system being built for a real school. Code quality, corr
 
 ## Current State
 
-**Phase 0 complete.** The foundation is scaffolded — no real auth pages, no real dashboards, no DB integration yet. Most UI uses mock data.
+See `README.md` for phase progress and `docs/implementation-spec.md` for the full feature plan.
 
-**Phase 1 is next:** Login page, role-based routing, user management.
-
-The existing `src/app/page.tsx` is a placeholder dashboard UI (Academy branding) used to develop the shell layout. It will be replaced by role-specific dashboards in Phase 1+.
+Most UI currently uses mock data (`USE_MOCK_DATA=true`). Real DB integration is introduced phase by phase.
 
 ---
 
@@ -49,8 +47,8 @@ src/features/<name>/
 
 ### Auth
 - Firebase Authentication for identity.
-- Session stored as cookies (`session_uid`, `session_role`) set by login Server Action.
-- `src/middleware.ts` enforces role-based routing on every request.
+- Session stored as httpOnly cookies set by login Server Action.
+- `src/proxy.ts` enforces role-based routing on every request.
 - Locally: Firebase Auth Emulator on port 9099.
 
 ### Mock Data
@@ -87,7 +85,8 @@ src/features/<name>/
 - **No speculative abstractions.** Don't build helpers or utilities until you need them in 3+ places.
 - **TypeScript strict mode is on.** No `any`, no `@ts-ignore` unless absolutely unavoidable and explained.
 - **Tailwind for all styling.** No CSS modules, no inline styles. Use `cn()` from `src/lib/utils.ts` for conditional classes.
-- **shadcn/ui for UI primitives** (buttons, inputs, dialogs, etc.). Don't reinvent these.
+- **shadcn/ui for all UI primitives** — inputs, buttons, labels, dialogs, selects, etc. Components live in `src/components/ui/`. Add missing ones with `npx shadcn@latest add <name> -y`. Never use raw HTML form elements in feature components.
+- **Zod for all form validation.** Every form uses `react-hook-form` + `zodResolver` + a Zod schema. Pass error messages as objects (`{ message: "..." }`) not bare strings.
 - **Sonner for all toasts.** Import from `sonner` — `toast.success()`, `toast.error()`.
 - **All destructive actions need a confirmation dialog** before executing.
 - **Audit-log admin mutations** (score overrides, student edits, role changes) via the `audit_log` table.
@@ -119,9 +118,11 @@ Score formula: `totalScore = (classScore / 30) * 30 + (examScore / 70) * 70` (cl
 | File | Purpose |
 |---|---|
 | `src/db/schema.ts` | Single source of truth for all DB tables |
-| `src/middleware.ts` | Role-based routing enforcement |
-| `src/lib/firebase.ts` | Firebase init + emulator detection |
-| `src/lib/mock/*.ts` | Fixture data for all modules |
+| `src/proxy.ts` | Role-based routing enforcement (Next.js 16 renamed middleware → proxy) |
+| `src/lib/firebase.ts` | Firebase client init + emulator detection |
+| `src/lib/firebase-admin.ts` | Firebase Admin SDK for server-side auth |
+| `src/lib/mock/*.ts` | Fixture data (replaced phase by phase with real DB) |
+| `src/components/ui/` | shadcn UI primitives |
 | `docs/implementation-spec.md` | Full feature spec and phase plan |
 | `scripts/seed-emulator-users.ts` | Seeds Firebase emulator with test users |
 
@@ -130,8 +131,9 @@ Score formula: `totalScore = (classScore / 30) * 30 + (examScore / 70) * 70` (cl
 ## What NOT to Do
 
 - Don't use Firestore — the database is PostgreSQL. The SRS mentioned Firestore but that decision was superseded.
-- Don't add timetable features — explicitly deferred to Phase 2.
+- Don't add timetable features — explicitly deferred to a later phase.
 - Don't add fee management, payroll, medical, or counselling features — out of MVP scope.
 - Don't create API route handlers for mutations — use Server Actions.
 - Don't add `"use client"` to layouts or pages that don't need it.
 - Don't skip `schoolId` filtering in any DB query.
+- The project uses **Tailwind v4**. Config lives in `src/app/globals.css` via `@theme inline` — there is no `tailwind.config.ts`. Add new design tokens there, not in JS.

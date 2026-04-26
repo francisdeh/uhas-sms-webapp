@@ -1,41 +1,44 @@
 /**
  * Seeds the Firebase Auth Emulator with one test user per role.
+ * Uses the Admin SDK so UIDs match the hardcoded values in src/lib/mock/users.ts.
+ *
  * Run with: npx tsx scripts/seed-emulator-users.ts
  * Requires the emulator to be running: firebase emulators:start
  */
 
-import { initializeApp } from "firebase/app";
-import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+// Must be set before firebase-admin initialises so it points at the emulator
+process.env.FIREBASE_AUTH_EMULATOR_HOST = "localhost:9099";
+
+import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { mockUsers } from "../src/lib/mock/users";
 
-const app = initializeApp({
-  apiKey: "demo-api-key",
-  authDomain: "demo-project.firebaseapp.com",
-  projectId: "demo-project",
-});
-
-const auth = getAuth(app);
-connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+const auth = getAuth(initializeApp({ projectId: "uhas-sms-dev" }));
 
 async function seed() {
-  console.log("Seeding Firebase Auth Emulator...\n");
+  console.log("Seeding Firebase Auth Emulator…\n");
 
   for (const user of mockUsers) {
     try {
-      const { user: created } = await createUserWithEmailAndPassword(auth, user.email, user.password);
-      await updateProfile(created, { displayName: user.displayName });
-      console.log(`✓ ${user.role.padEnd(12)} ${user.email}`);
+      await auth.createUser({
+        uid: user.uid,
+        email: user.email,
+        password: user.password,
+        displayName: user.displayName,
+        emailVerified: true,
+      });
+      console.log(`✓ ${user.role.padEnd(12)} ${user.email}  (uid: ${user.uid})`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("EMAIL_EXISTS") || msg.includes("email-already-in-use")) {
-        console.log(`- ${user.role.padEnd(12)} ${user.email}  (already exists)`);
+      const code = (err as { code?: string }).code ?? "";
+      if (code === "auth/uid-already-exists" || code === "auth/email-already-exists") {
+        console.log(`- ${user.role.padEnd(12)} ${user.email}  (already exists — skipped)`);
       } else {
-        console.error(`✗ ${user.email}: ${msg}`);
+        console.error(`✗ ${user.email}:`, err);
       }
     }
   }
 
-  console.log("\nDone. Emulator UI: http://localhost:4000");
+  console.log("\nDone. Emulator UI → http://localhost:4000");
 }
 
 seed();

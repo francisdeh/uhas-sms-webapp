@@ -1,0 +1,22 @@
+import { cookies } from "next/headers";
+import type { SessionUser, UserRole } from "@/features/auth/types";
+
+export async function getSessionUser(): Promise<SessionUser | null> {
+  const cookieStore = await cookies();
+  const uid = cookieStore.get("session_uid")?.value;
+  const role = cookieStore.get("session_role")?.value as UserRole | undefined;
+  const displayName = cookieStore.get("session_display_name")?.value;
+  const email = cookieStore.get("session_email")?.value;
+  const linkedId = cookieStore.get("session_linked_id")?.value;
+
+  if (!uid || !role) return null;
+
+  return {
+    uid,
+    role,
+    displayName: displayName ?? "",
+    email: email ?? "",
+    linkedId: linkedId ?? "",
+    mustChangePassword: false,
+  };
+}

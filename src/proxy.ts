@@ -8,9 +8,9 @@ const ROLE_REDIRECTS: Record<string, string> = {
   Parent: "/parent",
 };
 
-const PUBLIC_PATHS = ["/login", "/api"];
+const PUBLIC_PATHS = ["/login", "/reset-password", "/change-password", "/api"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public paths through

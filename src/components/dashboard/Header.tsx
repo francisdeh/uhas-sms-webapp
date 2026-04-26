@@ -2,13 +2,30 @@
 
 import { Share2, Zap, Bell, Menu, User, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import { toast } from "sonner";
+import { auth } from "@/lib/firebase";
+import { logoutAction } from "@/features/auth/actions/logout";
+import type { SessionUser } from "@/features/auth/types";
 
 interface HeaderProps {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
+  user?: SessionUser;
 }
 
-export default function Header({ onToggleSidebar }: HeaderProps) {
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+export default function Header({ onToggleSidebar, user }: HeaderProps) {
+  const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -21,6 +38,20 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  async function handleLogout() {
+    try {
+      await signOut(auth);
+      await logoutAction();
+    } catch {
+      toast.error("Logout failed. Please try again.");
+      router.push("/login");
+    }
+  }
+
+  const displayName = user?.displayName ?? "User";
+  const userInitials = initials(displayName);
+  const roleLabel = user?.role ?? "";
 
   return (
     <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-4 flex-shrink-0">
@@ -61,7 +92,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             className="flex items-center gap-1.5 cursor-pointer rounded-lg px-1 py-1 hover:bg-gray-50 transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F97316] to-[#EF4444] flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-xs font-semibold">AD</span>
+              <span className="text-white text-xs font-semibold">{userInitials}</span>
             </div>
             <ChevronDown
               size={13}
@@ -71,25 +102,23 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
 
           {dropdownOpen && (
             <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-50">
-              {/* User info */}
               <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#F97316] to-[#EF4444] flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-xs font-semibold">AD</span>
+                  <span className="text-white text-xs font-semibold">{userInitials}</span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-800 truncate">Admin User</p>
-                  <p className="text-xs text-gray-400 truncate">admin@uhas.edu.gh</p>
+                  <p className="text-sm font-semibold text-gray-800 truncate">{displayName}</p>
+                  <p className="text-xs text-gray-400 truncate">{roleLabel}</p>
                 </div>
               </div>
 
-              {/* Menu items */}
               <div className="py-1">
-                <DropdownItem icon={User} label="Profile" />
-                <DropdownItem icon={Settings} label="Settings" />
+                <DropdownItem icon={User} label="Profile" onClick={() => setDropdownOpen(false)} />
+                <DropdownItem icon={Settings} label="Settings" onClick={() => setDropdownOpen(false)} />
               </div>
 
               <div className="border-t border-gray-100 py-1">
-                <DropdownItem icon={LogOut} label="Logout" destructive />
+                <DropdownItem icon={LogOut} label="Logout" destructive onClick={handleLogout} />
               </div>
             </div>
           )}
@@ -103,13 +132,16 @@ function DropdownItem({
   icon: Icon,
   label,
   destructive,
+  onClick,
 }: {
   icon: React.ElementType;
   label: string;
   destructive?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
+      onClick={onClick}
       className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors hover:bg-gray-50 ${
         destructive ? "text-red-500" : "text-gray-600"
       }`}

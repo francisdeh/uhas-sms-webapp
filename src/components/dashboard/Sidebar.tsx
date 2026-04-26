@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   LayoutDashboard,
   User,
@@ -51,11 +52,15 @@ export default function Sidebar({ isOpen }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-3 py-5 border-b border-gray-100 h-14">
-        <div className="w-8 h-8 rounded-lg bg-[#1E293B] flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-bold text-sm">A</span>
-        </div>
+        <Image
+          src="/logo.png"
+          alt="UHAS Basic School"
+          width={32}
+          height={32}
+          className="rounded-full flex-shrink-0"
+        />
         {isOpen && (
-          <span className="font-bold text-[#1E293B] text-lg tracking-tight truncate flex-1">Academy</span>
+          <span className="font-bold text-[#1E293B] text-sm tracking-tight truncate flex-1">UHAS Basic School</span>
         )}
       </div>
 
