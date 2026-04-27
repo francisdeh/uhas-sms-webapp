@@ -35,10 +35,10 @@ export function AcademicYearSwitcher() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-2 h-8 pl-2.5 pr-2 rounded-lg border border-border/60 bg-background text-muted-foreground text-xs hover:bg-muted/50 hover:text-foreground hover:border-border transition-all cursor-pointer min-w-[148px]">
+      <DropdownMenuTrigger className="flex items-center gap-2 h-8 pl-2.5 pr-2 rounded-lg border border-border/60 bg-background text-muted-foreground text-xs hover:bg-muted/50 hover:text-foreground hover:border-border transition-all cursor-pointer sm:min-w-[148px]">
         <CalendarDays size={13} className="shrink-0 text-accent-orange" />
-        <span className="flex-1 text-left font-medium text-foreground">{year}</span>
-        <ChevronDown size={11} className="shrink-0 opacity-50" />
+        <span className="hidden sm:block flex-1 text-left font-medium text-foreground">{year}</span>
+        <ChevronDown size={11} className="hidden sm:block shrink-0 opacity-50" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuGroup>

@@ -159,7 +159,7 @@ export function Header({ user, onMobileMenuOpen }: HeaderProps) {
 
           <button
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+            className="hidden sm:flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             title={mounted ? (resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode") : "Toggle theme"}
           >
             {mounted && (resolvedTheme === "dark" ? <Sun size={15} /> : <Moon size={15} />)}
@@ -245,6 +245,17 @@ export function Header({ user, onMobileMenuOpen }: HeaderProps) {
                 <DropdownMenuItem onClick={() => router.push("/change-password")} className="cursor-pointer">
                   <Settings size={14} className="mr-2" /> Change Password
                 </DropdownMenuItem>
+                {mounted && (
+                  <DropdownMenuItem
+                    onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                    className="cursor-pointer sm:hidden"
+                  >
+                    {resolvedTheme === "dark"
+                      ? <Sun size={14} className="mr-2" />
+                      : <Moon size={14} className="mr-2" />}
+                    {resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>

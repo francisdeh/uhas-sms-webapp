@@ -67,6 +67,7 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
             config={config}
             collapsed={false}
             onToggle={onMobileClose}
+            onNavClick={onMobileClose}
           />
         </SheetContent>
       </Sheet>
@@ -79,11 +80,13 @@ function SidebarContent({
   config,
   collapsed,
   onToggle,
+  onNavClick,
 }: {
   user: SessionUser;
   config: ShellConfig;
   collapsed: boolean;
   onToggle: () => void;
+  onNavClick?: () => void;
 }) {
   const pathname = usePathname();
 
@@ -143,6 +146,7 @@ function SidebarContent({
             collapsed={collapsed}
             pathname={pathname}
             groupIndex={gi}
+            onNavClick={onNavClick}
           />
         ))}
       </nav>
@@ -151,6 +155,7 @@ function SidebarContent({
       <div className="border-t border-border/60 p-2">
         <Link
           href={`/${user.role.toLowerCase().replace("deputyhead", "deputy-head")}/profile`}
+          onClick={onNavClick}
           className="flex items-center gap-2.5 rounded-lg p-2 hover:bg-muted/60 transition-colors group"
         >
           <Avatar className="h-8 w-8 flex-shrink-0">
@@ -184,11 +189,13 @@ function NavGroupSection({
   collapsed,
   pathname,
   groupIndex,
+  onNavClick,
 }: {
   group: NavGroup;
   collapsed: boolean;
   pathname: string;
   groupIndex: number;
+  onNavClick?: () => void;
 }) {
   return (
     <div>
@@ -228,6 +235,7 @@ function NavGroupSection({
                   <TooltipTrigger>
                     <Link
                       href={item.href}
+                      onClick={onNavClick}
                       className={cn(
                         "flex items-center justify-center h-9 w-9 mx-auto rounded-lg transition-colors",
                         isActive
@@ -243,6 +251,7 @@ function NavGroupSection({
               ) : (
                 <Link
                   href={item.href}
+                  onClick={onNavClick}
                   className={cn(
                     "relative flex items-center gap-3 h-9 px-3 rounded-lg text-sm transition-colors",
                     isActive
