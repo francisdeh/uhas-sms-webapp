@@ -9,7 +9,9 @@ export default async function TeacherAttendancePage() {
   if (!user) redirect("/login");
 
   const allClasses = await listClassesAction();
-  const myClasses = allClasses.filter((c) => c.classTeacherId === user.linkedId);
+  const myClasses = allClasses.filter((c) =>
+    c.classTeachers.some((t) => t.staffId === user.linkedId)
+  );
 
   const today = new Date().toISOString().split("T")[0];
 

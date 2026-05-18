@@ -37,12 +37,11 @@ import type { ManagedUser } from "@/features/auth/actions/manage-users";
 import type { UserRole } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
-const ROLES: UserRole[] = ["Admin", "DeputyHead", "HOD", "Teacher", "Parent"];
+const ROLES: UserRole[] = ["Admin", "DeputyHead", "Teacher", "Parent"];
 
 const ROLE_LABELS: Record<UserRole, string> = {
   Admin: "Admin",
   DeputyHead: "Deputy Head",
-  HOD: "HOD",
   Teacher: "Teacher",
   Parent: "Parent",
 };
@@ -50,7 +49,6 @@ const ROLE_LABELS: Record<UserRole, string> = {
 const ROLE_PILL: Record<UserRole, string> = {
   Admin: "bg-slate-800 text-white dark:bg-slate-600",
   DeputyHead: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  HOD: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
   Teacher: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   Parent: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
 };
@@ -58,7 +56,6 @@ const ROLE_PILL: Record<UserRole, string> = {
 const AVATAR_GRADIENT: Record<UserRole, string> = {
   Admin: "from-slate-600 to-slate-800",
   DeputyHead: "from-blue-400 to-blue-600",
-  HOD: "from-violet-400 to-violet-600",
   Teacher: "from-emerald-400 to-emerald-600",
   Parent: "from-amber-400 to-amber-600",
 };
@@ -282,7 +279,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">User Accounts</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Manage system accounts and access roles.</p>

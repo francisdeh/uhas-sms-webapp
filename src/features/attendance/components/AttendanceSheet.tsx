@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { saveSessionAction } from "@/features/attendance/actions";
 import type { AttendanceStatus, SessionWithRecords } from "@/features/attendance/types";
 import type { Student } from "@/features/students/types";
+import { CheckCheck } from "lucide-react";
 
 interface AttendanceSheetProps {
   classId: string;
@@ -27,7 +28,12 @@ interface AttendanceSheetProps {
   submittedById: string;
 }
 
-type RowState = { status: AttendanceStatus; note: string; expanded: boolean };
+type RowState = {
+  status: AttendanceStatus;
+  lateReason: string;
+  note: string;
+  expanded: boolean;
+};
 
 function buildInitialRows(
   students: Student[],
@@ -38,6 +44,7 @@ function buildInitialRows(
     const record = existingSession?.records.find((r) => r.studentId === student.id);
     rows[student.id] = {
       status: record?.status ?? "present",
+      lateReason: record?.lateReason ?? "",
       note: record?.note ?? "",
       expanded: false,
     };
@@ -47,7 +54,8 @@ function buildInitialRows(
 
 function avatarClasses(division: Student["division"]): string {
   if (division === "KG") return "bg-purple-100 text-purple-700";
-  if (division === "Primary") return "bg-blue-100 text-blue-700";
+  if (division === "Lower Primary") return "bg-sky-100 text-sky-700";
+  if (division === "Upper Primary") return "bg-blue-100 text-blue-700";
   return "bg-orange-100 text-orange-700";
 }
 
@@ -78,7 +86,21 @@ export function AttendanceSheet({
   function setStatus(studentId: string, status: AttendanceStatus) {
     setRows((prev) => ({
       ...prev,
-      [studentId]: { ...prev[studentId], status },
+      [studentId]: {
+        ...prev[studentId],
+        status,
+        // auto-open the reason input when marking late
+        expanded: status === "late" ? true : prev[studentId].expanded,
+        // clear lateReason if no longer late
+        lateReason: status === "late" ? prev[studentId].lateReason : "",
+      },
+    }));
+  }
+
+  function updateLateReason(studentId: string, lateReason: string) {
+    setRows((prev) => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], lateReason },
     }));
   }
 
@@ -96,11 +118,30 @@ export function AttendanceSheet({
     }));
   }
 
+  function markAllPresent() {
+    setRows((prev) => {
+      const next: Record<string, RowState> = {};
+      for (const id of Object.keys(prev)) {
+        next[id] = { ...prev[id], status: "present", lateReason: "" };
+      }
+      return next;
+    });
+  }
+
   function handleSave() {
+    const missingReasons = students.filter(
+      (s) => rows[s.id].status === "late" && !rows[s.id].lateReason.trim()
+    );
+    if (missingReasons.length > 0) {
+      toast.error(`Add a reason for ${missingReasons.length} late student${missingReasons.length === 1 ? "" : "s"}.`);
+      return;
+    }
+
     startTransition(async () => {
       const records = students.map((s) => ({
         studentId: s.id,
         status: rows[s.id].status,
+        lateReason: rows[s.id].status === "late" ? rows[s.id].lateReason : undefined,
         note: rows[s.id].note || undefined,
       }));
 
@@ -149,6 +190,20 @@ export function AttendanceSheet({
               This session is read-only. Only today&apos;s session can be edited.
             </AlertDescription>
           </Alert>
+        )}
+
+        {editable && students.length > 0 && (
+          <div className="mb-3 flex items-center justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={markAllPresent}
+              className="text-xs"
+            >
+              <CheckCheck size={13} className="mr-1.5" /> Mark all present
+            </Button>
+          </div>
         )}
 
         <div>
@@ -212,7 +267,20 @@ export function AttendanceSheet({
                 </div>
 
                 {row.expanded && editable && (
-                  <div className="pb-3 pl-12">
+                  <div className="pb-3 pl-12 space-y-2">
+                    {row.status === "late" && (
+                      <div>
+                        <Input
+                          placeholder="Reason for lateness (required)"
+                          value={row.lateReason}
+                          onChange={(e) => updateLateReason(student.id, e.target.value)}
+                          className={cn(
+                            "h-8 text-sm",
+                            !row.lateReason.trim() && "border-amber-300 focus-visible:ring-amber-300"
+                          )}
+                        />
+                      </div>
+                    )}
                     <Input
                       placeholder="Add a note (optional)"
                       value={row.note}

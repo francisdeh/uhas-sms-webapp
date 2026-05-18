@@ -65,6 +65,7 @@ export default function ResetPasswordForm() {
             type="email"
             autoComplete="email"
             placeholder="you@uhas.edu.gh"
+            suppressHydrationWarning
             {...register("email")}
           />
           <FieldError errors={[errors.email]} />

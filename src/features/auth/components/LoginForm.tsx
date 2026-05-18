@@ -113,6 +113,7 @@ export default function LoginForm() {
                 type="email"
                 autoComplete="email"
                 placeholder="you@uhas.edu.gh"
+                suppressHydrationWarning
                 {...register("email")}
               />
               <FieldError errors={[errors.email]} />
@@ -127,6 +128,7 @@ export default function LoginForm() {
                   autoComplete="current-password"
                   placeholder="••••••••"
                   className="pr-10"
+                  suppressHydrationWarning
                   {...register("password")}
                 />
                 <Button

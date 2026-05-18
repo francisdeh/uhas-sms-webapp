@@ -1,13 +1,16 @@
+import type { Division } from "@/features/auth/types";
+
 export type Student = {
   id: string;
   schoolId: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
   dob: string;
   gender: "Male" | "Female";
   classId: string;
   className: string;
-  division: "KG" | "Primary" | "JHS";
+  division: Division;
   phone?: string;
   address?: string;
   nationality?: string;
@@ -19,6 +22,7 @@ export type Student = {
 
 export type CreateStudentInput = {
   firstName: string;
+  middleName?: string;
   lastName: string;
   dob: string;
   gender: "Male" | "Female";
@@ -31,6 +35,7 @@ export type CreateStudentInput = {
 
 export type UpdateStudentInput = {
   firstName?: string;
+  middleName?: string;
   lastName?: string;
   dob?: string;
   gender?: "Male" | "Female";
@@ -38,6 +43,7 @@ export type UpdateStudentInput = {
   address?: string;
   nationality?: string;
   religion?: string;
+  photoUrl?: string;
 };
 
 export type TransferStudentInput = {
@@ -47,7 +53,7 @@ export type TransferStudentInput = {
 export type ClassRecord = {
   id: string;
   name: string;
-  division: "KG" | "Primary" | "JHS";
+  division: Division;
 };
 
 export type GuardianProfile = {

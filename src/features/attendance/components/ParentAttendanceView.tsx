@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -152,17 +153,15 @@ export default function ParentAttendanceView({
       </div>
 
       {records.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              No attendance records yet for this child.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={ClipboardCheck}
+          title="No attendance records yet"
+          description="Daily attendance for this child will appear here as the class teacher marks each session."
+        />
       ) : (
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <button
                 onClick={goToPrevMonth}
                 className="p-1 rounded hover:bg-accent transition-colors"

@@ -32,13 +32,14 @@ import { cn } from "@/lib/utils";
 
 const DIVISION_PILL: Record<Division, string> = {
   KG: "bg-purple-100 text-purple-700",
-  Primary: "bg-blue-100 text-blue-700",
-  JHS: "bg-orange-100 text-[#F97316]",
+  "Lower Primary": "bg-sky-100 text-sky-700",
+  "Upper Primary": "bg-blue-100 text-blue-700",
+  JHS: "bg-orange-100 text-accent-orange",
 };
 
 const CATEGORY_PILL: Record<"Core" | "Elective", string> = {
   Core: "bg-blue-100 text-blue-700",
-  Elective: "bg-orange-100 text-[#F97316]",
+  Elective: "bg-orange-100 text-accent-orange",
 };
 
 type DivisionFilter = Division | "All" | "Cross";
@@ -170,7 +171,7 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Subjects</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -208,7 +209,7 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
       <div className="bg-card border border-border/60 rounded-xl p-4 space-y-3">
         {/* Division filter pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {(["All", "KG", "Primary", "JHS", "Cross"] as const).map((d) => (
+          {(["All", "KG", "Lower Primary", "Upper Primary", "JHS", "Cross"] as const).map((d) => (
             <button
               key={d}
               onClick={() => setDivisionFilter(d)}
@@ -269,7 +270,8 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="KG">KG</SelectItem>
-                        <SelectItem value="Primary">Primary</SelectItem>
+                        <SelectItem value="Lower Primary">Lower Primary</SelectItem>
+                        <SelectItem value="Upper Primary">Upper Primary</SelectItem>
                         <SelectItem value="JHS">JHS</SelectItem>
                         <SelectItem value="all">All divisions</SelectItem>
                       </SelectContent>

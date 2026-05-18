@@ -19,6 +19,8 @@ import type { SchoolClass } from "@/features/classes/types";
 
 interface Props {
   displayName: string;
+  currentYear: string;
+  currentTerm: number;
   stats: { students: number; classes: number };
   myClasses: SchoolClass[];
   studentCountByClass: Record<string, number>;
@@ -37,6 +39,8 @@ const DIVISION_COLORS: Record<string, string> = {
 
 export default function TeacherDashboardOverview({
   displayName,
+  currentYear,
+  currentTerm,
   stats,
   myClasses,
   studentCountByClass,
@@ -50,7 +54,7 @@ export default function TeacherDashboardOverview({
       icon: GraduationCap,
       iconClass: "bg-blue-50 text-blue-600",
       trend: "Across all classes",
-      href: "#",
+      href: "/teacher/classes",
     },
     {
       animated: true,
@@ -94,7 +98,7 @@ export default function TeacherDashboardOverview({
           <p className="text-sm text-muted-foreground mt-0.5">{displayName}</p>
         </div>
         <Badge variant="secondary" className="text-xs hidden sm:flex">
-          <TrendingUp size={11} className="mr-1" /> Term 1 &middot; 2025/2026
+          <TrendingUp size={11} className="mr-1" /> Term {currentTerm} &middot; {currentYear}
         </Badge>
       </motion.div>
 

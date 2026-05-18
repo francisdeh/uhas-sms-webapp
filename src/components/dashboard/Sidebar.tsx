@@ -115,16 +115,16 @@ function NavItem({
         "flex items-center gap-3 py-2 mx-2 rounded-lg cursor-pointer transition-colors",
         isOpen ? "px-3" : "px-0 justify-center",
         active
-          ? "bg-[#F97316]/10 text-[#F97316]"
+          ? "bg-accent-orange/10 text-accent-orange"
           : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
       )}
     >
-      <Icon size={16} className={cn("flex-shrink-0", active ? "text-[#F97316]" : "")} />
+      <Icon size={16} className={cn("flex-shrink-0", active ? "text-accent-orange" : "")} />
       {isOpen && (
         <>
           <span className="text-sm font-medium flex-1 truncate">{label}</span>
           {badge && (
-            <span className="text-[10px] font-semibold bg-[#F97316] text-white rounded-full px-1.5 py-0.5 leading-none">
+            <span className="text-[10px] font-semibold bg-accent-orange text-white rounded-full px-1.5 py-0.5 leading-none">
               {badge}
             </span>
           )}
@@ -132,7 +132,7 @@ function NavItem({
         </>
       )}
       {!isOpen && badge && (
-        <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-[#F97316] rounded-full" />
+        <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-accent-orange rounded-full" />
       )}
     </div>
   );

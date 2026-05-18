@@ -25,7 +25,7 @@ export default async function ResetPasswordPage() {
         style={{ background: "linear-gradient(160deg, #1E293B 0%, #0F1E2E 100%)" }}
       >
         <ParticlesBg />
-        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#F97316] via-[#F97316]/60 to-transparent" />
+        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-accent-orange via-accent-orange/60 to-transparent" />
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-16">
@@ -53,7 +53,7 @@ export default async function ResetPasswordPage() {
           {features.map(({ icon: Icon, label }) => (
             <div key={label} className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                <Icon size={15} className="text-[#F97316]" />
+                <Icon size={15} className="text-accent-orange" />
               </div>
               <span className="text-white/60 text-sm">{label}</span>
             </div>
@@ -66,7 +66,7 @@ export default async function ResetPasswordPage() {
       </div>
 
       {/* Right form panel */}
-      <div className="flex-1 flex items-center justify-center bg-[#F8F7F4] px-6 py-12">
+      <div className="flex-1 flex items-center justify-center bg-background px-6 py-12">
         <Card className="w-full max-w-md shadow-md border-t-2 border-t-accent-orange">
           <CardContent className="px-8 py-8">
             {/* Mobile-only logo */}

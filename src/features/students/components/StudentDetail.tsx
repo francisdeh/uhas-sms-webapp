@@ -49,13 +49,15 @@ import { cn } from "@/lib/utils";
 
 const DIVISION_BADGE: Record<Student["division"], string> = {
   KG: "bg-purple-100 text-purple-700",
-  Primary: "bg-blue-100 text-blue-700",
-  JHS: "bg-orange-100 text-[#F97316]",
+  "Lower Primary": "bg-sky-100 text-sky-700",
+  "Upper Primary": "bg-blue-100 text-blue-700",
+  JHS: "bg-orange-100 text-accent-orange",
 };
 
 const AVATAR_GRADIENT: Record<Student["division"], string> = {
   KG: "from-purple-500 to-purple-700",
-  Primary: "from-blue-500 to-blue-700",
+  "Lower Primary": "from-sky-500 to-sky-700",
+  "Upper Primary": "from-blue-500 to-blue-700",
   JHS: "from-orange-500 to-orange-700",
 };
 

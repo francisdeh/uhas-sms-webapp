@@ -18,8 +18,10 @@ import { cn } from "@/lib/utils";
 import type { Staff } from "@/features/staff/types";
 
 interface Props {
-  division: "KG" | "Primary" | "JHS";
+  division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
   displayName: string;
+  currentYear: string;
+  currentTerm: number;
   stats: { students: number; staff: number; classes: number };
   staffList: Staff[];
   staffAttendanceToday: boolean;
@@ -28,7 +30,6 @@ interface Props {
 const roleColors: Record<string, string> = {
   Admin: "bg-gray-100 text-gray-700 border-gray-200",
   DeputyHead: "bg-purple-100 text-purple-700 border-purple-200",
-  HOD: "bg-blue-100 text-blue-700 border-blue-200",
   Teacher: "bg-green-100 text-green-700 border-green-200",
 };
 
@@ -43,6 +44,8 @@ type StatCard =
 export default function DeputyHeadDashboardOverview({
   division,
   displayName,
+  currentYear,
+  currentTerm,
   stats,
   staffList,
   staffAttendanceToday,
@@ -63,7 +66,7 @@ export default function DeputyHeadDashboardOverview({
       icon: Users,
       iconClass: "bg-orange-50 text-accent-orange",
       trend: "Active members",
-      href: "#",
+      href: "/deputy-head/attendance",
       animated: true,
     },
     {
@@ -72,7 +75,7 @@ export default function DeputyHeadDashboardOverview({
       icon: School,
       iconClass: "bg-green-50 text-green-600",
       trend: `${division} division`,
-      href: "#",
+      href: "/deputy-head/classes",
       animated: true,
     },
     {
@@ -101,7 +104,7 @@ export default function DeputyHeadDashboardOverview({
           </p>
         </div>
         <Badge variant="secondary" className="text-xs hidden sm:flex">
-          <TrendingUp size={11} className="mr-1" /> Term 1 &middot; 2025/2026
+          <TrendingUp size={11} className="mr-1" /> Term {currentTerm} &middot; {currentYear}
         </Badge>
       </motion.div>
 

@@ -37,22 +37,19 @@ import { cn } from "@/lib/utils";
 const ROLE_PILL: Record<Staff["systemRole"], string> = {
   Admin: "bg-purple-100 text-purple-700",
   DeputyHead: "bg-blue-100 text-blue-700",
-  HOD: "bg-teal-100 text-teal-700",
-  Teacher: "bg-orange-100 text-[#F97316]",
+  Teacher: "bg-orange-100 text-accent-orange",
 };
 
 const ROLE_LABEL: Record<Staff["systemRole"], string> = {
   Admin: "Admin",
   DeputyHead: "Deputy Head",
-  HOD: "HOD",
   Teacher: "Teacher",
 };
 
 const ROLE_AVATAR: Record<Staff["systemRole"], string> = {
   Admin: "from-purple-400 to-purple-600",
   DeputyHead: "from-blue-400 to-blue-600",
-  HOD: "from-teal-400 to-teal-600",
-  Teacher: "from-orange-400 to-[#F97316]",
+  Teacher: "from-orange-400 to-accent-orange",
 };
 
 type RoleFilter = Staff["systemRole"] | "All";
@@ -77,8 +74,8 @@ export default function StaffTable({ initialStaff, classes, listHref }: StaffTab
   const classTeacherMap = useMemo(() => {
     const map: Record<string, string[]> = {};
     for (const c of classes ?? []) {
-      if (c.classTeacherId) {
-        (map[c.classTeacherId] ??= []).push(c.name);
+      for (const t of c.classTeachers) {
+        (map[t.staffId] ??= []).push(c.name);
       }
     }
     return map;
@@ -273,7 +270,7 @@ export default function StaffTable({ initialStaff, classes, listHref }: StaffTab
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Staff</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -321,7 +318,7 @@ export default function StaffTable({ initialStaff, classes, listHref }: StaffTab
         {/* Filter pills */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {(["All", "Admin", "DeputyHead", "HOD", "Teacher"] as const).map((r) => (
+            {(["All", "Admin", "DeputyHead", "Teacher"] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => setRoleFilter(r)}

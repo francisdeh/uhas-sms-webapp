@@ -1,5 +1,6 @@
 "use client";
 
+import { CalendarOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -40,9 +41,15 @@ export function MyLeaveRequests({ requests }: MyLeaveRequestsProps) {
       </CardHeader>
       <CardContent>
         {requests.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No leave requests submitted yet.
-          </p>
+          <div className="py-6 text-center">
+            <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-muted flex items-center justify-center">
+              <CalendarOff size={16} className="text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium">No leave requests yet</p>
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-sm mx-auto leading-relaxed">
+              Submit a sick, maternity, or personal leave request from the form above. Your Deputy Head will approve or decline.
+            </p>
+          </div>
         ) : (
           <div className="space-y-0">
             {requests.map((r) => (

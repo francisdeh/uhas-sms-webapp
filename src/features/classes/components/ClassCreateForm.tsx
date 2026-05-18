@@ -28,12 +28,12 @@ import type { Division, SchoolClass } from "@/features/classes/types";
 const CLASS_NAMES = [
   { name: "KG 1", division: "KG" as Division },
   { name: "KG 2", division: "KG" as Division },
-  { name: "Primary 1", division: "Primary" as Division },
-  { name: "Primary 2", division: "Primary" as Division },
-  { name: "Primary 3", division: "Primary" as Division },
-  { name: "Primary 4", division: "Primary" as Division },
-  { name: "Primary 5", division: "Primary" as Division },
-  { name: "Primary 6", division: "Primary" as Division },
+  { name: "Primary 1", division: "Lower Primary" as Division },
+  { name: "Primary 2", division: "Lower Primary" as Division },
+  { name: "Primary 3", division: "Lower Primary" as Division },
+  { name: "Primary 4", division: "Upper Primary" as Division },
+  { name: "Primary 5", division: "Upper Primary" as Division },
+  { name: "Primary 6", division: "Upper Primary" as Division },
   { name: "JHS 1A", division: "JHS" as Division },
   { name: "JHS 2A", division: "JHS" as Division },
   { name: "JHS 3A", division: "JHS" as Division },
@@ -51,11 +51,13 @@ type FormValues = z.infer<typeof schema>;
 interface ClassCreateFormProps {
   existingClasses: SchoolClass[];
   listHref: string;
+  currentYear: string;
 }
 
 export default function ClassCreateForm({
   existingClasses,
   listHref,
+  currentYear,
 }: ClassCreateFormProps) {
   const router = useRouter();
 
@@ -66,7 +68,7 @@ export default function ClassCreateForm({
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", academicYear: "2025/2026" },
+    defaultValues: { name: "", academicYear: currentYear },
   });
 
   const selectedName = useWatch({ control, name: "name" });

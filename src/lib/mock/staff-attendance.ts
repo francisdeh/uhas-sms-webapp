@@ -23,13 +23,22 @@ export const mockStaffSessions: StaffAttendanceSession[] = [
     submittedAt: "2026-04-25T09:00:00Z",
   },
   {
-    id: "staff-session-Primary-2026-04-25",
+    id: "staff-session-LowerPrimary-2026-04-25",
     schoolId: "school-uhas-001",
-    division: "Primary",
+    division: "Lower Primary",
     date: "2026-04-25",
     term: 1,
     submittedById: "STAFF-003",
     submittedAt: "2026-04-25T09:05:00Z",
+  },
+  {
+    id: "staff-session-UpperPrimary-2026-04-25",
+    schoolId: "school-uhas-001",
+    division: "Upper Primary",
+    date: "2026-04-25",
+    term: 1,
+    submittedById: "STAFF-016",
+    submittedAt: "2026-04-25T09:10:00Z",
   },
 ];
 
@@ -96,20 +105,26 @@ export const mockStaffAttendanceRecords: StaffAttendanceRecord[] = [
     staffId: "STAFF-011",
     status: "present",
   },
-  // staff-session-Primary-2026-04-25
+  // staff-session-LowerPrimary-2026-04-25
   {
-    sessionId: "staff-session-Primary-2026-04-25",
+    sessionId: "staff-session-LowerPrimary-2026-04-25",
     staffId: "STAFF-003",
     status: "present",
   },
   {
-    sessionId: "staff-session-Primary-2026-04-25",
-    staffId: "STAFF-006",
+    sessionId: "staff-session-LowerPrimary-2026-04-25",
+    staffId: "STAFF-010",
+    status: "absent",
+  },
+  // staff-session-UpperPrimary-2026-04-25
+  {
+    sessionId: "staff-session-UpperPrimary-2026-04-25",
+    staffId: "STAFF-016",
     status: "present",
   },
   {
-    sessionId: "staff-session-Primary-2026-04-25",
-    staffId: "STAFF-010",
-    status: "absent",
+    sessionId: "staff-session-UpperPrimary-2026-04-25",
+    staffId: "STAFF-006",
+    status: "present",
   },
 ];

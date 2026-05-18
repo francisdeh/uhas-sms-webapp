@@ -18,7 +18,7 @@ import type { Staff } from "@/features/staff/types";
 
 interface StaffAttendanceSheetProps {
   session: StaffSessionWithRecords | null;
-  division: "KG" | "Primary" | "JHS";
+  division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
   date: string;
   term: number;
   staff: Staff[];
@@ -57,7 +57,6 @@ function buildInitialRows(
 function avatarClasses(role: Staff["systemRole"]): string {
   if (role === "Admin") return "bg-gray-100 text-gray-700";
   if (role === "DeputyHead") return "bg-purple-100 text-purple-700";
-  if (role === "HOD") return "bg-blue-100 text-blue-700";
   return "bg-green-100 text-green-700";
 }
 

@@ -20,7 +20,9 @@ export default async function TeacherClassesPage() {
   ]);
 
   const classTeacherClassIds = new Set(
-    allClasses.filter((c) => c.classTeacherId === teacherId).map((c) => c.id)
+    allClasses
+      .filter((c) => c.classTeachers.some((t) => t.staffId === teacherId))
+      .map((c) => c.id)
   );
 
   const subjectClassIds = new Set(subjectAssignments.map((cs) => cs.classId));

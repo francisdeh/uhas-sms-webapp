@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { mockStaff } from "@/lib/mock/staff";
 import type { SessionUser, UserRole } from "@/features/auth/types";
 
 export async function getSessionUser(): Promise<SessionUser | null> {
@@ -11,6 +12,17 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   if (!uid || !role) return null;
 
+  let isUnitHead = false;
+  let unitHeadOf: SessionUser["unitHeadOf"] = null;
+
+  if (role === "Teacher" && linkedId && process.env.USE_MOCK_DATA === "true") {
+    const staff = mockStaff.find((s) => s.id === linkedId);
+    if (staff?.isUnitHead) {
+      isUnitHead = true;
+      unitHeadOf = staff.unitHeadOf;
+    }
+  }
+
   return {
     uid,
     role,
@@ -18,5 +30,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     email: email ?? "",
     linkedId: linkedId ?? "",
     mustChangePassword: false,
+    isUnitHead,
+    unitHeadOf,
   };
 }

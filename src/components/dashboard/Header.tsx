@@ -82,7 +82,7 @@ export default function Header({ onToggleSidebar, user }: HeaderProps) {
         </button>
         <button className="relative w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition-colors">
           <Bell size={15} className="text-gray-500" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#F97316] rounded-full" />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent-orange rounded-full" />
         </button>
 
         {/* Profile dropdown */}
@@ -91,7 +91,7 @@ export default function Header({ onToggleSidebar, user }: HeaderProps) {
             onClick={() => setDropdownOpen((v) => !v)}
             className="flex items-center gap-1.5 cursor-pointer rounded-lg px-1 py-1 hover:bg-gray-50 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F97316] to-[#EF4444] flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-orange to-[#EF4444] flex items-center justify-center flex-shrink-0">
               <span className="text-white text-xs font-semibold">{userInitials}</span>
             </div>
             <ChevronDown
@@ -103,7 +103,7 @@ export default function Header({ onToggleSidebar, user }: HeaderProps) {
           {dropdownOpen && (
             <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-50">
               <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#F97316] to-[#EF4444] flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent-orange to-[#EF4444] flex items-center justify-center flex-shrink-0">
                   <span className="text-white text-xs font-semibold">{userInitials}</span>
                 </div>
                 <div className="min-w-0">

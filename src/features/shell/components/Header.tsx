@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, Bell, Search, User, Settings, LogOut, CheckCheck, Sun, Moon } from "lucide-react";
+import { Menu, Bell, Search, User, Settings, LogOut, CheckCheck, Sun, Moon, Palette, Monitor, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -72,10 +72,11 @@ const MOCK_NOTIFICATIONS = [
 
 interface HeaderProps {
   user: SessionUser;
+  currentYear: string;
   onMobileMenuOpen: () => void;
 }
 
-export function Header({ user, onMobileMenuOpen }: HeaderProps) {
+export function Header({ user, currentYear, onMobileMenuOpen }: HeaderProps) {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -101,10 +102,22 @@ export function Header({ user, onMobileMenuOpen }: HeaderProps) {
     await logoutAction();
   }
 
-  const { resolvedTheme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme, colorScheme, setColorScheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
+
+  const isUhasScheme = colorScheme === "uhas";
+
+  const COLOR_SCHEMES: { id: "default" | "uhas"; label: string; swatch: string }[] = [
+    { id: "default", label: "Default", swatch: "#F97316" },
+    { id: "uhas", label: "UHAS Brand", swatch: "#1B6B3E" },
+  ];
+  const THEME_OPTIONS: { id: "light" | "dark" | "system"; label: string; icon: typeof Sun }[] = [
+    { id: "light", label: "Light", icon: Sun },
+    { id: "dark", label: "Dark", icon: Moon },
+    { id: "system", label: "System", icon: Monitor },
+  ];
 
   const profileHref = `${ROLE_DASHBOARD[user.role]}/profile`;
   const unreadCount = MOCK_NOTIFICATIONS.filter((n) => n.unread).length;
@@ -155,15 +168,74 @@ export function Header({ user, onMobileMenuOpen }: HeaderProps) {
         </button>
 
         <div className="flex items-center gap-1.5 ml-auto">
-          <AcademicYearSwitcher />
+          <AcademicYearSwitcher currentYear={currentYear} />
 
-          <button
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            className="hidden sm:flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-            title={mounted ? (resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode") : "Toggle theme"}
-          >
-            {mounted && (resolvedTheme === "dark" ? <Sun size={15} /> : <Moon size={15} />)}
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="hidden sm:flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer relative"
+              title="Colour scheme"
+            >
+              <Palette size={15} />
+              {mounted && isUhasScheme && (
+                <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-brand" />
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Colour scheme
+                </DropdownMenuLabel>
+                {COLOR_SCHEMES.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.id}
+                    onClick={() => setColorScheme(opt.id)}
+                    className="cursor-pointer flex items-center gap-2"
+                  >
+                    <span
+                      className="h-3.5 w-3.5 rounded-full border border-border/60 flex-shrink-0"
+                      style={{ backgroundColor: opt.swatch }}
+                    />
+                    <span className="flex-1 text-sm">{opt.label}</span>
+                    {mounted && colorScheme === opt.id && (
+                      <Check size={13} className="text-muted-foreground" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="hidden sm:flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer relative"
+              title="Appearance"
+            >
+              {mounted ? (resolvedTheme === "dark" ? <Sun size={15} /> : <Moon size={15} />) : <Moon size={15} />}
+              {mounted && theme === "system" && (
+                <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Appearance
+                </DropdownMenuLabel>
+                {THEME_OPTIONS.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.id}
+                    onClick={() => setTheme(opt.id)}
+                    className="cursor-pointer flex items-center gap-2"
+                  >
+                    <opt.icon size={14} className="text-muted-foreground" />
+                    <span className="flex-1 text-sm">{opt.label}</span>
+                    {mounted && theme === opt.id && (
+                      <Check size={13} className="text-muted-foreground" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Notifications */}
           <DropdownMenu>
@@ -246,15 +318,24 @@ export function Header({ user, onMobileMenuOpen }: HeaderProps) {
                   <Settings size={14} className="mr-2" /> Change Password
                 </DropdownMenuItem>
                 {mounted && (
-                  <DropdownMenuItem
-                    onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-                    className="cursor-pointer sm:hidden"
-                  >
-                    {resolvedTheme === "dark"
-                      ? <Sun size={14} className="mr-2" />
-                      : <Moon size={14} className="mr-2" />}
-                    {resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                      className="cursor-pointer sm:hidden"
+                    >
+                      {resolvedTheme === "dark"
+                        ? <Sun size={14} className="mr-2" />
+                        : <Moon size={14} className="mr-2" />}
+                      {resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setColorScheme(isUhasScheme ? "default" : "uhas")}
+                      className="cursor-pointer sm:hidden"
+                    >
+                      <Palette size={14} className="mr-2" />
+                      {isUhasScheme ? "Default colours" : "UHAS brand colours"}
+                    </DropdownMenuItem>
+                  </>
                 )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />

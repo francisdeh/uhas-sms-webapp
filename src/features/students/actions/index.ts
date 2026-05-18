@@ -15,14 +15,15 @@ import type {
 
 type ActionResult = { success: true } | { success: false; error: string };
 
-const DIVISION_WEIGHT: Record<"KG" | "Primary" | "JHS", number> = {
+const DIVISION_WEIGHT: Record<"KG" | "Lower Primary" | "Upper Primary" | "JHS", number> = {
   KG: 0,
-  Primary: 1,
-  JHS: 2,
+  "Lower Primary": 1,
+  "Upper Primary": 2,
+  JHS: 3,
 };
 
 export async function listClassesAction(
-  division?: "KG" | "Primary" | "JHS"
+  division?: "KG" | "Lower Primary" | "Upper Primary" | "JHS"
 ): Promise<ClassRecord[]> {
   if (process.env.USE_MOCK_DATA === "true") {
     const filtered = division
@@ -34,7 +35,7 @@ export async function listClassesAction(
 }
 
 export async function listStudentsAction(
-  division?: "KG" | "Primary" | "JHS"
+  division?: "KG" | "Lower Primary" | "Upper Primary" | "JHS"
 ): Promise<Student[]> {
   if (process.env.USE_MOCK_DATA === "true") {
     const filtered = division

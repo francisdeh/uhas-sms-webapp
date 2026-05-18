@@ -6,6 +6,7 @@ import type {
   CreateStaffInput,
   UpdateStaffInput,
   ChangeRoleInput,
+  ToggleUnitHeadInput,
 } from "@/features/staff/types";
 
 type ActionResult = { success: true } | { success: false; error: string };
@@ -13,8 +14,7 @@ type ActionResult = { success: true } | { success: false; error: string };
 const ROLE_WEIGHT: Record<Staff["systemRole"], number> = {
   Admin: 0,
   DeputyHead: 1,
-  HOD: 2,
-  Teacher: 3,
+  Teacher: 2,
 };
 
 export async function listStaffAction(): Promise<Staff[]> {
@@ -49,11 +49,15 @@ export async function createStaffAction(
     const newStaff: Staff = {
       id,
       schoolId: "school-uhas-001",
+      uhasId: data.uhasId ?? null,
       firstName: data.firstName,
       lastName: data.lastName,
       rank: data.rank,
       systemRole: data.systemRole,
       division: data.division ?? null,
+      isUnitHead: data.isUnitHead ?? false,
+      unitHeadOf: data.unitHeadOf ?? null,
+      photoUrl: null,
       phone: data.phone,
       email: data.email,
       isActive: true,
@@ -82,11 +86,40 @@ export async function updateStaffAction(
       return { success: false, error: "Staff not found." };
     }
 
+    if (data.uhasId !== undefined) staff.uhasId = data.uhasId || null;
     if (data.firstName !== undefined) staff.firstName = data.firstName;
     if (data.lastName !== undefined) staff.lastName = data.lastName;
     if (data.rank !== undefined) staff.rank = data.rank;
     if (data.phone !== undefined) staff.phone = data.phone;
     if (data.email !== undefined) staff.email = data.email;
+    if (data.photoUrl !== undefined) staff.photoUrl = data.photoUrl;
+
+    return { success: true };
+  }
+
+  return { success: false, error: "DB not connected" };
+}
+
+export async function toggleUnitHeadAction(
+  id: string,
+  data: ToggleUnitHeadInput
+): Promise<ActionResult> {
+  if (process.env.USE_MOCK_DATA === "true") {
+    const staff = mockStaff.find((s) => s.id === id);
+    if (!staff) {
+      return { success: false, error: "Staff not found." };
+    }
+
+    if (data.isUnitHead && !data.unitHeadOf) {
+      return { success: false, error: "Pick which unit this staff heads." };
+    }
+
+    if (data.isUnitHead && staff.systemRole !== "Teacher") {
+      return { success: false, error: "Only teachers can be Unit Heads." };
+    }
+
+    staff.isUnitHead = data.isUnitHead;
+    staff.unitHeadOf = data.isUnitHead ? data.unitHeadOf ?? null : null;
 
     return { success: true };
   }
@@ -114,6 +147,11 @@ export async function changeRoleAction(
       staff.division = null;
     } else {
       staff.division = data.division ?? null;
+    }
+
+    if (data.systemRole !== "Teacher") {
+      staff.isUnitHead = false;
+      staff.unitHeadOf = null;
     }
 
     return { success: true };

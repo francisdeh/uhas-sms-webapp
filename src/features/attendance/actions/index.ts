@@ -44,8 +44,13 @@ export async function saveSessionAction(input: {
   date: string;
   term: number;
   submittedById: string;
-  records: { studentId: string; status: AttendanceStatus; note?: string }[];
+  records: { studentId: string; status: AttendanceStatus; lateReason?: string; note?: string }[];
 }): Promise<{ success: true; sessionId: string } | { success: false; error: string }> {
+
+  const missingLateReason = input.records.find((r) => r.status === "late" && !r.lateReason?.trim());
+  if (missingLateReason) {
+    return { success: false, error: "Late students must have a reason." };
+  }
   if (process.env.USE_MOCK_DATA !== "true") {
     return { success: false, error: "Mock data is not enabled" };
   }
@@ -78,6 +83,7 @@ export async function saveSessionAction(input: {
     sessionId,
     studentId: r.studentId,
     status: r.status,
+    lateReason: r.status === "late" ? r.lateReason : undefined,
     note: r.note,
   }));
   records.push(...newRecords);
@@ -136,7 +142,7 @@ export async function listAllSessionsAction(filter?: {
 }
 
 export async function getStaffSessionForDivisionDateAction(
-  division: "KG" | "Primary" | "JHS",
+  division: "KG" | "Lower Primary" | "Upper Primary" | "JHS",
   date: string
 ): Promise<StaffSessionWithRecords | null> {
   if (process.env.USE_MOCK_DATA !== "true") return null;
@@ -151,7 +157,7 @@ export async function getStaffSessionForDivisionDateAction(
 }
 
 export async function saveStaffSessionAction(input: {
-  division: "KG" | "Primary" | "JHS";
+  division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
   date: string;
   term: number;
   submittedById: string;
@@ -189,7 +195,7 @@ export async function saveStaffSessionAction(input: {
 
 export async function listLeaveRequestsAction(filter?: {
   staffId?: string;
-  division?: "KG" | "Primary" | "JHS";
+  division?: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
   status?: "pending" | "approved" | "rejected";
 }): Promise<LeaveRequest[]> {
   if (process.env.USE_MOCK_DATA !== "true") return [];

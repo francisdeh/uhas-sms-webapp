@@ -1,35 +1,145 @@
-export type MockScore = {
-  id: string;
-  examId: string;
-  studentId: string;
-  subjectId: string;
-  classScore: number | null;
-  examScore: number;
-  totalScore: number;
-  grade: string;
-  interpretation: string;
-  subjectPosition: number;
-};
+import type { Score } from "@/features/exams/types";
 
-export const GES_GRADES: { min: number; max: number; grade: string; interpretation: string }[] = [
-  { min: 80, max: 100, grade: "1", interpretation: "Excellent" },
-  { min: 70, max: 79,  grade: "2", interpretation: "Very Good" },
-  { min: 60, max: 69,  grade: "3", interpretation: "Good" },
-  { min: 55, max: 59,  grade: "4", interpretation: "Credit" },
-  { min: 50, max: 54,  grade: "5", interpretation: "Credit" },
-  { min: 45, max: 49,  grade: "6", interpretation: "Pass" },
-  { min: 40, max: 44,  grade: "7", interpretation: "Pass" },
-  { min: 35, max: 39,  grade: "8", interpretation: "Fail" },
-  { min: 0,  max: 34,  grade: "9", interpretation: "Fail" },
-];
+// Sample scores for the published Mid-Term 1 in JHS 1A (math + english).
+// Mid-term scoring uses raw examScore as totalScore (no CAT components).
+export const mockScores: Score[] = [
+  {
+    id: "score-001",
+    examId: "exam-midterm-t1-2026",
+    studentId: "UHAS-2026-0001",
+    subjectId: "sub-jhs-002",
+    cat1: null,
+    cat2: null,
+    projectWork: null,
+    groupWork: null,
+    examScore: 83,
+    totalScore: 83,
+    grade: "2",
+    interpretation: "Higher",
+    subjectPosition: 1,
+    createdAt: "2026-03-08T10:00:00Z",
+    updatedAt: "2026-03-08T10:00:00Z",
+  },
+  {
+    id: "score-002",
+    examId: "exam-midterm-t1-2026",
+    studentId: "UHAS-2026-0002",
+    subjectId: "sub-jhs-002",
+    cat1: null,
+    cat2: null,
+    projectWork: null,
+    groupWork: null,
+    examScore: 67,
+    totalScore: 67,
+    grade: "4",
+    interpretation: "High Average",
+    subjectPosition: 2,
+    createdAt: "2026-03-08T10:00:00Z",
+    updatedAt: "2026-03-08T10:00:00Z",
+  },
+  {
+    id: "score-003",
+    examId: "exam-midterm-t1-2026",
+    studentId: "UHAS-2026-0001",
+    subjectId: "sub-jhs-001",
+    cat1: null,
+    cat2: null,
+    projectWork: null,
+    groupWork: null,
+    examScore: 75,
+    totalScore: 75,
+    grade: "3",
+    interpretation: "High",
+    subjectPosition: 1,
+    createdAt: "2026-03-08T10:00:00Z",
+    updatedAt: "2026-03-08T10:00:00Z",
+  },
+  {
+    id: "score-004",
+    examId: "exam-midterm-t1-2026",
+    studentId: "UHAS-2026-0002",
+    subjectId: "sub-jhs-001",
+    cat1: null,
+    cat2: null,
+    projectWork: null,
+    groupWork: null,
+    examScore: 60,
+    totalScore: 60,
+    grade: "4",
+    interpretation: "High Average",
+    subjectPosition: 2,
+    createdAt: "2026-03-08T10:00:00Z",
+    updatedAt: "2026-03-08T10:00:00Z",
+  },
 
-export function computeGrade(total: number) {
-  return GES_GRADES.find((g) => total >= g.min && total <= g.max) ?? GES_GRADES[GES_GRADES.length - 1];
-}
-
-export const mockScores: MockScore[] = [
-  { id: "score-001", examId: "exam-midterm1", studentId: "UHAS-2026-0001", subjectId: "subj-math", classScore: 28, examScore: 55, totalScore: 83, grade: "1", interpretation: "Excellent", subjectPosition: 1 },
-  { id: "score-002", examId: "exam-midterm1", studentId: "UHAS-2026-0002", subjectId: "subj-math", classScore: 22, examScore: 45, totalScore: 67, grade: "3", interpretation: "Good", subjectPosition: 2 },
-  { id: "score-003", examId: "exam-midterm1", studentId: "UHAS-2026-0001", subjectId: "subj-english", classScore: 25, examScore: 50, totalScore: 75, grade: "2", interpretation: "Very Good", subjectPosition: 1 },
-  { id: "score-004", examId: "exam-midterm1", studentId: "UHAS-2026-0002", subjectId: "subj-english", classScore: 20, examScore: 40, totalScore: 60, grade: "3", interpretation: "Good", subjectPosition: 2 },
+  // ─── Archive: End of Term 3 2024/2025 (final) — JHS 1A maths + english ────
+  // Same students, last year's final scores (slightly lower to differ visibly).
+  {
+    id: "score-arc-001",
+    examId: "exam-eot-t3-2025",
+    studentId: "UHAS-2026-0001",
+    subjectId: "sub-jhs-002",
+    cat1: 22,
+    cat2: 24,
+    projectWork: 23,
+    groupWork: 25,
+    examScore: 78,
+    totalScore: 56,
+    grade: "5",
+    interpretation: "Average",
+    subjectPosition: 1,
+    createdAt: "2025-07-22T10:00:00Z",
+    updatedAt: "2025-07-22T10:00:00Z",
+  },
+  {
+    id: "score-arc-002",
+    examId: "exam-eot-t3-2025",
+    studentId: "UHAS-2026-0002",
+    subjectId: "sub-jhs-002",
+    cat1: 18,
+    cat2: 20,
+    projectWork: 19,
+    groupWork: 22,
+    examScore: 62,
+    totalScore: 45,
+    grade: "7",
+    interpretation: "Low",
+    subjectPosition: 2,
+    createdAt: "2025-07-22T10:00:00Z",
+    updatedAt: "2025-07-22T10:00:00Z",
+  },
+  {
+    id: "score-arc-003",
+    examId: "exam-eot-t3-2025",
+    studentId: "UHAS-2026-0001",
+    subjectId: "sub-jhs-001",
+    cat1: 25,
+    cat2: 27,
+    projectWork: 26,
+    groupWork: 28,
+    examScore: 70,
+    totalScore: 53,
+    grade: "6",
+    interpretation: "Lower Average",
+    subjectPosition: 1,
+    createdAt: "2025-07-22T10:00:00Z",
+    updatedAt: "2025-07-22T10:00:00Z",
+  },
+  {
+    id: "score-arc-004",
+    examId: "exam-eot-t3-2025",
+    studentId: "UHAS-2026-0002",
+    subjectId: "sub-jhs-001",
+    cat1: 20,
+    cat2: 22,
+    projectWork: 21,
+    groupWork: 24,
+    examScore: 55,
+    totalScore: 42,
+    grade: "7",
+    interpretation: "Low",
+    subjectPosition: 2,
+    createdAt: "2025-07-22T10:00:00Z",
+    updatedAt: "2025-07-22T10:00:00Z",
+  },
 ];

@@ -88,8 +88,10 @@ App runs at `http://localhost:3000`.
 |---|---|---|
 | Admin | admin@uhas.edu.gh | Admin@1234 |
 | Deputy Head (JHS) | dh.jhs@uhas.edu.gh | Deputy@1234 |
-| Deputy Head (Primary) | dh.primary@uhas.edu.gh | Deputy@1234 |
-| HOD | hod@uhas.edu.gh | HOD@12345 |
+| Deputy Head (Lower Primary) | dh.lower-primary@uhas.edu.gh | Deputy@1234 |
+| Deputy Head (Upper Primary) | dh.upper-primary@uhas.edu.gh | Deputy@1234 |
+| Deputy Head (KG) | dh.kg@uhas.edu.gh | Deputy@1234 |
+| Teacher (Unit Head — JHS) | unit-head.jhs@uhas.edu.gh | UnitHead@1234 |
 | Teacher | teacher@uhas.edu.gh | Teacher@1234 |
 | Parent | parent@uhas.edu.gh | Parent@1234 |
 
@@ -124,7 +126,6 @@ src/
 │   └── (dashboard)/            # Role-specific dashboards
 │       ├── admin/
 │       ├── deputy-head/
-│       ├── hod/
 │       ├── teacher/
 │       └── parent/
 ├── components/
@@ -193,11 +194,14 @@ This creates one Firebase Auth account per role with the correct custom claims (
 ## School Structure
 
 ```
-Head of Basic School
-├── Deputy Head — JHS       → Subject Heads → Subject Teachers
-├── Deputy Head — Primary   → Class Teachers (Primary 1–6)
-└── Deputy Head — KG        → Class Teachers (KG 1–2)
+Head of Basic School (Admin)
+├── Deputy Head — KG              → Class Teachers (KG 1–2)
+├── Deputy Head — Lower Primary   → Class Teachers (Primary 1–3)
+├── Deputy Head — Upper Primary   → Class Teachers (Primary 4–6)
+└── Deputy Head — JHS             → Subject Teachers
 ```
+
+**Unit Heads** are teachers with an extra flag (`isUnitHead`) — one per division. They keep teaching duties and get an extra sidebar section (Department, Reviews) to manage their unit. The Unit Head role is reassignable by Admin.
 
 Classes: KG 1–2 · Primary 1–6 · JHS 1–3
 
@@ -208,13 +212,22 @@ Classes: KG 1–2 · Primary 1–6 · JHS 1–3
 | Phase | Status | Deliverables |
 |---|---|---|
 | 0 — Foundation | ✅ Done | DB schema, Firebase emulator, mock fixtures, middleware, folder structure |
-| 1 — Auth & User Management | 🔧 Mostly done | Login, role routing, change-password, reset-password, admin user management UI (stats, DataTable, invite flow), dashboard shell (Sidebar, Header, profile page, academic year switcher, search, notifications, dark mode toggle). Non-admin dashboards (Deputy Head, HOD, Teacher, Parent) built with live attendance stats and role-scoped content. **Deferred:** reset-password email not yet wired to Firebase (`sendPasswordResetEmail`); session expiry warning modal (5-min before 8h expiry) not yet built. |
+| 1 — Auth & User Management | 🔧 Mostly done | Login, role routing, change-password, reset-password, admin user management UI (stats, DataTable, invite flow), dashboard shell (Sidebar, Header, profile page, academic year switcher, search, notifications, dark mode toggle). Non-admin dashboards (Deputy Head, Teacher, Parent) built with live attendance stats and role-scoped content. **Deferred:** reset-password email not yet wired to Firebase (`sendPasswordResetEmail`); session expiry warning modal (5-min before 8h expiry) not yet built. |
 | 2a — Student Records | ✅ Done | Student list (Admin + Deputy Head scoped), registration form, soft-deactivate/reactivate, division + status filter pills |
 | 2b — Student Detail & ID Card | ✅ Done | Student detail view, edit profile, class transfer (with confirmation), printable ID card (browser print + @media print CSS) |
 | 2c — Staff Management | ✅ Done | Staff list (Admin-scoped), registration form, role assignment, staff detail + edit + deactivate/reactivate. All on mock data. |
 | 2d — Classes & Subjects | ✅ Done | Class list + create (fixed names), subject list + create, class detail with subjects/teacher assignment + student roster. All on mock data. |
 | 3 — Attendance | ✅ Done | Student daily attendance (teacher + admin), staff attendance + leave requests (deputy head), parent attendance calendar view. Live attendance stats on Teacher, Deputy Head, and Parent dashboards. All on mock data. |
-| 4 — Exams & Results | ⏳ | Score entry, grading, report cards |
-| 5 — Lesson Plans | ⏳ | Plan creation, approval workflow |
-| 6 — Announcements | ⏳ | School-wide and division announcements |
-| 7 — Reports & QA | ⏳ | Analytics, exports, UAT |
+| 3.5 — Model Reconciliation | ✅ Done | Schema and mocks updated to match user feedback: division split (KG / Lower Primary / Upper Primary / JHS); HOD removed, Unit Head added as a flag on staff with conditional dashboard nav; multiple class teachers per class (junction); staff UHAS ID; student middle name; school-specific grading scale (Highest..Lowest, 1–9); attendance bulk "Mark all present" and required late-reason. |
+| 4a — Score Entry | ✅ Done | Schema: scores columns for cat1/cat2/projectWork/groupWork; helpers for total/grade/position/aggregate. Admin: examinations list with create + publish/unpublish. Teacher: examinations landing + score entry grid (Mid-Term = raw 100, End-of-Term = 60% exam + 4×10% components placeholder), auto-computed total/grade, locked when exam published. |
+| 4b — Report Card | ✅ Done | Server-rendered, browser-printable report card (`#report-card-print-area`, A4) matching the school template — logo placeholders, header, student info, Core/Elective subject tables with score/position/grade/interpretation, attendance, signatures, grading-scale legend, motto. Parent route `/parent/results/[studentId]/[examId]` (published only). Admin route `/admin/students/[id]/report-card/[examId]` (any exam, with unpublished notice). |
+| 4c — Workflow | ✅ Done | New tables `class_report_submissions` + `student_report_remarks`. Class Teacher `/teacher/class-reports`: per-(exam × class) page with one textarea per student for class-teacher remarks; Save draft + Submit to Head of School. Admin `/admin/examinations/[examId]/review`: list of classes with submission status; per-class review page shows each student's class-teacher remark + a textarea for Head of School's comment (per-student save). Report card now renders both remark + comment rows. Publishing locks all remarks/comments. |
+| 5a — Lesson Plans | ✅ Done | Teacher `/teacher/lesson-plans`: list, create, edit, delete, submit. Structured form (topic, learning objectives, teaching methods, resources, assessment plan, optional attachment URL). Approval chain: Teacher submits → Unit Head approves at `/teacher/reviews` → Deputy Head approves at `/deputy-head/lesson-plans` → status = approved. Reject with required comment at either stage; teacher edits drop back to draft. Status pill: draft / submitted / unit-head-approved / approved / rejected. |
+| 5b — Schemes of Work / Learning | ✅ Done | New `schemes` table (type: `work` \| `learning`, structured `content` and/or `fileUrl`). Teacher `/teacher/schemes`: list + create/edit form with tab toggle between "Write from system" and "Upload URL". Submit to Head of School. Admin `/admin/schemes`: queue of pending submissions, expand to preview, optional comment + Acknowledge. |
+| 5c — Assignments | ✅ Done | New `assignments` table. Teacher `/teacher/assignments`: list + create/edit + Publish/Unpublish/Delete with class/subject pickers tied to teacher's assigned subjects. Parent `/parent/assignments`: aggregates published assignments across all linked children's classes; shows due-date status (overdue / due today / upcoming), per-child attribution, attachment links. |
+| 6a — Announcements | ✅ Done | New `features/announcements`. Audience = `all` \| `division:<D>` \| `class:<classId>`. Admin (`/admin/announcements`) posts to any audience and can delete any. Deputy Head (`/deputy-head/announcements`) scoped to their division. Parent (`/parent/announcements`) sees school-wide + announcements matching any linked child's division/class. Critical-flag badge surfaces everywhere. |
+| 6b — Appointments | ✅ Done | New `appointments` table + feature. Parent `/parent/appointments`: child + teacher picker (teachers derived from child's class subject assignments and class-teacher junction), preferred date/slot, reason. Teacher `/teacher/appointments`: pending inbox with Confirm / Decline (decline requires a reason). Status: pending / confirmed / declined / cancelled; parent can cancel pending requests. |
+| 7a — Reports dashboards | ✅ Done | New `features/reports` with stat queries per scope. Admin `/admin/reports`: school totals, gender breakdown, per-division population bars, lesson-plan workflow distribution, exam status, today's attendance progress. Deputy Head `/deputy-head/reports`: division-scoped stats, 7-day attendance, lesson-plan funnel, class ranking by aggregate. Teacher `/teacher/reports`: per-class attendance + subject averages. |
+| 7b — PSC Report | ✅ Done | Admin `/admin/reports/psc` renders the printable Population & Staff Census: school totals, per-class boy/girl breakdown with division subtotals, school total, teachers grouped per division with Unit Head flag. Reuses the report-card print mode at A4. |
+| 7c — Academic Calendar | ✅ Done | New `calendar_events` table + actions. Admin `/admin/calendar` adds/deletes events (term start/end, exam, holiday, event). Deputy Head, Teacher, Parent all see a read-only `/<role>/calendar` view with Upcoming and Past sections. |
+| 8 — Testing | ⏳ | Per-feature Vitest + RTL + Playwright tests as each module switches off mock data (Phase 8 in spec) |
