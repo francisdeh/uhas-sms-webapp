@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 const ROLE_REDIRECTS: Record<string, string> = {
   Admin: "/admin",
   DeputyHead: "/deputy-head",
-  HOD: "/hod",
   Teacher: "/teacher",
   Parent: "/parent",
 };

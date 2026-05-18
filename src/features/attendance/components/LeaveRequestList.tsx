@@ -2,10 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { CalendarOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -127,9 +129,19 @@ export function LeaveRequestList({
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground mt-8 text-center">
-          No {filter === "all" ? "" : filter} leave requests.
-        </p>
+        <EmptyState
+          icon={CalendarOff}
+          title={
+            filter === "all"
+              ? "No leave requests"
+              : `No ${filter} leave requests`
+          }
+          description={
+            filter === "all"
+              ? "Staff in your division will appear here when they request leave."
+              : "Try the other filter pills above to see requests in different states."
+          }
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map((request) => (

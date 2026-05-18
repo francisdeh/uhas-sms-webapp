@@ -63,19 +63,21 @@ src/features/<name>/
 | Role | Dashboard Route | Key Scope |
 |---|---|---|
 | Admin | `/admin` | Full school access |
-| DeputyHead | `/deputy-head` | One division (JHS/Primary/KG) |
-| HOD | `/hod` | One department (JHS subject area) |
+| DeputyHead | `/deputy-head` | One division (KG / Lower Primary / Upper Primary / JHS) |
 | Teacher | `/teacher` | Own classes only |
 | Parent | `/parent` | Own child(ren) only |
+
+**Unit Head** is not a separate login role — it's a flag (`isUnitHead`) on a staff/teacher record, with `unitHeadOf` storing the division they head. Unit Heads log in as Teachers and see additional sections in their dashboard (e.g. Department view, lesson-plan reviews for their unit). Unit Heads are subject to change — Admin/Deputy can toggle the flag.
 
 ---
 
 ## School Structure
 
 - **KG:** KG 1, KG 2
-- **Primary:** Primary 1–6
-- **JHS:** JHS 1–3
-- Lesson plan approval chain: Teacher → HOD (JHS only) → Deputy Head → (Admin if escalated)
+- **Lower Primary:** Primary 1, 2, 3
+- **Upper Primary:** Primary 4, 5, 6
+- **JHS:** JHS 1, 2, 3
+- Lesson plan approval chain: Teacher → Unit Head (where one exists for the division) → Deputy Head → (Admin if escalated)
 
 ---
 
@@ -90,26 +92,32 @@ src/features/<name>/
 - **Sonner for all toasts.** Import from `sonner` — `toast.success()`, `toast.error()`.
 - **All destructive actions need a confirmation dialog** before executing.
 - **Audit-log admin mutations** (score overrides, student edits, role changes) via the `audit_log` table.
+- **Theming**: two orthogonal axes on `<html>` — `class="dark"` (light/dark via `useTheme().setTheme()`) and `data-color-scheme="uhas"` (default/UHAS brand colours via `useTheme().setColorScheme()`). Brand palette overrides live in `globals.css` under `:root[data-color-scheme="uhas"]`. Reference brand colours through Tailwind tokens (`bg-brand`, `text-accent-orange`) — never hardcode hex literals in components, or theme switching will skip them.
+- **Mobile responsive**: every page-header row that pairs a title with an action button uses `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`. Wide tables wrap in `overflow-x-auto`. Report cards / PSC report use `overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0` to allow side-scroll on phones while keeping print layout intact.
 
 ---
 
-## GES Grading Scale
+## Grading Scale (UHAS Basic School)
 
-Used for score calculation in `features/exams/`:
+Used for score calculation in `features/exams/`. Bands and interpretations come from the school's official report card template:
 
 | Score | Grade | Interpretation |
 |---|---|---|
-| 80–100 | 1 | Excellent |
-| 70–79 | 2 | Very Good |
-| 60–69 | 3 | Good |
-| 55–59 | 4 | Credit |
-| 50–54 | 5 | Credit |
-| 45–49 | 6 | Pass |
-| 40–44 | 7 | Pass |
-| 35–39 | 8 | Fail |
-| 0–34 | 9 | Fail |
+| 90–100 | 1 | Highest |
+| 80–89 | 2 | Higher |
+| 70–79 | 3 | High |
+| 60–69 | 4 | High Average |
+| 55–59 | 5 | Average |
+| 50–54 | 6 | Lower Average |
+| 40–49 | 7 | Low |
+| 35–39 | 8 | Lower |
+| 0–34 | 9 | Lowest |
 
-Score formula: `totalScore = (classScore / 30) * 30 + (examScore / 70) * 70` (class score 30%, exam score 70%).
+**Aggregate** is computed BECE-style: sum of grade numbers across reported subjects (lower = better).
+
+**Score components** (end-of-term): CAT 1, CAT 2, Group Work, Project Work, end-of-term exam. Weights live in school config (placeholder until finalised).
+
+**Mid-term ranking**: raw mid-term exam score out of 100 (100%). No CAT components included for mid-term ranking.
 
 ---
 

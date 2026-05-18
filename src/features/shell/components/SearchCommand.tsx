@@ -17,7 +17,7 @@ import { mockStudents } from "@/lib/mock/students";
 import { mockStaff } from "@/lib/mock/staff";
 import { mockClasses } from "@/lib/mock/classes";
 import { mockAnnouncements } from "@/lib/mock/announcements";
-import { ROLE_CONFIG } from "@/features/shell/role-config";
+import { getShellConfig } from "@/features/shell/role-config";
 import type { SessionUser } from "@/features/auth/types";
 
 const RECENT_KEY = "uhas_recent_searches";
@@ -44,7 +44,7 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
 
   const recent = open ? readRecent() : [];
 
-  const allPages = ROLE_CONFIG[user.role].navGroups.flatMap((g) => g.items);
+  const allPages = getShellConfig(user).navGroups.flatMap((g) => g.items);
 
   function saveRecent(term: string) {
     const updated = [term, ...recent.filter((r) => r !== term)].slice(0, MAX_RECENT);

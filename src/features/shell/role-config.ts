@@ -12,9 +12,10 @@ import {
   ClipboardList,
   Bell,
   User,
+  Calendar,
 } from "lucide-react";
-import type { UserRole } from "@/features/auth/types";
-import type { ShellConfig } from "./types";
+import type { UserRole, SessionUser } from "@/features/auth/types";
+import type { NavGroup, ShellConfig } from "./types";
 
 export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
   Admin: {
@@ -38,6 +39,14 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
           { label: "Attendance", href: "/admin/attendance", icon: ClipboardCheck },
           { label: "Examinations", href: "/admin/examinations", icon: FileText },
           { label: "Lesson Plans", href: "/admin/lesson-plans", icon: BookOpen },
+          { label: "Schemes", href: "/admin/schemes", icon: ClipboardList },
+        ],
+      },
+      {
+        groupLabel: "Communication",
+        items: [
+          { label: "Announcements", href: "/admin/announcements", icon: Bell },
+          { label: "Calendar", href: "/admin/calendar", icon: Calendar },
         ],
       },
       {
@@ -67,33 +76,19 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
         items: [
           { label: "Classes", href: "/deputy-head/classes", icon: School },
           { label: "Attendance", href: "/deputy-head/attendance", icon: ClipboardCheck },
-          { label: "Lesson Plans", href: "/deputy-head/lesson-plans", icon: BookOpen, badge: 3 },
+          { label: "Lesson Plans", href: "/deputy-head/lesson-plans", icon: BookOpen },
+        ],
+      },
+      {
+        groupLabel: "Communication",
+        items: [
+          { label: "Announcements", href: "/deputy-head/announcements", icon: Bell },
+          { label: "Calendar", href: "/deputy-head/calendar", icon: Calendar },
         ],
       },
       {
         groupLabel: "System",
         items: [{ label: "Reports", href: "/deputy-head/reports", icon: BarChart2 }],
-      },
-    ],
-  },
-
-  HOD: {
-    label: "Head of Department",
-    navGroups: [
-      {
-        items: [{ label: "Overview", href: "/hod", icon: LayoutDashboard }],
-      },
-      {
-        groupLabel: "Department",
-        items: [
-          { label: "My Department", href: "/hod/department", icon: School },
-          { label: "Lesson Plans", href: "/hod/lesson-plans", icon: BookOpen, badge: 2 },
-          { label: "Examinations", href: "/hod/examinations", icon: FileText },
-        ],
-      },
-      {
-        groupLabel: "System",
-        items: [{ label: "Reports", href: "/hod/reports", icon: BarChart2 }],
       },
     ],
   },
@@ -110,7 +105,18 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
           { label: "My Classes", href: "/teacher/classes", icon: School },
           { label: "Attendance", href: "/teacher/attendance", icon: ClipboardCheck },
           { label: "Lesson Plans", href: "/teacher/lesson-plans", icon: BookOpen },
+          { label: "Schemes", href: "/teacher/schemes", icon: ClipboardList },
+          { label: "Assignments", href: "/teacher/assignments", icon: ClipboardList },
           { label: "Examinations", href: "/teacher/examinations", icon: FileText },
+          { label: "Class Reports", href: "/teacher/class-reports", icon: ClipboardList },
+        ],
+      },
+      {
+        groupLabel: "Communication",
+        items: [
+          { label: "Announcements", href: "/teacher/announcements", icon: Bell },
+          { label: "Appointments", href: "/teacher/appointments", icon: Calendar },
+          { label: "Calendar", href: "/teacher/calendar", icon: Calendar },
         ],
       },
       {
@@ -131,10 +137,32 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
         items: [
           { label: "Children", href: "/parent/children", icon: User },
           { label: "Attendance", href: "/parent/attendance", icon: ClipboardList },
+          { label: "Assignments", href: "/parent/assignments", icon: BookOpen },
           { label: "Results", href: "/parent/results", icon: FileText },
           { label: "Announcements", href: "/parent/announcements", icon: Bell },
+          { label: "Appointments", href: "/parent/appointments", icon: Calendar },
+          { label: "Calendar", href: "/parent/calendar", icon: Calendar },
         ],
       },
     ],
   },
 };
+
+const UNIT_HEAD_NAV: NavGroup = {
+  groupLabel: "Unit Head",
+  items: [
+    { label: "Department", href: "/teacher/department", icon: School },
+    { label: "Reviews", href: "/teacher/reviews", icon: ClipboardList },
+  ],
+};
+
+export function getShellConfig(user: Pick<SessionUser, "role" | "isUnitHead">): ShellConfig {
+  const base = ROLE_CONFIG[user.role];
+  if (user.role === "Teacher" && user.isUnitHead) {
+    return {
+      ...base,
+      navGroups: [...base.navGroups.slice(0, -1), UNIT_HEAD_NAV, ...base.navGroups.slice(-1)],
+    };
+  }
+  return base;
+}

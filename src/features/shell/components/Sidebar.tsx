@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import type { NavGroup, ShellConfig } from "@/features/shell/types";
 import type { SessionUser } from "@/features/auth/types";
-import { ROLE_CONFIG } from "@/features/shell/role-config";
+import { getShellConfig } from "@/features/shell/role-config";
 
 const COLLAPSED_KEY = "uhas_sidebar_collapsed";
 
@@ -23,14 +23,21 @@ function initials(name: string) {
 
 interface SidebarProps {
   user: SessionUser;
+  navBadges?: Record<string, number>;
   mobileOpen: boolean;
   onMobileClose: () => void;
 }
 
-export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(() =>
-    typeof window !== "undefined" && localStorage.getItem(COLLAPSED_KEY) === "true"
-  );
+export function Sidebar({ user, navBadges, mobileOpen, onMobileClose }: SidebarProps) {
+  // Always render expanded on first paint so server and client agree; read the
+  // saved collapsed preference from localStorage after mount. Avoids the
+  // hydration mismatch you'd get from a `typeof window` initialiser.
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (localStorage.getItem(COLLAPSED_KEY) === "true") setCollapsed(true);
+  }, []);
 
   function toggleCollapsed() {
     const next = !collapsed;
@@ -38,7 +45,19 @@ export function Sidebar({ user, mobileOpen, onMobileClose }: SidebarProps) {
     localStorage.setItem(COLLAPSED_KEY, String(next));
   }
 
-  const config = ROLE_CONFIG[user.role];
+  // Overlay dynamic badge counts on the static nav config.
+  const baseConfig = getShellConfig(user);
+  const config: ShellConfig = navBadges
+    ? {
+        ...baseConfig,
+        navGroups: baseConfig.navGroups.map((group) => ({
+          ...group,
+          items: group.items.map((item) =>
+            navBadges[item.href] != null ? { ...item, badge: navBadges[item.href] } : item
+          ),
+        })),
+      }
+    : baseConfig;
 
   return (
     <>

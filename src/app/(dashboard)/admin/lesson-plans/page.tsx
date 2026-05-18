@@ -1,15 +1,13 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { ComingSoon } from "@/components/ui/coming-soon";
+import { listLessonPlansForReviewAction } from "@/features/lesson-plans/actions";
+import { LessonPlansOversight } from "@/features/lesson-plans/components/LessonPlansOversight";
 
 export default async function AdminLessonPlansPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  return (
-    <ComingSoon
-      title="Lesson Plans"
-      description="Review and track lesson plans submitted across all divisions. Approve, flag, or escalate plans through the school hierarchy."
-    />
-  );
+  const plans = await listLessonPlansForReviewAction({});
+
+  return <LessonPlansOversight plans={plans} />;
 }

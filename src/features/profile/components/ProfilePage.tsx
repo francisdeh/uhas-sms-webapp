@@ -268,17 +268,17 @@ function SecurityTab() {
             <FieldGroup className="gap-4 max-w-sm">
               <Field>
                 <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
-                <Input id="currentPassword" type="password" className="rounded-md" autoComplete="current-password" {...register("currentPassword")} />
+                <Input id="currentPassword" type="password" className="rounded-md" autoComplete="current-password" suppressHydrationWarning {...register("currentPassword")} />
                 <FieldError errors={[errors.currentPassword]} />
               </Field>
               <Field>
                 <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
-                <Input id="newPassword" type="password" className="rounded-md" autoComplete="new-password" {...register("newPassword")} />
+                <Input id="newPassword" type="password" className="rounded-md" autoComplete="new-password" suppressHydrationWarning {...register("newPassword")} />
                 <FieldError errors={[errors.newPassword]} />
               </Field>
               <Field>
                 <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
-                <Input id="confirmPassword" type="password" className="rounded-md" autoComplete="new-password" {...register("confirmPassword")} />
+                <Input id="confirmPassword" type="password" className="rounded-md" autoComplete="new-password" suppressHydrationWarning {...register("confirmPassword")} />
                 <FieldError errors={[errors.confirmPassword]} />
               </Field>
               <Button type="submit" variant="ink" className="px-5 py-2 h-auto text-sm" disabled={isSubmitting}>
@@ -292,7 +292,7 @@ function SecurityTab() {
 
       <Card className={mfaEnabled ? "border-green-200 bg-green-50/30" : "border-amber-200 bg-amber-50/30"}>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <CardTitle className="text-base">Two-Factor Authentication</CardTitle>
               <CardDescription>Add an extra layer of security to your account.</CardDescription>

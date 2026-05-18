@@ -1,4 +1,12 @@
-export type Division = "KG" | "Primary" | "JHS";
+import type { Division } from "@/features/auth/types";
+
+export type { Division } from "@/features/auth/types";
+
+export type ClassTeacher = {
+  staffId: string;
+  staffName: string;
+  isPrimary: boolean;
+};
 
 export type SchoolClass = {
   id: string;
@@ -6,8 +14,7 @@ export type SchoolClass = {
   name: string;
   division: Division;
   academicYear: string;
-  classTeacherId: string | null;
-  classTeacherName: string | null;
+  classTeachers: ClassTeacher[];
 };
 
 export type Subject = {
@@ -44,4 +51,9 @@ export type AssignTeacherInput = {
 
 export type AddClassSubjectInput = {
   subjectId: string;
+};
+
+export type AddClassTeacherInput = {
+  staffId: string;
+  isPrimary?: boolean;
 };

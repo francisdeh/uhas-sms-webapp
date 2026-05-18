@@ -61,13 +61,14 @@ export function DataTable<TData>({
   });
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" suppressHydrationWarning>
       {searchKey !== undefined && (
         <Input
           placeholder={searchPlaceholder}
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="h-8 w-full max-w-xs text-sm"
+          suppressHydrationWarning
         />
       )}
 

@@ -22,11 +22,13 @@ interface ChildInfo {
   name: string;
   classId: string;
   className: string;
-  division: "KG" | "Primary" | "JHS";
+  division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
 }
 
 interface Props {
   displayName: string;
+  currentYear: string;
+  currentTerm: number;
   linkedChildren: ChildInfo[];
   announcements: MockAnnouncement[];
   attendancePct: number | null;
@@ -44,6 +46,8 @@ type StatCard =
 
 export default function ParentDashboardOverview({
   displayName,
+  currentYear,
+  currentTerm,
   linkedChildren,
   announcements,
   attendancePct,
@@ -63,7 +67,7 @@ export default function ParentDashboardOverview({
       icon: User,
       iconClass: "bg-blue-50 text-blue-600",
       trend: "Enrolled this term",
-      href: "#",
+      href: "/parent/children",
     },
     {
       animated: false,
@@ -72,7 +76,7 @@ export default function ParentDashboardOverview({
       icon: FileText,
       iconClass: "bg-green-50 text-green-600",
       trend: classLabel,
-      href: "#",
+      href: "/parent/children",
     },
     {
       animated: false,
@@ -109,7 +113,7 @@ export default function ParentDashboardOverview({
           </p>
         </div>
         <Badge variant="secondary" className="text-xs hidden sm:flex">
-          <TrendingUp size={11} className="mr-1" /> Term 1 &middot; 2025/2026
+          <TrendingUp size={11} className="mr-1" /> Term {currentTerm} &middot; {currentYear}
         </Badge>
       </motion.div>
 

@@ -62,21 +62,18 @@ import { cn } from "@/lib/utils";
 const ROLE_AVATAR: Record<Staff["systemRole"], string> = {
   Admin: "from-purple-400 to-purple-600",
   DeputyHead: "from-blue-400 to-blue-600",
-  HOD: "from-teal-400 to-teal-600",
-  Teacher: "from-orange-400 to-[#F97316]",
+  Teacher: "from-orange-400 to-accent-orange",
 };
 
 const ROLE_PILL: Record<Staff["systemRole"], string> = {
   Admin: "bg-purple-100 text-purple-700",
   DeputyHead: "bg-blue-100 text-blue-700",
-  HOD: "bg-teal-100 text-teal-700",
-  Teacher: "bg-orange-100 text-[#F97316]",
+  Teacher: "bg-orange-100 text-accent-orange",
 };
 
 const ROLE_LABEL: Record<Staff["systemRole"], string> = {
   Admin: "Admin",
   DeputyHead: "Deputy Head",
-  HOD: "HOD",
   Teacher: "Teacher",
 };
 
@@ -92,18 +89,14 @@ type EditFormValues = z.infer<typeof editSchema>;
 
 const changeRoleSchema = z
   .object({
-    systemRole: z.enum(["Admin", "DeputyHead", "HOD", "Teacher"], {
+    systemRole: z.enum(["Admin", "DeputyHead", "Teacher"], {
       message: "Select a role",
     }),
-    division: z.enum(["KG", "Primary", "JHS"]).optional(),
+    division: z.enum(["KG", "Lower Primary", "Upper Primary", "JHS"]).optional(),
   })
   .refine(
     (data) => {
-      if (
-        data.systemRole === "DeputyHead" ||
-        data.systemRole === "HOD" ||
-        data.systemRole === "Teacher"
-      ) {
+      if (data.systemRole === "DeputyHead" || data.systemRole === "Teacher") {
         return !!data.division;
       }
       return true;
@@ -168,10 +161,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
   });
 
   const watchedRole = useWatch({ control: roleForm.control, name: "systemRole" });
-  const showDivision =
-    watchedRole === "DeputyHead" ||
-    watchedRole === "HOD" ||
-    watchedRole === "Teacher";
+  const showDivision = watchedRole === "DeputyHead" || watchedRole === "Teacher";
 
   function onEditSubmit(data: EditFormValues) {
     startEditTransition(async () => {
@@ -483,7 +473,6 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                       <SelectContent>
                         <SelectItem value="Admin">Admin</SelectItem>
                         <SelectItem value="DeputyHead">Deputy Head</SelectItem>
-                        <SelectItem value="HOD">HOD</SelectItem>
                         <SelectItem value="Teacher">Teacher</SelectItem>
                       </SelectContent>
                     </Select>
@@ -508,7 +497,8 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="KG">KG</SelectItem>
-                          <SelectItem value="Primary">Primary</SelectItem>
+                          <SelectItem value="Lower Primary">Lower Primary</SelectItem>
+                          <SelectItem value="Upper Primary">Upper Primary</SelectItem>
                           <SelectItem value="JHS">JHS</SelectItem>
                         </SelectContent>
                       </Select>

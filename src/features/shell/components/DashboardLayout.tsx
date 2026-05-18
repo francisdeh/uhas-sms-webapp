@@ -11,9 +11,11 @@ import type { SessionUser } from "@/features/auth/types";
 interface DashboardLayoutProps {
   children: React.ReactNode;
   user: SessionUser;
+  currentYear: string;
+  navBadges: Record<string, number>;
 }
 
-export function DashboardLayout({ children, user }: DashboardLayoutProps) {
+export function DashboardLayout({ children, user, currentYear, navBadges }: DashboardLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
@@ -21,11 +23,12 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
     <div className="flex h-screen bg-muted/30 dark:bg-background overflow-hidden">
       <Sidebar
         user={user}
+        navBadges={navBadges}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <Header user={user} onMobileMenuOpen={() => setMobileOpen(true)} />
+        <Header user={user} currentYear={currentYear} onMobileMenuOpen={() => setMobileOpen(true)} />
         <AnimatePresence mode="wait">
           <motion.main
             key={pathname}

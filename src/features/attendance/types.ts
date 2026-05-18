@@ -1,9 +1,12 @@
+import type { Division } from "@/features/auth/types";
+
 export type AttendanceStatus = "present" | "absent" | "late";
 
 export type AttendanceRecord = {
   sessionId: string;
   studentId: string;
   status: AttendanceStatus;
+  lateReason?: string;
   note?: string;
 };
 
@@ -33,7 +36,7 @@ export type StaffAttendanceRecord = {
 export type StaffAttendanceSession = {
   id: string;
   schoolId: string;
-  division: "KG" | "Primary" | "JHS";
+  division: Division;
   date: string;
   term: number;
   submittedById: string;
@@ -68,3 +71,9 @@ export type CreateLeaveRequestInput = {
   endDate: string;
   reason?: string;
 };
+
+export const LATE_THRESHOLD_HHMM = "08:00";
+
+export function isLateArrival(timeHHMM: string): boolean {
+  return timeHHMM >= LATE_THRESHOLD_HHMM;
+}

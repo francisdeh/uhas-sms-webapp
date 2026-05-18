@@ -33,45 +33,39 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* ─── Brand accent (legacy aliases, kept for backward compat) ─── */
-  --color-accent-orange: #F97316;
-  --color-accent-teal: #10B981;
-  --color-accent-navy: #1E293B;
-  --color-accent-blue: #3B82F6;
-  --color-accent-purple: #8B5CF6;
+  /* ─── Brand accent (legacy aliases) — indirected so themes can override ─── */
+  --color-accent-orange: var(--accent-orange);
+  --color-accent-teal:   var(--accent-teal);
+  --color-accent-navy:   var(--accent-navy);
+  --color-accent-blue:   var(--accent-blue);
+  --color-accent-purple: var(--accent-purple);
 
-  /* ─── Semantic intent tokens ─── */
-  /* Brand / primary action */
-  --color-brand:        #F97316;
-  --color-brand-soft:   #FFF7ED;
-  --color-brand-muted:  #FED7AA;
+  /* ─── Semantic intent tokens (indirected for runtime theming) ─── */
+  --color-brand:        var(--brand);
+  --color-brand-soft:   var(--brand-soft);
+  --color-brand-muted:  var(--brand-muted);
 
-  /* Success / positive state */
-  --color-success:      #10B981;
-  --color-success-soft: #ECFDF5;
-  --color-success-muted:#A7F3D0;
+  --color-success:      var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-muted:var(--success-muted);
 
-  /* Info / data / reports */
-  --color-info:         #3B82F6;
-  --color-info-soft:    #EFF6FF;
-  --color-info-muted:   #BFDBFE;
+  --color-info:         var(--info);
+  --color-info-soft:    var(--info-soft);
+  --color-info-muted:   var(--info-muted);
 
-  /* Warning / pending / caution */
-  --color-warning:      #F59E0B;
-  --color-warning-soft: #FFFBEB;
-  --color-warning-muted:#FDE68A;
+  --color-warning:      var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-muted:var(--warning-muted);
 
-  /* System / admin / settings */
-  --color-sys:          #8B5CF6;
-  --color-sys-soft:     #F5F3FF;
-  --color-sys-muted:    #DDD6FE;
+  --color-sys:          var(--sys);
+  --color-sys-soft:     var(--sys-soft);
+  --color-sys-muted:    var(--sys-muted);
 
-  /* ─── Data visualisation palette (vibrant, replaces greyscale defaults) ─── */
-  --color-chart-1: #F97316;
-  --color-chart-2: #10B981;
-  --color-chart-3: #3B82F6;
-  --color-chart-4: #8B5CF6;
-  --color-chart-5: #EC4899;
+  --color-chart-1: var(--chart-token-1);
+  --color-chart-2: var(--chart-token-2);
+  --color-chart-3: var(--chart-token-3);
+  --color-chart-4: var(--chart-token-4);
+  --color-chart-5: var(--chart-token-5);
 
   /* ─── Border radius scale ─── */
   --radius-lg: 0.75rem;
@@ -80,6 +74,67 @@
 
   /* Typography */
   --font-sans: var(--font-jakarta), system-ui, sans-serif;
+}
+
+/* ─── Default colour palette (literal hex values) ─────────────────────────────
+ * The `@theme inline` block above references these via var() so changing them
+ * at runtime (e.g. switching to UHAS brand colours) actually re-paints every
+ * utility class that uses them. Do NOT put literal hex inside @theme inline.
+ */
+:root {
+  --brand:        #F97316;
+  --brand-soft:   #FFF7ED;
+  --brand-muted:  #FED7AA;
+
+  --accent-orange: #F97316;
+  --accent-teal:   #10B981;
+  --accent-navy:   #1E293B;
+  --accent-blue:   #3B82F6;
+  --accent-purple: #8B5CF6;
+
+  --success:       #10B981;
+  --success-soft:  #ECFDF5;
+  --success-muted: #A7F3D0;
+
+  --info:          #3B82F6;
+  --info-soft:     #EFF6FF;
+  --info-muted:    #BFDBFE;
+
+  --warning:       #F59E0B;
+  --warning-soft:  #FFFBEB;
+  --warning-muted: #FDE68A;
+
+  --sys:           #8B5CF6;
+  --sys-soft:      #F5F3FF;
+  --sys-muted:     #DDD6FE;
+
+  --chart-token-1: #F97316;
+  --chart-token-2: #10B981;
+  --chart-token-3: #3B82F6;
+  --chart-token-4: #8B5CF6;
+  --chart-token-5: #EC4899;
+}
+
+/* ─── UHAS brand colour scheme ─────────────────────────────────────────────────
+ * Activated via <html data-color-scheme="uhas">.
+ * Eyeballed from the school crest (deep forest green + citrus yellow accent).
+ * Adjust the hex values here to fine-tune the palette later.
+ */
+:root[data-color-scheme="uhas"] {
+  --brand:        #1B6B3E;
+  --brand-soft:   #E6F4EC;
+  --brand-muted:  #A3D3B5;
+
+  /* Legacy alias points at the brand so utilities like text-accent-orange
+     reach every component that hasn't migrated to text-brand yet. */
+  --accent-orange: #1B6B3E;
+
+  /* Citrus yellow accent from the leaf in the crest. */
+  --accent-teal:   #C7D52F;
+
+  /* Reorder the chart palette so the first slice is the brand green. */
+  --chart-token-1: #1B6B3E;
+  --chart-token-2: #C7D52F;
 }
 
 * {
@@ -194,11 +249,6 @@ body {
 }
 
 @media print {
-  @page {
-    size: 85.6mm 54mm;
-    margin: 0;
-  }
-
   body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -208,6 +258,7 @@ body {
     visibility: hidden;
   }
 
+  /* Student ID card — used by StudentDetail with body.print-mode-id-card */
   #id-card-print-area,
   #id-card-print-area * {
     visibility: visible;
@@ -219,5 +270,34 @@ body {
     left: 0;
     width: 85.6mm;
     height: 54mm;
+  }
+
+  /* Report card — A4 portrait */
+  #report-card-print-area,
+  #report-card-print-area * {
+    visibility: visible;
+  }
+
+  body.print-mode-report-card #id-card-print-area,
+  body.print-mode-report-card #id-card-print-area * {
+    visibility: hidden;
+  }
+
+  body.print-mode-report-card #report-card-print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  /* Page sizing: A4 by default for report cards.
+     Id-card mode is set via JS just before print to override. */
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  body.print-mode-id-card {
+    /* Card pages get their own @page via injected style on demand. */
   }
 }

@@ -11,8 +11,9 @@ import { cn } from "@/lib/utils";
 
 const DIVISION_PILL: Record<Division, string> = {
   KG: "bg-purple-100 text-purple-700",
-  Primary: "bg-blue-100 text-blue-700",
-  JHS: "bg-orange-100 text-[#F97316]",
+  "Lower Primary": "bg-sky-100 text-sky-700",
+  "Upper Primary": "bg-blue-100 text-blue-700",
+  JHS: "bg-orange-100 text-accent-orange",
 };
 
 type DivisionFilter = Division | "All";
@@ -22,6 +23,13 @@ interface ClassesTableProps {
   studentCounts: Record<string, number>;
   listHref: string;
   readonly?: boolean;
+}
+
+function primaryTeacherName(c: SchoolClass): string | null {
+  if (c.classTeachers.length === 0) return null;
+  const primary = c.classTeachers.find((t) => t.isPrimary) ?? c.classTeachers[0];
+  if (c.classTeachers.length === 1) return primary.staffName;
+  return `${primary.staffName} +${c.classTeachers.length - 1}`;
 }
 
 export default function ClassesTable({
@@ -34,7 +42,8 @@ export default function ClassesTable({
 
   const total = initialClasses.length;
   const kgCount = initialClasses.filter((c) => c.division === "KG").length;
-  const primaryCount = initialClasses.filter((c) => c.division === "Primary").length;
+  const lowerPrimaryCount = initialClasses.filter((c) => c.division === "Lower Primary").length;
+  const upperPrimaryCount = initialClasses.filter((c) => c.division === "Upper Primary").length;
   const jhsCount = initialClasses.filter((c) => c.division === "JHS").length;
 
   const displayedClasses =
@@ -77,9 +86,9 @@ export default function ClassesTable({
     {
       id: "classTeacher",
       header: "Class Teacher",
-      accessorFn: (row) => row.classTeacherName ?? "",
+      accessorFn: (row) => primaryTeacherName(row) ?? "",
       cell: ({ row }) => {
-        const name = row.original.classTeacherName;
+        const name = primaryTeacherName(row.original);
         return name ? (
           <span className="text-sm">{name}</span>
         ) : (
@@ -115,7 +124,7 @@ export default function ClassesTable({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Classes</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -135,7 +144,7 @@ export default function ClassesTable({
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          label="Total Classes"
+          label="Total"
           value={total}
           icon={<School size={17} className="text-slate-600 dark:text-slate-300" />}
           iconBg="bg-slate-100 dark:bg-slate-800"
@@ -148,7 +157,7 @@ export default function ClassesTable({
         />
         <StatCard
           label="Primary"
-          value={primaryCount}
+          value={lowerPrimaryCount + upperPrimaryCount}
           icon={<GraduationCap size={17} className="text-blue-600" />}
           iconBg="bg-blue-50 dark:bg-blue-950/40"
         />
@@ -164,7 +173,7 @@ export default function ClassesTable({
       <div className="bg-card border border-border/60 rounded-xl p-4 space-y-3">
         {/* Division filter pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {(["All", "KG", "Primary", "JHS"] as const).map((d) => (
+          {(["All", "KG", "Lower Primary", "Upper Primary", "JHS"] as const).map((d) => (
             <button
               key={d}
               onClick={() => setDivisionFilter(d)}

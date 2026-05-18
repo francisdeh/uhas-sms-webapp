@@ -44,19 +44,21 @@ import { cn } from "@/lib/utils";
 
 const DIVISION_PILL: Record<Division, string> = {
   KG: "bg-purple-100 text-purple-700",
-  Primary: "bg-blue-100 text-blue-700",
-  JHS: "bg-orange-100 text-[#F97316]",
+  "Lower Primary": "bg-sky-100 text-sky-700",
+  "Upper Primary": "bg-blue-100 text-blue-700",
+  JHS: "bg-orange-100 text-accent-orange",
 };
 
 const DIVISION_AVATAR: Record<Division, string> = {
   KG: "from-purple-400 to-purple-600",
-  Primary: "from-blue-400 to-blue-600",
-  JHS: "from-orange-400 to-[#F97316]",
+  "Lower Primary": "from-sky-400 to-sky-600",
+  "Upper Primary": "from-blue-400 to-blue-600",
+  JHS: "from-orange-400 to-accent-orange",
 };
 
 const CATEGORY_PILL: Record<"Core" | "Elective", string> = {
   Core: "bg-blue-100 text-blue-700",
-  Elective: "bg-orange-100 text-[#F97316]",
+  Elective: "bg-orange-100 text-accent-orange",
 };
 
 function initials(firstName: string, lastName: string) {
@@ -98,7 +100,11 @@ export default function ClassDetail({
 
   const teacherForm = useForm<SelectFormValues>({
     resolver: zodResolver(selectSchema),
-    defaultValues: { value: schoolClass.classTeacherId ?? "none" },
+    defaultValues: {
+      value:
+        (schoolClass.classTeachers.find((t) => t.isPrimary) ?? schoolClass.classTeachers[0])
+          ?.staffId ?? "none",
+    },
   });
 
   const subjectForm = useForm<SelectFormValues>({
@@ -259,7 +265,9 @@ export default function ClassDetail({
           variant="outline"
           size="sm"
           onClick={() => {
-            teacherForm.reset({ value: schoolClass.classTeacherId ?? "none" });
+            const current =
+              schoolClass.classTeachers.find((t) => t.isPrimary) ?? schoolClass.classTeachers[0];
+            teacherForm.reset({ value: current?.staffId ?? "none" });
             setTeacherOpen(true);
           }}
         >

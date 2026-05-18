@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { mockStudents } from "@/lib/mock/students";
 import { mockClasses } from "@/lib/mock/classes";
 import { mockAnnouncements } from "@/lib/mock/announcements";
 import { mockStudentGuardians } from "@/lib/mock/student-guardians";
+import { mockSchool } from "@/lib/mock/school";
 import { getStudentAttendanceCalendarAction } from "@/features/attendance/actions";
 import ParentDashboardOverview from "./DashboardOverview";
 
@@ -37,9 +39,13 @@ export default async function ParentPage() {
     if (total > 0) attendancePct = Math.round((present / total) * 100);
   }
 
+  const currentYear = await getCurrentAcademicYear();
+
   return (
     <ParentDashboardOverview
       displayName={user.displayName}
+      currentYear={currentYear}
+      currentTerm={mockSchool.currentTerm}
       linkedChildren={linkedChildren}
       announcements={announcements}
       attendancePct={attendancePct}

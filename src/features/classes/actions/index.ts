@@ -4,6 +4,7 @@ import { mockClasses } from "@/lib/mock/classes";
 import { mockSubjects } from "@/lib/mock/subjects";
 import { mockClassSubjects } from "@/lib/mock/class-subjects";
 import { mockStaff } from "@/lib/mock/staff";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import type {
   SchoolClass,
   Subject,
@@ -17,10 +18,11 @@ import type {
 
 type ActionResult = { success: true } | { success: false; error: string };
 
-const DIVISION_WEIGHT: Record<"KG" | "Primary" | "JHS", number> = {
+const DIVISION_WEIGHT: Record<Division, number> = {
   KG: 0,
-  Primary: 1,
-  JHS: 2,
+  "Lower Primary": 1,
+  "Upper Primary": 2,
+  JHS: 3,
 };
 
 export async function listClassesAction(
@@ -28,15 +30,16 @@ export async function listClassesAction(
   academicYear?: string
 ): Promise<SchoolClass[]> {
   if (process.env.USE_MOCK_DATA === "true") {
+    // Default to the user's currently-selected academic year when not specified.
+    const year = academicYear ?? (await getCurrentAcademicYear());
+
     let results = [...mockClasses];
 
     if (division !== undefined) {
       results = results.filter((c) => c.division === division);
     }
 
-    if (academicYear !== undefined) {
-      results = results.filter((c) => c.academicYear === academicYear);
-    }
+    results = results.filter((c) => c.academicYear === year);
 
     return results.sort((a, b) => {
       const divDiff = DIVISION_WEIGHT[a.division] - DIVISION_WEIGHT[b.division];
@@ -72,8 +75,7 @@ export async function createClassAction(
       name: input.name,
       division: input.division,
       academicYear: input.academicYear,
-      classTeacherId: null,
-      classTeacherName: null,
+      classTeachers: [],
     });
 
     return { success: true, id };
@@ -97,10 +99,8 @@ export async function listSubjectsAction(
     }
 
     return results.sort((a, b) => {
-      const aWeight =
-        a.division !== null ? DIVISION_WEIGHT[a.division] : 3;
-      const bWeight =
-        b.division !== null ? DIVISION_WEIGHT[b.division] : 3;
+      const aWeight = a.division !== null ? DIVISION_WEIGHT[a.division] : 4;
+      const bWeight = b.division !== null ? DIVISION_WEIGHT[b.division] : 4;
 
       const divDiff = aWeight - bWeight;
       if (divDiff !== 0) return divDiff;
@@ -251,8 +251,7 @@ export async function assignClassTeacherAction(
     }
 
     if (input.teacherId === null) {
-      schoolClass.classTeacherId = null;
-      schoolClass.classTeacherName = null;
+      schoolClass.classTeachers = [];
     } else {
       const staff = mockStaff.find((s) => s.id === input.teacherId);
 
@@ -260,8 +259,64 @@ export async function assignClassTeacherAction(
         return { success: false, error: "Teacher not found." };
       }
 
-      schoolClass.classTeacherId = staff.id;
-      schoolClass.classTeacherName = `${staff.firstName} ${staff.lastName}`;
+      schoolClass.classTeachers = [
+        {
+          staffId: staff.id,
+          staffName: `${staff.firstName} ${staff.lastName}`,
+          isPrimary: true,
+        },
+      ];
+    }
+
+    return { success: true };
+  }
+
+  return { success: false, error: "Not implemented." };
+}
+
+export async function addClassTeacherAction(
+  classId: string,
+  input: { staffId: string; isPrimary?: boolean }
+): Promise<ActionResult> {
+  if (process.env.USE_MOCK_DATA === "true") {
+    const schoolClass = mockClasses.find((c) => c.id === classId);
+    if (!schoolClass) return { success: false, error: "Class not found." };
+
+    if (schoolClass.classTeachers.some((t) => t.staffId === input.staffId)) {
+      return { success: false, error: "Staff already a class teacher for this class." };
+    }
+
+    const staff = mockStaff.find((s) => s.id === input.staffId);
+    if (!staff) return { success: false, error: "Teacher not found." };
+
+    if (input.isPrimary) {
+      schoolClass.classTeachers = schoolClass.classTeachers.map((t) => ({ ...t, isPrimary: false }));
+    }
+
+    schoolClass.classTeachers.push({
+      staffId: staff.id,
+      staffName: `${staff.firstName} ${staff.lastName}`,
+      isPrimary: input.isPrimary ?? schoolClass.classTeachers.length === 0,
+    });
+
+    return { success: true };
+  }
+
+  return { success: false, error: "Not implemented." };
+}
+
+export async function removeClassTeacherAction(
+  classId: string,
+  staffId: string
+): Promise<ActionResult> {
+  if (process.env.USE_MOCK_DATA === "true") {
+    const schoolClass = mockClasses.find((c) => c.id === classId);
+    if (!schoolClass) return { success: false, error: "Class not found." };
+
+    schoolClass.classTeachers = schoolClass.classTeachers.filter((t) => t.staffId !== staffId);
+
+    if (schoolClass.classTeachers.length > 0 && !schoolClass.classTeachers.some((t) => t.isPrimary)) {
+      schoolClass.classTeachers[0].isPrimary = true;
     }
 
     return { success: true };

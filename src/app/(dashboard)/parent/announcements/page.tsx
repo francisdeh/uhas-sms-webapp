@@ -1,15 +1,22 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { ComingSoon } from "@/components/ui/coming-soon";
+import { listAnnouncementsForGuardianAction } from "@/features/announcements/actions";
+import { listClassesAction } from "@/features/classes/actions";
+import { ParentAnnouncementsList } from "@/features/announcements/components/ParentAnnouncementsList";
 
 export default async function ParentAnnouncementsPage() {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user || !user.linkedId) redirect("/login");
+
+  const [announcements, classes] = await Promise.all([
+    listAnnouncementsForGuardianAction(user.linkedId),
+    listClassesAction(),
+  ]);
 
   return (
-    <ComingSoon
-      title="Announcements"
-      description="Stay up to date with school-wide announcements, event notices, and important messages from the administration."
+    <ParentAnnouncementsList
+      announcements={announcements}
+      classes={classes.map((c) => ({ id: c.id, name: c.name }))}
     />
   );
 }

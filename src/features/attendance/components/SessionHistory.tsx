@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AttendanceSession } from "@/features/attendance/types";
 
@@ -17,7 +18,15 @@ export function SessionHistory({ sessions, basePath }: SessionHistoryProps) {
       </CardHeader>
       <CardContent>
         {sessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No past sessions recorded.</p>
+          <div className="py-6 text-center">
+            <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-muted flex items-center justify-center">
+              <History size={16} className="text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium">No past sessions recorded</p>
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-sm mx-auto leading-relaxed">
+              Daily attendance for this class will appear here once you start marking sessions.
+            </p>
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead>

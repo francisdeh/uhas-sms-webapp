@@ -6,7 +6,7 @@ import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, Copy, Check } from "lucide-react";
+import { Loader2, Copy, Check, Camera } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,28 +37,38 @@ import { createStaffAction } from "@/features/staff/actions";
 
 const schema = z
   .object({
+    uhasId: z
+      .string()
+      .regex(/^UHAS\d{3,5}$/, { message: "Format: UHAS followed by 3–5 digits, e.g. UHAS1141" })
+      .optional()
+      .or(z.literal("")),
     firstName: z.string().min(2, { message: "Must be at least 2 characters" }),
     lastName: z.string().min(2, { message: "Must be at least 2 characters" }),
     rank: z.string().min(2, { message: "Must be at least 2 characters" }),
-    systemRole: z.enum(["Admin", "DeputyHead", "HOD", "Teacher"], {
+    systemRole: z.enum(["Admin", "DeputyHead", "Teacher"], {
       message: "Select a role",
     }),
-    division: z.enum(["KG", "Primary", "JHS"]).optional(),
+    division: z.enum(["KG", "Lower Primary", "Upper Primary", "JHS"]).optional(),
+    isUnitHead: z.boolean().optional(),
+    unitHeadOf: z.enum(["KG", "Lower Primary", "Upper Primary", "JHS"]).optional(),
     phone: z.string().min(7, { message: "Enter a valid phone number" }),
     email: z.string().email({ message: "Enter a valid email address" }),
   })
   .refine(
     (data) => {
-      if (
-        data.systemRole === "DeputyHead" ||
-        data.systemRole === "HOD" ||
-        data.systemRole === "Teacher"
-      ) {
+      if (data.systemRole === "DeputyHead" || data.systemRole === "Teacher") {
         return !!data.division;
       }
       return true;
     },
     { message: "Division is required for this role", path: ["division"] }
+  )
+  .refine(
+    (data) => {
+      if (data.isUnitHead) return !!data.unitHeadOf;
+      return true;
+    },
+    { message: "Pick which unit this staff heads", path: ["unitHeadOf"] }
   );
 
 type FormValues = z.infer<typeof schema>;
@@ -91,10 +101,9 @@ export default function StaffRegistrationForm({
   });
 
   const systemRole = useWatch({ control, name: "systemRole" });
-  const showDivision =
-    systemRole === "DeputyHead" ||
-    systemRole === "HOD" ||
-    systemRole === "Teacher";
+  const isUnitHead = useWatch({ control, name: "isUnitHead" });
+  const showDivision = systemRole === "DeputyHead" || systemRole === "Teacher";
+  const canBeUnitHead = systemRole === "Teacher";
 
   async function onSubmit(values: FormValues) {
     const result = await createStaffAction(values);
@@ -141,6 +150,35 @@ export default function StaffRegistrationForm({
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)}>
             <FieldGroup className="gap-5">
+              {/* Photo upload (disabled) */}
+              <Field>
+                <FieldLabel>Photo</FieldLabel>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled
+                    className="gap-2 cursor-not-allowed"
+                  >
+                    <Camera size={15} />
+                    Upload photo
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Photo upload available in a future update.
+                  </p>
+                </div>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="uhasId">UHAS Staff ID (optional)</FieldLabel>
+                <Input
+                  id="uhasId"
+                  placeholder="e.g. UHAS1141"
+                  {...register("uhasId")}
+                />
+                <FieldError errors={[errors.uhasId]} />
+              </Field>
+
               <Field>
                 <FieldLabel htmlFor="firstName">First Name</FieldLabel>
                 <Input
@@ -192,7 +230,6 @@ export default function StaffRegistrationForm({
                           <SelectItem value="DeputyHead">
                             Deputy Head
                           </SelectItem>
-                          <SelectItem value="HOD">HOD</SelectItem>
                           <SelectItem value="Teacher">Teacher</SelectItem>
                         </SelectContent>
                       </Select>
@@ -219,7 +256,8 @@ export default function StaffRegistrationForm({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="KG">KG</SelectItem>
-                            <SelectItem value="Primary">Primary</SelectItem>
+                            <SelectItem value="Lower Primary">Lower Primary</SelectItem>
+                            <SelectItem value="Upper Primary">Upper Primary</SelectItem>
                             <SelectItem value="JHS">JHS</SelectItem>
                           </SelectContent>
                         </Select>
@@ -231,6 +269,61 @@ export default function StaffRegistrationForm({
                   <div />
                 )}
               </div>
+
+              {canBeUnitHead && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field>
+                    <FieldLabel>Unit Head?</FieldLabel>
+                    <Controller
+                      name="isUnitHead"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ? "yes" : "no"}
+                          onValueChange={(v) => field.onChange(v === "yes")}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="No" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="no">No</SelectItem>
+                            <SelectItem value="yes">Yes</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </Field>
+
+                  {isUnitHead && (
+                    <Field>
+                      <FieldLabel>Head of Unit</FieldLabel>
+                      <Controller
+                        name="unitHeadOf"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onValueChange={(v) => {
+                              if (v) field.onChange(v);
+                            }}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="KG">KG</SelectItem>
+                              <SelectItem value="Lower Primary">Lower Primary</SelectItem>
+                              <SelectItem value="Upper Primary">Upper Primary</SelectItem>
+                              <SelectItem value="JHS">JHS</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldError errors={[errors.unitHeadOf]} />
+                    </Field>
+                  )}
+                </div>
+              )}
 
               <Separator />
 

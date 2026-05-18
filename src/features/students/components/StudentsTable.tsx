@@ -36,14 +36,16 @@ import { cn } from "@/lib/utils";
 
 const DIVISION_AVATAR: Record<Student["division"], string> = {
   KG: "from-purple-400 to-purple-600",
-  Primary: "from-blue-400 to-blue-600",
-  JHS: "from-orange-400 to-[#F97316]",
+  "Lower Primary": "from-sky-400 to-sky-600",
+  "Upper Primary": "from-blue-400 to-blue-600",
+  JHS: "from-orange-400 to-accent-orange",
 };
 
 const DIVISION_PILL: Record<Student["division"], string> = {
   KG: "bg-purple-100 text-purple-700",
-  Primary: "bg-blue-100 text-blue-700",
-  JHS: "bg-orange-100 text-[#F97316]",
+  "Lower Primary": "bg-sky-100 text-sky-700",
+  "Upper Primary": "bg-blue-100 text-blue-700",
+  JHS: "bg-orange-100 text-accent-orange",
 };
 
 function studentInitials(firstName: string, lastName: string) {
@@ -254,7 +256,7 @@ export default function StudentsTable({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Students</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -292,7 +294,7 @@ export default function StudentsTable({
         <StatCard
           label={divisionCountLabel}
           value={divisionCount}
-          icon={<BarChart3 size={17} className="text-[#F97316]" />}
+          icon={<BarChart3 size={17} className="text-accent-orange" />}
           iconBg="bg-orange-50 dark:bg-orange-950/40"
         />
       </div>
@@ -303,7 +305,7 @@ export default function StudentsTable({
         <div className="flex flex-wrap items-center gap-4">
           {!division && (
             <div className="flex items-center gap-1.5 flex-wrap">
-              {(["All", "KG", "Primary", "JHS"] as const).map((d) => (
+              {(["All", "KG", "Lower Primary", "Upper Primary", "JHS"] as const).map((d) => (
                 <button
                   key={d}
                   onClick={() => setDivisionFilter(d)}

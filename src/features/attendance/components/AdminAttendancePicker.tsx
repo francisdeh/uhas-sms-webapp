@@ -27,7 +27,8 @@ export function AdminAttendancePicker({ classes }: AdminAttendancePickerProps) {
   );
 
   const kgClasses = classes.filter((c) => c.division === "KG");
-  const primaryClasses = classes.filter((c) => c.division === "Primary");
+  const lowerPrimaryClasses = classes.filter((c) => c.division === "Lower Primary");
+  const upperPrimaryClasses = classes.filter((c) => c.division === "Upper Primary");
   const jhsClasses = classes.filter((c) => c.division === "JHS");
 
   return (
@@ -60,10 +61,20 @@ export function AdminAttendancePicker({ classes }: AdminAttendancePickerProps) {
                     ))}
                   </SelectGroup>
                 )}
-                {primaryClasses.length > 0 && (
+                {lowerPrimaryClasses.length > 0 && (
                   <SelectGroup>
-                    <SelectLabel>Primary</SelectLabel>
-                    {primaryClasses.map((cls) => (
+                    <SelectLabel>Lower Primary</SelectLabel>
+                    {lowerPrimaryClasses.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+                {upperPrimaryClasses.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>Upper Primary</SelectLabel>
+                    {upperPrimaryClasses.map((cls) => (
                       <SelectItem key={cls.id} value={cls.id}>
                         {cls.name}
                       </SelectItem>

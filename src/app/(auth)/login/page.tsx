@@ -27,7 +27,7 @@ export default async function LoginPage() {
         <ParticlesBg />
 
         {/* Orange accent bar */}
-        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#F97316] via-[#F97316]/60 to-transparent" />
+        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-accent-orange via-accent-orange/60 to-transparent" />
 
         {/* Top: logo + wordmark */}
         <div className="relative z-10">
@@ -62,7 +62,7 @@ export default async function LoginPage() {
           {features.map(({ icon: Icon, label }) => (
             <div key={label} className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                <Icon size={15} className="text-[#F97316]" />
+                <Icon size={15} className="text-accent-orange" />
               </div>
               <span className="text-white/60 text-sm">{label}</span>
             </div>
@@ -76,7 +76,7 @@ export default async function LoginPage() {
       </div>
 
       {/* ── Right form panel ─────────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center bg-[#F8F7F4] px-6 py-12">
+      <div className="flex-1 flex items-center justify-center bg-background px-6 py-12">
         <LoginForm />
       </div>
     </div>
