@@ -1,16 +1,23 @@
-import { mockStudents } from "@/lib/mock/students";
-import { mockStaff } from "@/lib/mock/staff";
-import { mockClasses } from "@/lib/mock/classes";
-import { mockSubjects } from "@/lib/mock/subjects";
-import { mockStudentGuardians } from "@/lib/mock/student-guardians";
-import { mockLessonPlans } from "@/lib/mock/lesson-plans";
-import { mockExams } from "@/lib/mock/exams";
-import { mockScores } from "@/lib/mock/scores";
-import { mockAttendanceSessions, mockAttendanceRecords } from "@/lib/mock/attendance";
-import { mockClassSubjects } from "@/lib/mock/class-subjects";
-import { computeAggregate } from "@/features/exams/utils";
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/db";
+import {
+  students,
+  staff,
+  classes,
+  subjects,
+  enrollments,
+  lessonPlans,
+  exams,
+  scores,
+  attendanceSessions,
+  attendanceRecords,
+  classSubjects,
+  studentGuardians,
+} from "@/db/schema";
+import { getCurrentSchoolId } from "@/lib/school";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { DIVISIONS } from "@/features/auth/types";
+import { computeAggregate } from "@/features/exams/utils";
 import type { Division } from "@/features/auth/types";
 import type {
   SchoolStats,
@@ -33,67 +40,106 @@ function lastNDates(n: number): string[] {
   return out;
 }
 
-function divisionTotals(division: Division): DivisionTotals {
-  const students = mockStudents.filter((s) => s.division === division && s.isActive);
-  const classes = mockClasses.filter((c) => c.division === division);
-  const staff = mockStaff.filter((s) => s.division === division && s.isActive);
+async function divisionTotals(division: Division, year: string): Promise<DivisionTotals> {
+  const schoolId = await getCurrentSchoolId();
+
+  const divisionClasses = await db.query.classes.findMany({
+    where: and(
+      eq(classes.schoolId, schoolId),
+      eq(classes.academicYear, year),
+      eq(classes.division, division)
+    ),
+  });
+  const classIds = divisionClasses.map((c) => c.id);
+
+  let studentsInDivision: { id: string; gender: string | null }[] = [];
+  if (classIds.length > 0) {
+    studentsInDivision = await db
+      .select({ id: students.id, gender: students.gender })
+      .from(enrollments)
+      .innerJoin(students, eq(students.id, enrollments.studentId))
+      .where(
+        and(
+          inArray(enrollments.classId, classIds),
+          eq(enrollments.academicYear, year),
+          eq(enrollments.status, "Active"),
+          eq(students.isActive, true)
+        )
+      );
+  }
+
+  const divisionStaff = await db.query.staff.findMany({
+    where: and(
+      eq(staff.schoolId, schoolId),
+      eq(staff.division, division),
+      eq(staff.isActive, true)
+    ),
+  });
+
   return {
     division,
-    students: students.length,
-    male: students.filter((s) => s.gender === "Male").length,
-    female: students.filter((s) => s.gender === "Female").length,
-    classes: classes.length,
-    staff: staff.length,
+    students: studentsInDivision.length,
+    male: studentsInDivision.filter((s) => s.gender === "Male").length,
+    female: studentsInDivision.filter((s) => s.gender === "Female").length,
+    classes: divisionClasses.length,
+    staff: divisionStaff.length,
   };
 }
 
 export async function getSchoolStats(): Promise<SchoolStats> {
-  if (process.env.USE_MOCK_DATA !== "true") {
-    return {
-      totals: {
-        students: 0,
-        activeStudents: 0,
-        inactiveStudents: 0,
-        staff: 0,
-        activeStaff: 0,
-        classes: 0,
-        subjects: 0,
-        parents: 0,
-      },
-      gender: { male: 0, female: 0 },
-      divisions: [],
-      lessonPlans: { draft: 0, submitted: 0, unitHeadApproved: 0, approved: 0, rejected: 0 },
-      exams: { total: 0, published: 0 },
-      todayAttendance: { sessionsRecorded: 0, classes: 0 },
-    };
-  }
-
+  const schoolId = await getCurrentSchoolId();
   const year = await getCurrentAcademicYear();
-  const activeStudents = mockStudents.filter((s) => s.isActive);
-  const inactiveStudents = mockStudents.filter((s) => !s.isActive);
-  const activeStaff = mockStaff.filter((s) => s.isActive);
-  const yearClasses = mockClasses.filter((c) => c.academicYear === year);
-  const yearExams = mockExams.filter((e) => e.academicYear === year);
-  const yearLessonPlans = mockLessonPlans.filter((p) => p.academicYear === year);
+
+  const [allStudents, allStaff, yearClasses, allSubjects, yearExams, allLessonPlans] =
+    await Promise.all([
+      db.query.students.findMany({ where: eq(students.schoolId, schoolId) }),
+      db.query.staff.findMany({ where: eq(staff.schoolId, schoolId) }),
+      db.query.classes.findMany({
+        where: and(eq(classes.schoolId, schoolId), eq(classes.academicYear, year)),
+      }),
+      db.query.subjects.findMany({ where: eq(subjects.schoolId, schoolId) }),
+      db.query.exams.findMany({
+        where: and(eq(exams.schoolId, schoolId), eq(exams.academicYear, year)),
+      }),
+      db.query.lessonPlans.findMany({ where: eq(lessonPlans.schoolId, schoolId) }),
+    ]);
+
+  const activeStudents = allStudents.filter((s) => s.isActive);
+  const inactiveStudents = allStudents.filter((s) => !s.isActive);
+  const activeStaff = allStaff.filter((s) => s.isActive);
+
+  const yearClassIds = yearClasses.map((c) => c.id);
+  const yearLessonPlans = yearClassIds.length === 0
+    ? []
+    : allLessonPlans.filter((p) => yearClassIds.includes(p.classId));
+
   const today = todayISO();
-  const todaySessions = mockAttendanceSessions.filter((s) => s.date === today);
+  const todaySessions = await db.query.attendanceSessions.findMany({
+    where: and(eq(attendanceSessions.schoolId, schoolId), eq(attendanceSessions.date, today)),
+  });
+
+  const distinctGuardians = await db
+    .selectDistinct({ guardianId: studentGuardians.guardianId })
+    .from(studentGuardians);
+
+  const divisionsList = await Promise.all(DIVISIONS.map((d) => divisionTotals(d, year)));
 
   return {
     totals: {
-      students: mockStudents.length,
+      students: allStudents.length,
       activeStudents: activeStudents.length,
       inactiveStudents: inactiveStudents.length,
-      staff: mockStaff.length,
+      staff: allStaff.length,
       activeStaff: activeStaff.length,
       classes: yearClasses.length,
-      subjects: mockSubjects.length,
-      parents: Object.keys(mockStudentGuardians).length,
+      subjects: allSubjects.length,
+      parents: distinctGuardians.length,
     },
     gender: {
       male: activeStudents.filter((s) => s.gender === "Male").length,
       female: activeStudents.filter((s) => s.gender === "Female").length,
     },
-    divisions: DIVISIONS.map(divisionTotals),
+    divisions: divisionsList,
     lessonPlans: {
       draft: yearLessonPlans.filter((p) => p.status === "draft").length,
       submitted: yearLessonPlans.filter((p) => p.status === "submitted").length,
@@ -113,110 +159,198 @@ export async function getSchoolStats(): Promise<SchoolStats> {
 }
 
 export async function getDivisionStats(division: Division): Promise<DivisionStats> {
+  const schoolId = await getCurrentSchoolId();
   const year = await getCurrentAcademicYear();
-  const totals = divisionTotals(division);
-  const divisionClasses = mockClasses.filter(
-    (c) => c.division === division && c.academicYear === year
-  );
-  const classIds = new Set(divisionClasses.map((c) => c.id));
+  const totals = await divisionTotals(division, year);
 
-  // Attendance by date over last 7 days
-  const dates = lastNDates(7);
-  const attendanceLast7 = dates.map((date) => {
-    const sessions = mockAttendanceSessions.filter(
-      (s) => s.date === date && classIds.has(s.classId)
-    );
-    const sessionIds = new Set(sessions.map((s) => s.id));
-    const records = mockAttendanceRecords.filter((r) => sessionIds.has(r.sessionId));
-    const present = records.filter((r) => r.status === "present" || r.status === "late").length;
-    return { date, present, total: records.length };
+  const divisionClasses = await db.query.classes.findMany({
+    where: and(
+      eq(classes.schoolId, schoolId),
+      eq(classes.academicYear, year),
+      eq(classes.division, division)
+    ),
   });
+  const classIds = divisionClasses.map((c) => c.id);
 
-  const planFilter = (p: { division: Division; academicYear: string }) =>
-    p.division === division && p.academicYear === year;
-  const lessonPlans = {
-    draft: mockLessonPlans.filter((p) => p.status === "draft" && planFilter(p)).length,
-    submitted: mockLessonPlans.filter((p) => p.status === "submitted" && planFilter(p)).length,
-    approved: mockLessonPlans.filter(
-      (p) => (p.status === "approved" || p.status === "unit_head_approved") && planFilter(p)
+  const dates = lastNDates(7);
+  const attendanceLast7 = await Promise.all(
+    dates.map(async (date) => {
+      if (classIds.length === 0) return { date, present: 0, total: 0 };
+      const records = await db
+        .select({ status: attendanceRecords.status })
+        .from(attendanceRecords)
+        .innerJoin(
+          attendanceSessions,
+          eq(attendanceSessions.id, attendanceRecords.sessionId)
+        )
+        .where(
+          and(
+            eq(attendanceSessions.date, date),
+            inArray(attendanceSessions.classId, classIds)
+          )
+        );
+      const present = records.filter((r) => r.status === "present" || r.status === "late").length;
+      return { date, present, total: records.length };
+    })
+  );
+
+  // Lesson plans per status, scoped to this division (via class lookup)
+  const allLessonPlans = await db.query.lessonPlans.findMany({
+    where: eq(lessonPlans.schoolId, schoolId),
+  });
+  const divisionLessonPlans = allLessonPlans.filter((p) => classIds.includes(p.classId));
+  const lessonPlansCounts = {
+    draft: divisionLessonPlans.filter((p) => p.status === "draft").length,
+    submitted: divisionLessonPlans.filter((p) => p.status === "submitted").length,
+    approved: divisionLessonPlans.filter(
+      (p) => p.status === "approved" || p.status === "unit_head_approved"
     ).length,
-    rejected: mockLessonPlans.filter((p) => p.status === "rejected" && planFilter(p)).length,
+    rejected: divisionLessonPlans.filter((p) => p.status === "rejected").length,
   };
 
-  // Top classes by average aggregate of their students (lower aggregate = better, BECE style)
-  const publishedExamIds = new Set(
-    mockExams.filter((e) => e.isPublished && e.academicYear === year).map((e) => e.id)
-  );
-  const topClasses = divisionClasses
-    .map((c) => {
-      const students = mockStudents.filter((s) => s.classId === c.id && s.isActive);
-      const aggregates = students
-        .map((s) => {
-          const studentScores = mockScores.filter(
-            (sc) => sc.studentId === s.id && publishedExamIds.has(sc.examId)
-          );
-          return computeAggregate(studentScores);
-        })
-        .filter((v): v is number => v != null);
-      const aggregateAvg =
-        aggregates.length === 0
-          ? null
-          : aggregates.reduce((a, b) => a + b, 0) / aggregates.length;
+  // Top classes by aggregate
+  const publishedExams = await db.query.exams.findMany({
+    where: and(
+      eq(exams.schoolId, schoolId),
+      eq(exams.academicYear, year),
+      eq(exams.isPublished, true)
+    ),
+  });
+  const publishedExamIds = publishedExams.map((e) => e.id);
+
+  const topClasses = await Promise.all(
+    divisionClasses.map(async (c) => {
+      const classStudents = await db
+        .select({ id: students.id })
+        .from(enrollments)
+        .innerJoin(students, eq(students.id, enrollments.studentId))
+        .where(
+          and(
+            eq(enrollments.classId, c.id),
+            eq(enrollments.academicYear, year),
+            eq(enrollments.status, "Active"),
+            eq(students.isActive, true)
+          )
+        );
+      const studentIds = classStudents.map((s) => s.id);
+      const aggregates: number[] = [];
+      if (studentIds.length > 0 && publishedExamIds.length > 0) {
+        const allScores = await db.query.scores.findMany({
+          where: and(
+            inArray(scores.studentId, studentIds),
+            inArray(scores.examId, publishedExamIds)
+          ),
+        });
+        for (const sid of studentIds) {
+          const studentScores = allScores.filter((s) => s.studentId === sid);
+          const agg = computeAggregate(studentScores);
+          if (agg != null) aggregates.push(agg);
+        }
+      }
+      const aggregateAvg = aggregates.length === 0
+        ? null
+        : aggregates.reduce((a, b) => a + b, 0) / aggregates.length;
       return { classId: c.id, className: c.name, aggregateAvg };
     })
-    .sort((a, b) => {
-      if (a.aggregateAvg == null) return 1;
-      if (b.aggregateAvg == null) return -1;
-      return a.aggregateAvg - b.aggregateAvg;
-    });
+  );
 
-  return { ...totals, attendanceLast7, lessonPlans, topClasses };
+  topClasses.sort((a, b) => {
+    if (a.aggregateAvg == null) return 1;
+    if (b.aggregateAvg == null) return -1;
+    return a.aggregateAvg - b.aggregateAvg;
+  });
+
+  return { ...totals, attendanceLast7, lessonPlans: lessonPlansCounts, topClasses };
 }
 
 export async function getClassStats(classId: string): Promise<ClassStats | null> {
-  if (process.env.USE_MOCK_DATA !== "true") return null;
-  const cls = mockClasses.find((c) => c.id === classId);
+  const schoolId = await getCurrentSchoolId();
+  const year = await getCurrentAcademicYear();
+
+  const cls = await db.query.classes.findFirst({ where: eq(classes.id, classId) });
   if (!cls) return null;
 
-  const students = mockStudents.filter((s) => s.classId === classId && s.isActive);
-  const dates = lastNDates(7);
-  const attendanceLast7 = dates.map((date) => {
-    const sessions = mockAttendanceSessions.filter(
-      (s) => s.date === date && s.classId === classId
+  const rosterRows = await db
+    .select({ id: students.id })
+    .from(enrollments)
+    .innerJoin(students, eq(students.id, enrollments.studentId))
+    .where(
+      and(
+        eq(enrollments.classId, classId),
+        eq(enrollments.academicYear, year),
+        eq(enrollments.status, "Active"),
+        eq(students.isActive, true)
+      )
     );
-    const sessionIds = new Set(sessions.map((s) => s.id));
-    const records = mockAttendanceRecords.filter((r) => sessionIds.has(r.sessionId));
-    const present = records.filter((r) => r.status === "present" || r.status === "late").length;
-    return { date, present, total: records.length };
-  });
+  const studentIds = rosterRows.map((s) => s.id);
 
-  // Subject averages — across published exams in the currently-selected year
-  const year = await getCurrentAcademicYear();
-  const publishedExamIds = new Set(
-    mockExams.filter((e) => e.isPublished && e.academicYear === year).map((e) => e.id)
+  const dates = lastNDates(7);
+  const attendanceLast7 = await Promise.all(
+    dates.map(async (date) => {
+      const records = await db
+        .select({ status: attendanceRecords.status })
+        .from(attendanceRecords)
+        .innerJoin(
+          attendanceSessions,
+          eq(attendanceSessions.id, attendanceRecords.sessionId)
+        )
+        .where(
+          and(
+            eq(attendanceSessions.date, date),
+            eq(attendanceSessions.classId, classId)
+          )
+        );
+      const present = records.filter((r) => r.status === "present" || r.status === "late").length;
+      return { date, present, total: records.length };
+    })
   );
-  const classSubjects = mockClassSubjects.filter((cs) => cs.classId === classId);
-  const subjectAverages = classSubjects.map((cs) => {
-    const scoresForSubject = mockScores.filter(
-      (sc) =>
-        sc.subjectId === cs.subjectId &&
-        publishedExamIds.has(sc.examId) &&
-        students.some((st) => st.id === sc.studentId) &&
-        sc.totalScore != null
-    );
-    const total = scoresForSubject.reduce((acc, sc) => acc + (sc.totalScore ?? 0), 0);
-    return {
-      subjectId: cs.subjectId,
-      subjectName: cs.subjectName,
-      avg: scoresForSubject.length > 0 ? Math.round(total / scoresForSubject.length) : 0,
-      samples: scoresForSubject.length,
-    };
+
+  // Subject averages
+  const publishedExams = await db.query.exams.findMany({
+    where: and(
+      eq(exams.schoolId, schoolId),
+      eq(exams.academicYear, year),
+      eq(exams.isPublished, true)
+    ),
   });
+  const publishedExamIds = publishedExams.map((e) => e.id);
+
+  const subjectRows = await db
+    .select({
+      subjectId: classSubjects.subjectId,
+      subjectName: subjects.name,
+    })
+    .from(classSubjects)
+    .innerJoin(subjects, eq(subjects.id, classSubjects.subjectId))
+    .where(eq(classSubjects.classId, classId));
+
+  const subjectAverages = await Promise.all(
+    subjectRows.map(async (s) => {
+      if (studentIds.length === 0 || publishedExamIds.length === 0) {
+        return { subjectId: s.subjectId, subjectName: s.subjectName, avg: 0, samples: 0 };
+      }
+      const sc = await db.query.scores.findMany({
+        where: and(
+          eq(scores.subjectId, s.subjectId),
+          inArray(scores.studentId, studentIds),
+          inArray(scores.examId, publishedExamIds)
+        ),
+      });
+      const valid = sc.filter((r) => r.totalScore != null);
+      const total = valid.reduce((acc, r) => acc + (r.totalScore ?? 0), 0);
+      return {
+        subjectId: s.subjectId,
+        subjectName: s.subjectName,
+        avg: valid.length > 0 ? Math.round(total / valid.length) : 0,
+        samples: valid.length,
+      };
+    })
+  );
 
   return {
     classId,
     className: cls.name,
-    students: students.length,
+    students: studentIds.length,
     attendanceLast7,
     subjectAverages,
   };

@@ -42,7 +42,7 @@ npm install
 cp .env.local.example .env.local
 ```
 
-The defaults in `.env.local.example` work out of the box for local development (`USE_MOCK_DATA=true`, Firebase emulator, Docker DB URL).
+The defaults work out of the box for local development (Firebase emulator + Docker DB on `localhost:5436`).
 
 ### 3. Start the local database
 
@@ -50,15 +50,16 @@ The defaults in `.env.local.example` work out of the box for local development (
 npm run docker:up
 ```
 
-This starts PostgreSQL 16 on port `5432` and Adminer (DB browser UI) on port `8080`.
+This starts PostgreSQL 16 on port `5436` and Adminer (DB browser UI) on port `8080`.
 
-### 4. Push the database schema
+### 4. Apply migrations + seed demo data
 
 ```bash
-npm run db:push
+npm run db:migrate
+npm run db:seed
 ```
 
-Only needed when `USE_MOCK_DATA=false`. Safe to skip during mock-data development.
+`db:migrate` applies the Drizzle baseline. `db:seed` is idempotent and ports every fixture from `scripts/_seed-data/` into the DB so the demo flows work end-to-end. Use `npm run db:seed:reset` to truncate and re-seed.
 
 ### 5. Start the Firebase Auth Emulator
 
@@ -66,7 +67,7 @@ Only needed when `USE_MOCK_DATA=false`. Safe to skip during mock-data developmen
 firebase emulators:start
 ```
 
-Then seed it with test users (one per role):
+Then seed it with test users (one per row in the `users` table):
 
 ```bash
 npm run seed:emulator
@@ -107,10 +108,22 @@ App runs at `http://localhost:3000`.
 | `npm run docker:up` | Start PostgreSQL + Adminer |
 | `npm run docker:down` | Stop containers |
 | `npm run docker:reset` | Wipe DB volume and restart |
-| `npm run db:push` | Apply Drizzle schema to database |
+| `npm run db:generate` | Generate a new Drizzle migration from schema changes — review the SQL in `drizzle/` then commit it |
+| `npm run db:migrate` | Apply pending Drizzle migrations (the only way to change schema — `db:push` is intentionally not used) |
 | `npm run db:studio` | Open Drizzle Studio (DB GUI) |
-| `npm run seed:emulator` | Seed Firebase Auth Emulator with test users |
+| `npm run db:seed` | Seed demo data (idempotent — safe to re-run) |
+| `npm run db:seed:reset` | Truncate all tables and re-seed |
+| `npm run db:seed:prod` | Seed school + Firebase-backed users only (production minimum) |
+| `npm run seed:emulator` | Seed Firebase Auth Emulator with users from the DB |
 | `seed:firebase` | Seed real Firebase project with production users + custom claims (requires `.env.seed`) |
+| `npm run db:test:setup` | Create `uhas_sms_test` Postgres + apply migrations (one-shot, before first `npm test`) |
+| `npm test` | Run the full Vitest suite (`.env.test`) |
+| `npm run test:watch` | Vitest watch mode |
+| `npm run db:e2e:setup` | Create `uhas_sms_e2e` Postgres + apply migrations (one-shot, before first `npm run e2e`) |
+| `npm run e2e:build` | Production build for Playwright (run after schema/UI changes) |
+| `npm run e2e` | Run the Playwright E2E suite (`.env.e2e`) — boots `next start` on port 3100 |
+| `npm run e2e:ui` | Playwright UI mode |
+| `npm run e2e:headed` | Playwright in headed Chromium |
 
 ---
 
@@ -160,9 +173,9 @@ src/
 
 | Variable | Description |
 |---|---|
-| `USE_MOCK_DATA` | `true` skips DB and returns fixture data |
-| `NEXT_PUBLIC_USE_FIREBASE_EMULATOR` | `true` connects Auth to localhost:9099 |
 | `DATABASE_URL` | PostgreSQL connection string |
+| `DB_DRIVER` | Optional. `pg` (Docker / Railway) or `neon-http` (Neon prod). Auto-detected from `*.neon.tech` host. |
+| `NEXT_PUBLIC_USE_FIREBASE_EMULATOR` | `true` connects Auth to localhost:9099 |
 | `NEXT_PUBLIC_FIREBASE_*` | Firebase client SDK config (API key, project ID, etc.) |
 | `FIREBASE_PROJECT_ID` | Firebase project ID (Admin SDK — server-side only) |
 | `FIREBASE_CLIENT_EMAIL` | Service account client email (Admin SDK) |
@@ -186,7 +199,7 @@ This creates one Firebase Auth account per role with the correct custom claims (
 |---|---|---|
 | App | http://localhost:3000 | — |
 | Firebase Emulator UI | http://localhost:4000 | — |
-| Adminer (DB browser) | http://localhost:8080 | server: `db` / user: `uhas` / pass: `uhas_dev_secret` / db: `uhas_sms` |
+| Adminer (DB browser) | http://localhost:8080 | server: `db` / user: `uhas` / pass: `uhas_dev_secret` / db: `uhas_sms` (Docker port `5436` externally) |
 | Drizzle Studio | http://localhost:4983 | run `npm run db:studio` |
 
 ---
@@ -212,7 +225,7 @@ Classes: KG 1–2 · Primary 1–6 · JHS 1–3
 | Phase | Status | Deliverables |
 |---|---|---|
 | 0 — Foundation | ✅ Done | DB schema, Firebase emulator, mock fixtures, middleware, folder structure |
-| 1 — Auth & User Management | 🔧 Mostly done | Login, role routing, change-password, reset-password, admin user management UI (stats, DataTable, invite flow), dashboard shell (Sidebar, Header, profile page, academic year switcher, search, notifications, dark mode toggle). Non-admin dashboards (Deputy Head, Teacher, Parent) built with live attendance stats and role-scoped content. **Deferred:** reset-password email not yet wired to Firebase (`sendPasswordResetEmail`); session expiry warning modal (5-min before 8h expiry) not yet built. |
+| 1 — Auth & User Management | ✅ Done | Login, role routing, change-password, reset-password (wired to Firebase `sendPasswordResetEmail`), admin user management UI (stats, DataTable, invite flow), dashboard shell (Sidebar, Header, profile page, academic year switcher, search, notifications, dark mode toggle). Non-admin dashboards (Deputy Head, Teacher, Parent) with live attendance stats. Session expiry warning modal: a `SessionExpiryWatcher` in `DashboardLayout` reads the `session_expires_at` cookie and shows an AlertDialog 5 min before expiry with a live countdown + Extend / Sign out buttons (Extend re-issues all session cookies for another 8h). |
 | 2a — Student Records | ✅ Done | Student list (Admin + Deputy Head scoped), registration form, soft-deactivate/reactivate, division + status filter pills |
 | 2b — Student Detail & ID Card | ✅ Done | Student detail view, edit profile, class transfer (with confirmation), printable ID card (browser print + @media print CSS) |
 | 2c — Staff Management | ✅ Done | Staff list (Admin-scoped), registration form, role assignment, staff detail + edit + deactivate/reactivate. All on mock data. |
@@ -230,4 +243,29 @@ Classes: KG 1–2 · Primary 1–6 · JHS 1–3
 | 7a — Reports dashboards | ✅ Done | New `features/reports` with stat queries per scope. Admin `/admin/reports`: school totals, gender breakdown, per-division population bars, lesson-plan workflow distribution, exam status, today's attendance progress. Deputy Head `/deputy-head/reports`: division-scoped stats, 7-day attendance, lesson-plan funnel, class ranking by aggregate. Teacher `/teacher/reports`: per-class attendance + subject averages. |
 | 7b — PSC Report | ✅ Done | Admin `/admin/reports/psc` renders the printable Population & Staff Census: school totals, per-class boy/girl breakdown with division subtotals, school total, teachers grouped per division with Unit Head flag. Reuses the report-card print mode at A4. |
 | 7c — Academic Calendar | ✅ Done | New `calendar_events` table + actions. Admin `/admin/calendar` adds/deletes events (term start/end, exam, holiday, event). Deputy Head, Teacher, Parent all see a read-only `/<role>/calendar` view with Upcoming and Past sections. |
-| 8 — Testing | ⏳ | Per-feature Vitest + RTL + Playwright tests as each module switches off mock data (Phase 8 in spec) |
+| 5.7 — Student Promotion | ✅ Done | Year-end promotion workflow. After DB cutover, approval materialises real `enrollments` rows (Active for Promote, Repeating for Repeat), flips `students.isActive=false` for Withdraw, and writes one `PROMOTION_APPROVED` audit log row in a single transaction. |
+| DB Cutover | ✅ Done | Removed `USE_MOCK_DATA` and the entire `src/lib/mock/` directory. Every action and query now goes through Drizzle. `DB_DRIVER` env var picks `pg` for Docker/Railway or `neon-http` for Neon prod (auto-detects from `*.neon.tech` host). Generated baseline migration; `npm run db:migrate && npm run db:seed` brings up a fresh Postgres with the same demo data as before. Audit log wired for the four sensitive admin mutations. See `docs/superpowers/specs/2026-05-19-db-cutover-design.md`. |
+| Audit log viewer | ✅ Done | Admin-only `/admin/audit-log`. Filters by action + date range (default last 30 days), pagination 50/page. Expandable rows show side-by-side before/after JSON with changed-key highlighting. |
+| File uploads (Firebase Storage) | ✅ Done | Firebase Storage emulator wired (port 9199). `storage.rules` allows public read for `photos/**` and signed-URL-only for `documents/**`. Reusable `ImageUploadField` / `FileUploadField` / `DocumentDownloadLink` / `UserAvatar`. Photo uploads on student + staff + own profile. File uploads on lesson plans, schemes, assignments. Every avatar in the app prefers the real photo when present. |
+| Theme default + UX polish | ✅ Done | UHAS brand palette is now the default — root `<html data-color-scheme="uhas">` so it applies on first paint with no flash. `useTheme().setColorScheme("default")` still removes it. "Mark all present" is now a one-click action on both student and staff attendance sheets — stages everyone as present (keeping approved-leave staff on leave) and immediately saves. |
+| 8 — Testing (layers 1 + 2) | ✅ Done | Vitest set up with a separate `uhas_sms_test` Postgres. 128 tests across 10 files (~12 s end-to-end). **Layer 1 (unit, no DB)** covers `computeGrade` / `computeTotalScore` / `assignSubjectPositions` / `computeAggregate`, `computePromotionSuggestion`, `autoPickTargetClass`, `nextAcademicYear`. **Layer 2 (integration, real DB)** covers auth (login, role redirect, mustChangePassword, change-password), students (create + transfer + audit), scores (save + compute + rerank + `SCORE_OVERRIDE` audit), promotions (full transaction: close + Active/Repeating/Withdraw + `PROMOTION_APPROVED` audit), attendance (save + leave-request lifecycle), audit-log helper + viewer queries. Tests caught one real bug: `saveScoresAction` looked up existing rows by a constructed ID that never matched the seed's IDs — now fixed. Scripts: `npm run db:test:setup` (one-shot, creates DB + migrates), `npm test`, `npm run test:watch`. |
+| CI workflow | ✅ Done | `.github/workflows/ci.yml` runs on pushes + PRs to `main`/`develop`. Spins up Postgres 16 as a service container, sets up the test DB, then runs lint → tsc → tests → build. No real Firebase secrets needed — dummy placeholders in the workflow env are enough because Next bundles the values at build time and real values only matter at runtime in production. |
+| 8 — Testing (layer 3) | ✅ Done | Playwright E2E (chromium only, `next start` against `uhas_sms_e2e`). 7 tests across 5 specs covering the cross-role golden paths: admin registers a student → list shows them; teacher marks an entire roster present in one click; Unit Head approves a submitted lesson plan + Deputy Head approves a unit-head-approved one; admin opens the promotion season + teacher sees their classes; parent opens a published Mid-Term report card. One Playwright `globalSetup` resets the DB, seeds the Firebase Auth Emulator, then logs in each role via the real UI and saves `storageState` so specs start authenticated. Two real production bugs surfaced during E2E and were fixed: Base UI `SelectTrigger` was missing `type="button"`, so clicking a Select inside any form silently fired a form submit; shadcn's `Input` wrapped `@base-ui/react/input` (Field.Control) without a Base UI `<Field>` parent, causing the input to remount on every render and wipe its value. CI runs E2E only on push to `main` (heavy job with the Auth Emulator + a prod build). Scripts: `npm run db:e2e:setup`, `npm run e2e:build`, `npm run e2e`. |
+| Outbound email | ✅ Minimum | Provider-agnostic `src/lib/email.ts` (nodemailer). Gmail SMTP for now; swap to Resend/SendGrid later by changing the transport in one place. Wired into lesson-plan rejection (Unit Head + DH). If SMTP vars are unset, emails are logged instead of sent — safe for dev/CI. Reset-password emails are not in this path; Firebase Auth handles those. |
+| Profile page completion | ⏭ Next | Shared `Profile & Settings` page mocks most of its surface (Save Changes, 2FA, Active Sessions, Notifications, Deactivate are all UI-only). Photo upload + password change are real. Pick this up next and wire every tab end-to-end. Full punch list + suggested PR order in [docs/implementation-spec.md](docs/implementation-spec.md#next-up--profile-page-completion). |
+| Admin Settings page | ⏭ Next | New `/admin/settings` route to configure school identity, academic calendar, grading bands + score weights, communication defaults, security policy (session timeout, password rules), and branding. Surfaces what's currently hardcoded (`DEFAULT_SCHOOL_ID`, `DEFAULT_ACADEMIC_YEAR`, GES grade bands, 8-h session, placeholder weighting) into the `schools` row. ~11 h across 5 PRs. Details in [docs/implementation-spec.md](docs/implementation-spec.md#next-up--admin-settings-page). |
+| Drop JHS class streams | ✅ Done | School runs one class per level — no streams. Renamed `class-jhs1a/2a/3a` → `class-jhs1/2/3` and `"JHS 1A/2A/3A"` → `"JHS 1/2/3"` across seed + tests + UI. Deleted the now-dead `stripSuffix`/`streamSuffix` helpers and the three stream-specific tests; tightened the JHS-3-graduates check from `startsWith("JHS 3")` to `=== "JHS 3"`. |
+
+## Potential future improvements
+
+Not on the roadmap yet — captured so we don't re-derive them each time. Full notes in [`docs/implementation-spec.md`](docs/implementation-spec.md#potential-future-improvements).
+
+- **PWA wrapper** (manifest + service worker + web push) — cheapest way to give parents an installable home-screen app. ~1–2 wk; reuses everything.
+- **Refactor `actions/` → `services/`** — prerequisite for any non-web client. Costs little now, costs a lot later.
+- **JSON API surface** (`app/api/*` route handlers with `Authorization: Bearer` ID-token auth) — for mobile, partner schools, integrations.
+- **Capacitor shell** — App Store / Play Store presence + reliable FCM push without a separate codebase. Pick this over React Native unless PWA + Capacitor stop scaling.
+- **Firebase Cloud Messaging** — server-side push triggers (absence marked, result published, lesson-plan rejected, announcement posted).
+- **Offline cache** — last-fetched view stays visible offline. Only build when users complain.
+- **Transactional email upgrade** — swap Gmail SMTP for Resend when bulk sends or analytics matter.
+- **Multi-school tenancy** — every query already filters by `schoolId`, but the helper returns a fixed constant. Real product decision, not a tech change.
+- **Component-level tests / mobile-viewport E2E** — gaps left by the current layer-1/2/3 mix.

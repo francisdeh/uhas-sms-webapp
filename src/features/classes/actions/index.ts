@@ -1,10 +1,12 @@
 "use server";
 
-import { mockClasses } from "@/lib/mock/classes";
-import { mockSubjects } from "@/lib/mock/subjects";
-import { mockClassSubjects } from "@/lib/mock/class-subjects";
-import { mockStaff } from "@/lib/mock/staff";
+import { revalidatePath } from "next/cache";
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { classes, subjects, classSubjects, classTeachers, staff } from "@/db/schema";
+import { getCurrentSchoolId } from "@/lib/school";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
+import { getClassTeachersFor, toSchoolClass } from "@/features/classes/queries/get-class-by-id";
 import type {
   SchoolClass,
   Subject,
@@ -29,180 +31,173 @@ export async function listClassesAction(
   division?: Division,
   academicYear?: string
 ): Promise<SchoolClass[]> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    // Default to the user's currently-selected academic year when not specified.
-    const year = academicYear ?? (await getCurrentAcademicYear());
+  const schoolId = await getCurrentSchoolId();
+  const year = academicYear ?? (await getCurrentAcademicYear());
 
-    let results = [...mockClasses];
+  const rows = await db.query.classes.findMany({
+    where: and(
+      eq(classes.schoolId, schoolId),
+      eq(classes.academicYear, year),
+      division ? eq(classes.division, division) : undefined
+    ),
+    orderBy: [asc(classes.name)],
+  });
+  const teachers = await getClassTeachersFor(rows.map((c) => c.id));
 
-    if (division !== undefined) {
-      results = results.filter((c) => c.division === division);
-    }
-
-    results = results.filter((c) => c.academicYear === year);
-
-    return results.sort((a, b) => {
+  return rows
+    .map((c) => toSchoolClass(c, teachers.get(c.id) ?? []))
+    .sort((a, b) => {
       const divDiff = DIVISION_WEIGHT[a.division] - DIVISION_WEIGHT[b.division];
       if (divDiff !== 0) return divDiff;
       return a.name.localeCompare(b.name);
     });
-  }
-
-  return [];
 }
 
 export async function createClassAction(
   input: CreateClassInput
 ): Promise<{ success: true; id: string } | { success: false; error: string }> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const duplicate = mockClasses.find(
-      (c) =>
-        c.name === input.name && c.academicYear === input.academicYear
-    );
-
-    if (duplicate) {
-      return {
-        success: false,
-        error: "A class with this name already exists for this academic year.",
-      };
-    }
-
-    const id = `class-${input.name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
-
-    mockClasses.push({
-      id,
-      schoolId: "school-uhas-001",
-      name: input.name,
-      division: input.division,
-      academicYear: input.academicYear,
-      classTeachers: [],
-    });
-
-    return { success: true, id };
+  const schoolId = await getCurrentSchoolId();
+  const duplicate = await db.query.classes.findFirst({
+    where: and(
+      eq(classes.schoolId, schoolId),
+      eq(classes.name, input.name),
+      eq(classes.academicYear, input.academicYear)
+    ),
+  });
+  if (duplicate) {
+    return { success: false, error: "A class with this name already exists for this academic year." };
   }
-
-  return { success: false, error: "Not implemented." };
+  const id = `class-${input.name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
+  await db.insert(classes).values({
+    id,
+    schoolId,
+    name: input.name,
+    division: input.division,
+    academicYear: input.academicYear,
+  });
+  revalidatePath("/admin/classes");
+  return { success: true, id };
 }
 
 export async function listSubjectsAction(
   division?: Division | null
 ): Promise<Subject[]> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    let results: Subject[];
-
-    if (division !== undefined) {
-      results = mockSubjects.filter(
-        (s) => s.division === division || s.division === null
-      );
-    } else {
-      results = [...mockSubjects];
-    }
-
-    return results.sort((a, b) => {
+  const schoolId = await getCurrentSchoolId();
+  const rows = await db.query.subjects.findMany({
+    where: and(
+      eq(subjects.schoolId, schoolId),
+      division === undefined
+        ? undefined
+        : division === null
+          ? isNull(subjects.division)
+          : or(eq(subjects.division, division), isNull(subjects.division))
+    ),
+    orderBy: [asc(subjects.name)],
+  });
+  return rows
+    .map(
+      (s) =>
+        ({
+          id: s.id,
+          schoolId: s.schoolId,
+          name: s.name,
+          division: (s.division as Division | null) ?? null,
+          category: (s.category as "Core" | "Elective") ?? "Core",
+        }) satisfies Subject
+    )
+    .sort((a, b) => {
       const aWeight = a.division !== null ? DIVISION_WEIGHT[a.division] : 4;
       const bWeight = b.division !== null ? DIVISION_WEIGHT[b.division] : 4;
-
       const divDiff = aWeight - bWeight;
       if (divDiff !== 0) return divDiff;
       return a.name.localeCompare(b.name);
     });
-  }
-
-  return [];
 }
 
 export async function createSubjectAction(
   input: CreateSubjectInput
 ): Promise<{ success: true; id: string } | { success: false; error: string }> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const duplicate = mockSubjects.find(
-      (s) => s.name === input.name && s.division === input.division
-    );
-
-    if (duplicate) {
-      return {
-        success: false,
-        error: "A subject with this name already exists for this division.",
-      };
-    }
-
-    const id = `sub-${Date.now()}`;
-
-    mockSubjects.push({
-      id,
-      schoolId: "school-uhas-001",
-      name: input.name,
-      division: input.division,
-      category: input.category,
-    });
-
-    return { success: true, id };
+  const schoolId = await getCurrentSchoolId();
+  const duplicate = await db.query.subjects.findFirst({
+    where: and(
+      eq(subjects.schoolId, schoolId),
+      eq(subjects.name, input.name),
+      input.division === null ? isNull(subjects.division) : eq(subjects.division, input.division)
+    ),
+  });
+  if (duplicate) {
+    return { success: false, error: "A subject with this name already exists for this division." };
   }
-
-  return { success: false, error: "Not implemented." };
+  const id = `sub-${Date.now()}`;
+  await db.insert(subjects).values({
+    id,
+    schoolId,
+    name: input.name,
+    division: input.division,
+    category: input.category,
+  });
+  revalidatePath("/admin/subjects");
+  return { success: true, id };
 }
 
-export async function listClassSubjectsAction(
-  classId: string
+async function joinClassSubjects(
+  whereExpr: ReturnType<typeof eq> | undefined
 ): Promise<ClassSubject[]> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    return mockClassSubjects
-      .filter((cs) => cs.classId === classId)
-      .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
-  }
+  const rows = await db
+    .select({
+      classId: classSubjects.classId,
+      subjectId: classSubjects.subjectId,
+      subjectName: subjects.name,
+      teacherId: classSubjects.teacherId,
+      teacherFirst: staff.firstName,
+      teacherLast: staff.lastName,
+    })
+    .from(classSubjects)
+    .innerJoin(subjects, eq(subjects.id, classSubjects.subjectId))
+    .leftJoin(staff, eq(staff.id, classSubjects.teacherId))
+    .where(whereExpr ?? sql`true`);
 
-  return [];
+  return rows.map((r) => ({
+    classId: r.classId,
+    subjectId: r.subjectId,
+    subjectName: r.subjectName,
+    teacherId: r.teacherId,
+    teacherName: r.teacherFirst ? `${r.teacherFirst} ${r.teacherLast}` : null,
+  }));
 }
 
-export async function listClassSubjectsBySubjectAction(
-  subjectId: string
-): Promise<ClassSubject[]> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    return mockClassSubjects.filter((cs) => cs.subjectId === subjectId);
-  }
-  return [];
+export async function listClassSubjectsAction(classId: string): Promise<ClassSubject[]> {
+  const list = await joinClassSubjects(eq(classSubjects.classId, classId));
+  return list.sort((a, b) => a.subjectName.localeCompare(b.subjectName));
 }
 
-export async function listClassSubjectsByTeacherAction(
-  teacherId: string
-): Promise<ClassSubject[]> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    return mockClassSubjects.filter((cs) => cs.teacherId === teacherId);
-  }
-  return [];
+export async function listClassSubjectsBySubjectAction(subjectId: string): Promise<ClassSubject[]> {
+  return joinClassSubjects(eq(classSubjects.subjectId, subjectId));
+}
+
+export async function listClassSubjectsByTeacherAction(teacherId: string): Promise<ClassSubject[]> {
+  return joinClassSubjects(eq(classSubjects.teacherId, teacherId));
 }
 
 export async function addClassSubjectAction(
   classId: string,
   input: AddClassSubjectInput
 ): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const existing = mockClassSubjects.find(
-      (cs) => cs.classId === classId && cs.subjectId === input.subjectId
-    );
+  const existing = await db.query.classSubjects.findFirst({
+    where: and(eq(classSubjects.classId, classId), eq(classSubjects.subjectId, input.subjectId)),
+  });
+  if (existing) return { success: false, error: "Subject already linked to this class." };
 
-    if (existing) {
-      return { success: false, error: "Subject already linked to this class." };
-    }
+  const subject = await db.query.subjects.findFirst({ where: eq(subjects.id, input.subjectId) });
+  if (!subject) return { success: false, error: "Subject not found." };
 
-    const subject = mockSubjects.find((s) => s.id === input.subjectId);
-
-    if (!subject) {
-      return { success: false, error: "Subject not found." };
-    }
-
-    mockClassSubjects.push({
-      classId,
-      subjectId: input.subjectId,
-      subjectName: subject.name,
-      teacherId: null,
-      teacherName: null,
-    });
-
-    return { success: true };
-  }
-
-  return { success: false, error: "Not implemented." };
+  await db.insert(classSubjects).values({
+    classId,
+    subjectId: input.subjectId,
+    teacherId: null,
+  });
+  revalidatePath(`/admin/classes/${classId}`);
+  return { success: true };
 }
 
 export async function assignTeacherAction(
@@ -210,117 +205,115 @@ export async function assignTeacherAction(
   subjectId: string,
   input: AssignTeacherInput
 ): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const record = mockClassSubjects.find(
-      (cs) => cs.classId === classId && cs.subjectId === subjectId
-    );
+  const existing = await db.query.classSubjects.findFirst({
+    where: and(eq(classSubjects.classId, classId), eq(classSubjects.subjectId, subjectId)),
+  });
+  if (!existing) return { success: false, error: "Assignment not found." };
 
-    if (!record) {
-      return { success: false, error: "Assignment not found." };
-    }
-
-    if (input.teacherId === null) {
-      record.teacherId = null;
-      record.teacherName = null;
-    } else {
-      const staff = mockStaff.find((s) => s.id === input.teacherId);
-
-      if (!staff) {
-        return { success: false, error: "Teacher not found." };
-      }
-
-      record.teacherId = staff.id;
-      record.teacherName = `${staff.firstName} ${staff.lastName}`;
-    }
-
-    return { success: true };
+  if (input.teacherId) {
+    const teacher = await db.query.staff.findFirst({ where: eq(staff.id, input.teacherId) });
+    if (!teacher) return { success: false, error: "Teacher not found." };
   }
 
-  return { success: false, error: "Not implemented." };
+  await db
+    .update(classSubjects)
+    .set({ teacherId: input.teacherId })
+    .where(and(eq(classSubjects.classId, classId), eq(classSubjects.subjectId, subjectId)));
+  revalidatePath(`/admin/classes/${classId}`);
+  return { success: true };
 }
 
 export async function assignClassTeacherAction(
   classId: string,
   input: { teacherId: string | null }
 ): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const schoolClass = mockClasses.find((c) => c.id === classId);
+  const cls = await db.query.classes.findFirst({ where: eq(classes.id, classId) });
+  if (!cls) return { success: false, error: "Class not found." };
 
-    if (!schoolClass) {
-      return { success: false, error: "Class not found." };
+  await db.transaction(async (tx) => {
+    await tx.delete(classTeachers).where(eq(classTeachers.classId, classId));
+    if (input.teacherId) {
+      const teacher = await tx.query.staff.findFirst({ where: eq(staff.id, input.teacherId) });
+      if (!teacher) throw new Error("Teacher not found.");
+      await tx.insert(classTeachers).values({
+        classId,
+        staffId: input.teacherId,
+        isPrimary: true,
+      });
     }
-
-    if (input.teacherId === null) {
-      schoolClass.classTeachers = [];
-    } else {
-      const staff = mockStaff.find((s) => s.id === input.teacherId);
-
-      if (!staff) {
-        return { success: false, error: "Teacher not found." };
-      }
-
-      schoolClass.classTeachers = [
-        {
-          staffId: staff.id,
-          staffName: `${staff.firstName} ${staff.lastName}`,
-          isPrimary: true,
-        },
-      ];
-    }
-
-    return { success: true };
-  }
-
-  return { success: false, error: "Not implemented." };
+  });
+  revalidatePath(`/admin/classes/${classId}`);
+  return { success: true };
 }
 
 export async function addClassTeacherAction(
   classId: string,
   input: { staffId: string; isPrimary?: boolean }
 ): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const schoolClass = mockClasses.find((c) => c.id === classId);
-    if (!schoolClass) return { success: false, error: "Class not found." };
+  const cls = await db.query.classes.findFirst({ where: eq(classes.id, classId) });
+  if (!cls) return { success: false, error: "Class not found." };
 
-    if (schoolClass.classTeachers.some((t) => t.staffId === input.staffId)) {
-      return { success: false, error: "Staff already a class teacher for this class." };
-    }
+  const existing = await db.query.classTeachers.findFirst({
+    where: and(eq(classTeachers.classId, classId), eq(classTeachers.staffId, input.staffId)),
+  });
+  if (existing) return { success: false, error: "Staff already a class teacher for this class." };
 
-    const staff = mockStaff.find((s) => s.id === input.staffId);
-    if (!staff) return { success: false, error: "Teacher not found." };
+  const teacher = await db.query.staff.findFirst({ where: eq(staff.id, input.staffId) });
+  if (!teacher) return { success: false, error: "Teacher not found." };
 
+  await db.transaction(async (tx) => {
     if (input.isPrimary) {
-      schoolClass.classTeachers = schoolClass.classTeachers.map((t) => ({ ...t, isPrimary: false }));
+      await tx
+        .update(classTeachers)
+        .set({ isPrimary: false })
+        .where(eq(classTeachers.classId, classId));
     }
-
-    schoolClass.classTeachers.push({
-      staffId: staff.id,
-      staffName: `${staff.firstName} ${staff.lastName}`,
-      isPrimary: input.isPrimary ?? schoolClass.classTeachers.length === 0,
+    const otherCount = await tx
+      .select({ n: sql<number>`count(*)` })
+      .from(classTeachers)
+      .where(eq(classTeachers.classId, classId));
+    const isFirst = Number(otherCount[0]?.n ?? 0) === 0;
+    await tx.insert(classTeachers).values({
+      classId,
+      staffId: input.staffId,
+      isPrimary: input.isPrimary ?? isFirst,
     });
-
-    return { success: true };
-  }
-
-  return { success: false, error: "Not implemented." };
+  });
+  revalidatePath(`/admin/classes/${classId}`);
+  return { success: true };
 }
 
 export async function removeClassTeacherAction(
   classId: string,
   staffId: string
 ): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const schoolClass = mockClasses.find((c) => c.id === classId);
-    if (!schoolClass) return { success: false, error: "Class not found." };
+  const cls = await db.query.classes.findFirst({ where: eq(classes.id, classId) });
+  if (!cls) return { success: false, error: "Class not found." };
 
-    schoolClass.classTeachers = schoolClass.classTeachers.filter((t) => t.staffId !== staffId);
+  await db.transaction(async (tx) => {
+    const removed = await tx
+      .delete(classTeachers)
+      .where(and(eq(classTeachers.classId, classId), eq(classTeachers.staffId, staffId)))
+      .returning();
+    if (removed.length === 0) return;
 
-    if (schoolClass.classTeachers.length > 0 && !schoolClass.classTeachers.some((t) => t.isPrimary)) {
-      schoolClass.classTeachers[0].isPrimary = true;
+    // If we removed the primary, promote whichever remains to primary.
+    const remaining = await tx.query.classTeachers.findMany({
+      where: eq(classTeachers.classId, classId),
+    });
+    const hasPrimary = remaining.some((t) => t.isPrimary);
+    if (remaining.length > 0 && !hasPrimary) {
+      await tx
+        .update(classTeachers)
+        .set({ isPrimary: true })
+        .where(
+          and(
+            eq(classTeachers.classId, classId),
+            eq(classTeachers.staffId, remaining[0].staffId)
+          )
+        );
     }
-
-    return { success: true };
-  }
-
-  return { success: false, error: "Not implemented." };
+  });
+  revalidatePath(`/admin/classes/${classId}`);
+  return { success: true };
 }

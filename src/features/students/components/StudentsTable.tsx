@@ -14,7 +14,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { DataTable } from "@/components/ui/data-table";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -47,10 +47,6 @@ const DIVISION_PILL: Record<Student["division"], string> = {
   "Upper Primary": "bg-blue-100 text-blue-700",
   JHS: "bg-orange-100 text-accent-orange",
 };
-
-function studentInitials(firstName: string, lastName: string) {
-  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
-}
 
 function formatDob(dob: string) {
   return new Date(dob).toLocaleDateString("en-GB", {
@@ -134,16 +130,13 @@ export default function StudentsTable({
         const s = row.original;
         return (
           <div className="flex items-center gap-3 py-0.5">
-            <Avatar className="h-8 w-8 flex-shrink-0">
-              <AvatarFallback
-                className={cn(
-                  "bg-gradient-to-br text-white text-[11px] font-semibold",
-                  DIVISION_AVATAR[s.division]
-                )}
-              >
-                {studentInitials(s.firstName, s.lastName)}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              photoUrl={s.photoUrl}
+              firstName={s.firstName}
+              lastName={s.lastName}
+              size="sm"
+              gradient={DIVISION_AVATAR[s.division]}
+            />
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">
                 {s.firstName} {s.lastName}

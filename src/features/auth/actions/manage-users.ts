@@ -1,7 +1,12 @@
 "use server";
 
+import { cookies } from "next/headers";
+import { eq } from "drizzle-orm";
 import { adminAuth } from "@/lib/firebase-admin";
-import { mockUsers } from "@/lib/mock/users";
+import { db } from "@/db";
+import { users, staff, guardians, schools } from "@/db/schema";
+import { getCurrentSchoolId } from "@/lib/school";
+import { writeAuditLog } from "@/lib/audit-log";
 import type { UserRole } from "@/features/auth/types";
 
 export type ManagedUser = {
@@ -11,18 +16,44 @@ export type ManagedUser = {
   role: UserRole;
   linkedId: string;
   isActive: boolean;
+  photoUrl: string | null;
 };
 
 export async function listUsersAction(): Promise<ManagedUser[]> {
-  // Mock data — replaced with DB query in Phase 1 cutover
-  return mockUsers.map((u) => ({
-    uid: u.uid,
-    email: u.email,
-    displayName: u.displayName,
-    role: u.role as UserRole,
-    linkedId: u.linkedId,
-    isActive: true,
-  }));
+  const schoolId = await getCurrentSchoolId();
+  // Join both staff (Admin / DH / Teacher) and guardians (Parent). Each
+  // row will have at most one side populated; we coalesce in app code.
+  const rows = await db
+    .select({
+      uid: users.id,
+      email: users.email,
+      role: users.role,
+      linkedId: users.linkedId,
+      isActive: users.isActive,
+      staffFirstName: staff.firstName,
+      staffLastName: staff.lastName,
+      staffPhotoUrl: staff.photoUrl,
+      guardianFirstName: guardians.firstName,
+      guardianLastName: guardians.lastName,
+    })
+    .from(users)
+    .leftJoin(staff, eq(staff.id, users.linkedId))
+    .leftJoin(guardians, eq(guardians.id, users.linkedId))
+    .where(eq(users.schoolId, schoolId));
+
+  return rows.map((r) => {
+    const firstName = r.staffFirstName ?? r.guardianFirstName ?? "";
+    const lastName = r.staffLastName ?? r.guardianLastName ?? "";
+    return {
+      uid: r.uid,
+      email: r.email,
+      displayName: firstName ? `${firstName} ${lastName}`.trim() : "",
+      role: r.role as UserRole,
+      linkedId: r.linkedId ?? "",
+      isActive: r.isActive ?? true,
+      photoUrl: r.staffPhotoUrl ?? null,
+    };
+  });
 }
 
 export type CreateUserInput = {
@@ -45,7 +76,19 @@ export async function createUserAction(
       password: tempPassword,
     });
 
-    // TODO (Phase 1 cutover): insert into users table with mustChangePassword=true
+    const schoolId = await getCurrentSchoolId();
+    const schoolRow = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
+    const forceChange = schoolRow?.forcePasswordChangeOnFirstLogin ?? true;
+
+    await db.insert(users).values({
+      id: created.uid,
+      schoolId,
+      email: input.email,
+      role: input.role,
+      linkedId: input.linkedId,
+      isActive: true,
+      mustChangePassword: forceChange,
+    });
 
     const inviteLink = await adminAuth.generatePasswordResetLink(input.email);
     return { success: true, uid: created.uid, inviteLink };
@@ -58,7 +101,7 @@ export async function createUserAction(
 export async function deactivateUserAction(uid: string): Promise<ActionResult> {
   try {
     await adminAuth.updateUser(uid, { disabled: true });
-    // TODO (Phase 1 cutover): set users.isActive = false in DB
+    await db.update(users).set({ isActive: false }).where(eq(users.id, uid));
     return { success: true };
   } catch (err: unknown) {
     const msg = (err as { message?: string }).message ?? "Unknown error";
@@ -69,7 +112,7 @@ export async function deactivateUserAction(uid: string): Promise<ActionResult> {
 export async function reactivateUserAction(uid: string): Promise<ActionResult> {
   try {
     await adminAuth.updateUser(uid, { disabled: false });
-    // TODO (Phase 1 cutover): set users.isActive = true in DB
+    await db.update(users).set({ isActive: true }).where(eq(users.id, uid));
     return { success: true };
   } catch (err: unknown) {
     const msg = (err as { message?: string }).message ?? "Unknown error";
@@ -83,7 +126,29 @@ export async function updateUserAction(
 ): Promise<ActionResult> {
   try {
     await adminAuth.updateUser(uid, { displayName: input.displayName });
-    // TODO (Phase 1 cutover): persist role + linkedId changes to DB
+
+    const cookieStore = await cookies();
+    const actor = cookieStore.get("session_uid")?.value ?? "system";
+
+    // Detect role change for audit log
+    const before = await db.query.users.findFirst({ where: eq(users.id, uid) });
+
+    await db
+      .update(users)
+      .set({ role: input.role, linkedId: input.linkedId })
+      .where(eq(users.id, uid));
+
+    if (before && before.role !== input.role) {
+      await writeAuditLog(db, {
+        userId: actor,
+        action: "ROLE_CHANGE",
+        targetTable: "users",
+        targetId: uid,
+        before: { role: before.role },
+        after: { role: input.role },
+      });
+    }
+
     return { success: true };
   } catch (err: unknown) {
     const msg = (err as { message?: string }).message ?? "Unknown error";

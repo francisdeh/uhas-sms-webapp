@@ -1,12 +1,19 @@
 import { redirect, notFound } from "next/navigation";
+import { and, asc, eq } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
+import { getCurrentSchoolId } from "@/lib/school";
+import { db } from "@/db";
+import {
+  classes,
+  enrollments,
+  schools,
+  staff,
+  students,
+} from "@/db/schema";
 import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
-import { mockStudents } from "@/lib/mock/students";
-import { mockStaff } from "@/lib/mock/staff";
-import { mockClasses } from "@/lib/mock/classes";
-import { mockSchool } from "@/lib/mock/school";
 import { getStaffSessionForDivisionDateAction } from "@/features/attendance/actions";
+import { toStaff } from "@/features/staff/queries/get-staff-by-id";
 import DeputyHeadDashboardOverview from "./DashboardOverview";
 
 export default async function DeputyHeadPage() {
@@ -16,21 +23,43 @@ export default async function DeputyHeadPage() {
   const division = await getDeputyHeadDivision(user.linkedId);
   if (!division) notFound();
 
-  const divisionStudents = mockStudents.filter(
-    (s) => s.division === division && s.isActive
-  ).length;
-  const divisionStaff = mockStaff.filter(
-    (s) => s.division === division && s.isActive
-  ).length;
+  const schoolId = await getCurrentSchoolId();
   const currentYear = await getCurrentAcademicYear();
+  const school = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
 
-  const divisionClasses = mockClasses.filter(
-    (c) => c.division === division && c.academicYear === currentYear
-  ).length;
+  const divisionClassesRows = await db.query.classes.findMany({
+    where: and(
+      eq(classes.schoolId, schoolId),
+      eq(classes.division, division),
+      eq(classes.academicYear, currentYear)
+    ),
+  });
+  const classIds = divisionClassesRows.map((c) => c.id);
 
-  const staffList = mockStaff
-    .filter((s) => s.division === division && s.isActive)
-    .slice(0, 5);
+  let divisionStudents = 0;
+  if (classIds.length > 0) {
+    const rows = await db
+      .select({ id: students.id })
+      .from(enrollments)
+      .innerJoin(students, eq(students.id, enrollments.studentId))
+      .where(
+        and(
+          eq(enrollments.academicYear, currentYear),
+          eq(enrollments.status, "Active"),
+          eq(students.isActive, true)
+        )
+      );
+    divisionStudents = rows.length;
+  }
+
+  const divisionStaffRows = await db.query.staff.findMany({
+    where: and(
+      eq(staff.schoolId, schoolId),
+      eq(staff.division, division),
+      eq(staff.isActive, true)
+    ),
+    orderBy: [asc(staff.lastName)],
+  });
 
   const today = new Date().toISOString().slice(0, 10);
   const todayStaffSession = await getStaffSessionForDivisionDateAction(division, today);
@@ -40,9 +69,13 @@ export default async function DeputyHeadPage() {
       division={division}
       displayName={user.displayName}
       currentYear={currentYear}
-      currentTerm={mockSchool.currentTerm}
-      stats={{ students: divisionStudents, staff: divisionStaff, classes: divisionClasses }}
-      staffList={staffList}
+      currentTerm={school?.currentTerm ?? 1}
+      stats={{
+        students: divisionStudents,
+        staff: divisionStaffRows.length,
+        classes: divisionClassesRows.length,
+      }}
+      staffList={divisionStaffRows.slice(0, 5).map(toStaff)}
       staffAttendanceToday={todayStaffSession !== null}
     />
   );

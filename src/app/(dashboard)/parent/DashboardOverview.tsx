@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { cn } from "@/lib/utils";
-import type { MockAnnouncement } from "@/lib/mock/announcements";
+import type { Announcement as MockAnnouncement } from "@/features/announcements/types";
 
 interface ChildInfo {
   id: string;

@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -83,6 +84,7 @@ const editSchema = z.object({
   rank: z.string().min(2, { message: "Min 2 characters" }),
   phone: z.string().min(7, { message: "Min 7 characters" }),
   email: z.string().email({ message: "Enter a valid email" }),
+  photoUrl: z.string().optional(),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
@@ -105,10 +107,6 @@ const changeRoleSchema = z
   );
 
 type ChangeRoleFormValues = z.infer<typeof changeRoleSchema>;
-
-function staffInitials(firstName: string, lastName: string) {
-  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
-}
 
 function InfoRow({
   label,
@@ -149,6 +147,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
       rank: staff.rank,
       phone: staff.phone,
       email: staff.email,
+      photoUrl: staff.photoUrl ?? "",
     },
   });
 
@@ -231,16 +230,13 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
 
       {/* Avatar + name header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <Avatar className="h-16 w-16 flex-shrink-0">
-          <AvatarFallback
-            className={cn(
-              "bg-gradient-to-br text-white text-xl font-bold",
-              ROLE_AVATAR[staff.systemRole]
-            )}
-          >
-            {staffInitials(staff.firstName, staff.lastName)}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar
+          photoUrl={staff.photoUrl}
+          firstName={staff.firstName}
+          lastName={staff.lastName}
+          size="lg"
+          gradient={ROLE_AVATAR[staff.systemRole]}
+        />
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold truncate">
             {staff.firstName} {staff.lastName}
@@ -396,6 +392,18 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
           </DialogHeader>
           <form onSubmit={editForm.handleSubmit(onEditSubmit)}>
             <FieldGroup className="gap-4 py-1">
+              <Controller
+                name="photoUrl"
+                control={editForm.control}
+                render={({ field }) => (
+                  <ImageUploadField
+                    ownerId={staff.id}
+                    kind="staff/photo"
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                  />
+                )}
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel htmlFor="edit-firstName">First Name</FieldLabel>

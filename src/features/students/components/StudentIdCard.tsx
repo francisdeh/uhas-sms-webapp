@@ -1,15 +1,12 @@
 import { Student } from "../types";
 import { formatStudentDate } from "../utils";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 type Props = {
   student: Student;
 };
 
 export function StudentIdCard({ student }: Props) {
-  const initials =
-    student.firstName.charAt(0).toUpperCase() +
-    student.lastName.charAt(0).toUpperCase();
-
   const formattedDob = formatStudentDate(student.dob);
 
   return (
@@ -26,9 +23,13 @@ export function StudentIdCard({ student }: Props) {
             UHAS Basic School
           </p>
 
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
-            {initials}
-          </div>
+          <UserAvatar
+            photoUrl={student.photoUrl}
+            firstName={student.firstName}
+            lastName={student.lastName}
+            size="md"
+            gradient="from-brand to-brand/80"
+          />
 
           <p className="text-sm font-bold leading-tight">
             {student.firstName} {student.lastName}

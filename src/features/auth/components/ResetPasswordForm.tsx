@@ -6,6 +6,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2, MailCheck } from "lucide-react";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
@@ -27,7 +29,16 @@ export default function ResetPasswordForm() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   async function onSubmit({ email }: FormValues) {
-    await new Promise((r) => setTimeout(r, 800));
+    // Firebase sends the email from its servers using its own template.
+    // We don't await success vs failure differently — to avoid leaking
+    // which addresses are registered, we always show the same "check your
+    // inbox" message regardless of outcome.
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (err) {
+      // Swallow auth/user-not-found etc — we deliberately don't surface them.
+      console.warn("sendPasswordResetEmail:", err);
+    }
     setSentEmail(email);
     setSent(true);
   }

@@ -1,11 +1,14 @@
 import * as React from "react"
-import { Input as InputPrimitive } from "@base-ui/react/input"
 
 import { cn } from "@/lib/utils"
 
+// Native <input> rather than @base-ui/react/input. The Base UI variant is
+// Field.Control under the hood and expects to live inside a Base UI <Field>
+// context — when wrapped by shadcn's plain <Field> div instead, it
+// constantly remounts on each render, wiping any uncontrolled value.
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
-    <InputPrimitive
+    <input
       type={type}
       data-slot="input"
       className={cn(

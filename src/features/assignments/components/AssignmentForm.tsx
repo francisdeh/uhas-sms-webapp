@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, Save, Send, Trash2, Unlock } from "lucide-react";
+import { FileUploadField } from "@/features/uploads/components/FileUploadField";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,7 @@ const schema = z.object({
   title: z.string().min(3, { message: "Add a title" }),
   description: z.string().optional(),
   dueDate: z.string().min(1, { message: "Pick a due date" }),
-  fileUrl: z.string().url({ message: "Enter a valid URL" }).optional().or(z.literal("")),
+  fileUrl: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -61,6 +62,7 @@ export function AssignmentForm({ teacherId, existing, assignments, backHref }: A
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [tempId] = useState(() => existing?.id ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
 
   const published = existing?.status === "published";
 
@@ -262,16 +264,19 @@ export function AssignmentForm({ teacherId, existing, assignments, backHref }: A
                   <FieldError errors={[form.formState.errors.dueDate]} />
                 </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="fileUrl">Attachment URL (optional)</FieldLabel>
-                  <Input
-                    id="fileUrl"
-                    type="url"
-                    placeholder="https://drive.google.com/…"
-                    {...form.register("fileUrl")}
-                  />
-                  <FieldError errors={[form.formState.errors.fileUrl]} />
-                </Field>
+                <Controller
+                  name="fileUrl"
+                  control={form.control}
+                  render={({ field }) => (
+                    <FileUploadField
+                      ownerId={tempId}
+                      kind="assignments/file"
+                      value={field.value ?? null}
+                      onChange={(v) => field.onChange(v ?? "")}
+                      label="Attachment (optional)"
+                    />
+                  )}
+                />
               </div>
             </FieldGroup>
 

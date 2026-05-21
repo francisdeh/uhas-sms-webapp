@@ -13,6 +13,8 @@ import {
   Bell,
   User,
   Calendar,
+  ArrowUpRight,
+  History,
 } from "lucide-react";
 import type { UserRole, SessionUser } from "@/features/auth/types";
 import type { NavGroup, ShellConfig } from "./types";
@@ -40,6 +42,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
           { label: "Examinations", href: "/admin/examinations", icon: FileText },
           { label: "Lesson Plans", href: "/admin/lesson-plans", icon: BookOpen },
           { label: "Schemes", href: "/admin/schemes", icon: ClipboardList },
+          { label: "Promotions", href: "/admin/promotions", icon: ArrowUpRight },
         ],
       },
       {
@@ -53,6 +56,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
         groupLabel: "System",
         items: [
           { label: "Reports", href: "/admin/reports", icon: BarChart2 },
+          { label: "Audit log", href: "/admin/audit-log", icon: History },
           { label: "Settings", href: "/admin/settings", icon: Settings },
         ],
       },
@@ -77,6 +81,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
           { label: "Classes", href: "/deputy-head/classes", icon: School },
           { label: "Attendance", href: "/deputy-head/attendance", icon: ClipboardCheck },
           { label: "Lesson Plans", href: "/deputy-head/lesson-plans", icon: BookOpen },
+          { label: "Promotions", href: "/deputy-head/promotions", icon: ArrowUpRight },
         ],
       },
       {
@@ -109,6 +114,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
           { label: "Assignments", href: "/teacher/assignments", icon: ClipboardList },
           { label: "Examinations", href: "/teacher/examinations", icon: FileText },
           { label: "Class Reports", href: "/teacher/class-reports", icon: ClipboardList },
+          { label: "Promotions", href: "/teacher/promotions", icon: ArrowUpRight },
         ],
       },
       {

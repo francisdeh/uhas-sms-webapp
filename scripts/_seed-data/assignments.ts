@@ -1,0 +1,41 @@
+import type { Assignment } from "@/features/assignments/types";
+
+export const mockAssignments: Assignment[] = [
+  {
+    id: "assign-001",
+    schoolId: "school-uhas-001",
+    teacherId: "STAFF-005",
+    teacherName: "Kwame Darko",
+    subjectId: "sub-jhs-001",
+    subjectName: "English Language",
+    classId: "class-jhs1",
+    className: "JHS 1",
+    title: "Narrative writing — 1-page short story",
+    description:
+      "Write a 1-page short story with a clear beginning, middle and end. Use at least 3 descriptive adjectives. Submit by the due date.",
+    fileUrl: null,
+    dueDate: "2026-05-25",
+    status: "published",
+    publishedAt: "2026-05-15T08:00:00Z",
+    createdAt: "2026-05-14T08:00:00Z",
+    updatedAt: "2026-05-15T08:00:00Z",
+  },
+  {
+    id: "assign-002",
+    schoolId: "school-uhas-001",
+    teacherId: "STAFF-006",
+    teacherName: "Gifty Acheampong",
+    subjectId: "sub-upri-002",
+    subjectName: "Mathematics",
+    classId: "class-p5",
+    className: "Primary 5",
+    title: "Fractions practice set",
+    description: "Complete problems 1–20 in Workbook page 42. Show working.",
+    fileUrl: null,
+    dueDate: "2026-05-22",
+    status: "published",
+    publishedAt: "2026-05-15T08:30:00Z",
+    createdAt: "2026-05-14T16:00:00Z",
+    updatedAt: "2026-05-15T08:30:00Z",
+  },
+];

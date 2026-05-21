@@ -20,7 +20,7 @@ const ThemeContext = createContext<ThemeContextValue>({
   theme: "system",
   resolvedTheme: "light",
   setTheme: () => {},
-  colorScheme: "default",
+  colorScheme: "uhas",
   setColorScheme: () => {},
 });
 
@@ -52,13 +52,13 @@ function applyColorScheme(c: ColorScheme) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("system");
-  const [colorScheme, setColorSchemeState] = useState<ColorScheme>("default");
+  const [colorScheme, setColorSchemeState] = useState<ColorScheme>("uhas");
 
   // Post-hydration sync: server and first client render use defaults to avoid
   // hydration mismatch; localStorage is read only after mount.
   useEffect(() => {
     const savedTheme = (localStorage.getItem(THEME_KEY) as Theme | null) ?? "system";
-    const savedScheme = (localStorage.getItem(COLOR_SCHEME_KEY) as ColorScheme | null) ?? "default";
+    const savedScheme = (localStorage.getItem(COLOR_SCHEME_KEY) as ColorScheme | null) ?? "uhas";
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setThemeState(savedTheme);
     setColorSchemeState(savedScheme);

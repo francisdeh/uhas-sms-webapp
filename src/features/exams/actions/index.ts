@@ -1,15 +1,25 @@
 "use server";
 
-import { mockExams } from "@/lib/mock/exams";
-import { mockScores } from "@/lib/mock/scores";
-import { mockStudents } from "@/lib/mock/students";
-import { mockClasses } from "@/lib/mock/classes";
-import { mockClassSubjects } from "@/lib/mock/class-subjects";
+import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { db } from "@/db";
 import {
-  mockClassReportSubmissions,
-  mockStudentRemarks,
-} from "@/lib/mock/class-reports";
+  exams,
+  scores,
+  classes,
+  classTeachers,
+  classSubjects,
+  subjects,
+  students,
+  enrollments,
+  staff,
+  classReportSubmissions,
+  studentReportRemarks,
+} from "@/db/schema";
+import { getCurrentSchoolId } from "@/lib/school";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
+import { writeAuditLog } from "@/lib/audit-log";
 import type {
   Exam,
   ExamType,
@@ -29,12 +39,39 @@ import {
 
 type ActionResult = { success: true } | { success: false; error: string };
 
-// All write-through to the mock arrays directly so queries that read the
-// imported fixtures (e.g. the report card query) see the latest state.
-const exams = mockExams;
-const scores = mockScores;
-const submissions = mockClassReportSubmissions;
-const remarks = mockStudentRemarks;
+function toExam(row: typeof exams.$inferSelect): Exam {
+  return {
+    id: row.id,
+    schoolId: row.schoolId,
+    name: row.name,
+    type: row.type as ExamType,
+    term: row.term,
+    academicYear: row.academicYear,
+    isPublished: row.isPublished ?? false,
+    publishedAt: row.publishedAt?.toISOString() ?? null,
+    createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
+  };
+}
+
+function toScore(row: typeof scores.$inferSelect): Score {
+  return {
+    id: row.id,
+    examId: row.examId,
+    studentId: row.studentId,
+    subjectId: row.subjectId,
+    cat1: row.cat1,
+    cat2: row.cat2,
+    projectWork: row.projectWork,
+    groupWork: row.groupWork,
+    examScore: row.examScore,
+    totalScore: row.totalScore,
+    grade: row.grade,
+    interpretation: row.interpretation,
+    subjectPosition: row.subjectPosition,
+    createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
+    updatedAt: row.updatedAt?.toISOString() ?? new Date().toISOString(),
+  };
+}
 
 export async function listExamsAction(filter?: {
   type?: ExamType;
@@ -42,90 +79,91 @@ export async function listExamsAction(filter?: {
   academicYear?: string;
   isPublished?: boolean;
 }): Promise<Exam[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-
-  // Default to the user's currently-selected academic year when not specified.
+  const schoolId = await getCurrentSchoolId();
   const year = filter?.academicYear ?? (await getCurrentAcademicYear());
 
-  let results = [...exams];
-  if (filter?.type) results = results.filter((e) => e.type === filter.type);
-  if (filter?.term) results = results.filter((e) => e.term === filter.term);
-  results = results.filter((e) => e.academicYear === year);
-  if (filter?.isPublished !== undefined)
-    results = results.filter((e) => e.isPublished === filter.isPublished);
-
-  return results.sort((a, b) => {
-    if (a.academicYear !== b.academicYear) return b.academicYear.localeCompare(a.academicYear);
-    if (a.term !== b.term) return b.term - a.term;
-    if (a.type !== b.type) return a.type === "MidTerm" ? -1 : 1;
-    return 0;
+  const rows = await db.query.exams.findMany({
+    where: and(
+      eq(exams.schoolId, schoolId),
+      eq(exams.academicYear, year),
+      filter?.type ? eq(exams.type, filter.type) : undefined,
+      filter?.term ? eq(exams.term, filter.term) : undefined,
+      filter?.isPublished !== undefined ? eq(exams.isPublished, filter.isPublished) : undefined
+    ),
+    orderBy: [desc(exams.academicYear), desc(exams.term)],
   });
+
+  return rows
+    .map(toExam)
+    .sort((a, b) => {
+      if (a.academicYear !== b.academicYear) return b.academicYear.localeCompare(a.academicYear);
+      if (a.term !== b.term) return b.term - a.term;
+      if (a.type !== b.type) return a.type === "MidTerm" ? -1 : 1;
+      return 0;
+    });
 }
 
 export async function getExamAction(id: string): Promise<Exam | null> {
-  if (process.env.USE_MOCK_DATA !== "true") return null;
-  return exams.find((e) => e.id === id) ?? null;
+  const row = await db.query.exams.findFirst({ where: eq(exams.id, id) });
+  return row ? toExam(row) : null;
 }
 
 export async function createExamAction(
   input: CreateExamInput
 ): Promise<{ success: true; id: string } | { success: false; error: string }> {
-  if (process.env.USE_MOCK_DATA !== "true") {
-    return { success: false, error: "DB not connected" };
-  }
+  const schoolId = await getCurrentSchoolId();
 
-  const duplicate = exams.find(
-    (e) =>
-      e.type === input.type &&
-      e.term === input.term &&
-      e.academicYear === input.academicYear
-  );
+  const duplicate = await db.query.exams.findFirst({
+    where: and(
+      eq(exams.schoolId, schoolId),
+      eq(exams.type, input.type),
+      eq(exams.term, input.term),
+      eq(exams.academicYear, input.academicYear)
+    ),
+  });
   if (duplicate) {
     return { success: false, error: "An exam of this type already exists for this term." };
   }
 
   const id = `exam-${input.type.toLowerCase()}-t${input.term}-${input.academicYear.replace("/", "-")}-${Date.now()}`;
-  exams.push({
+  await db.insert(exams).values({
     id,
-    schoolId: "school-uhas-001",
+    schoolId,
     name: input.name,
     type: input.type,
     term: input.term,
     academicYear: input.academicYear,
     isPublished: false,
     publishedAt: null,
-    createdAt: new Date().toISOString(),
   });
 
+  revalidatePath("/admin/examinations");
   return { success: true, id };
 }
 
 export async function publishExamAction(id: string): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA !== "true") {
-    return { success: false, error: "DB not connected" };
-  }
-
-  const exam = exams.find((e) => e.id === id);
+  const exam = await db.query.exams.findFirst({ where: eq(exams.id, id) });
   if (!exam) return { success: false, error: "Exam not found." };
   if (exam.isPublished) return { success: false, error: "Already published." };
-
-  exam.isPublished = true;
-  exam.publishedAt = new Date().toISOString();
+  await db
+    .update(exams)
+    .set({ isPublished: true, publishedAt: new Date() })
+    .where(eq(exams.id, id));
+  revalidatePath("/admin/examinations");
   return { success: true };
 }
 
 export async function unpublishExamAction(id: string): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA !== "true") {
-    return { success: false, error: "DB not connected" };
-  }
-  const exam = exams.find((e) => e.id === id);
+  const exam = await db.query.exams.findFirst({ where: eq(exams.id, id) });
   if (!exam) return { success: false, error: "Exam not found." };
-  exam.isPublished = false;
-  exam.publishedAt = null;
+  await db
+    .update(exams)
+    .set({ isPublished: false, publishedAt: null })
+    .where(eq(exams.id, id));
+  revalidatePath("/admin/examinations");
   return { success: true };
 }
 
-// Returns scores for one (exam, subject, class) grid plus the roster of students.
 export async function getScoresForGridAction(input: {
   examId: string;
   subjectId: string;
@@ -134,28 +172,51 @@ export async function getScoresForGridAction(input: {
   exam: Exam | null;
   rows: { studentId: string; studentName: string; score: Score | null }[];
 }> {
-  if (process.env.USE_MOCK_DATA !== "true") {
-    return { exam: null, rows: [] };
-  }
+  const examRow = await db.query.exams.findFirst({ where: eq(exams.id, input.examId) });
+  if (!examRow) return { exam: null, rows: [] };
 
-  const exam = exams.find((e) => e.id === input.examId) ?? null;
-  const roster = mockStudents
-    .filter((s) => s.classId === input.classId && s.isActive)
-    .sort((a, b) => a.lastName.localeCompare(b.lastName));
+  // Roster: students with an active enrollment in this class for the exam's year
+  const rosterRows = await db
+    .select({
+      id: students.id,
+      firstName: students.firstName,
+      lastName: students.lastName,
+    })
+    .from(enrollments)
+    .innerJoin(students, eq(students.id, enrollments.studentId))
+    .where(
+      and(
+        eq(enrollments.classId, input.classId),
+        eq(enrollments.academicYear, examRow.academicYear),
+        eq(enrollments.status, "Active"),
+        eq(students.isActive, true)
+      )
+    )
+    .orderBy(asc(students.lastName));
 
-  const rows = roster.map((s) => ({
-    studentId: s.id,
-    studentName: `${s.firstName} ${s.lastName}`,
-    score:
-      scores.find(
-        (sc) =>
-          sc.examId === input.examId &&
-          sc.subjectId === input.subjectId &&
-          sc.studentId === s.id
-      ) ?? null,
-  }));
+  const studentIds = rosterRows.map((s) => s.id);
+  const scoreRows = studentIds.length === 0
+    ? []
+    : await db.query.scores.findMany({
+        where: and(
+          eq(scores.examId, input.examId),
+          eq(scores.subjectId, input.subjectId),
+          inArray(scores.studentId, studentIds)
+        ),
+      });
+  const scoreByStudent = new Map(scoreRows.map((s) => [s.studentId, s]));
 
-  return { exam, rows };
+  return {
+    exam: toExam(examRow),
+    rows: rosterRows.map((s) => {
+      const sc = scoreByStudent.get(s.id);
+      return {
+        studentId: s.id,
+        studentName: `${s.firstName} ${s.lastName}`,
+        score: sc ? toScore(sc) : null,
+      };
+    }),
+  };
 }
 
 export async function saveScoresAction(input: {
@@ -164,20 +225,13 @@ export async function saveScoresAction(input: {
   classId: string;
   rows: ScoreInput[];
 }): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA !== "true") {
-    return { success: false, error: "DB not connected" };
-  }
-
-  const exam = exams.find((e) => e.id === input.examId);
+  const exam = await db.query.exams.findFirst({ where: eq(exams.id, input.examId) });
   if (!exam) return { success: false, error: "Exam not found." };
   if (exam.isPublished) {
-    return {
-      success: false,
-      error: "Exam is published. Unpublish first to edit scores.",
-    };
+    return { success: false, error: "Exam is published. Unpublish first to edit scores." };
   }
 
-  // Validate ranges 0-100
+  // Validate ranges
   for (const row of input.rows) {
     const fields = ["cat1", "cat2", "projectWork", "groupWork", "examScore"] as const;
     for (const f of fields) {
@@ -188,87 +242,125 @@ export async function saveScoresAction(input: {
     }
   }
 
-  // Compute total + grade per row, drop rows without any component
-  const computed = input.rows.map((row) => {
-    const components = {
-      cat1: row.cat1 ?? null,
-      cat2: row.cat2 ?? null,
-      projectWork: row.projectWork ?? null,
-      groupWork: row.groupWork ?? null,
-      examScore: row.examScore ?? null,
-    };
-    const totalScore = hasAnyComponentScore(components)
-      ? computeTotalScore(exam.type, components)
-      : null;
-    const graded = totalScore != null ? computeGrade(totalScore) : null;
-    return {
-      studentId: row.studentId,
-      ...components,
-      totalScore,
-      grade: graded?.grade ?? null,
-      interpretation: graded?.interpretation ?? null,
-    };
+  const cookieStore = await cookies();
+  const actor = cookieStore.get("session_uid")?.value ?? "system";
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    for (const row of input.rows) {
+      const components = {
+        cat1: row.cat1 ?? null,
+        cat2: row.cat2 ?? null,
+        projectWork: row.projectWork ?? null,
+        groupWork: row.groupWork ?? null,
+        examScore: row.examScore ?? null,
+      };
+      const totalScore = hasAnyComponentScore(components)
+        ? computeTotalScore(exam.type as ExamType, components)
+        : null;
+      const graded = totalScore != null ? computeGrade(totalScore) : null;
+
+      // Find existing by (exam, subject, student) — the natural key.
+      // Constructed id is only used for NEW inserts.
+      const existing = await tx.query.scores.findFirst({
+        where: and(
+          eq(scores.examId, input.examId),
+          eq(scores.subjectId, input.subjectId),
+          eq(scores.studentId, row.studentId)
+        ),
+      });
+
+      if (!hasAnyComponentScore(components)) {
+        if (existing) await tx.delete(scores).where(eq(scores.id, existing.id));
+        continue;
+      }
+
+      if (existing) {
+        if (existing.totalScore != null) {
+          await writeAuditLog(tx, {
+            userId: actor,
+            action: "SCORE_OVERRIDE",
+            targetTable: "scores",
+            targetId: existing.id,
+            before: existing,
+            after: { ...components, totalScore, grade: graded?.grade, interpretation: graded?.interpretation },
+          });
+        }
+        await tx
+          .update(scores)
+          .set({
+            ...components,
+            totalScore,
+            grade: graded?.grade ?? null,
+            interpretation: graded?.interpretation ?? null,
+            updatedAt: now,
+          })
+          .where(eq(scores.id, existing.id));
+      } else {
+        const id = `score-${input.examId}-${input.subjectId}-${row.studentId}`;
+        await tx.insert(scores).values({
+          id,
+          examId: input.examId,
+          studentId: row.studentId,
+          subjectId: input.subjectId,
+          ...components,
+          totalScore,
+          grade: graded?.grade ?? null,
+          interpretation: graded?.interpretation ?? null,
+          subjectPosition: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+
+    // Recompute subjectPosition across the class for (exam, subject).
+    const rosterStudentIds = (
+      await tx
+        .select({ id: students.id })
+        .from(enrollments)
+        .innerJoin(students, eq(students.id, enrollments.studentId))
+        .where(
+          and(
+            eq(enrollments.classId, input.classId),
+            eq(enrollments.academicYear, exam.academicYear),
+            eq(enrollments.status, "Active"),
+            eq(students.isActive, true)
+          )
+        )
+    ).map((r) => r.id);
+
+    if (rosterStudentIds.length > 0) {
+      const classScores = await tx.query.scores.findMany({
+        where: and(
+          eq(scores.examId, input.examId),
+          eq(scores.subjectId, input.subjectId),
+          inArray(scores.studentId, rosterStudentIds)
+        ),
+      });
+      const ranked = assignSubjectPositions(classScores.map(toScore));
+      for (const r of ranked) {
+        await tx
+          .update(scores)
+          .set({ subjectPosition: r.subjectPosition })
+          .where(eq(scores.id, r.id));
+      }
+    }
   });
 
-  // Drop existing scores for this (exam, subject) ↔ each student we're saving
-  const studentIds = new Set(computed.map((c) => c.studentId));
-  for (let i = scores.length - 1; i >= 0; i--) {
-    const s = scores[i];
-    if (s.examId === input.examId && s.subjectId === input.subjectId && studentIds.has(s.studentId)) {
-      scores.splice(i, 1);
-    }
-  }
-
-  const now = new Date().toISOString();
-  for (const c of computed) {
-    if (!hasAnyComponentScore(c)) continue;
-    scores.push({
-      id: `score-${input.examId}-${input.subjectId}-${c.studentId}`,
-      examId: input.examId,
-      studentId: c.studentId,
-      subjectId: input.subjectId,
-      cat1: c.cat1,
-      cat2: c.cat2,
-      projectWork: c.projectWork,
-      groupWork: c.groupWork,
-      examScore: c.examScore,
-      totalScore: c.totalScore,
-      grade: c.grade,
-      interpretation: c.interpretation,
-      subjectPosition: null,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
-
-  // Recompute subjectPosition across the whole class for this (exam, subject)
-  const studentIdsInClass = new Set(
-    mockStudents.filter((s) => s.classId === input.classId && s.isActive).map((s) => s.id)
-  );
-  const classScores = scores.filter(
-    (s) =>
-      s.examId === input.examId &&
-      s.subjectId === input.subjectId &&
-      studentIdsInClass.has(s.studentId)
-  );
-  const ranked = assignSubjectPositions(classScores);
-  for (const r of ranked) {
-    const target = scores.find(
-      (s) => s.examId === r.examId && s.subjectId === r.subjectId && s.studentId === r.studentId
-    );
-    if (target) target.subjectPosition = r.subjectPosition;
-  }
-
+  revalidatePath("/teacher/examinations");
   return { success: true };
 }
 
-// Get all scores for a single student in a single exam (used by report card).
 export async function getStudentExamScoresAction(
   studentId: string,
   examId: string
 ): Promise<Score[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  return scores.filter((s) => s.studentId === studentId && s.examId === examId);
+  const rows = await db.query.scores.findMany({
+    where: and(eq(scores.studentId, studentId), eq(scores.examId, examId)),
+  });
+  return rows.map(toScore);
 }
 
 // ─── Workflow: class-report submissions + remarks ────────────────────────────
@@ -277,55 +369,121 @@ export async function getClassReportSubmissionAction(
   examId: string,
   classId: string
 ): Promise<ClassReportSubmission | null> {
-  if (process.env.USE_MOCK_DATA !== "true") return null;
-  return submissions.find((s) => s.examId === examId && s.classId === classId) ?? null;
+  const row = await db.query.classReportSubmissions.findFirst({
+    where: and(
+      eq(classReportSubmissions.examId, examId),
+      eq(classReportSubmissions.classId, classId)
+    ),
+  });
+  if (!row) return null;
+  return {
+    id: row.id,
+    examId: row.examId,
+    classId: row.classId,
+    status: (row.status as "draft" | "submitted") ?? "draft",
+    submittedById: row.submittedById,
+    submittedAt: row.submittedAt?.toISOString() ?? null,
+  };
 }
 
 export async function listSubmissionsForExamAction(
   examId: string
 ): Promise<ClassReportSubmission[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  return submissions.filter((s) => s.examId === examId);
+  const rows = await db.query.classReportSubmissions.findMany({
+    where: eq(classReportSubmissions.examId, examId),
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    examId: r.examId,
+    classId: r.classId,
+    status: (r.status as "draft" | "submitted") ?? "draft",
+    submittedById: r.submittedById,
+    submittedAt: r.submittedAt?.toISOString() ?? null,
+  }));
 }
 
 export async function getStudentRemarkAction(
   examId: string,
   studentId: string
 ): Promise<StudentRemark | null> {
-  if (process.env.USE_MOCK_DATA !== "true") return null;
-  return remarks.find((r) => r.examId === examId && r.studentId === studentId) ?? null;
+  const row = await db.query.studentReportRemarks.findFirst({
+    where: and(
+      eq(studentReportRemarks.examId, examId),
+      eq(studentReportRemarks.studentId, studentId)
+    ),
+  });
+  if (!row) return null;
+  return {
+    examId: row.examId,
+    studentId: row.studentId,
+    classTeacherRemark: row.classTeacherRemark,
+    headOfSchoolComment: row.headOfSchoolComment,
+    updatedAt: row.updatedAt?.toISOString() ?? new Date().toISOString(),
+  };
 }
 
 export async function listRemarksForExamClassAction(
   examId: string,
   classId: string
 ): Promise<StudentRemark[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  const studentIds = new Set(
-    mockStudents.filter((s) => s.classId === classId && s.isActive).map((s) => s.id)
-  );
-  return remarks.filter((r) => r.examId === examId && studentIds.has(r.studentId));
+  const exam = await db.query.exams.findFirst({ where: eq(exams.id, examId) });
+  if (!exam) return [];
+
+  const studentIds = (
+    await db
+      .select({ id: enrollments.studentId })
+      .from(enrollments)
+      .innerJoin(students, eq(students.id, enrollments.studentId))
+      .where(
+        and(
+          eq(enrollments.classId, classId),
+          eq(enrollments.academicYear, exam.academicYear),
+          eq(enrollments.status, "Active"),
+          eq(students.isActive, true)
+        )
+      )
+  ).map((r) => r.id);
+  if (studentIds.length === 0) return [];
+
+  const rows = await db.query.studentReportRemarks.findMany({
+    where: and(
+      eq(studentReportRemarks.examId, examId),
+      inArray(studentReportRemarks.studentId, studentIds)
+    ),
+  });
+  return rows.map((r) => ({
+    examId: r.examId,
+    studentId: r.studentId,
+    classTeacherRemark: r.classTeacherRemark,
+    headOfSchoolComment: r.headOfSchoolComment,
+    updatedAt: r.updatedAt?.toISOString() ?? new Date().toISOString(),
+  }));
 }
 
-function upsertRemark(
+async function upsertRemark(
+  tx: typeof db,
   examId: string,
   studentId: string,
-  patch: Partial<Pick<StudentRemark, "classTeacherRemark" | "headOfSchoolComment">>
+  patch: { classTeacherRemark?: string | null; headOfSchoolComment?: string | null }
 ) {
-  const existing = remarks.find((r) => r.examId === examId && r.studentId === studentId);
-  if (existing) {
-    if (patch.classTeacherRemark !== undefined) existing.classTeacherRemark = patch.classTeacherRemark;
-    if (patch.headOfSchoolComment !== undefined) existing.headOfSchoolComment = patch.headOfSchoolComment;
-    existing.updatedAt = new Date().toISOString();
-    return;
-  }
-  remarks.push({
-    examId,
-    studentId,
-    classTeacherRemark: patch.classTeacherRemark ?? null,
-    headOfSchoolComment: patch.headOfSchoolComment ?? null,
-    updatedAt: new Date().toISOString(),
+  const id = `remark-${examId}-${studentId}`;
+  const existing = await tx.query.studentReportRemarks.findFirst({
+    where: eq(studentReportRemarks.id, id),
   });
+  if (existing) {
+    const update: Partial<typeof studentReportRemarks.$inferInsert> = { updatedAt: new Date() };
+    if (patch.classTeacherRemark !== undefined) update.classTeacherRemark = patch.classTeacherRemark;
+    if (patch.headOfSchoolComment !== undefined) update.headOfSchoolComment = patch.headOfSchoolComment;
+    await tx.update(studentReportRemarks).set(update).where(eq(studentReportRemarks.id, id));
+  } else {
+    await tx.insert(studentReportRemarks).values({
+      id,
+      examId,
+      studentId,
+      classTeacherRemark: patch.classTeacherRemark ?? null,
+      headOfSchoolComment: patch.headOfSchoolComment ?? null,
+    });
+  }
 }
 
 export async function saveClassReportDraftAction(input: {
@@ -333,61 +491,65 @@ export async function saveClassReportDraftAction(input: {
   classId: string;
   remarks: { studentId: string; classTeacherRemark: string }[];
 }): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA !== "true") {
-    return { success: false, error: "DB not connected" };
-  }
-  const exam = exams.find((e) => e.id === input.examId);
+  const exam = await db.query.exams.findFirst({ where: eq(exams.id, input.examId) });
   if (!exam) return { success: false, error: "Exam not found." };
   if (exam.isPublished) return { success: false, error: "Exam is published; remarks are locked." };
 
-  for (const r of input.remarks) {
-    upsertRemark(input.examId, r.studentId, {
-      classTeacherRemark: r.classTeacherRemark.trim() || null,
-    });
-  }
+  await db.transaction(async (tx) => {
+    for (const r of input.remarks) {
+      await upsertRemark(tx as unknown as typeof db, input.examId, r.studentId, {
+        classTeacherRemark: r.classTeacherRemark.trim() || null,
+      });
+    }
+  });
+  revalidatePath(`/teacher/class-reports/${input.examId}/${input.classId}`);
   return { success: true };
 }
 
 export async function submitClassReportAction(
   input: SubmitClassReportInput & { submittedById: string }
 ): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA !== "true") {
-    return { success: false, error: "DB not connected" };
-  }
-
-  const exam = exams.find((e) => e.id === input.examId);
+  const exam = await db.query.exams.findFirst({ where: eq(exams.id, input.examId) });
   if (!exam) return { success: false, error: "Exam not found." };
   if (exam.isPublished) return { success: false, error: "Exam is published; cannot resubmit." };
 
-  const cls = mockClasses.find((c) => c.id === input.classId);
+  const cls = await db.query.classes.findFirst({ where: eq(classes.id, input.classId) });
   if (!cls) return { success: false, error: "Class not found." };
 
-  // Save remarks first
-  for (const r of input.remarks) {
-    upsertRemark(input.examId, r.studentId, {
-      classTeacherRemark: r.classTeacherRemark.trim() || null,
-    });
-  }
+  await db.transaction(async (tx) => {
+    for (const r of input.remarks) {
+      await upsertRemark(tx as unknown as typeof db, input.examId, r.studentId, {
+        classTeacherRemark: r.classTeacherRemark.trim() || null,
+      });
+    }
 
-  const now = new Date().toISOString();
-  const existing = submissions.find(
-    (s) => s.examId === input.examId && s.classId === input.classId
-  );
-  if (existing) {
-    existing.status = "submitted";
-    existing.submittedById = input.submittedById;
-    existing.submittedAt = now;
-  } else {
-    submissions.push({
-      id: `submission-${input.examId}-${input.classId}`,
-      examId: input.examId,
-      classId: input.classId,
-      status: "submitted",
-      submittedById: input.submittedById,
-      submittedAt: now,
+    const id = `crs-${input.examId}-${input.classId}`;
+    const existing = await tx.query.classReportSubmissions.findFirst({
+      where: eq(classReportSubmissions.id, id),
     });
-  }
+    if (existing) {
+      await tx
+        .update(classReportSubmissions)
+        .set({
+          status: "submitted",
+          submittedById: input.submittedById,
+          submittedAt: new Date(),
+        })
+        .where(eq(classReportSubmissions.id, id));
+    } else {
+      await tx.insert(classReportSubmissions).values({
+        id,
+        examId: input.examId,
+        classId: input.classId,
+        status: "submitted",
+        submittedById: input.submittedById,
+        submittedAt: new Date(),
+      });
+    }
+  });
 
+  revalidatePath(`/teacher/class-reports/${input.examId}/${input.classId}`);
+  revalidatePath(`/admin/examinations/${input.examId}/review`);
   return { success: true };
 }
 
@@ -396,29 +558,29 @@ export async function updateHeadOfSchoolCommentAction(input: {
   studentId: string;
   comment: string;
 }): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA !== "true") {
-    return { success: false, error: "DB not connected" };
-  }
-  const exam = exams.find((e) => e.id === input.examId);
+  const exam = await db.query.exams.findFirst({ where: eq(exams.id, input.examId) });
   if (!exam) return { success: false, error: "Exam not found." };
   if (exam.isPublished) return { success: false, error: "Exam is published; comments are locked." };
 
-  upsertRemark(input.examId, input.studentId, {
-    headOfSchoolComment: input.comment.trim() || null,
+  await db.transaction(async (tx) => {
+    await upsertRemark(tx as unknown as typeof db, input.examId, input.studentId, {
+      headOfSchoolComment: input.comment.trim() || null,
+    });
   });
+  revalidatePath(`/admin/examinations/${input.examId}/review`);
   return { success: true };
 }
 
-// For the teacher's exam landing page: which (class, subject) cells the teacher
-// is responsible for entering, grouped by class.
-// Lists classes where the given staff is one of the class teachers.
 export async function listClassTeacherClassesAction(teacherId: string): Promise<
   { classId: string; className: string }[]
 > {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  return mockClasses
-    .filter((c) => c.classTeachers.some((t) => t.staffId === teacherId))
-    .map((c) => ({ classId: c.id, className: c.name }));
+  const year = await getCurrentAcademicYear();
+  const rows = await db
+    .select({ classId: classes.id, className: classes.name })
+    .from(classTeachers)
+    .innerJoin(classes, eq(classes.id, classTeachers.classId))
+    .where(and(eq(classTeachers.staffId, teacherId), eq(classes.academicYear, year)));
+  return rows;
 }
 
 export async function listTeacherAssignmentsAction(teacherId: string): Promise<
@@ -428,26 +590,35 @@ export async function listTeacherAssignmentsAction(teacherId: string): Promise<
     subjects: { subjectId: string; subjectName: string }[];
   }[]
 > {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
+  const year = await getCurrentAcademicYear();
+  const rows = await db
+    .select({
+      classId: classSubjects.classId,
+      className: classes.name,
+      academicYear: classes.academicYear,
+      subjectId: classSubjects.subjectId,
+      subjectName: subjects.name,
+    })
+    .from(classSubjects)
+    .innerJoin(classes, eq(classes.id, classSubjects.classId))
+    .innerJoin(subjects, eq(subjects.id, classSubjects.subjectId))
+    .where(and(eq(classSubjects.teacherId, teacherId), eq(classes.academicYear, year)));
 
-  // Subject-level assignments
-  const subjectAssignments = mockClassSubjects.filter((cs) => cs.teacherId === teacherId);
-
-  // Class-teacher assignments — they're responsible for the whole class report,
-  // but for score entry we'll only show subjects they actually teach.
-  const byClass: Record<string, { classId: string; className: string; subjects: { subjectId: string; subjectName: string }[] }> = {};
-  for (const cs of subjectAssignments) {
-    const cls = mockClasses.find((c) => c.id === cs.classId);
-    if (!cls) continue;
-    const entry = (byClass[cs.classId] ??= {
-      classId: cs.classId,
-      className: cls.name,
+  const byClass = new Map<
+    string,
+    { classId: string; className: string; subjects: { subjectId: string; subjectName: string }[] }
+  >();
+  for (const r of rows) {
+    const entry = byClass.get(r.classId) ?? {
+      classId: r.classId,
+      className: r.className,
       subjects: [],
-    });
-    if (!entry.subjects.some((s) => s.subjectId === cs.subjectId)) {
-      entry.subjects.push({ subjectId: cs.subjectId, subjectName: cs.subjectName });
+    };
+    if (!entry.subjects.some((s) => s.subjectId === r.subjectId)) {
+      entry.subjects.push({ subjectId: r.subjectId, subjectName: r.subjectName });
     }
+    byClass.set(r.classId, entry);
   }
-
-  return Object.values(byClass).sort((a, b) => a.className.localeCompare(b.className));
+  return Array.from(byClass.values()).sort((a, b) => a.className.localeCompare(b.className));
 }
+

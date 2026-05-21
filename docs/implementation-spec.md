@@ -248,7 +248,7 @@ Classes: KG 1, KG 2, Primary 1–6, JHS 1–3
 | Phase | Duration | Deliverables |
 |---|---|---|
 | **0 — Foundation** | 1 week | ✅ Firebase emulator setup, Drizzle schema file, root layout with Providers + Toaster, auth middleware skeleton, mock data fixtures, Railway deployment config (`railway.toml`); Neon DB provisioned but migrations deferred until Phase 1 |
-| **1 — Auth & User Management** | 2 weeks | 🔧 Login, reset-password, change-password pages (all using shadcn + react-hook-form + Zod); role-based routing via proxy.ts; session cookie pipeline (uid, role, email, linkedId); Admin user management UI — stats bar, DataTable with filter pills, create/edit modal, deactivate confirmation, invite-link flow; dashboard shell — Sidebar, Header, academic year switcher, global search (⌘K), notifications, dark mode toggle; per-role profile + security settings pages. Non-admin role dashboards (Deputy Head, HOD, Teacher, Parent) built with role-scoped content and live attendance stats. Firebase custom claims pipeline wired: `seed:firebase` script seeds production users, `loginAction` reads `{ role, linkedId }` claims in production. **Deferred items:** (a) `ResetPasswordForm` shows success UI but does not call `sendPasswordResetEmail` — needs real Firebase call; (b) session expiry warning modal (5-min before 8h expiry, with extend option) not yet implemented; (c) `mustChangePassword` enforcement hardcoded to `false` — will be wired when real DB replaces mock in Phase 1 cutover. |
+| **1 — Auth & User Management** | 2 weeks | ✅ Login, reset-password, change-password pages (all using shadcn + react-hook-form + Zod); role-based routing via proxy.ts; session cookie pipeline (uid, role, email, linkedId, expires_at); Admin user management UI — stats bar, DataTable with filter pills, create/edit modal, deactivate confirmation, invite-link flow; dashboard shell — Sidebar, Header, academic year switcher, global search (⌘K), notifications, dark mode toggle; per-role profile + security settings pages. Non-admin role dashboards (Deputy Head, Teacher, Parent) built with role-scoped content and live attendance stats. Firebase custom claims pipeline wired: `seed:firebase` script seeds production users. Reset-password wired to Firebase `sendPasswordResetEmail`. `mustChangePassword` read from DB and enforced in `loginAction`. Session expiry warning: `SessionExpiryWatcher` in `DashboardLayout` reads `session_expires_at` cookie, shows an AlertDialog 5 min before expiry with a live mm:ss countdown and Extend (re-issues all session cookies for 8h via `extendSessionAction`) / Sign out buttons. |
 | **2a — Student Records** | 1 week | ✅ Student list (Admin + Deputy Head scoped), registration form, soft-deactivate/reactivate, division + status filter pills. All on mock data. |
 | **2b — Student Detail & ID Card** | 1 week | ✅ Student detail view, edit profile, class transfer (with AlertDialog confirmation), printable ID card (browser print + @media print CSS). All on mock data. |
 | **2c — Staff Management** | 1 week | ✅ Staff list (Admin-scoped, role + status filter pills), registration form with invite-link flow, staff detail with edit/change-role/deactivate/reactivate. All on mock data. |
@@ -263,11 +263,18 @@ Classes: KG 1, KG 2, Primary 1–6, JHS 1–3
 | **5c — Assignments** | 0.5 week | ✅ New `assignments` table (id, teacherId, classId, subjectId, title, description, fileUrl, dueDate, status: `draft \| published`). Teacher `/teacher/assignments` flows: list, new, edit, publish, unpublish, delete. Parent `/parent/assignments` aggregates published assignments for every linked child's class, surfaces due-date state (overdue / today / upcoming), per-child attribution, and the optional attachment link. |
 | **6a — Announcements** | 0.5 week | ✅ `features/announcements` with `Announcement` type (audience string of form `all` \| `division:<D>` \| `class:<id>`). Server actions for list, create, delete with role-scoped audience validation. Three views: Admin (full audience picker + delete-any), Deputy Head (locked to own division), Parent (auto-filtered to school-wide + announcements matching any linked child's division/class). |
 | **6b — Parent-Teacher Appointments** | 0.5 week | ✅ New `appointments` table (guardianId, studentId, teacherId, preferredDate, preferredSlot, reason, status, teacherResponse). Status transitions: `pending → confirmed`/`declined` (teacher) or `→ cancelled` (parent). Parent picker pulls teachers who teach the child (subject teachers + class teachers via the new junction). Decline requires a reason; confirmation can include an optional message. |
-| **6c — Email notifications** | deferred | SendGrid wiring for critical announcements + appointment notifications lands when Cloud Functions integration is set up. |
+| **6c — Email notifications** | ✅ (minimum) | Provider-agnostic email module at `src/lib/email.ts` (nodemailer transport, swappable in one place). Wired to Gmail SMTP for now via `SMTP_HOST/PORT/USER/PASS` env vars; if those are unset, emails are logged to stdout — safe for dev, CI, and tests. First consumer: lesson-plan rejection (both Unit Head and Deputy Head) emails the teacher with the reviewer's comment + a link to the plan. Bulk sends + bounce/open analytics will need a swap to Resend/SendGrid later; Gmail's ~500/day personal quota (~2,000/day Workspace) is fine for current notification volume. Reset-password emails are not in this path — Firebase Auth sends those itself. |
 | **7a — Reports dashboards** | 1 week | ✅ `features/reports` with `getSchoolStats`, `getDivisionStats`, `getClassStats`. Admin `/admin/reports` shows school-wide totals, gender breakdown, per-division population, lesson-plan funnel, exam status, today's attendance. Deputy Head `/deputy-head/reports` is the same shape filtered to one division (7-day attendance, lesson-plan funnel, class ranking by aggregate). Teacher `/teacher/reports` aggregates each class the teacher teaches/class-teaches with attendance + subject averages from published exams. |
 | **7b — PSC Report** | 0.5 week | ✅ Admin-only printable Population & Staff Census at `/admin/reports/psc` — totals, per-class boy/girl breakdown with division subtotals, school total row, and teachers grouped per division. Reuses the existing report-card print mode (A4, scoped via `body.print-mode-report-card`). |
 | **7c — Academic Calendar** | 0.5 week | ✅ New `calendar_events` table (title, description, startDate, endDate?, type: term_start \| term_end \| exam \| holiday \| event, createdById). Admin manages at `/admin/calendar` (add + delete). Read-only `/<role>/calendar` views for Deputy Head, Teacher, Parent showing Upcoming + Past sections. |
-| **8 — Testing** | 2 weeks | See section below |
+| **5.7 — Student Promotion** | 1 week | ✅ End-of-year promotion workflow (originally deferred from MVP build). Three new tables: `promotion_seasons` (school × year gate), `promotion_submissions` (one per class × year), `promotion_decisions` (per student). Admin `/admin/promotions` opens/closes the season; opening when Term-3 EndOfTerm isn't published surfaces an AlertDialog and records `openedWithOverride=true`. Class Teacher `/teacher/promotions/[classId]` lists the roster with a `computePromotionSuggestion` chip (fails 3+ core subjects on Term-3 → Repeat; JHS 3 → Graduate; otherwise Promote), Save Draft + Submit. Per-student decision = Promote / Repeat / Withdraw (Graduate / Repeat for JHS 3), target class auto-picked same-suffix (`autoPickTargetClass` in `lib/next-class-resolver`), reason required for Repeat/Withdraw. Deputy Head `/deputy-head/promotions` queue + per-class Approve / Send back with required comment. After DB cutover, approval runs a real transaction that closes current-year enrollments, inserts new-year `enrollments` (Active for Promote, Repeating for Repeat), flips `students.isActive=false` for Withdraw, and writes one `PROMOTION_APPROVED` audit log row. |
+| **DB Cutover** | 1 week | ✅ Removed `USE_MOCK_DATA` flag and the entire `src/lib/mock/` directory. Every action and query now reads/writes through Drizzle ORM. `src/db/index.ts` branches on `DB_DRIVER` env var (or auto-detects from `*.neon.tech` host) — `pg` for local Docker + Railway, `neon-http` for Neon prod. Schema converted from uuid PKs to varchar so the human-readable mock IDs (`STAFF-001`, `class-jhs1a`) port 1:1 through the seed. Generated baseline migration at `drizzle/0000_init.sql`, applied via `scripts/migrate.ts` (`npm run db:migrate`). New `scripts/seed-db.ts` ports every fixture from `scripts/_seed-data/` into the DB — flags `--reset` / `--idempotent` / `--no-demo`. Audit log wired for `SCORE_OVERRIDE`, `STUDENT_EDIT`, `ROLE_CHANGE`, `PROMOTION_APPROVED` via `src/lib/audit-log.ts`. `getCurrentSchoolId()` helper routes the single-school constant through one swappable function. Two new tables added in passing — `staff_attendance_sessions` + `staff_attendance_records` — that were missing from the original schema but referenced by the staff-attendance feature. Railway `startCommand` now runs `db:migrate && db:seed:prod && next start`. Spec at `docs/superpowers/specs/2026-05-19-db-cutover-design.md`. |
+| **Audit log viewer** | 0.5 week | ✅ Admin-only `/admin/audit-log` page. Filters by action + date range (default last 30 days), pagination 50/page. Expandable rows show side-by-side before/after JSON with changed-key highlighting. New feature module `src/features/audit-log/`. Sidebar entry under Admin → System. |
+| **File uploads (Firebase Storage)** | 1 week | ✅ Firebase Storage emulator wired (`firebase.json` + `src/lib/firebase.ts` + `src/lib/firebase-admin.ts`, port 9199). `storage.rules` allows public read for `photos/**` and signed-URL-only for `documents/**` (server-minted 1-hour signed URLs via `getSignedDownloadUrl`). Reusable components: `ImageUploadField` (drag/click, progress, preview), `FileUploadField` (drag/click, progress), `DocumentDownloadLink` (server, signs on render), `ClientDocumentDownloadLink` (client, signs via `signDocumentUrlAction` on click). Wired into: Student + Staff register/edit + Profile (`updateMyPhotoAction`); Lesson plan / Scheme / Assignment forms. New `UserAvatar` single source of truth used in 15 spots across the app — prefers the real photo when set, falls back to gradient + initials. Header/Sidebar/Profile pull the current user's photo via `getMyPhotoUrl(linkedId)`. |
+| **UX polish** | 0.5 day | ✅ UHAS brand palette is now the default — root `<html data-color-scheme="uhas">` so it applies on first paint with no flash. `useTheme().setColorScheme("default")` still removes it. "Mark all present" on both attendance sheets (student + staff) is now a single click that stages everyone present (keeping approved-leave staff on leave) and immediately saves the session — previously it just staged the change and the user had to click Save separately, which made it look broken when the default state was already "all present". |
+| **8 — Testing (layers 1 + 2)** | 1 week | ✅ Vitest configured with a separate `uhas_sms_test` Postgres database. 128 tests across 10 files run in ~12 s end-to-end. Layer 1 (pure unit tests, no DB) covers all the score/grade/aggregate maths, promotion suggestion algorithm, next-class resolver, and academic-year helper. Layer 2 (integration tests against a real seeded test DB) covers the six most dangerous / transactional flows: auth (login flow + role-based redirects + mustChangePassword + change-password), students (create with sequence-ID generation + transfer + audit log), scores (save + compute + position reranking + `SCORE_OVERRIDE` audit on override), promotions (the full approval transaction: closes current-year enrollments + opens new-year ones with `Active`/`Repeating` statuses + flips `students.isActive=false` for Withdraw + writes `PROMOTION_APPROVED` audit log), attendance (save + leave-request lifecycle), and the audit-log helper + viewer queries. The test pass caught a real bug — `saveScoresAction` was looking up existing rows by a constructed ID that never matched seeded IDs, causing every re-save against seeded scores to double-insert silently — now fixed to look up by `(examId, subjectId, studentId)` tuple. Tooling: `tests/setup.ts` mocks `next/headers`, `next/cache`, and `firebase-admin/{auth,app,storage}`; `tests/db.ts` truncates + reseeds per file using the same `scripts/seed-db.ts` that runs in dev. Run with `npm run db:test:setup` (once) then `npm test`. |
+| **CI workflow** | 0.5 day | ✅ `.github/workflows/ci.yml` runs on pushes + PRs to `main`/`develop`. Spins up a Postgres 16 service container, runs `db:test:setup` to create the test DB + apply migrations, then `lint → tsc → npm test → npm run build` in sequence. The job's env block provides dummy Firebase placeholders so `next build` succeeds without leaking secrets — production gets real values from Railway's env. Total CI run time: ~2-3 minutes. |
+| **8 — Testing (layer 3)** | ✅ | Playwright E2E only (RTL component layer skipped — covered indirectly by E2E). 7 tests across 5 specs run against a production-built Next server on port 3100 with the Firebase Auth Emulator on 9099 and a separate `uhas_sms_e2e` database. Specs: admin-students (register a student via the UI → list filter shows it), teacher-attendance ("Mark all present" bulk save → success toast), lesson-plan-flow (Unit Head approves a submitted plan → Deputy Head approves a unit-head-approved plan), promotion-flow (admin opens season → teacher sees their classes), parent-report-card (parent opens a published Mid-Term report from the results list). Playwright `globalSetup` resets the DB, seeds the Auth Emulator, and logs in each role via the real login form, saving cookies as `storageState` per role so specs start authenticated and run in seconds. Two production bugs surfaced during this layer and were fixed: Base UI `SelectTrigger` was missing `type="button"`, so clicking a Select inside any form silently fired a form submit; shadcn `Input` wrapped `@base-ui/react/input` (Base UI's Field.Control) without a Base UI `<Field>` context, causing inputs to remount on every render and wipe their value. CI runs E2E as a separate job, only on push to `main` — heavy because it needs Java + the Auth Emulator + a full Next build. Scripts: `npm run db:e2e:setup`, `npm run e2e:build`, `npm run e2e`. |
 | **Total** | ~17 weeks | Launchable MVP + test coverage |
 
 ### Phase 8 — Testing (when mock data is replaced with real DB)
@@ -311,4 +318,305 @@ Tests are written **per feature, as each module's mock data is swapped out for r
 
 ---
 
-*Last updated: 2026-05-18 — Phases 0, 2a–2d, 3, 3.5, 4 (a/b/c), 5 (a/b/c), 6 (a/b), and 7 (a/b/c) complete. Phase 1 has 2 deferred items (reset-password email, session expiry modal). 6c (SendGrid email delivery) deferred. The full MVP feature set is now wired on mock data: auth & user management, students/staff/classes/subjects, attendance, end-to-end exams with workflow & printable report cards, lesson plans + schemes + assignments, announcements + parent-teacher appointments, reports dashboards + PSC report + academic calendar. Next steps: real DB cutover module-by-module (Drizzle to Neon), then Phase 8 testing (Vitest + RTL + Playwright per feature as each switches off mock).*
+## Next up — Profile page completion
+
+The `Profile & Settings` page at `/admin/profile`, `/deputy-head/profile`, `/teacher/profile`, `/parent/profile` is shared via [`src/features/profile/components/ProfilePage.tsx`](../src/features/profile/components/ProfilePage.tsx). Most of it is wired UI on top of mocked behavior. Pick this up next and implement everything in this section for real — no more placeholder toasts.
+
+### Audit (today's state)
+
+**Works for real:**
+- Avatar / name / email / role readout (live session data)
+- **Photo upload** — staff only (Admin / DH / Teacher). `updateMyPhotoAction` → `staff.photoUrl` + revalidate. Pipeline is correct; parents are excluded.
+- **Change password** — Firebase `reauthenticateWithCredential` + `updatePassword`.
+
+**Mocked / non-functional (this is the work):**
+
+| Tab | Item | What's there now | What needs to happen |
+|---|---|---|---|
+| Profile | "Save Changes" button | `onSubmit` sleeps 600ms then toasts success; persists nothing | New `updateMyProfileAction`. Persist `phone` on `staff` (existing column) and on a new column for parents. `displayName` syncs to `users.email`-resolved row + Firebase `updateProfile`. `language` persists on a new column (see prefs below). |
+| Profile | Parent photo upload | Disabled by `linkedId.startsWith("STAFF-")` gate; `guardians` has no `photo_url` column | Add `photo_url` column to `guardians`, generate migration, extend `updateMyPhotoAction` to branch on linkedId prefix (STAFF / guardian), reuse the same Storage path scheme (`photos/guardians/<id>.<ext>`), update `getMyPhotoUrl` to query the right table. |
+| Profile | Language preference | Local state only | Persist on a per-user preferences table (see below) and read on session hydration so the UI can switch language once i18n is in. Until i18n lands, the value is still worth storing so the toggle stops being a no-op. |
+| Security | 2FA / TOTP | Placeholder QR div, hardcoded backup codes, "Firebase TOTP setup coming soon" | Wire Firebase MFA: `multiFactor(user).getSession()` + `TotpMultiFactorGenerator.generateSecret()` → QR via `qrcode` (already in deps) → `enroll()`. Backup codes from Firebase response, persisted server-side per user with `bcrypt` hashing. UI flow stays the same; just real plumbing. |
+| Security | Active Sessions | Hardcoded `MOCK_SESSIONS` array (MacBook, iPhone, Windows) | Real sessions list from a new `auth_sessions` table written on login (`{userId, userAgent, ip, createdAt, lastSeenAt, current}`). Login action inserts a row; logout / revoke deletes one. Revoke kicks the listed cookie's `session_uid` into a deny list (or rotates a session epoch on `users`). "Current" detection by matching the request's session cookie. |
+| Notifications | All three toggles | Local state + toast "Preference saved." Never persisted. | New `user_preferences` table (`userId`, `notif_email_announcements`, `notif_email_attendance`, `notif_in_app_sound`, `language`). Server action upserts on change. Wire reads on the email-send paths (`src/lib/email.ts` caller-side checks the prefs row before sending). |
+| Danger Zone | Deactivate | Local-confirm dialog → toast "Deactivation request sent to administrator." No request actually sent. | New `account_deactivation_requests` table or reuse `audit_log`. Server action writes a row + sends an email to all Admins via the existing `src/lib/email.ts` so a human can act on it. Admin gets a list view at `/admin/deactivation-requests` (or surfaced in the audit log viewer) to approve / reject. On approve → set `users.isActive = false` + write `audit_log`. |
+
+### Suggested execution order
+
+1. **Stop lying first** — fix the Profile-tab Save button (`displayName`, `phone`). One server action, two columns. ~1 hr.
+2. **Parent photo upload** — schema migration + action branch. ~1 hr.
+3. **User preferences table + notifications wiring** — single migration, two server actions (`getPrefs`, `updatePrefs`), wire reads into `src/lib/email.ts` callers so toggles actually gate email sends. ~2 hr.
+4. **Account deactivation request flow** — migration + action + admin view + email-on-create. ~2 hr.
+5. **Real active sessions** — new table + login/logout action wiring + revoke endpoint. ~3 hr (touches `loginAction` and `logoutAction`).
+6. **Firebase MFA / TOTP** — wire `multiFactor()` API + QR + backup codes. The most isolated piece. ~3 hr.
+
+Total ~12 hr if done well. Don't bundle everything into one PR — each row above is one PR.
+
+### Definition of done
+
+- No `toast.success(...)` in the Profile page is fired without a real persisted write.
+- Refreshing any tab shows the saved state, not the original.
+- Parents can do everything staff can (where it makes sense — they don't get the Staff-ID badge, but they get photo upload, name/phone edit, password change, notification prefs, deactivation request).
+- The Admin who would receive a deactivation request actually receives one (via email and in-app list).
+- E2E spec added for: edit name → reload → name persists; toggle a notif → trigger an action that would send mail → mail is suppressed when the toggle is off.
+
+---
+
+## Next up — Admin Settings page
+
+There's no `/admin/settings` route today. School-wide configuration is split between:
+
+- **Hardcoded constants** — `DEFAULT_SCHOOL_ID = "school-uhas-001"` in [`src/lib/school.ts`](../src/lib/school.ts), `DEFAULT_ACADEMIC_YEAR = "2025/2026"` in [`src/lib/academic-year.ts`](../src/lib/academic-year.ts), GES grading bands in [`src/features/exams/utils.ts`](../src/features/exams/utils.ts), an 8-hour `MAX_AGE_SEC` for sessions in [`loginAction`](../src/features/auth/actions/login.ts), and a `"60% exam + 4×10% components"` weighting marked "Placeholder" in the same exams utils.
+- **`schools` table** that already has `name`, `academicYear`, `currentTerm`, `gradingScale` columns but no UI reads or writes them.
+- **Env vars** for Firebase / SMTP / `APP_URL`.
+
+The settings page surfaces what should be school-configurable to an admin UI, persists in the existing `schools` row, and stops the hardcoded constants from being the source of truth where it doesn't make sense.
+
+### Scope — what's in / what's out
+
+**In scope (MVP — ~10–12 hours, ship in 3–4 PRs):**
+
+1. **School identity** (~2 h)
+   - Fields: school name, motto/tagline (new), address, phone, email, principal name (new).
+   - Backed by `schools` table — add `motto`, `address`, `phone`, `email`, `principal_name` columns via migration. `name` already exists.
+   - Logo upload via existing `ImageUploadField` → Firebase Storage `photos/school/logo.<ext>`. Read everywhere the static `/logo.png` is used today (login page, sidebar, header, report cards).
+   - Surfaces today's hardcoded school ID — admin sees it read-only.
+
+2. **Academic calendar** (~3 h)
+   - Active academic year (`schools.academicYear` — already exists).
+   - Three term date ranges (new `school_terms` table: `{schoolId, year, term, startDate, endDate}`). Drives the report-card header dates + the "current term" detection in dashboards.
+   - "Current term" (`schools.currentTerm` — already exists; manual override + auto-pick based on today's date vs term ranges).
+   - Admin can roll over to a new academic year here (button creates the next year's class records via the existing Promotion flow).
+
+3. **Grading + scoring config** (~2 h)
+   - Grading scale dropdown: `GES_STANDARD` (current default) vs `CUSTOM`. When `CUSTOM`, expose the 9 bands as editable rows (`min`, `max`, `grade`, `interpretation`).
+   - Score component weights (CAT 1, CAT 2, Group Work, Project Work, end-of-term). Today's "Placeholder: 60% + 4×10%" stops being a placeholder.
+   - Pass mark threshold for "core subjects" used by the promotion auto-suggest. Today this is implicit; expose it.
+   - Persist on `schools` as JSON columns (`grading_bands`, `score_weights`, `pass_mark`). [`computeGrade`](../src/features/exams/utils.ts) + [`computeTotalScore`](../src/features/exams/utils.ts) read from the row instead of constants.
+
+4. **Communication defaults** (~1 h)
+   - From-name for outbound emails (default `"UHAS SMS"`). Currently read from `EMAIL_FROM` env var — surface that as a fallback and let admin override on the row.
+   - Reply-to address (new field on `schools`).
+   - Per-event notification toggles (per-school default — overridden by individual user prefs once those are wired in the Profile completion spec):
+     - "Send email when lesson plan is rejected" — currently always on
+     - "Send email on new announcement" — not wired yet
+     - "Send email when results are published" — not wired yet
+   - Backed by a `schools.notification_defaults` JSON column.
+
+5. **Security policy** (~2 h)
+   - Session timeout (currently 8 h hardcoded). Move to `schools.session_timeout_minutes` with a min/max validator (15 min – 24 h). `loginAction` reads it.
+   - Minimum password length (currently 8 in [`change-password`](../src/features/auth/actions/change-password.ts) action). Move to `schools.password_min_length`.
+   - "Force password change on first login" toggle (today `mustChangePassword` is hardcoded `true` on user creation — admin can flip this).
+
+6. **Branding** (~1 h)
+   - Default color scheme: UHAS brand vs default. Already controllable per-user; this sets the school-wide default for new sessions. Backed by `schools.default_color_scheme`.
+   - Sidebar accent color override (optional — single hex input that maps to `--accent-orange`).
+
+**Deferred / out of MVP:**
+
+- **Per-event email recipient lists** (e.g. "CC the head on every lesson plan rejection") — overkill until volume justifies.
+- **SMS gateway settings** — phase 6c-equivalent for SMS, no SMS sender wired yet.
+- **2FA enforcement policies** — depends on the Profile completion 2FA wiring landing first.
+- **Audit log retention** — log table is unbounded today; revisit when it gets large.
+- **Integrations exposure** (Firebase config, Storage paths) — env-managed, admin shouldn't touch.
+- **Data export / backup** — Railway / Neon handle this at the infra layer.
+- **Multi-school tenancy admin** — covered by the existing "Multi-school tenancy" item in Potential future improvements.
+
+### Architecture sketch
+
+- New route: `/admin/settings/page.tsx`. Tabs match the six sections above (`Identity / Calendar / Grading / Communication / Security / Branding`), same `Tabs` + `motion` pattern the Profile page uses.
+- New feature module: `src/features/settings/`:
+  ```
+  src/features/settings/
+  ├── actions/
+  │   ├── update-school.ts        # one action per tab to keep PRs small
+  │   ├── update-calendar.ts
+  │   ├── update-grading.ts
+  │   ├── update-communication.ts
+  │   ├── update-security.ts
+  │   └── update-branding.ts
+  ├── queries/
+  │   └── get-school-settings.ts  # one query returning the whole row
+  ├── components/
+  │   ├── SettingsPage.tsx        # tab shell, reads the query
+  │   ├── IdentityTab.tsx
+  │   ├── CalendarTab.tsx
+  │   ├── GradingTab.tsx
+  │   ├── CommunicationTab.tsx
+  │   ├── SecurityTab.tsx
+  │   └── BrandingTab.tsx
+  └── types.ts
+  ```
+- All writes hit the existing `schools` row (id = `school-uhas-001` for now via `getCurrentSchoolId()`). Every action writes an `audit_log` row with `action: "SCHOOL_SETTINGS_UPDATE"`, `before`/`after` JSON — critical for any school's compliance posture.
+- Read path: `getCurrentAcademicYear()`, `computeGrade()`, `loginAction`'s `MAX_AGE_SEC`, etc., all switch from importing constants to reading from a cached `getSchoolSettings()` query. Cache via Next's `unstable_cache` keyed on schoolId; invalidate via `revalidateTag("school-settings")` from every settings action.
+
+### Schema migration (one-time)
+
+Single migration adds the new columns to `schools` + creates `school_terms`:
+
+```sql
+ALTER TABLE schools
+  ADD COLUMN motto VARCHAR(255),
+  ADD COLUMN address TEXT,
+  ADD COLUMN phone VARCHAR(50),
+  ADD COLUMN email VARCHAR(255),
+  ADD COLUMN principal_name VARCHAR(255),
+  ADD COLUMN logo_url VARCHAR(500),
+  ADD COLUMN grading_bands JSONB,
+  ADD COLUMN score_weights JSONB,
+  ADD COLUMN pass_mark INTEGER DEFAULT 40,
+  ADD COLUMN notification_defaults JSONB,
+  ADD COLUMN session_timeout_minutes INTEGER DEFAULT 480,
+  ADD COLUMN password_min_length INTEGER DEFAULT 8,
+  ADD COLUMN default_color_scheme VARCHAR(20) DEFAULT 'uhas',
+  ADD COLUMN sidebar_accent_hex VARCHAR(7);
+
+CREATE TABLE school_terms (
+  id VARCHAR(64) PRIMARY KEY,
+  school_id VARCHAR(64) NOT NULL REFERENCES schools(id),
+  academic_year VARCHAR(9) NOT NULL,
+  term INTEGER NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  UNIQUE (school_id, academic_year, term)
+);
+```
+
+Seed (`scripts/seed-db.ts`) updates one row with the current placeholder values so existing flows keep working.
+
+### Suggested PR order
+
+1. **Migration + read-only Identity tab** (~2 h) — biggest unblocker. Writes the schema, surfaces the school in the UI, swaps the static `/logo.png` references to the DB-driven logo URL. Two server actions: read, update (covers the Identity tab fields).
+2. **Calendar tab + `school_terms` migration** (~3 h) — adds the terms table, the date-range editor, and the "current term" auto-pick.
+3. **Grading + Security tabs** (~3 h) — both are constants-to-DB-column moves with minimal UI. Bundles cleanly because they share the same risk profile (touching read-paths in `computeGrade` + `loginAction`).
+4. **Communication + Branding tabs** (~2 h) — last + lightest. Communication wires into the email module's call sites (add a check against `notification_defaults` before sending).
+5. **E2E spec** (~1 h) — Admin changes school name → reloads → header shows the new name. Toggles "email on lesson-plan rejection" off → Unit Head rejects a plan → no email sent (assert via the email module's dev-mode log mode).
+
+Total: **~11 hours**, 5 PRs. None of them touch the same files as the Profile completion work, so the two can be picked up in parallel.
+
+### Definition of done
+
+- `DEFAULT_SCHOOL_ID` is the only remaining hardcoded constant in `src/lib/school.ts` (and it's used only by `getCurrentSchoolId()` until tenancy lands).
+- `getCurrentAcademicYear()` reads from `schools.academicYear`, not `DEFAULT_ACADEMIC_YEAR`.
+- `computeGrade()` and `computeTotalScore()` read bands + weights from the school row, with the env-default kicking in only if the row's columns are null.
+- Login session length is whatever the admin sets in Security tab.
+- Every setting write produces an `audit_log` row with the field-level before/after.
+- Settings page is admin-only (proxy already enforces `/admin/*` for Admin role; double-check in this PR).
+
+---
+
+## ✅ Done — Drop JHS class streams
+
+The school runs **one class per level** — no parallel streams. The current seed has JHS classes named with a stream suffix (`JHS 1A`, `JHS 2A`, `JHS 3A`) and IDs like `class-jhs1a`. Drop the `A` everywhere; keep "Primary 1-6" + "JHS 1/2/3" as the canonical names. KG 1 / KG 2 already match.
+
+Do this *before* seeding production. After `db:seed:prod` runs, the class IDs become load-bearing across audit logs, foreign keys, URLs, and any GitHub-hosted attachments. Renaming becomes a data migration instead of a seed change.
+
+### Target naming
+
+| Division | Class names | Class IDs |
+|---|---|---|
+| KG | KG 1, KG 2 | `class-kg1`, `class-kg2` (unchanged) |
+| Lower Primary | Primary 1, Primary 2, Primary 3 | `class-p1`, `class-p2`, `class-p3` (unchanged) |
+| Upper Primary | Primary 4, Primary 5, Primary 6 | `class-p4`, `class-p5`, `class-p6` (unchanged) |
+| JHS | JHS 1, JHS 2, JHS 3 | `class-jhs1`, `class-jhs2`, `class-jhs3` (drop the `a`) |
+
+So only the three JHS rows actually change.
+
+### Files to touch
+
+**Production code (3 small edits):**
+
+| File | Change |
+|---|---|
+| [src/features/classes/components/ClassCreateForm.tsx](../src/features/classes/components/ClassCreateForm.tsx) | Preset list rows: `"JHS 1A"` → `"JHS 1"`, `"JHS 2A"` → `"JHS 2"`, `"JHS 3A"` → `"JHS 3"` |
+| [src/features/promotions/lib/next-class-resolver.ts](../src/features/promotions/lib/next-class-resolver.ts) | `SEQUENCE` array stays as-is (already uses `"JHS 1"`/`"JHS 2"`/`"JHS 3"`). The `stripSuffix` regex (`/\s*[A-Z]$/`) is dead code once streams are gone — remove it and `streamSuffix` along with it. `autoPickTargetClass` collapses to "filter by name match, return the single candidate". |
+| [src/features/schemes/components/SchemeForm.tsx](../src/features/schemes/components/SchemeForm.tsx) | Placeholder text `"e.g. JHS 1A — English Scheme of Work, Term 1"` → `"e.g. JHS 1 — English Scheme of Work, Term 1"` |
+
+The `cls.name.startsWith("JHS 3")` graduate checks in promotions actions + decision table already work since `"JHS 3"` starts with `"JHS 3"`. Tighten them to `cls.name === "JHS 3"` for clarity but it's not required.
+
+**Seed data (find/replace across 8 files):**
+
+```
+class-jhs1a    → class-jhs1
+class-jhs2a    → class-jhs2
+class-jhs3a    → class-jhs3
+class-jhs1a-2027 → class-jhs1-2027
+class-jhs2a-2027 → class-jhs2-2027
+class-jhs3a-2027 → class-jhs3-2027
+"JHS 1A"       → "JHS 1"
+"JHS 2A"       → "JHS 2"
+"JHS 3A"       → "JHS 3"
+```
+
+Files: `scripts/_seed-data/classes.ts`, `students.ts`, `class-subjects.ts`, `attendance.ts`, `schemes.ts`, `lesson-plans.ts`, `assignments.ts`, plus check `exams.ts` and `scores.ts`.
+
+**Tests:** same find/replace pattern in `tests/integration/{promotions,attendance,scores,students}.test.ts` and `tests/e2e/specs/02-teacher-attendance.spec.ts`.
+
+### Estimate
+
+~45 min total — mostly mechanical find/replace + one run of `npm test && npm run e2e:build && npm run e2e` to confirm green.
+
+### Why defer instead of doing now
+
+User preference at the time. Listed here so it's picked up before the first production seed, not after.
+
+---
+
+## Potential future improvements
+
+Captured during scoping discussions. None of these are committed; they're a parking lot for "when X becomes a problem, here's the path we already thought through." Roughly ordered cheapest → most expensive.
+
+### Mobile / companion app
+
+The web is already mobile-friendly. The cheap path is a **PWA** (manifest + service worker + install prompt + web push). The full path is a native companion. Either way, parents are the target audience — admin / teacher flows stay web.
+
+| Step | What | When |
+|---|---|---|
+| **PWA wrapper** | Add `public/manifest.json`, a service worker, and the web-push subscription flow. Reuses the entire existing site. | First. Cheap (~1–2 wk). Solves install + Android push immediately; iOS push is improving. |
+| **Refactor `actions/` → `services/`** | Move the business logic out of Server Actions into plain functions under `src/features/*/services/`. Actions become thin adapters. Unlocks reuse for any non-web caller. | Before any mobile work. Cheap on its own; refuses to be cheap later. |
+| **JSON API surface** | Add `app/api/*` route handlers that call the same services and authenticate via Firebase ID token (`Authorization: Bearer`), not the httpOnly session cookies. | When the first non-web client lands. |
+| **Capacitor shell** | Wrap the existing site in a native shell for App Store / Play Store presence and reliable push via FCM. One codebase. | If PWA limits hurt — typically iOS push reliability or store-discoverability. |
+| **React Native / Expo app** | Separate parent-only app with biometric login, real offline cache, deep native UX. | Only if Capacitor stops scaling — usually because of complex offline sync or custom native features. Two codebases from this point. |
+| **Firebase Cloud Messaging** | Server-side push via `firebase-admin/messaging`. Triggers: absence marked, result published, lesson plan rejected, announcement posted, appointment booked. Mobile clients register their FCM token on the `users` row. | Pairs with PWA push, then carries straight into native. |
+| **Offline cache** | Schools in Ghana hit spotty connectivity. Minimum: cache the last fetched view so the screen isn't blank offline. Full: local SQLite with sync. | When users complain. Don't pre-build. |
+
+**Minimum mobile scope when it ships** (parents-only): login (biometric optional) → "My children" → today's attendance + this week → latest announcements → published report cards (re-uses the print view in a WebView) → assignments due → push notifications.
+
+### Transactional email upgrade
+
+`src/lib/email.ts` is provider-agnostic but currently wired to Gmail SMTP. Swap the transport when any of these become true:
+
+- Bulk sends become routine (Gmail caps at ~500/day personal, ~2,000/day Workspace).
+- You need bounce / open / click analytics.
+- The school wants emails to come from `@uhas.edu.gh` without DKIM/SPF wrangling on Gmail's "Send mail as".
+
+**Recommended swap**: Resend (lowest friction, generous free tier, similar API). One change inside `getTransporter()` in [`src/lib/email.ts`](../src/lib/email.ts) — callers don't move.
+
+### Multi-school tenancy
+
+Every query already filters by `schoolId` (via `getCurrentSchoolId()`), but the helper returns a fixed constant. Opening up tenancy requires:
+
+- Per-request `schoolId` resolution (from the session, not a constant)
+- Tenant-aware admin tools (assign users to schools, switch context)
+- Tenant isolation in Firebase (one project? one project per school? probably one project + custom claims for `schoolId`)
+- Storage path scoping (`photos/<schoolId>/students/<id>.jpg`)
+- Audit log scoping
+
+This is a real product decision, not a tech change. Don't pre-build.
+
+### Test coverage gaps
+
+- **Component layer (RTL)** — skipped in favour of E2E. Revisit if specific UI components grow complex enough to warrant unit-level testing (e.g., the report card renderer).
+- **Visual regression** — Playwright supports screenshots; could add for the report card + dashboards if their layout becomes load-bearing.
+- **Mobile-viewport E2E** — current Playwright runs Desktop Chrome only. A `mobile-chrome` project would catch mobile-specific regressions.
+
+### Out-of-MVP-scope (won't build unless explicitly requested)
+
+- Timetable management
+- Fee management, payroll, medical records, counselling notes
+- Public-facing school website / admissions portal
+- SMS gateway (separate from email — different vendor, different cost model)
+
+---
+
+*Last updated: 2026-05-20 — `feat/deffered-tasks` branch now holds: full DB cutover (Drizzle everywhere, `src/lib/mock/` gone, `USE_MOCK_DATA` removed), Student Promotion (5.7), audit log viewer at `/admin/audit-log`, real Firebase Storage uploads for photos + documents with `UserAvatar` everywhere, Phase 1 auth completion (reset-password email + session expiry warning modal), UHAS brand as the default colour scheme, one-click "Mark all present" on both attendance sheets, Vitest layers 1 + 2 (128 tests, ~12 s), Playwright layer 3 (7 cross-role golden-path specs against a prod-built Next server + Firebase Auth Emulator + `uhas_sms_e2e` DB), and a GitHub Actions CI workflow that runs lint + tsc + tests + build on every PR/push and the heavier E2E job only on push to `main`. Outbound email is now minimally wired via Gmail SMTP through a swappable `src/lib/email.ts`, with the lesson-plan rejection flow as the first consumer. Still deferred: higher-volume / branded transactional provider (Resend / SendGrid — swap when bulk sends or analytics are needed), KG-specific report card variant (4b — awaiting school template).*

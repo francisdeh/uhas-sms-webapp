@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
-import { mockStaff } from "@/lib/mock/staff";
-import type { SessionUser, UserRole } from "@/features/auth/types";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { users, staff } from "@/db/schema";
+import type { SessionUser, UserRole, Division } from "@/features/auth/types";
 
 export async function getSessionUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
@@ -12,14 +14,22 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   if (!uid || !role) return null;
 
-  let isUnitHead = false;
-  let unitHeadOf: SessionUser["unitHeadOf"] = null;
+  // Look up mustChangePassword from DB on every request. Cheap (PK lookup).
+  // Teacher: join staff for isUnitHead / unitHeadOf.
+  const userRow = await db.query.users.findFirst({
+    where: eq(users.id, uid),
+  });
+  if (!userRow) return null;
 
-  if (role === "Teacher" && linkedId && process.env.USE_MOCK_DATA === "true") {
-    const staff = mockStaff.find((s) => s.id === linkedId);
-    if (staff?.isUnitHead) {
+  let isUnitHead = false;
+  let unitHeadOf: Division | null = null;
+  if (role === "Teacher" && userRow.linkedId) {
+    const staffRow = await db.query.staff.findFirst({
+      where: eq(staff.id, userRow.linkedId),
+    });
+    if (staffRow?.isUnitHead) {
       isUnitHead = true;
-      unitHeadOf = staff.unitHeadOf;
+      unitHeadOf = (staffRow.unitHeadOf as Division | null) ?? null;
     }
   }
 
@@ -27,9 +37,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     uid,
     role,
     displayName: displayName ?? "",
-    email: email ?? "",
-    linkedId: linkedId ?? "",
-    mustChangePassword: false,
+    email: email ?? userRow.email,
+    linkedId: linkedId ?? userRow.linkedId ?? "",
+    mustChangePassword: userRow.mustChangePassword ?? false,
     isUnitHead,
     unitHeadOf,
   };

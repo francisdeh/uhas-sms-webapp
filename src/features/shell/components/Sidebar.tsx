@@ -9,7 +9,7 @@ import { User, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import type { NavGroup, ShellConfig } from "@/features/shell/types";
 import type { SessionUser } from "@/features/auth/types";
@@ -17,18 +17,25 @@ import { getShellConfig } from "@/features/shell/role-config";
 
 const COLLAPSED_KEY = "uhas_sidebar_collapsed";
 
-function initials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-}
-
 interface SidebarProps {
   user: SessionUser;
   navBadges?: Record<string, number>;
   mobileOpen: boolean;
   onMobileClose: () => void;
+  userPhotoUrl?: string | null;
+  schoolName?: string;
+  schoolLogoUrl?: string | null;
 }
 
-export function Sidebar({ user, navBadges, mobileOpen, onMobileClose }: SidebarProps) {
+export function Sidebar({
+  user,
+  navBadges,
+  mobileOpen,
+  onMobileClose,
+  userPhotoUrl = null,
+  schoolName = "UHAS Basic School",
+  schoolLogoUrl = null,
+}: SidebarProps) {
   // Always render expanded on first paint so server and client agree; read the
   // saved collapsed preference from localStorage after mount. Avoids the
   // hydration mismatch you'd get from a `typeof window` initialiser.
@@ -75,6 +82,9 @@ export function Sidebar({ user, navBadges, mobileOpen, onMobileClose }: SidebarP
           config={config}
           collapsed={collapsed}
           onToggle={toggleCollapsed}
+          userPhotoUrl={userPhotoUrl}
+          schoolName={schoolName}
+          schoolLogoUrl={schoolLogoUrl}
         />
       </motion.aside>
 
@@ -87,6 +97,9 @@ export function Sidebar({ user, navBadges, mobileOpen, onMobileClose }: SidebarP
             collapsed={false}
             onToggle={onMobileClose}
             onNavClick={onMobileClose}
+            userPhotoUrl={userPhotoUrl}
+            schoolName={schoolName}
+            schoolLogoUrl={schoolLogoUrl}
           />
         </SheetContent>
       </Sheet>
@@ -100,12 +113,18 @@ function SidebarContent({
   collapsed,
   onToggle,
   onNavClick,
+  userPhotoUrl = null,
+  schoolName,
+  schoolLogoUrl,
 }: {
   user: SessionUser;
   config: ShellConfig;
   collapsed: boolean;
   onToggle: () => void;
   onNavClick?: () => void;
+  userPhotoUrl?: string | null;
+  schoolName: string;
+  schoolLogoUrl: string | null;
 }) {
   const pathname = usePathname();
 
@@ -119,11 +138,11 @@ function SidebarContent({
           className="flex items-center gap-2.5 pl-3 pr-2 h-full flex-1 min-w-0 cursor-pointer hover:bg-muted/40 transition-colors"
         >
           <Image
-            src="/logo.png"
-            alt="UHAS Basic School"
+            src={schoolLogoUrl ?? "/logo.png"}
+            alt={schoolName}
             width={30}
             height={30}
-            className="rounded-full flex-shrink-0"
+            className="rounded-full flex-shrink-0 object-cover"
           />
           <AnimatePresence initial={false}>
             {!collapsed && (
@@ -134,7 +153,7 @@ function SidebarContent({
                 transition={{ duration: 0.15 }}
                 className="font-bold text-foreground text-sm tracking-tight truncate overflow-hidden whitespace-nowrap"
               >
-                UHAS Basic School
+                {schoolName}
               </motion.span>
             )}
           </AnimatePresence>
@@ -177,11 +196,13 @@ function SidebarContent({
           onClick={onNavClick}
           className="flex items-center gap-2.5 rounded-lg p-2 hover:bg-muted/60 transition-colors group"
         >
-          <Avatar className="h-8 w-8 flex-shrink-0">
-            <AvatarFallback className="bg-gradient-to-br from-accent-orange to-red-400 text-white text-xs font-semibold">
-              {initials(user.displayName)}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            photoUrl={userPhotoUrl}
+            firstName={user.displayName?.split(" ")[0] ?? "?"}
+            lastName={user.displayName?.split(" ").slice(1).join(" ") ?? ""}
+            size="sm"
+            gradient="from-accent-orange to-red-400"
+          />
           <AnimatePresence initial={false}>
             {!collapsed && (
               <motion.div

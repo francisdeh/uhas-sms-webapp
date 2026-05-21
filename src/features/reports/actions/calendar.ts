@@ -1,7 +1,10 @@
 "use server";
 
-import { mockCalendarEvents } from "@/lib/mock/calendar-events";
-import { mockStaff } from "@/lib/mock/staff";
+import { revalidatePath } from "next/cache";
+import { asc, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { calendarEvents, staff } from "@/db/schema";
+import { getCurrentSchoolId } from "@/lib/school";
 import type {
   CalendarEvent,
   CreateCalendarEventInput,
@@ -9,19 +12,34 @@ import type {
 
 type ActionResult = { success: true } | { success: false; error: string };
 
-const calendarEvents = mockCalendarEvents;
+function toEvent(row: typeof calendarEvents.$inferSelect): CalendarEvent {
+  return {
+    id: row.id,
+    schoolId: row.schoolId,
+    title: row.title,
+    description: row.description,
+    startDate: row.startDate,
+    endDate: row.endDate,
+    type: row.type as CalendarEvent["type"],
+    createdById: row.createdById,
+    createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
+  };
+}
 
 export async function listCalendarEventsAction(): Promise<CalendarEvent[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  return [...calendarEvents].sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const schoolId = await getCurrentSchoolId();
+  const rows = await db.query.calendarEvents.findMany({
+    where: eq(calendarEvents.schoolId, schoolId),
+    orderBy: [asc(calendarEvents.startDate)],
+  });
+  return rows.map(toEvent);
 }
 
 export async function createCalendarEventAction(input: {
   authorId: string;
   data: CreateCalendarEventInput;
 }): Promise<{ success: true; id: string } | { success: false; error: string }> {
-  if (process.env.USE_MOCK_DATA !== "true") return { success: false, error: "DB not connected" };
-  const author = mockStaff.find((s) => s.id === input.authorId);
+  const author = await db.query.staff.findFirst({ where: eq(staff.id, input.authorId) });
   if (!author || author.systemRole !== "Admin") {
     return { success: false, error: "Only Admin can manage the academic calendar." };
   }
@@ -29,17 +47,18 @@ export async function createCalendarEventAction(input: {
     return { success: false, error: "End date must be after start date." };
   }
   const id = `cal-${Date.now()}`;
-  calendarEvents.push({
+  const schoolId = await getCurrentSchoolId();
+  await db.insert(calendarEvents).values({
     id,
-    schoolId: "school-uhas-001",
+    schoolId,
     title: input.data.title,
     description: input.data.description ?? null,
     startDate: input.data.startDate,
     endDate: input.data.endDate ?? null,
     type: input.data.type,
     createdById: author.id,
-    createdAt: new Date().toISOString(),
   });
+  revalidatePath("/admin/calendar");
   return { success: true, id };
 }
 
@@ -47,13 +66,15 @@ export async function deleteCalendarEventAction(input: {
   id: string;
   authorId: string;
 }): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA !== "true") return { success: false, error: "DB not connected" };
-  const author = mockStaff.find((s) => s.id === input.authorId);
+  const author = await db.query.staff.findFirst({ where: eq(staff.id, input.authorId) });
   if (!author || author.systemRole !== "Admin") {
     return { success: false, error: "Only Admin can delete calendar events." };
   }
-  const idx = calendarEvents.findIndex((e) => e.id === input.id);
-  if (idx === -1) return { success: false, error: "Event not found." };
-  calendarEvents.splice(idx, 1);
+  const row = await db.query.calendarEvents.findFirst({
+    where: eq(calendarEvents.id, input.id),
+  });
+  if (!row) return { success: false, error: "Event not found." };
+  await db.delete(calendarEvents).where(eq(calendarEvents.id, input.id));
+  revalidatePath("/admin/calendar");
   return { success: true };
 }

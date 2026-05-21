@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Command,
@@ -13,11 +13,8 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { GraduationCap, Users, School, Bell, LayoutDashboard } from "lucide-react";
-import { mockStudents } from "@/lib/mock/students";
-import { mockStaff } from "@/lib/mock/staff";
-import { mockClasses } from "@/lib/mock/classes";
-import { mockAnnouncements } from "@/lib/mock/announcements";
 import { getShellConfig } from "@/features/shell/role-config";
+import { globalSearchAction, type GlobalSearchResults } from "@/features/shell/actions/global-search";
 import type { SessionUser } from "@/features/auth/types";
 
 const RECENT_KEY = "uhas_recent_searches";
@@ -41,10 +38,29 @@ function readRecent(): string[] {
 export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<GlobalSearchResults>({
+    students: [],
+    staff: [],
+    classes: [],
+    announcements: [],
+  });
 
   const recent = open ? readRecent() : [];
-
   const allPages = getShellConfig(user).navGroups.flatMap((g) => g.items);
+
+  // Debounce the server query to avoid hammering on each keystroke
+  useEffect(() => {
+    const handle = setTimeout(async () => {
+      const q = query.trim();
+      if (q.length < 2) {
+        setResults({ students: [], staff: [], classes: [], announcements: [] });
+        return;
+      }
+      const r = await globalSearchAction(q);
+      setResults(r);
+    }, 180);
+    return () => clearTimeout(handle);
+  }, [query]);
 
   function saveRecent(term: string) {
     const updated = [term, ...recent.filter((r) => r !== term)].slice(0, MAX_RECENT);
@@ -63,31 +79,9 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
   );
 
   const q = query.toLowerCase();
+  const pages = q ? allPages.filter((p) => p.label.toLowerCase().includes(q)) : allPages;
 
-  const pages = q
-    ? allPages.filter((p) => p.label.toLowerCase().includes(q))
-    : allPages;
-
-  const students = q
-    ? mockStudents
-        .filter((s) => `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
-        .slice(0, 5)
-    : [];
-
-  const staff = q
-    ? mockStaff
-        .filter((s) => `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
-        .slice(0, 5)
-    : [];
-
-  const classes = q
-    ? mockClasses.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 5)
-    : [];
-
-  const announcements = q
-    ? mockAnnouncements.filter((a) => a.title.toLowerCase().includes(q)).slice(0, 4)
-    : [];
-
+  const { students, staff, classes, announcements } = results;
   const hasDataResults = students.length + staff.length + classes.length + announcements.length > 0;
   const hasResults = pages.length > 0 || hasDataResults;
 
@@ -117,16 +111,19 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
             <>
               {!q && recent.length > 0 && <CommandSeparator />}
               <CommandGroup heading={q ? "Pages" : "All pages"}>
-                {pages.map((page) => (
-                  <CommandItem
-                    key={page.href}
-                    value={page.label}
-                    onSelect={() => navigate(page.href, page.label)}
-                  >
-                    <page.icon size={14} className="mr-2 text-muted-foreground" />
-                    <span>{page.label}</span>
-                  </CommandItem>
-                ))}
+                {pages.map((page) => {
+                  const Icon = page.icon ?? LayoutDashboard;
+                  return (
+                    <CommandItem
+                      key={page.href}
+                      value={page.label}
+                      onSelect={() => navigate(page.href, page.label)}
+                    >
+                      <Icon size={14} className="mr-2 text-muted-foreground" />
+                      <span>{page.label}</span>
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </>
           )}
@@ -138,12 +135,12 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
                 {students.map((s) => (
                   <CommandItem
                     key={s.id}
-                    value={`${s.firstName} ${s.lastName}`}
-                    onSelect={() => navigate("/admin/students", `${s.firstName} ${s.lastName}`)}
+                    value={s.name}
+                    onSelect={() => navigate("/admin/students", s.name)}
                   >
                     <GraduationCap size={14} className="mr-2 text-muted-foreground" />
-                    <span>{s.firstName} {s.lastName}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{s.className}</span>
+                    <span>{s.name}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{s.id}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -157,12 +154,12 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
                 {staff.map((s) => (
                   <CommandItem
                     key={s.id}
-                    value={`${s.firstName} ${s.lastName}`}
-                    onSelect={() => navigate("/admin/users", `${s.firstName} ${s.lastName}`)}
+                    value={s.name}
+                    onSelect={() => navigate("/admin/users", s.name)}
                   >
                     <Users size={14} className="mr-2 text-muted-foreground" />
-                    <span>{s.firstName} {s.lastName}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{s.rank}</span>
+                    <span>{s.name}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{s.email}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -181,7 +178,6 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
                   >
                     <School size={14} className="mr-2 text-muted-foreground" />
                     <span>{c.name}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{c.division}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>

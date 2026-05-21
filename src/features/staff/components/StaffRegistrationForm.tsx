@@ -6,7 +6,8 @@ import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, Copy, Check, Camera } from "lucide-react";
+import { Loader2, Copy, Check } from "lucide-react";
+import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +54,7 @@ const schema = z
     unitHeadOf: z.enum(["KG", "Lower Primary", "Upper Primary", "JHS"]).optional(),
     phone: z.string().min(7, { message: "Enter a valid phone number" }),
     email: z.string().email({ message: "Enter a valid email address" }),
+    photoUrl: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -90,6 +92,7 @@ export default function StaffRegistrationForm({
   const router = useRouter();
   const [successState, setSuccessState] = useState<SuccessState | null>(null);
   const [copied, setCopied] = useState(false);
+  const [tempId] = useState(() => `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
 
   const {
     register,
@@ -150,24 +153,18 @@ export default function StaffRegistrationForm({
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)}>
             <FieldGroup className="gap-5">
-              {/* Photo upload (disabled) */}
-              <Field>
-                <FieldLabel>Photo</FieldLabel>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled
-                    className="gap-2 cursor-not-allowed"
-                  >
-                    <Camera size={15} />
-                    Upload photo
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Photo upload available in a future update.
-                  </p>
-                </div>
-              </Field>
+              <Controller
+                name="photoUrl"
+                control={control}
+                render={({ field }) => (
+                  <ImageUploadField
+                    ownerId={tempId}
+                    kind="staff/photo"
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                  />
+                )}
+              />
 
               <Field>
                 <FieldLabel htmlFor="uhasId">UHAS Staff ID (optional)</FieldLabel>

@@ -7,9 +7,10 @@ import {
   getClassReportSubmissionAction,
   listRemarksForExamClassAction,
 } from "@/features/exams/actions";
+import { and, asc, eq, inArray } from "drizzle-orm";
+import { db } from "@/db";
+import { enrollments, scores, students as studentsTable } from "@/db/schema";
 import { listClassesAction } from "@/features/classes/actions";
-import { mockStudents } from "@/lib/mock/students";
-import { mockScores } from "@/lib/mock/scores";
 import { computeAggregate } from "@/features/exams/utils";
 import { ClassReportSubmitForm } from "@/features/exams/components/ClassReportSubmitForm";
 
@@ -52,17 +53,44 @@ export default async function ClassReportSubmitPage({ params }: PageProps) {
     );
   }
 
-  const roster = mockStudents
-    .filter((s) => s.classId === classId && s.isActive)
-    .sort((a, b) => a.lastName.localeCompare(b.lastName));
+  const roster = await db
+    .select({
+      id: studentsTable.id,
+      firstName: studentsTable.firstName,
+      lastName: studentsTable.lastName,
+    })
+    .from(enrollments)
+    .innerJoin(studentsTable, eq(studentsTable.id, enrollments.studentId))
+    .where(
+      and(
+        eq(enrollments.classId, classId),
+        eq(enrollments.academicYear, exam.academicYear),
+        eq(enrollments.status, "Active"),
+        eq(studentsTable.isActive, true)
+      )
+    )
+    .orderBy(asc(studentsTable.lastName));
+  const studentIds = roster.map((s) => s.id);
+
+  const scoreRows = studentIds.length === 0
+    ? []
+    : await db.query.scores.findMany({
+        where: and(eq(scores.examId, examId), inArray(scores.studentId, studentIds)),
+      });
+  const scoresByStudent = new Map<string, typeof scoreRows>();
+  for (const sc of scoreRows) {
+    const list = scoresByStudent.get(sc.studentId) ?? [];
+    list.push(sc);
+    scoresByStudent.set(sc.studentId, list);
+  }
 
   const initialRows = roster.map((s) => {
     const remark = remarks.find((r) => r.studentId === s.id);
-    const scores = mockScores.filter((sc) => sc.examId === examId && sc.studentId === s.id);
+    const studentScores = scoresByStudent.get(s.id) ?? [];
     return {
       studentId: s.id,
       studentName: `${s.firstName} ${s.lastName}`,
-      aggregate: computeAggregate(scores),
+      aggregate: computeAggregate(studentScores),
       classTeacherRemark: remark?.classTeacherRemark ?? "",
     };
   });

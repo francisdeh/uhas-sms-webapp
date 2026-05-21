@@ -10,5 +10,6 @@ export async function logoutAction() {
   cookieStore.delete("session_display_name");
   cookieStore.delete("session_email");
   cookieStore.delete("session_linked_id");
+  cookieStore.delete("session_expires_at");
   redirect("/login");
 }

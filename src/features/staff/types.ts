@@ -31,6 +31,7 @@ export type CreateStaffInput = {
   unitHeadOf?: Division;
   phone: string;
   email: string;
+  photoUrl?: string;
 };
 
 export type UpdateStaffInput = {

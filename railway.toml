@@ -5,6 +5,8 @@ builder = "railpack"
 NODE_VERSION = "20"
 
 [deploy]
-startCommand = "npm run start"
+# Apply migrations + seed prod-minimum (school + Firebase-backed users) before
+# starting the app. db:seed:prod is idempotent — safe to re-run on every deploy.
+startCommand = "npm run db:migrate && npm run db:seed:prod && npm run start"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 5
