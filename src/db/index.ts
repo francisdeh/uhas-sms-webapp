@@ -5,8 +5,12 @@ type DbDriver = "pg" | "neon-http";
 function resolveDriver(): DbDriver {
   const explicit = process.env.DB_DRIVER as DbDriver | undefined;
   if (explicit === "pg" || explicit === "neon-http") return explicit;
-  const url = process.env.DATABASE_URL ?? "";
-  return url.includes(".neon.tech") ? "neon-http" : "pg";
+  // Default to `pg` everywhere. `neon-http` is HTTP-only and doesn't
+  // support transactions — only opt in via env var when the deploy
+  // target is a serverless/edge runtime (Vercel Edge, Cloudflare Workers)
+  // where TCP pools aren't possible. Railway holds a normal Node process
+  // so the standard pg driver against Neon is both correct + cheaper.
+  return "pg";
 }
 
 type SchemaT = typeof schema;
