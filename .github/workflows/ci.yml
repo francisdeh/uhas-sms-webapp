@@ -105,6 +105,10 @@ jobs:
       DATABASE_URL: postgresql://uhas:uhas_dev_secret@localhost:5432/uhas_sms_e2e
       DB_DRIVER: pg
       FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
+      # Baked into the JS bundle at build time. Without it, the browser
+      # client SDK tries to auth against real Firebase, the dummy API key
+      # gets rejected, login never completes, and globalSetup times out.
+      NEXT_PUBLIC_USE_FIREBASE_EMULATOR: "true"
       E2E_BASE_URL: http://localhost:3100
       NEXT_PUBLIC_FIREBASE_API_KEY: dummy-api-key
       NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: dummy.firebaseapp.com
