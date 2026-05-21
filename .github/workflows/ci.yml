@@ -44,6 +44,13 @@ jobs:
       FIREBASE_CLIENT_EMAIL: dummy@dummy.iam.gserviceaccount.com
       FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\ndummy\n-----END PRIVATE KEY-----\n"
 
+      # Forces firebase-admin to skip cert() at module load — `cert()` would
+      # try to DER-parse the dummy PRIVATE_KEY above and crash Next's
+      # page-data collection during `npm run build`. We never actually hit
+      # the emulator in this job; the env var just steers init down the
+      # emulator branch (which only needs a projectId).
+      FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
