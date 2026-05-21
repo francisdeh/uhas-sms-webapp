@@ -154,6 +154,13 @@ jobs:
       - name: Set up E2E database
         run: npm run db:e2e:setup
 
+      - name: Pre-seed E2E database
+        # Without this, the Next webServer Playwright boots has no school
+        # row to read — `getSchoolSettings()` throws and Playwright times
+        # out waiting for the URL to return 200. globalSetup also seeds,
+        # but Playwright pings the webServer URL *before* globalSetup runs.
+        run: npx dotenv-cli -e .env.e2e -- npx tsx scripts/seed-db.ts --reset
+
       - name: Start Firebase Auth Emulator
         run: |
           firebase emulators:start --project uhas-sms-dev --only auth &
