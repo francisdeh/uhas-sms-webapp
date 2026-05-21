@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
 import { writeAuditLog } from "@/lib/audit-log";
+import { notifyAudience } from "@/features/notifications/lib/create-notification";
 import { nextAcademicYear } from "@/features/promotions/lib/academic-year";
 import {
   autoPickTargetClass,
@@ -91,6 +92,19 @@ export async function openPromotionSeasonAction(input: {
       openedAt: now,
     });
   }
+
+  // Tell every teacher the season is open + how long they have. The seed
+  // teachers have isPrimary class-teacher rows; everyone with role=Teacher
+  // gets the notification regardless of class assignment.
+  await notifyAudience(
+    { type: "allTeachers" },
+    {
+      kind: "promotion_season_opened",
+      title: "Promotion season opened",
+      body: `Submit promotion decisions for your students in ${year}.`,
+      link: `/teacher/promotions`,
+    }
+  );
 
   revalidatePath("/admin/promotions");
   revalidatePath("/teacher/promotions");

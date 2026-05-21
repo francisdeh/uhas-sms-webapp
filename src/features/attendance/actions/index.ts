@@ -12,6 +12,7 @@ import {
   staff,
 } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
+import { notifyAudience } from "@/features/notifications/lib/create-notification";
 import type {
   AttendanceStatus,
   AttendanceSession,
@@ -125,6 +126,32 @@ export async function saveSessionAction(input: {
       );
     }
   });
+
+  // Notify parents of students marked absent. "Late" doesn't notify — that
+  // would create noise for routine tardiness. Only "absent" qualifies. Notif
+  // is per parent, but the body mentions only the single child (parents of
+  // multiple students each get N notifications, one per absent child).
+  const absentStudentIds = input.records
+    .filter((r) => r.status === "absent")
+    .map((r) => r.studentId);
+  if (absentStudentIds.length > 0) {
+    const dateLabel = new Date(input.date + "T00:00:00").toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "short",
+    });
+    for (const studentId of absentStudentIds) {
+      await notifyAudience(
+        { type: "parentsOfStudents", studentIds: [studentId] },
+        {
+          kind: "attendance_absent",
+          title: "Absence recorded",
+          body: `Your child was marked absent on ${dateLabel}.`,
+          link: `/parent/attendance`,
+        }
+      );
+    }
+  }
 
   revalidatePath("/teacher/attendance");
   revalidatePath(`/teacher/attendance/${input.classId}`);
@@ -349,6 +376,30 @@ export async function submitLeaveRequestAction(
     status: "pending",
   });
 
+  // Notify approvers: the requester's DH (by division) + all Admins.
+  const requester = await db.query.staff.findFirst({ where: eq(staff.id, staffId) });
+  const body = `${_staffName} requested ${input.type} leave from ${input.startDate} to ${input.endDate}.`;
+  if (requester?.division) {
+    await notifyAudience(
+      { type: "staffByDivision", division: requester.division, roles: ["DeputyHead"] },
+      {
+        kind: "leave_request_submitted",
+        title: "Leave request submitted",
+        body,
+        link: `/deputy-head/leave`,
+      }
+    );
+  }
+  await notifyAudience(
+    { type: "allAdmins" },
+    {
+      kind: "leave_request_submitted",
+      title: "Leave request submitted",
+      body,
+      link: `/admin/staff`,
+    }
+  );
+
   revalidatePath("/teacher/leave");
   revalidatePath("/deputy-head/leave");
   return { success: true, id };
@@ -366,6 +417,17 @@ export async function approveLeaveRequestAction(
     .update(leaveRequests)
     .set({ status: "approved", approvedById })
     .where(eq(leaveRequests.id, id));
+
+  await notifyAudience(
+    { type: "staff", staffId: row.staffId },
+    {
+      kind: "leave_request_decided",
+      title: "Leave request approved",
+      body: `Your leave from ${row.startDate} to ${row.endDate} was approved.`,
+      link: `/teacher/leave`,
+    }
+  );
+
   revalidatePath("/deputy-head/leave");
   return { success: true };
 }
@@ -373,7 +435,7 @@ export async function approveLeaveRequestAction(
 export async function rejectLeaveRequestAction(
   id: string,
   _rejectedById: string,
-  _rejectionReason?: string
+  rejectionReason?: string
 ): Promise<ActionResult> {
   const row = await db.query.leaveRequests.findFirst({ where: eq(leaveRequests.id, id) });
   if (!row) return { success: false, error: "Leave request not found" };
@@ -381,6 +443,18 @@ export async function rejectLeaveRequestAction(
   // NOTE: schema has no `rejectionReason` column; the rejection reason is
   // displayed in the inbox UI but not persisted. Add a column later if needed.
   await db.update(leaveRequests).set({ status: "rejected" }).where(eq(leaveRequests.id, id));
+
+  const reasonNote = rejectionReason?.trim() ? ` Note: ${rejectionReason.trim()}` : "";
+  await notifyAudience(
+    { type: "staff", staffId: row.staffId },
+    {
+      kind: "leave_request_decided",
+      title: "Leave request rejected",
+      body: `Your leave from ${row.startDate} to ${row.endDate} was rejected.${reasonNote}`,
+      link: `/teacher/leave`,
+    }
+  );
+
   revalidatePath("/deputy-head/leave");
   return { success: true };
 }

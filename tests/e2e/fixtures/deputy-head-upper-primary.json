@@ -5,7 +5,7 @@
       "value": "uid-deputyhead-upper-primary",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385833.309295,
+      "expires": 1779401365.781292,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -15,7 +15,7 @@
       "value": "DeputyHead",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385833.309521,
+      "expires": 1779401365.781328,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -25,7 +25,7 @@
       "value": "Edinam%20Asare",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385833.309603,
+      "expires": 1779401365.78134,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -35,7 +35,7 @@
       "value": "dh.upper-primary%40uhas.edu.gh",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385833.30972,
+      "expires": 1779401365.781349,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -45,17 +45,17 @@
       "value": "STAFF-016",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385833.309747,
+      "expires": 1779401365.781362,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "session_expires_at",
-      "value": "1779385833300",
+      "value": "1779401365779",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385833.309761,
+      "expires": 1779401365.781373,
       "httpOnly": false,
       "secure": true,
       "sameSite": "Lax"

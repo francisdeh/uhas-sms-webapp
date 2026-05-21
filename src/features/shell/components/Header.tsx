@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, Bell, Search, User, Settings, LogOut, CheckCheck, Sun, Moon, Palette, Monitor, Check } from "lucide-react";
+import { Menu, Search, User, Settings, LogOut, Sun, Moon, Palette, Monitor, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
 import { SearchCommand } from "./SearchCommand";
+import { NotificationsDropdown } from "@/features/notifications/components/NotificationsDropdown";
 import type { SessionUser } from "@/features/auth/types";
 import { ROLE_DASHBOARD } from "@/features/auth/types";
 import { signOut } from "firebase/auth";
@@ -34,37 +34,6 @@ import { auth } from "@/lib/firebase";
 import { logoutAction } from "@/features/auth/actions/logout";
 import { toast } from "sonner";
 import { useTheme } from "@/components/theme-provider";
-
-const MOCK_NOTIFICATIONS = [
-  {
-    id: "n1",
-    title: "Lesson plan submitted",
-    body: "Mr. Asante submitted a plan for JHS 2 Mathematics.",
-    time: "5m ago",
-    unread: true,
-  },
-  {
-    id: "n2",
-    title: "Attendance alert",
-    body: "3 students marked absent in Primary 4B today.",
-    time: "1h ago",
-    unread: true,
-  },
-  {
-    id: "n3",
-    title: "Term 2 report ready",
-    body: "JHS 3 end-of-term report is ready for review.",
-    time: "3h ago",
-    unread: false,
-  },
-  {
-    id: "n4",
-    title: "Parent message",
-    body: "Mrs. Agyeman sent a message about Kwame's attendance.",
-    time: "Yesterday",
-    unread: false,
-  },
-];
 
 interface HeaderProps {
   user: SessionUser;
@@ -117,7 +86,6 @@ export function Header({ user, currentYear, onMobileMenuOpen, userPhotoUrl = nul
   ];
 
   const profileHref = `${ROLE_DASHBOARD[user.role]}/profile`;
-  const unreadCount = MOCK_NOTIFICATIONS.filter((n) => n.unread).length;
 
   return (
     <>
@@ -234,51 +202,8 @@ export function Header({ user, currentYear, onMobileMenuOpen, userPhotoUrl = nul
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Notifications */}
-          <DropdownMenu>
-            <DropdownMenuTrigger className="relative h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer">
-              <Bell size={15} />
-              {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-accent-orange" />
-              )}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="flex items-center justify-between py-2.5">
-                  <span className="font-semibold">Notifications</span>
-                  {unreadCount > 0 && (
-                    <Badge className="bg-accent-orange/10 text-accent-orange border-0 text-xs px-1.5">
-                      {unreadCount} new
-                    </Badge>
-                  )}
-                </DropdownMenuLabel>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              {MOCK_NOTIFICATIONS.map((n) => (
-                <DropdownMenuGroup key={n.id}>
-                  <DropdownMenuItem className="flex-col items-start gap-0.5 py-3 cursor-pointer px-3">
-                    <div className="flex items-center gap-2 w-full">
-                      {n.unread && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-accent-orange flex-shrink-0" />
-                      )}
-                      <span className={`text-sm flex-1 ${n.unread ? "font-medium" : "font-normal text-muted-foreground"}`}>
-                        {n.title}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground ml-auto shrink-0">{n.time}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed pl-3.5">{n.body}</p>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem className="justify-center cursor-pointer py-2.5">
-                  <CheckCheck size={13} className="mr-1.5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Mark all as read</span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Notifications — live data, polls every 60s */}
+          <NotificationsDropdown />
 
           {/* User menu */}
           <DropdownMenu>

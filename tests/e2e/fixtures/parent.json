@@ -5,7 +5,7 @@
       "value": "uid-parent-001",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385841.985839,
+      "expires": 1779401368.484325,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -15,7 +15,7 @@
       "value": "Parent",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385841.986045,
+      "expires": 1779401368.484363,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -25,7 +25,7 @@
       "value": "Mawuli%20Agbeko",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385841.986078,
+      "expires": 1779401368.484375,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -35,7 +35,7 @@
       "value": "parent%40uhas.edu.gh",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385841.986093,
+      "expires": 1779401368.484386,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -45,17 +45,17 @@
       "value": "guardian-001",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385841.986112,
+      "expires": 1779401368.484397,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "session_expires_at",
-      "value": "1779385841980",
+      "value": "1779401368482",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385841.986133,
+      "expires": 1779401368.48441,
       "httpOnly": false,
       "secure": true,
       "sameSite": "Lax"

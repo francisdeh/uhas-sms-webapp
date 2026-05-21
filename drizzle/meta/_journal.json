@@ -15,6 +15,13 @@
       "when": 1779356051141,
       "tag": "0001_ancient_joshua_kane",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779371258130,
+      "tag": "0002_modern_sauron",
+      "breakpoints": true
     }
   ]
 }

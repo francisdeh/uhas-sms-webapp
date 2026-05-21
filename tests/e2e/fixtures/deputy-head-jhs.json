@@ -5,7 +5,7 @@
       "value": "uid-deputyhead-jhs",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385830.980991,
+      "expires": 1779401364.88037,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -15,7 +15,7 @@
       "value": "DeputyHead",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385830.981131,
+      "expires": 1779401364.880404,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -25,7 +25,7 @@
       "value": "Dzifa%20Adzogenu",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385830.981166,
+      "expires": 1779401364.880416,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -35,7 +35,7 @@
       "value": "dh.jhs%40uhas.edu.gh",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385830.981182,
+      "expires": 1779401364.880429,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -45,17 +45,17 @@
       "value": "STAFF-002",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385830.981197,
+      "expires": 1779401364.88044,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "session_expires_at",
-      "value": "1779385830973",
+      "value": "1779401364878",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385830.981215,
+      "expires": 1779401364.880452,
       "httpOnly": false,
       "secure": true,
       "sameSite": "Lax"
