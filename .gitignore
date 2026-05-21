@@ -19,7 +19,8 @@ dist/
 *-adminsdk-*.json
 
 # ─── Drizzle ──────────────────────────────────────────────────────────────────
-drizzle/
+# Migrations + snapshots ARE checked in — they're the reviewable source of
+# truth for schema changes and CI runs `drizzle-orm` migrator against them.
 
 # ─── Firebase ─────────────────────────────────────────────────────────────────
 .firebase/
