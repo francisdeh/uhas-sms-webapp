@@ -5,7 +5,7 @@
       "value": "uid-admin-001",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385829.909381,
+      "expires": 1779401363.91564,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -15,7 +15,7 @@
       "value": "Admin",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385829.909483,
+      "expires": 1779401363.915729,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -25,7 +25,7 @@
       "value": "Mawuli%20Agbenyega",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385829.909495,
+      "expires": 1779401363.915742,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -35,7 +35,7 @@
       "value": "admin%40uhas.edu.gh",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385829.909505,
+      "expires": 1779401363.915752,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -45,17 +45,17 @@
       "value": "STAFF-001",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385829.909518,
+      "expires": 1779401363.915763,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "session_expires_at",
-      "value": "1779385829907",
+      "value": "1779401363913",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385829.909529,
+      "expires": 1779401363.915774,
       "httpOnly": false,
       "secure": true,
       "sameSite": "Lax"

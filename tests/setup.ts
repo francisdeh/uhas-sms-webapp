@@ -13,6 +13,24 @@ config({ path: ".env.test" });
 type CookieEntry = { value: string };
 let cookieStore = new Map<string, CookieEntry>();
 
+// `server-only` is a Next.js guard that exists as a real package in
+// node_modules but throws if imported from a client bundle. Vitest's Node
+// environment doesn't ship it; stub it out so server modules can be
+// imported by tests.
+vi.mock("server-only", () => ({}));
+
+// React's `cache()` is for server components. In a Node test context the
+// React import returns the client build, which doesn't expose `cache`.
+// Pass-through identity is fine for tests — we just want the inner fn to
+// execute on each call.
+vi.mock("react", async () => {
+  const actual = await vi.importActual<typeof import("react")>("react");
+  return {
+    ...actual,
+    cache: <T extends (...args: unknown[]) => unknown>(fn: T): T => fn,
+  };
+});
+
 vi.mock("next/headers", () => ({
   cookies: () =>
     Promise.resolve({

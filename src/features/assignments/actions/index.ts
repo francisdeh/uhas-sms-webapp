@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { assignments, classes, subjects, staff, enrollments } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
+import { notifyAudience } from "@/features/notifications/lib/create-notification";
 import type {
   Assignment,
   CreateAssignmentInput,
@@ -168,6 +169,22 @@ export async function publishAssignmentAction(input: {
     .update(assignments)
     .set({ status: "published", publishedAt: now, updatedAt: now })
     .where(eq(assignments.id, input.id));
+
+  // Notify parents of students in that class. The teacher chose "publish"
+  // — they want parents to see this. Notif goes out once per parent.
+  const due = row.dueDate
+    ? ` Due ${new Date(row.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}.`
+    : "";
+  await notifyAudience(
+    { type: "parentsOfClass", classId: row.classId },
+    {
+      kind: "assignment_created",
+      title: "New assignment",
+      body: `${row.title}.${due}`,
+      link: `/parent/assignments`,
+    }
+  );
+
   revalidatePath("/teacher/assignments");
   return { success: true };
 }

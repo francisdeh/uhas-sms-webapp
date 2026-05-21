@@ -8,6 +8,7 @@ import { getCurrentSchoolId } from "@/lib/school";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { sendEmail, appUrl } from "@/lib/email";
 import { getSchoolSettings } from "@/features/settings/queries/get-school-settings";
+import { notifyAudience } from "@/features/notifications/lib/create-notification";
 import type {
   LessonPlan,
   LessonPlanStatus,
@@ -254,6 +255,23 @@ export async function submitLessonPlanAction(input: {
       updatedAt: new Date(),
     })
     .where(eq(lessonPlans.id, input.id));
+
+  // Notify the Unit Head of the class's division. DH gets pinged when the
+  // Unit Head approves (next step in the chain) — too noisy to ping both now.
+  const cls = await db.query.classes.findFirst({ where: eq(classes.id, plan.classId) });
+  if (cls?.division) {
+    const topic = plan.topic ?? "(untitled)";
+    await notifyAudience(
+      { type: "unitHeadOfDivision", division: cls.division },
+      {
+        kind: "lesson_plan_submitted",
+        title: "Lesson plan submitted",
+        body: `A new lesson plan "${topic}" is ready for your review.`,
+        link: `/teacher/reviews`,
+      }
+    );
+  }
+
   revalidatePath("/teacher/lesson-plans");
   return { success: true };
 }
@@ -275,6 +293,42 @@ async function applyReview(
       updatedAt: now,
     })
     .where(eq(lessonPlans.id, id));
+}
+
+// In-app notification to the submitting teacher when their plan is reviewed.
+// Fires for both approve + reject. (Email side stays separate and only fires
+// on rejection — see notifyTeacherOfRejection below.)
+async function notifyTeacherOfReview(
+  planId: string,
+  outcome: "approved" | "rejected" | "advanced",
+  comment: string | undefined
+) {
+  const plan = await db.query.lessonPlans.findFirst({
+    where: eq(lessonPlans.id, planId),
+  });
+  if (!plan) return;
+  const topic = plan.topic ?? "(untitled)";
+  const titleByOutcome = {
+    approved: "Lesson plan approved",
+    rejected: "Lesson plan returned",
+    advanced: "Lesson plan advanced",
+  };
+  const bodyByOutcome = {
+    approved: `Your lesson plan "${topic}" was approved.`,
+    rejected:
+      `Your lesson plan "${topic}" needs changes.` +
+      (comment?.trim() ? ` Note: ${comment.trim()}` : ""),
+    advanced: `Your lesson plan "${topic}" passed the Unit Head and is awaiting Deputy Head sign-off.`,
+  };
+  await notifyAudience(
+    { type: "staff", staffId: plan.teacherId },
+    {
+      kind: "lesson_plan_reviewed",
+      title: titleByOutcome[outcome],
+      body: bodyByOutcome[outcome],
+      link: `/teacher/lesson-plans/${plan.id}`,
+    }
+  );
 }
 
 async function notifyTeacherOfRejection(
@@ -335,6 +389,23 @@ export async function unitHeadReviewAction(input: {
   const next: LessonPlanStatus =
     input.decision.decision === "approve" ? "unit_head_approved" : "rejected";
   await applyReview(input.id, reviewer.id, next, input.decision.comment);
+
+  await notifyTeacherOfReview(
+    input.id,
+    next === "rejected" ? "rejected" : "advanced",
+    input.decision.comment
+  );
+  if (next === "unit_head_approved" && cls?.division) {
+    await notifyAudience(
+      { type: "staffByDivision", division: cls.division, roles: ["DeputyHead"] },
+      {
+        kind: "lesson_plan_submitted",
+        title: "Lesson plan ready for Deputy Head review",
+        body: `A unit-head-approved lesson plan is awaiting your sign-off.`,
+        link: `/deputy-head/lesson-plans`,
+      }
+    );
+  }
   if (next === "rejected") {
     await notifyTeacherOfRejection(input.id, reviewer.id, input.decision.comment);
   }
@@ -364,6 +435,11 @@ export async function deputyHeadReviewAction(input: {
   const next: LessonPlanStatus =
     input.decision.decision === "approve" ? "approved" : "rejected";
   await applyReview(input.id, reviewer.id, next, input.decision.comment);
+  await notifyTeacherOfReview(
+    input.id,
+    next === "approved" ? "approved" : "rejected",
+    input.decision.comment
+  );
   if (next === "rejected") {
     await notifyTeacherOfRejection(input.id, reviewer.id, input.decision.comment);
   }

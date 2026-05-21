@@ -17,6 +17,8 @@ import type {
   CreateAnnouncementInput,
 } from "@/features/announcements/types";
 import { parseAudience } from "@/features/announcements/types";
+import { getSchoolSettings } from "@/features/settings/queries/get-school-settings";
+import { notifyAudience } from "@/features/notifications/lib/create-notification";
 
 type ActionResult = { success: true } | { success: false; error: string };
 
@@ -157,11 +159,56 @@ export async function createAnnouncementAction(input: {
     isCritical: input.data.isCritical,
     createdById: author.id,
   });
+
+  // Fan out an in-app notification to the resolved audience. "all" hits
+  // every active user; "division" hits both staff in that division and the
+  // parents of students in that division; "class" hits parents of that
+  // class. The school-wide notification toggle for announcements gates
+  // this so admins can quiet the system if needed.
+  const settings = await getSchoolSettings();
+  if (settings.notificationDefaults.onAnnouncementPosted) {
+    const titleByKind = input.data.isCritical
+      ? `⚠ ${input.data.title}`
+      : input.data.title;
+    const bodyPayload = {
+      kind: "announcement_posted" as const,
+      title: titleByKind,
+      body: input.data.body.length > 140 ? input.data.body.slice(0, 137) + "..." : input.data.body,
+      link: roleLandingLink(),
+    };
+    if (parsed.kind === "all") {
+      await notifyAudience({ type: "schoolWide" }, bodyPayload);
+    } else if (parsed.kind === "division") {
+      // Staff in the division + parents of students in the division.
+      await notifyAudience(
+        { type: "staffByDivision", division: parsed.division },
+        bodyPayload
+      );
+      await notifyAudience(
+        { type: "parentsInDivision", division: parsed.division },
+        bodyPayload
+      );
+    } else if (parsed.kind === "class") {
+      await notifyAudience({ type: "parentsOfClass", classId: parsed.classId }, bodyPayload);
+    }
+  }
+
   revalidatePath("/admin/announcements");
   revalidatePath("/deputy-head/announcements");
   revalidatePath("/teacher/announcements");
   revalidatePath("/parent/announcements");
   return { success: true, id };
+}
+
+// A best-effort landing link in the announcement notification — each role
+// has their own list page.
+function roleLandingLink(): string {
+  // We don't know the recipient's role here; deep-link to the generic
+  // parent path which works for parents (the largest audience). Staff
+  // can still find the announcement from their own list when they
+  // navigate themselves; click-through is a nice-to-have, not the
+  // primary signal.
+  return "/parent/announcements";
 }
 
 export async function deleteAnnouncementAction(input: {

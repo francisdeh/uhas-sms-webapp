@@ -9,6 +9,7 @@ import {
   jsonb,
   primaryKey,
   unique,
+  index,
 } from "drizzle-orm/pg-core";
 
 // All entity IDs are varchar to preserve the human-readable IDs from the
@@ -479,3 +480,28 @@ export const auditLog = pgTable("audit_log", {
   after: text("after"),                                               // JSON snapshot
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// ─── In-App Notifications ────────────────────────────────────────────────────
+// One row per (recipient, event). The bell dropdown reads from here; events
+// in feature actions write here via notifyAudience() in
+// src/features/notifications/lib.
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),                    // notif-<ts>-<rand>
+    schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
+    userId: varchar("user_id", { length: 128 }).references(() => users.id).notNull(),
+    kind: varchar("kind", { length: 50 }).notNull(),                   // see NotificationKind union
+    title: varchar("title", { length: 255 }).notNull(),
+    body: text("body").notNull(),
+    link: varchar("link", { length: 500 }),
+    readAt: timestamp("read_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    // Bell badge: WHERE userId=? AND readAt IS NULL — partial would be ideal
+    // but Drizzle doesn't model it; composite covers list + count queries.
+    userReadIdx: index("notifications_user_read_idx").on(t.userId, t.readAt),
+  })
+);

@@ -5,7 +5,7 @@
       "value": "uid-unit-head-jhs",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385835.848995,
+      "expires": 1779401366.665279,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -15,7 +15,7 @@
       "value": "Teacher",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385835.849189,
+      "expires": 1779401366.665318,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -25,7 +25,7 @@
       "value": "Akpene%20Kpodo",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385835.849222,
+      "expires": 1779401366.665329,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -35,7 +35,7 @@
       "value": "unit-head.jhs%40uhas.edu.gh",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385835.849249,
+      "expires": 1779401366.665341,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
@@ -45,17 +45,17 @@
       "value": "STAFF-004",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385835.84935,
+      "expires": 1779401366.665355,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "session_expires_at",
-      "value": "1779385835830",
+      "value": "1779401366663",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779385835.84938,
+      "expires": 1779401366.665367,
       "httpOnly": false,
       "secure": true,
       "sameSite": "Lax"

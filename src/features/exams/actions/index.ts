@@ -20,6 +20,8 @@ import {
 import { getCurrentSchoolId } from "@/lib/school";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { writeAuditLog } from "@/lib/audit-log";
+import { notifyAudience } from "@/features/notifications/lib/create-notification";
+import { getSchoolSettings } from "@/features/settings/queries/get-school-settings";
 import type {
   Exam,
   ExamType,
@@ -149,6 +151,21 @@ export async function publishExamAction(id: string): Promise<ActionResult> {
     .update(exams)
     .set({ isPublished: true, publishedAt: new Date() })
     .where(eq(exams.id, id));
+
+  // Notify all parents — gated by the school-wide notification toggle.
+  const settings = await getSchoolSettings();
+  if (settings.notificationDefaults.onResultsPublished) {
+    await notifyAudience(
+      { type: "allParents" },
+      {
+        kind: "results_published",
+        title: `${exam.name} results published`,
+        body: `Term ${exam.term} ${exam.type === "MidTerm" ? "mid-term" : "end-of-term"} results are now available.`,
+        link: `/parent/results`,
+      }
+    );
+  }
+
   revalidatePath("/admin/examinations");
   return { success: true };
 }
