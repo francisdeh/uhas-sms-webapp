@@ -1,24 +1,56 @@
 import { redirect } from "next/navigation";
+import { and, eq } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
-import { mockStudents } from "@/lib/mock/students";
-import { mockStaff } from "@/lib/mock/staff";
-import { mockClasses } from "@/lib/mock/classes";
-import { mockAnnouncements } from "@/lib/mock/announcements";
-import { mockSchool } from "@/lib/mock/school";
+import { getCurrentSchoolId } from "@/lib/school";
+import { db } from "@/db";
+import { schools, students, staff, classes, announcements } from "@/db/schema";
+import { listAnnouncementsAction } from "@/features/announcements/actions";
+import { getActiveEnrollmentMap } from "@/features/students/queries/get-active-enrollment";
 import AdminDashboardOverview from "./DashboardOverview";
 
 export default async function AdminDashboardPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
+  const schoolId = await getCurrentSchoolId();
   const currentYear = await getCurrentAcademicYear();
-  const currentTerm = mockSchool.currentTerm;
+  const school = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
+  const currentTerm = school?.currentTerm ?? 1;
 
-  const activeStudents = mockStudents.filter((s) => s.isActive);
-  const activeStaff = mockStaff.filter((s) => s.isActive).length;
-  const classesThisYear = mockClasses.filter((c) => c.academicYear === currentYear);
-  const criticalAnnouncements = mockAnnouncements.filter((a) => a.isCritical).length;
+  const [activeStudents, activeStaffRows, classesThisYear, criticalAnnouncementsRows, recentAnnouncements] = await Promise.all([
+    db.query.students.findMany({
+      where: and(eq(students.schoolId, schoolId), eq(students.isActive, true)),
+    }),
+    db.query.staff.findMany({
+      where: and(eq(staff.schoolId, schoolId), eq(staff.isActive, true)),
+    }),
+    db.query.classes.findMany({
+      where: and(eq(classes.schoolId, schoolId), eq(classes.academicYear, currentYear)),
+    }),
+    db.query.announcements.findMany({
+      where: and(eq(announcements.schoolId, schoolId), eq(announcements.isCritical, true)),
+    }),
+    listAnnouncementsAction(),
+  ]);
+
+  const enrollmentMap = await getActiveEnrollmentMap(
+    activeStudents.map((s) => s.id),
+    currentYear
+  );
+
+  const divisionBreakdown = [
+    { label: "KG", count: 0, color: "bg-purple-400" },
+    { label: "Lower Primary", count: 0, color: "bg-sky-400" },
+    { label: "Upper Primary", count: 0, color: "bg-blue-400" },
+    { label: "JHS", count: 0, color: "bg-accent-orange" },
+  ];
+  for (const s of activeStudents) {
+    const enr = enrollmentMap.get(s.id);
+    if (!enr) continue;
+    const entry = divisionBreakdown.find((d) => d.label === enr.division);
+    if (entry) entry.count += 1;
+  }
 
   const stats = [
     {
@@ -31,7 +63,7 @@ export default async function AdminDashboardPage() {
     },
     {
       label: "Total Staff",
-      value: activeStaff,
+      value: activeStaffRows.length,
       icon: "staff" as const,
       iconClass: "bg-orange-50 text-accent-orange",
       trend: "Fully staffed",
@@ -47,7 +79,7 @@ export default async function AdminDashboardPage() {
     },
     {
       label: "Critical Alerts",
-      value: criticalAnnouncements,
+      value: criticalAnnouncementsRows.length,
       icon: "alerts" as const,
       iconClass: "bg-red-50 text-red-500",
       trend: "Requires attention",
@@ -55,14 +87,7 @@ export default async function AdminDashboardPage() {
     },
   ];
 
-  const divisionBreakdown = [
-    { label: "KG", count: activeStudents.filter((s) => s.division === "KG").length, color: "bg-purple-400" },
-    { label: "Lower Primary", count: activeStudents.filter((s) => s.division === "Lower Primary").length, color: "bg-sky-400" },
-    { label: "Upper Primary", count: activeStudents.filter((s) => s.division === "Upper Primary").length, color: "bg-blue-400" },
-    { label: "JHS", count: activeStudents.filter((s) => s.division === "JHS").length, color: "bg-accent-orange" },
-  ];
-
-  const classOptions = mockClasses.map((c) => ({ id: c.id, name: c.name }));
+  const classOptions = classesThisYear.map((c) => ({ id: c.id, name: c.name }));
 
   return (
     <AdminDashboardOverview
@@ -70,7 +95,7 @@ export default async function AdminDashboardPage() {
       currentTerm={currentTerm}
       totalActiveStudents={activeStudents.length}
       stats={stats}
-      recentAnnouncements={mockAnnouncements.slice(0, 5)}
+      recentAnnouncements={recentAnnouncements.slice(0, 5)}
       classOptions={classOptions}
       divisionBreakdown={divisionBreakdown}
     />

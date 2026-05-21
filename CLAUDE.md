@@ -43,7 +43,7 @@ src/features/<name>/
 - Drizzle ORM + Neon PostgreSQL in production.
 - Locally: Docker PostgreSQL 16 on port 5432.
 - All tables include `schoolId` for multi-tenant scoping — every query must filter by `schoolId`.
-- Schema is in `src/db/schema.ts`. Run `npm run db:push` to apply changes.
+- Schema is in `src/db/schema.ts`. After editing it, run `npm run db:generate` to emit a new migration file in `drizzle/`, then `npm run db:migrate` to apply it. `db:push` is **not** used — migrations are the only path to a schema change, so the SQL is reviewable in PRs and the test/E2E DBs stay in sync with prod via the same files.
 
 ### Auth
 - Firebase Authentication for identity.
@@ -92,7 +92,7 @@ src/features/<name>/
 - **Sonner for all toasts.** Import from `sonner` — `toast.success()`, `toast.error()`.
 - **All destructive actions need a confirmation dialog** before executing.
 - **Audit-log admin mutations** (score overrides, student edits, role changes) via the `audit_log` table.
-- **Theming**: two orthogonal axes on `<html>` — `class="dark"` (light/dark via `useTheme().setTheme()`) and `data-color-scheme="uhas"` (default/UHAS brand colours via `useTheme().setColorScheme()`). Brand palette overrides live in `globals.css` under `:root[data-color-scheme="uhas"]`. Reference brand colours through Tailwind tokens (`bg-brand`, `text-accent-orange`) — never hardcode hex literals in components, or theme switching will skip them.
+- **Theming**: two orthogonal axes on `<html>` — `class="dark"` (light/dark via `useTheme().setTheme()`) and `data-color-scheme="uhas"` (UHAS brand colours via `useTheme().setColorScheme()`). **UHAS is the default**: the root layout renders `<html data-color-scheme="uhas">` so the brand palette applies on first paint. Switching to `"default"` removes the attribute. Brand palette overrides live in `globals.css` under `:root[data-color-scheme="uhas"]`. Reference brand colours through Tailwind tokens (`bg-brand`, `text-accent-orange`) — never hardcode hex literals in components, or theme switching will skip them.
 - **Mobile responsive**: every page-header row that pairs a title with an action button uses `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`. Wide tables wrap in `overflow-x-auto`. Report cards / PSC report use `overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0` to allow side-scroll on phones while keeping print layout intact.
 
 ---

@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, Save, Send, Trash2, FileText, Pencil } from "lucide-react";
+import { FileUploadField } from "@/features/uploads/components/FileUploadField";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,7 @@ const schema = z
     subjectId: z.string().min(1, { message: "Select a subject" }),
     term: z.number().int().min(1).max(3),
     title: z.string().min(3, { message: "Add a title" }),
-    fileUrl: z.string().url({ message: "Enter a valid URL" }).optional().or(z.literal("")),
+    fileUrl: z.string().optional(),
     content: z.string().optional(),
   })
   .refine((data) => Boolean(data.fileUrl) || Boolean(data.content && data.content.trim().length > 0), {
@@ -68,6 +69,7 @@ export function SchemeForm({ teacherId, existing, assignments, backHref }: Schem
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [tempId] = useState(() => existing?.id ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
 
   const locked = existing?.status === "acknowledged";
 
@@ -301,7 +303,7 @@ export function SchemeForm({ teacherId, existing, assignments, backHref }: Schem
                 <FieldLabel htmlFor="title">Title</FieldLabel>
                 <Input
                   id="title"
-                  placeholder="e.g. JHS 1A — English Scheme of Work, Term 1"
+                  placeholder="e.g. JHS 1 — English Scheme of Work, Term 1"
                   disabled={locked}
                   {...form.register("title")}
                 />
@@ -333,21 +335,20 @@ export function SchemeForm({ teacherId, existing, assignments, backHref }: Schem
                 </TabsContent>
 
                 <TabsContent value="upload">
-                  <Field>
-                    <FieldLabel htmlFor="fileUrl">Upload URL</FieldLabel>
-                    <Input
-                      id="fileUrl"
-                      type="url"
-                      placeholder="https://drive.google.com/…"
-                      disabled={locked}
-                      {...form.register("fileUrl")}
-                    />
-                    <FieldError errors={[form.formState.errors.fileUrl]} />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Paste a shared URL (Google Drive, OneDrive, etc.). File uploads via the
-                      app come with Cloud Storage integration later.
-                    </p>
-                  </Field>
+                  <Controller
+                    name="fileUrl"
+                    control={form.control}
+                    render={({ field }) => (
+                      <FileUploadField
+                        ownerId={tempId}
+                        kind="schemes/file"
+                        value={field.value ?? null}
+                        onChange={(v) => field.onChange(v ?? "")}
+                        disabled={locked}
+                        label="Scheme document"
+                      />
+                    )}
+                  />
                 </TabsContent>
               </Tabs>
             </FieldGroup>

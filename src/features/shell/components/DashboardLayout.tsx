@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { AutoBreadcrumb } from "./AutoBreadcrumb";
+import { SessionExpiryWatcher } from "@/features/auth/components/SessionExpiryWatcher";
 import type { SessionUser } from "@/features/auth/types";
 
 interface DashboardLayoutProps {
@@ -13,9 +14,20 @@ interface DashboardLayoutProps {
   user: SessionUser;
   currentYear: string;
   navBadges: Record<string, number>;
+  userPhotoUrl?: string | null;
+  schoolName?: string;
+  schoolLogoUrl?: string | null;
 }
 
-export function DashboardLayout({ children, user, currentYear, navBadges }: DashboardLayoutProps) {
+export function DashboardLayout({
+  children,
+  user,
+  currentYear,
+  navBadges,
+  userPhotoUrl = null,
+  schoolName = "UHAS Basic School",
+  schoolLogoUrl = null,
+}: DashboardLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
@@ -26,9 +38,17 @@ export function DashboardLayout({ children, user, currentYear, navBadges }: Dash
         navBadges={navBadges}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
+        userPhotoUrl={userPhotoUrl}
+        schoolName={schoolName}
+        schoolLogoUrl={schoolLogoUrl}
       />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <Header user={user} currentYear={currentYear} onMobileMenuOpen={() => setMobileOpen(true)} />
+        <Header
+          user={user}
+          currentYear={currentYear}
+          onMobileMenuOpen={() => setMobileOpen(true)}
+          userPhotoUrl={userPhotoUrl}
+        />
         <AnimatePresence mode="wait">
           <motion.main
             key={pathname}
@@ -43,6 +63,7 @@ export function DashboardLayout({ children, user, currentYear, navBadges }: Dash
           </motion.main>
         </AnimatePresence>
       </div>
+      <SessionExpiryWatcher />
     </div>
   );
 }

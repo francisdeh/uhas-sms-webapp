@@ -1,12 +1,21 @@
 "use server";
 
-import { mockAppointments } from "@/lib/mock/appointments";
-import { mockStudents } from "@/lib/mock/students";
-import { mockStaff } from "@/lib/mock/staff";
-import { mockGuardianProfiles } from "@/lib/mock/guardians";
-import { mockStudentGuardians } from "@/lib/mock/student-guardians";
-import { mockClassSubjects } from "@/lib/mock/class-subjects";
-import { mockClasses } from "@/lib/mock/classes";
+import { revalidatePath } from "next/cache";
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/db";
+import {
+  appointments,
+  staff,
+  students,
+  guardians,
+  studentGuardians,
+  classSubjects,
+  subjects,
+  classTeachers,
+  enrollments,
+} from "@/db/schema";
+import { getCurrentSchoolId } from "@/lib/school";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import type {
   Appointment,
   CreateAppointmentInput,
@@ -15,69 +24,131 @@ import type {
 
 type ActionResult = { success: true } | { success: false; error: string };
 
-const appointments = mockAppointments;
+async function hydrateMany(rows: (typeof appointments.$inferSelect)[]): Promise<Appointment[]> {
+  if (rows.length === 0) return [];
+  const guardianIds = Array.from(new Set(rows.map((r) => r.guardianId)));
+  const studentIds = Array.from(new Set(rows.map((r) => r.studentId)));
+  const teacherIds = Array.from(new Set(rows.map((r) => r.teacherId)));
 
-function lookup(guardianId: string, studentId: string, teacherId: string) {
-  const guardian = mockGuardianProfiles[guardianId];
-  const student = mockStudents.find((s) => s.id === studentId);
-  const teacher = mockStaff.find((s) => s.id === teacherId);
-  return {
-    guardianName: guardian?.name ?? "",
-    studentName: student ? `${student.firstName} ${student.lastName}` : "",
-    teacherName: teacher ? `${teacher.firstName} ${teacher.lastName}` : "",
-  };
+  const [gRows, sRows, tRows] = await Promise.all([
+    db.query.guardians.findMany({ where: inArray(guardians.id, guardianIds) }),
+    db.query.students.findMany({ where: inArray(students.id, studentIds) }),
+    db.query.staff.findMany({ where: inArray(staff.id, teacherIds) }),
+  ]);
+  const gById = new Map(gRows.map((g) => [g.id, g]));
+  const sById = new Map(sRows.map((s) => [s.id, s]));
+  const tById = new Map(tRows.map((t) => [t.id, t]));
+
+  return rows.map((r) => {
+    const g = gById.get(r.guardianId);
+    const s = sById.get(r.studentId);
+    const t = tById.get(r.teacherId);
+    return {
+      id: r.id,
+      schoolId: r.schoolId,
+      guardianId: r.guardianId,
+      guardianName: g ? `${g.firstName} ${g.lastName}` : "",
+      studentId: r.studentId,
+      studentName: s ? `${s.firstName} ${s.lastName}` : "",
+      teacherId: r.teacherId,
+      teacherName: t ? `${t.firstName} ${t.lastName}` : "",
+      preferredDate: r.preferredDate,
+      preferredSlot: r.preferredSlot as Appointment["preferredSlot"],
+      reason: r.reason,
+      status: r.status as Appointment["status"],
+      teacherResponse: r.teacherResponse,
+      respondedAt: r.respondedAt?.toISOString() ?? null,
+      createdAt: r.createdAt?.toISOString() ?? new Date().toISOString(),
+      updatedAt: r.updatedAt?.toISOString() ?? new Date().toISOString(),
+    } satisfies Appointment;
+  });
 }
 
 export async function listAppointmentsForGuardianAction(
   guardianId: string
 ): Promise<Appointment[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  return [...appointments]
-    .filter((a) => a.guardianId === guardianId)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const rows = await db.query.appointments.findMany({
+    where: eq(appointments.guardianId, guardianId),
+  });
+  const list = await hydrateMany(rows);
+  return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function listAppointmentsForTeacherAction(
   teacherId: string
 ): Promise<Appointment[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  return [...appointments]
-    .filter((a) => a.teacherId === teacherId)
-    .sort((a, b) => {
-      // Pending first, then by recency
-      if (a.status === "pending" && b.status !== "pending") return -1;
-      if (a.status !== "pending" && b.status === "pending") return 1;
-      return b.createdAt.localeCompare(a.createdAt);
-    });
+  const rows = await db.query.appointments.findMany({
+    where: eq(appointments.teacherId, teacherId),
+  });
+  const list = await hydrateMany(rows);
+  return list.sort((a, b) => {
+    if (a.status === "pending" && b.status !== "pending") return -1;
+    if (a.status !== "pending" && b.status === "pending") return 1;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
 }
 
-// List teachers that teach a given student (across all subjects)
-// so the parent has a sensible picker.
 export async function listTeachersForStudentAction(
   studentId: string
 ): Promise<{ id: string; name: string; subjects: string[] }[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  const student = mockStudents.find((s) => s.id === studentId);
-  if (!student) return [];
+  const year = await getCurrentAcademicYear();
+  const enr = await db.query.enrollments.findFirst({
+    where: and(
+      eq(enrollments.studentId, studentId),
+      eq(enrollments.academicYear, year),
+      eq(enrollments.status, "Active")
+    ),
+  });
+  if (!enr) return [];
 
-  const classId = student.classId;
-  const subjectAssignments = mockClassSubjects.filter(
-    (cs) => cs.classId === classId && cs.teacherId
-  );
-  const classTeachers = mockClasses.find((c) => c.id === classId)?.classTeachers ?? [];
+  // Class teachers for this class
+  const ctRows = await db
+    .select({
+      staffId: classTeachers.staffId,
+      firstName: staff.firstName,
+      lastName: staff.lastName,
+    })
+    .from(classTeachers)
+    .innerJoin(staff, eq(staff.id, classTeachers.staffId))
+    .where(eq(classTeachers.classId, enr.classId));
 
-  const byTeacher: Record<string, { id: string; name: string; subjects: Set<string> }> = {};
-  for (const ct of classTeachers) {
-    byTeacher[ct.staffId] ??= { id: ct.staffId, name: ct.staffName, subjects: new Set() };
-    byTeacher[ct.staffId].subjects.add("Class Teacher");
+  // Subject teachers for this class
+  const csRows = await db
+    .select({
+      teacherId: classSubjects.teacherId,
+      subjectName: subjects.name,
+      firstName: staff.firstName,
+      lastName: staff.lastName,
+    })
+    .from(classSubjects)
+    .innerJoin(subjects, eq(subjects.id, classSubjects.subjectId))
+    .leftJoin(staff, eq(staff.id, classSubjects.teacherId))
+    .where(eq(classSubjects.classId, enr.classId));
+
+  const byTeacher = new Map<string, { id: string; name: string; subjects: Set<string> }>();
+  for (const r of ctRows) {
+    const id = r.staffId;
+    const entry = byTeacher.get(id) ?? {
+      id,
+      name: `${r.firstName} ${r.lastName}`,
+      subjects: new Set<string>(),
+    };
+    entry.subjects.add("Class Teacher");
+    byTeacher.set(id, entry);
   }
-  for (const cs of subjectAssignments) {
-    if (!cs.teacherId || !cs.teacherName) continue;
-    byTeacher[cs.teacherId] ??= { id: cs.teacherId, name: cs.teacherName, subjects: new Set() };
-    byTeacher[cs.teacherId].subjects.add(cs.subjectName);
+  for (const r of csRows) {
+    if (!r.teacherId || !r.firstName) continue;
+    const id = r.teacherId;
+    const entry = byTeacher.get(id) ?? {
+      id,
+      name: `${r.firstName} ${r.lastName}`,
+      subjects: new Set<string>(),
+    };
+    entry.subjects.add(r.subjectName);
+    byTeacher.set(id, entry);
   }
 
-  return Object.values(byTeacher)
+  return Array.from(byTeacher.values())
     .map((t) => ({ id: t.id, name: t.name, subjects: [...t.subjects] }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -86,48 +157,42 @@ export async function createAppointmentAction(input: {
   guardianId: string;
   data: CreateAppointmentInput;
 }): Promise<{ success: true; id: string } | { success: false; error: string }> {
-  if (process.env.USE_MOCK_DATA !== "true") return { success: false, error: "DB not connected" };
-
+  const schoolId = await getCurrentSchoolId();
   // Validate guardian-student link
-  const linkedIds = mockStudentGuardians[input.guardianId] ?? [];
-  if (!linkedIds.includes(input.data.studentId)) {
+  const link = await db.query.studentGuardians.findFirst({
+    where: and(
+      eq(studentGuardians.guardianId, input.guardianId),
+      eq(studentGuardians.studentId, input.data.studentId)
+    ),
+  });
+  if (!link) {
     return { success: false, error: "That child is not linked to your account." };
   }
 
-  // Validate teacher actually teaches the student's class
   const teachers = await listTeachersForStudentAction(input.data.studentId);
   if (!teachers.some((t) => t.id === input.data.teacherId)) {
     return { success: false, error: "That teacher does not teach your child." };
   }
 
-  // Disallow past dates
-  const dateOnly = input.data.preferredDate;
   const today = new Date().toISOString().slice(0, 10);
-  if (dateOnly < today) {
+  if (input.data.preferredDate < today) {
     return { success: false, error: "Preferred date cannot be in the past." };
   }
 
-  const names = lookup(input.guardianId, input.data.studentId, input.data.teacherId);
   const id = `appt-${Date.now()}`;
-  const now = new Date().toISOString();
-  appointments.push({
+  await db.insert(appointments).values({
     id,
-    schoolId: "school-uhas-001",
+    schoolId,
     guardianId: input.guardianId,
-    guardianName: names.guardianName,
     studentId: input.data.studentId,
-    studentName: names.studentName,
     teacherId: input.data.teacherId,
-    teacherName: names.teacherName,
     preferredDate: input.data.preferredDate,
     preferredSlot: input.data.preferredSlot,
     reason: input.data.reason ?? null,
     status: "pending",
-    teacherResponse: null,
-    respondedAt: null,
-    createdAt: now,
-    updatedAt: now,
   });
+  revalidatePath("/parent/appointments");
+  revalidatePath("/teacher/appointments");
   return { success: true, id };
 }
 
@@ -136,21 +201,29 @@ export async function respondToAppointmentAction(input: {
   teacherId: string;
   decision: RespondToAppointmentInput;
 }): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA !== "true") return { success: false, error: "DB not connected" };
-  const appt = appointments.find((a) => a.id === input.id);
-  if (!appt) return { success: false, error: "Appointment not found." };
-  if (appt.teacherId !== input.teacherId)
+  const row = await db.query.appointments.findFirst({ where: eq(appointments.id, input.id) });
+  if (!row) return { success: false, error: "Appointment not found." };
+  if (row.teacherId !== input.teacherId) {
     return { success: false, error: "You can only respond to appointments addressed to you." };
-  if (appt.status !== "pending")
+  }
+  if (row.status !== "pending") {
     return { success: false, error: "This appointment has already been actioned." };
+  }
   if (input.decision.decision === "decline" && !input.decision.response?.trim()) {
     return { success: false, error: "Add a reason when declining." };
   }
-
-  appt.status = input.decision.decision === "confirm" ? "confirmed" : "declined";
-  appt.teacherResponse = input.decision.response?.trim() || null;
-  appt.respondedAt = new Date().toISOString();
-  appt.updatedAt = appt.respondedAt;
+  const now = new Date();
+  await db
+    .update(appointments)
+    .set({
+      status: input.decision.decision === "confirm" ? "confirmed" : "declined",
+      teacherResponse: input.decision.response?.trim() || null,
+      respondedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(appointments.id, input.id));
+  revalidatePath("/teacher/appointments");
+  revalidatePath("/parent/appointments");
   return { success: true };
 }
 
@@ -158,15 +231,18 @@ export async function cancelAppointmentAction(input: {
   id: string;
   guardianId: string;
 }): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA !== "true") return { success: false, error: "DB not connected" };
-  const appt = appointments.find((a) => a.id === input.id);
-  if (!appt) return { success: false, error: "Appointment not found." };
-  if (appt.guardianId !== input.guardianId)
+  const row = await db.query.appointments.findFirst({ where: eq(appointments.id, input.id) });
+  if (!row) return { success: false, error: "Appointment not found." };
+  if (row.guardianId !== input.guardianId) {
     return { success: false, error: "You can only cancel your own requests." };
-  if (appt.status === "declined" || appt.status === "cancelled") {
+  }
+  if (row.status === "declined" || row.status === "cancelled") {
     return { success: false, error: "This appointment is already closed." };
   }
-  appt.status = "cancelled";
-  appt.updatedAt = new Date().toISOString();
+  await db
+    .update(appointments)
+    .set({ status: "cancelled", updatedAt: new Date() })
+    .where(eq(appointments.id, input.id));
+  revalidatePath("/parent/appointments");
   return { success: true };
 }

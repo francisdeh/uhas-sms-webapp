@@ -2,6 +2,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { GraduationCap, ClipboardList, BarChart3 } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
+import { getSchoolSettings } from "@/features/settings/queries/get-school-settings";
 import { ROLE_DASHBOARD } from "@/features/auth/types";
 import LoginForm from "@/features/auth/components/LoginForm";
 import ParticlesBg from "@/components/ParticlesBg";
@@ -15,14 +16,34 @@ const features = [
 export default async function LoginPage() {
   const user = await getSessionUser();
   if (user) redirect(ROLE_DASHBOARD[user.role]);
+  const settings = await getSchoolSettings();
+  const logoSrc = settings.logoUrl ?? "/logo.png";
+  const schoolWords = settings.name.split(" ");
+  const firstWord = schoolWords[0] ?? "UHAS";
+  const restWords = schoolWords.slice(1).join(" ") || "Basic School";
 
   return (
     <div className="min-h-screen flex">
       {/* ── Left brand panel ─────────────────────────────────── */}
-      <div
-        className="hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between p-12 relative overflow-hidden"
-        style={{ background: "linear-gradient(160deg, #1E293B 0%, #0F1E2E 100%)" }}
-      >
+      <div className="hidden lg:flex lg:w-[42%] xl:w-[38%] flex-col justify-between p-12 relative overflow-hidden bg-slate-900">
+        {/* School photo background. Heavy dark overlay keeps the white
+            logo + heading + feature list legible. */}
+        <Image
+          src="/login-hero.jpg"
+          alt=""
+          fill
+          priority
+          sizes="(min-width: 1280px) 38vw, (min-width: 1024px) 42vw, 0px"
+          className="object-cover opacity-55"
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(15,30,46,0.78) 0%, rgba(15,30,46,0.88) 60%, rgba(8,16,26,0.94) 100%)",
+          }}
+        />
+
         {/* Moving particles */}
         <ParticlesBg />
 
@@ -32,8 +53,8 @@ export default async function LoginPage() {
         {/* Top: logo + wordmark */}
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-lg shadow-black/20 flex-shrink-0">
-              <Image src="/logo.png" alt="UHAS Basic School" width={40} height={40} className="rounded-full" />
+            <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-lg shadow-black/20 flex-shrink-0 overflow-hidden">
+              <Image src={logoSrc} alt={settings.name} width={40} height={40} className="rounded-full object-cover" />
             </div>
             <div className="h-8 w-px bg-white/20" />
             <span className="text-white/70 text-sm tracking-wider uppercase font-medium">
@@ -48,10 +69,15 @@ export default async function LoginPage() {
               fontSize: "clamp(2rem, 3vw, 2.75rem)",
             }}
           >
-            <span className="font-semibold tracking-wide">UHAS</span>
+            <span className="font-semibold tracking-wide">{firstWord}</span>
             <br />
-            <span className="font-bold">Basic School</span>
+            <span className="font-bold">{restWords}</span>
           </h1>
+          {settings.motto && (
+            <p className="text-white/70 text-sm font-medium italic mb-2 max-w-xs">
+              {settings.motto}
+            </p>
+          )}
           <p className="text-white/50 text-sm leading-relaxed max-w-xs">
             A centralised platform for managing students, staff, and academic operations across all divisions.
           </p>
@@ -71,7 +97,7 @@ export default async function LoginPage() {
 
         {/* Bottom: footer note */}
         <p className="relative z-10 text-white/25 text-xs">
-          © {new Date().getFullYear()} UHAS Basic School · Management System v1
+          © {new Date().getFullYear()} {settings.name} · Management System v1
         </p>
       </div>
 

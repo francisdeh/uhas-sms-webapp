@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { UserX, UserCheck, Plus, Loader2, Pencil, Users, Activity, UserCog, ShieldCheck, Copy, Check, Link } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldGroup } from "@/components/ui/field";
 import { DataTable } from "@/components/ui/data-table";
@@ -59,10 +59,6 @@ const AVATAR_GRADIENT: Record<UserRole, string> = {
   Teacher: "from-emerald-400 to-emerald-600",
   Parent: "from-amber-400 to-amber-600",
 };
-
-function initials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-}
 
 type FormState = {
   displayName: string;
@@ -173,7 +169,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
       startTransition(async () => {
         const result = await createUserAction(form);
         if (!result.success) { toast.error(result.error); return; }
-        setUsers((prev) => [...prev, { uid: result.uid!, ...form, isActive: true }]);
+        setUsers((prev) => [...prev, { uid: result.uid!, ...form, isActive: true, photoUrl: null }]);
         setInviteName(form.displayName);
         setInviteLink(result.inviteLink ?? null);
         setForm(EMPTY_FORM);
@@ -192,11 +188,13 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
         return (
           <div className="flex items-center gap-3 py-0.5">
             <div className="relative flex-shrink-0">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className={cn("bg-gradient-to-br text-white text-[11px] font-semibold", AVATAR_GRADIENT[u.role])}>
-                  {initials(u.displayName)}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                photoUrl={u.photoUrl}
+                firstName={u.displayName?.split(" ")[0] ?? "?"}
+                lastName={u.displayName?.split(" ").slice(1).join(" ") ?? ""}
+                size="sm"
+                gradient={AVATAR_GRADIENT[u.role]}
+              />
               <span className={cn(
                 "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background",
                 u.isActive ? "bg-green-500" : "bg-gray-400"
@@ -421,7 +419,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
                     <FieldLabel>Full name</FieldLabel>
                     <Input
                       required
-                      placeholder="Kofi Boateng"
+                      placeholder="Selorm Tornu"
                       value={form.displayName}
                       onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
                     />

@@ -1,6 +1,7 @@
-import { FileText, Calendar, BookOpen } from "lucide-react";
+import { Calendar, BookOpen } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { DocumentDownloadLink } from "@/features/uploads/components/DocumentDownloadLink";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { Assignment } from "@/features/assignments/types";
 
@@ -65,14 +66,11 @@ export function ParentAssignmentsList({
                       <p className="text-sm font-medium">{a.title}</p>
                       <Badge variant="secondary" className="text-[10px]">{a.subjectName}</Badge>
                       {a.fileUrl && (
-                        <a
-                          href={a.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-xs text-blue-600 hover:underline"
-                        >
-                          <FileText size={11} className="mr-1" /> Attachment
-                        </a>
+                        <DocumentDownloadLink
+                          storagePath={a.fileUrl}
+                          label="Attachment"
+                          variant="inline"
+                        />
                       )}
                     </div>
                     <span

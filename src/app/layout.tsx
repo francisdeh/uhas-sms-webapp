@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={jakarta.variable} suppressHydrationWarning>
+    <html lang="en" className={jakarta.variable} data-color-scheme="uhas" suppressHydrationWarning>
       <body>
         <Providers>
           {children}

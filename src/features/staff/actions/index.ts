@@ -1,6 +1,13 @@
 "use server";
 
-import { mockStaff } from "@/lib/mock/staff";
+import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { and, asc, desc, eq, like } from "drizzle-orm";
+import { db } from "@/db";
+import { staff } from "@/db/schema";
+import { getCurrentSchoolId } from "@/lib/school";
+import { writeAuditLog } from "@/lib/audit-log";
+import { toStaff } from "@/features/staff/queries/get-staff-by-id";
 import type {
   Staff,
   CreateStaffInput,
@@ -18,16 +25,18 @@ const ROLE_WEIGHT: Record<Staff["systemRole"], number> = {
 };
 
 export async function listStaffAction(): Promise<Staff[]> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    return mockStaff
-      .slice()
-      .sort((a, b) => {
-        const weightDiff = ROLE_WEIGHT[a.systemRole] - ROLE_WEIGHT[b.systemRole];
-        if (weightDiff !== 0) return weightDiff;
-        return a.lastName.localeCompare(b.lastName);
-      });
-  }
-  return [];
+  const schoolId = await getCurrentSchoolId();
+  const rows = await db.query.staff.findMany({
+    where: eq(staff.schoolId, schoolId),
+    orderBy: [asc(staff.lastName)],
+  });
+  return rows
+    .map(toStaff)
+    .sort((a, b) => {
+      const weightDiff = ROLE_WEIGHT[a.systemRole] - ROLE_WEIGHT[b.systemRole];
+      if (weightDiff !== 0) return weightDiff;
+      return a.lastName.localeCompare(b.lastName);
+    });
 }
 
 export async function createStaffAction(
@@ -36,162 +45,149 @@ export async function createStaffAction(
   | { success: true; id: string; inviteLink: string }
   | { success: false; error: string }
 > {
-  if (process.env.USE_MOCK_DATA === "true") {
-    if (mockStaff.some((s) => s.email === data.email)) {
-      return { success: false, error: "Email already registered." };
-    }
+  const schoolId = await getCurrentSchoolId();
 
-    if (data.systemRole !== "Admin" && !data.division) {
-      return { success: false, error: "Division is required for this role." };
-    }
-
-    const id = `STAFF-${String(mockStaff.length + 1).padStart(3, "0")}`;
-    const newStaff: Staff = {
-      id,
-      schoolId: "school-uhas-001",
-      uhasId: data.uhasId ?? null,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      rank: data.rank,
-      systemRole: data.systemRole,
-      division: data.division ?? null,
-      isUnitHead: data.isUnitHead ?? false,
-      unitHeadOf: data.unitHeadOf ?? null,
-      photoUrl: null,
-      phone: data.phone,
-      email: data.email,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    };
-
-    mockStaff.push(newStaff);
-
-    return {
-      success: true,
-      id,
-      inviteLink: `/invite?token=${id}`,
-    };
+  const existing = await db.query.staff.findFirst({
+    where: and(eq(staff.schoolId, schoolId), eq(staff.email, data.email)),
+  });
+  if (existing) return { success: false, error: "Email already registered." };
+  if (data.systemRole !== "Admin" && !data.division) {
+    return { success: false, error: "Division is required for this role." };
   }
 
-  return { success: false, error: "DB not connected" };
+  const prefix = "STAFF-";
+  const last = await db.query.staff.findFirst({
+    where: and(eq(staff.schoolId, schoolId), like(staff.id, `${prefix}%`)),
+    orderBy: [desc(staff.id)],
+  });
+  const nextSeq = last ? Number(last.id.slice(prefix.length)) + 1 : 1;
+  const id = `${prefix}${String(nextSeq).padStart(3, "0")}`;
+
+  await db.insert(staff).values({
+    id,
+    schoolId,
+    uhasId: data.uhasId ?? null,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    rank: data.rank,
+    systemRole: data.systemRole,
+    division: data.division ?? null,
+    isUnitHead: data.isUnitHead ?? false,
+    unitHeadOf: data.unitHeadOf ?? null,
+    photoUrl: data.photoUrl ?? null,
+    phone: data.phone,
+    email: data.email,
+    isActive: true,
+  });
+
+  revalidatePath("/admin/staff");
+  return { success: true, id, inviteLink: `/invite?token=${id}` };
 }
 
 export async function updateStaffAction(
   id: string,
   data: UpdateStaffInput
 ): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const staff = mockStaff.find((s) => s.id === id);
-    if (!staff) {
-      return { success: false, error: "Staff not found." };
-    }
+  const existing = await db.query.staff.findFirst({ where: eq(staff.id, id) });
+  if (!existing) return { success: false, error: "Staff not found." };
 
-    if (data.uhasId !== undefined) staff.uhasId = data.uhasId || null;
-    if (data.firstName !== undefined) staff.firstName = data.firstName;
-    if (data.lastName !== undefined) staff.lastName = data.lastName;
-    if (data.rank !== undefined) staff.rank = data.rank;
-    if (data.phone !== undefined) staff.phone = data.phone;
-    if (data.email !== undefined) staff.email = data.email;
-    if (data.photoUrl !== undefined) staff.photoUrl = data.photoUrl;
+  const patch: Partial<typeof staff.$inferInsert> = {};
+  if (data.uhasId !== undefined) patch.uhasId = data.uhasId || null;
+  if (data.firstName !== undefined) patch.firstName = data.firstName;
+  if (data.lastName !== undefined) patch.lastName = data.lastName;
+  if (data.rank !== undefined) patch.rank = data.rank;
+  if (data.phone !== undefined) patch.phone = data.phone;
+  if (data.email !== undefined) patch.email = data.email;
+  if (data.photoUrl !== undefined) patch.photoUrl = data.photoUrl;
 
-    return { success: true };
-  }
+  if (Object.keys(patch).length === 0) return { success: true };
 
-  return { success: false, error: "DB not connected" };
+  await db.update(staff).set(patch).where(eq(staff.id, id));
+  revalidatePath("/admin/staff");
+  revalidatePath(`/admin/staff/${id}`);
+  return { success: true };
 }
 
 export async function toggleUnitHeadAction(
   id: string,
   data: ToggleUnitHeadInput
 ): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const staff = mockStaff.find((s) => s.id === id);
-    if (!staff) {
-      return { success: false, error: "Staff not found." };
-    }
-
-    if (data.isUnitHead && !data.unitHeadOf) {
-      return { success: false, error: "Pick which unit this staff heads." };
-    }
-
-    if (data.isUnitHead && staff.systemRole !== "Teacher") {
-      return { success: false, error: "Only teachers can be Unit Heads." };
-    }
-
-    staff.isUnitHead = data.isUnitHead;
-    staff.unitHeadOf = data.isUnitHead ? data.unitHeadOf ?? null : null;
-
-    return { success: true };
+  const row = await db.query.staff.findFirst({ where: eq(staff.id, id) });
+  if (!row) return { success: false, error: "Staff not found." };
+  if (data.isUnitHead && !data.unitHeadOf) {
+    return { success: false, error: "Pick which unit this staff heads." };
+  }
+  if (data.isUnitHead && row.systemRole !== "Teacher") {
+    return { success: false, error: "Only teachers can be Unit Heads." };
   }
 
-  return { success: false, error: "DB not connected" };
+  await db
+    .update(staff)
+    .set({
+      isUnitHead: data.isUnitHead,
+      unitHeadOf: data.isUnitHead ? data.unitHeadOf ?? null : null,
+    })
+    .where(eq(staff.id, id));
+  revalidatePath("/admin/staff");
+  revalidatePath(`/admin/staff/${id}`);
+  return { success: true };
 }
 
 export async function changeRoleAction(
   id: string,
   data: ChangeRoleInput
 ): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const staff = mockStaff.find((s) => s.id === id);
-    if (!staff) {
-      return { success: false, error: "Staff not found." };
-    }
-
-    if (data.systemRole !== "Admin" && !data.division) {
-      return { success: false, error: "Division is required for this role." };
-    }
-
-    staff.systemRole = data.systemRole;
-
-    if (data.systemRole === "Admin") {
-      staff.division = null;
-    } else {
-      staff.division = data.division ?? null;
-    }
-
-    if (data.systemRole !== "Teacher") {
-      staff.isUnitHead = false;
-      staff.unitHeadOf = null;
-    }
-
-    return { success: true };
+  const row = await db.query.staff.findFirst({ where: eq(staff.id, id) });
+  if (!row) return { success: false, error: "Staff not found." };
+  if (data.systemRole !== "Admin" && !data.division) {
+    return { success: false, error: "Division is required for this role." };
   }
 
-  return { success: false, error: "DB not connected" };
+  const patch: Partial<typeof staff.$inferInsert> = {
+    systemRole: data.systemRole,
+    division: data.systemRole === "Admin" ? null : data.division ?? null,
+  };
+  if (data.systemRole !== "Teacher") {
+    patch.isUnitHead = false;
+    patch.unitHeadOf = null;
+  }
+
+  await db.update(staff).set(patch).where(eq(staff.id, id));
+
+  if (row.systemRole !== data.systemRole) {
+    const cookieStore = await cookies();
+    const actor = cookieStore.get("session_uid")?.value ?? "system";
+    await writeAuditLog(db, {
+      userId: actor,
+      action: "ROLE_CHANGE",
+      targetTable: "staff",
+      targetId: id,
+      before: { systemRole: row.systemRole },
+      after: { systemRole: data.systemRole },
+    });
+  }
+
+  revalidatePath("/admin/staff");
+  revalidatePath(`/admin/staff/${id}`);
+  return { success: true };
 }
 
 export async function deactivateStaffAction(id: string): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const staff = mockStaff.find((s) => s.id === id);
-    if (!staff) {
-      return { success: false, error: "Staff not found." };
-    }
-
-    if (!staff.isActive) {
-      return { success: false, error: "Staff member is already inactive." };
-    }
-
-    staff.isActive = false;
-    return { success: true };
-  }
-
-  return { success: false, error: "DB not connected" };
+  const row = await db.query.staff.findFirst({ where: eq(staff.id, id) });
+  if (!row) return { success: false, error: "Staff not found." };
+  if (!row.isActive) return { success: false, error: "Staff member is already inactive." };
+  await db.update(staff).set({ isActive: false }).where(eq(staff.id, id));
+  revalidatePath("/admin/staff");
+  revalidatePath(`/admin/staff/${id}`);
+  return { success: true };
 }
 
 export async function reactivateStaffAction(id: string): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA === "true") {
-    const staff = mockStaff.find((s) => s.id === id);
-    if (!staff) {
-      return { success: false, error: "Staff not found." };
-    }
-
-    if (staff.isActive) {
-      return { success: false, error: "Staff member is already active." };
-    }
-
-    staff.isActive = true;
-    return { success: true };
-  }
-
-  return { success: false, error: "DB not connected" };
+  const row = await db.query.staff.findFirst({ where: eq(staff.id, id) });
+  if (!row) return { success: false, error: "Staff not found." };
+  if (row.isActive) return { success: false, error: "Staff member is already active." };
+  await db.update(staff).set({ isActive: true }).where(eq(staff.id, id));
+  revalidatePath("/admin/staff");
+  revalidatePath(`/admin/staff/${id}`);
+  return { success: true };
 }

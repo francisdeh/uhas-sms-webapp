@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Menu, Bell, Search, User, Settings, LogOut, CheckCheck, Sun, Moon, Palette, Monitor, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -34,10 +34,6 @@ import { auth } from "@/lib/firebase";
 import { logoutAction } from "@/features/auth/actions/logout";
 import { toast } from "sonner";
 import { useTheme } from "@/components/theme-provider";
-
-function initials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-}
 
 const MOCK_NOTIFICATIONS = [
   {
@@ -74,9 +70,10 @@ interface HeaderProps {
   user: SessionUser;
   currentYear: string;
   onMobileMenuOpen: () => void;
+  userPhotoUrl?: string | null;
 }
 
-export function Header({ user, currentYear, onMobileMenuOpen }: HeaderProps) {
+export function Header({ user, currentYear, onMobileMenuOpen, userPhotoUrl = null }: HeaderProps) {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -158,16 +155,16 @@ export function Header({ user, currentYear, onMobileMenuOpen }: HeaderProps) {
 
         <button
           onClick={() => setSearchOpen(true)}
-          className="flex items-center gap-2.5 flex-1 h-9 px-3.5 rounded-lg border border-border/60 bg-muted/30 text-muted-foreground text-sm hover:bg-muted/60 hover:border-border transition-all cursor-pointer group"
+          className="flex items-center gap-2.5 flex-1 min-w-0 h-9 px-3.5 rounded-lg border border-border/60 bg-muted/30 text-muted-foreground text-sm hover:bg-muted/60 hover:border-border transition-all cursor-pointer group"
         >
           <Search size={14} className="shrink-0 group-hover:text-foreground/60 transition-colors" />
-          <span className="flex-1 truncate text-[13px]">Search pages, students, staff…</span>
+          <span className="flex-1 min-w-0 truncate text-[13px] text-left">Search pages, students, staff…</span>
           <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-border/60 bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
             <span>⌘</span>K
           </kbd>
         </button>
 
-        <div className="flex items-center gap-1.5 ml-auto">
+        <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
           <AcademicYearSwitcher currentYear={currentYear} />
 
           <DropdownMenu>
@@ -286,11 +283,13 @@ export function Header({ user, currentYear, onMobileMenuOpen }: HeaderProps) {
           {/* User menu */}
           <DropdownMenu>
             <DropdownMenuTrigger className="cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ml-0.5">
-                <Avatar className="h-7 w-7">
-                  <AvatarFallback className="bg-gradient-to-br from-accent-orange to-red-400 text-white text-[10px] font-semibold">
-                    {initials(user.displayName)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar
+                  photoUrl={userPhotoUrl}
+                  firstName={user.displayName?.split(" ")[0] ?? "?"}
+                  lastName={user.displayName?.split(" ").slice(1).join(" ") ?? ""}
+                  size="xs"
+                  gradient="from-accent-orange to-red-400"
+                />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuGroup>

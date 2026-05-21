@@ -1,13 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, Camera } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import {
   Card,
   CardContent,
@@ -50,6 +52,7 @@ const schema = z.object({
   address: z.string().optional(),
   nationality: z.string().optional(),
   religion: z.string().optional(),
+  photoUrl: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -66,6 +69,10 @@ export default function StudentRegistrationForm({
   classes,
 }: StudentRegistrationFormProps) {
   const router = useRouter();
+
+  // Stable temp ownerId for the photo upload before the student is created.
+  // The uploaded URL is stored as `photoUrl`; the path is just a bucket location.
+  const [tempId] = useState(() => `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
 
   const availableClasses = classes;
 
@@ -194,24 +201,19 @@ export default function StudentRegistrationForm({
                 <FieldError errors={[errors.classId]} />
               </Field>
 
-              {/* Photo upload (disabled) */}
-              <Field>
-                <FieldLabel>Photo</FieldLabel>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled
-                    className="gap-2 cursor-not-allowed"
-                  >
-                    <Camera size={15} />
-                    Upload photo
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Photo upload available in a future update.
-                  </p>
-                </div>
-              </Field>
+              {/* Photo upload */}
+              <Controller
+                name="photoUrl"
+                control={control}
+                render={({ field }) => (
+                  <ImageUploadField
+                    ownerId={tempId}
+                    kind="students/photo"
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                  />
+                )}
+              />
 
               <Separator />
 

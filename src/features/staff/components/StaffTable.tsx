@@ -13,7 +13,7 @@ import {
   Plus,
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { DataTable } from "@/components/ui/data-table";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -53,10 +53,6 @@ const ROLE_AVATAR: Record<Staff["systemRole"], string> = {
 };
 
 type RoleFilter = Staff["systemRole"] | "All";
-
-function staffInitials(firstName: string, lastName: string) {
-  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
-}
 
 interface StaffTableProps {
   initialStaff: Staff[];
@@ -125,16 +121,13 @@ export default function StaffTable({ initialStaff, classes, listHref }: StaffTab
         const s = row.original;
         return (
           <div className="flex items-center gap-3 py-0.5">
-            <Avatar className="h-8 w-8 flex-shrink-0">
-              <AvatarFallback
-                className={cn(
-                  "bg-gradient-to-br text-white text-[11px] font-semibold",
-                  ROLE_AVATAR[s.systemRole]
-                )}
-              >
-                {staffInitials(s.firstName, s.lastName)}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              photoUrl={s.photoUrl}
+              firstName={s.firstName}
+              lastName={s.lastName}
+              size="sm"
+              gradient={ROLE_AVATAR[s.systemRole]}
+            />
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">
                 {s.firstName} {s.lastName}

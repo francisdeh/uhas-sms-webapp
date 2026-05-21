@@ -16,7 +16,7 @@
 
 import { initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { mockUsers } from "../src/lib/mock/users";
+import { mockUsers } from "./_seed-data/users";
 
 const args = new Set(process.argv.slice(2));
 const FORCE = args.has("--force");
@@ -67,6 +67,10 @@ async function seed() {
         console.log(`- would update  ${user.role.padEnd(12)} ${user.email}`);
       } else {
         const created = await auth.createUser({
+          // Pin the UID so it matches the deterministic `users.id` rows in
+          // Postgres (`uid-admin-001` etc.). Without this, Firebase assigns
+          // a random UID and downstream joins (audit_log → users) break.
+          uid: user.uid,
           email: user.email,
           password: user.password,
           displayName: user.displayName,

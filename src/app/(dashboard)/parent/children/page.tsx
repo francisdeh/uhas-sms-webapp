@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
+import { and, eq, inArray } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { mockStudentGuardians } from "@/lib/mock/student-guardians";
-import { mockStudents } from "@/lib/mock/students";
-import { mockClasses } from "@/lib/mock/classes";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
+import { db } from "@/db";
+import { classes, enrollments, studentGuardians, students } from "@/db/schema";
 import Link from "next/link";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { GraduationCap, CalendarCheck, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,14 +31,49 @@ export default async function ParentChildrenPage() {
   if (!user) redirect("/login");
 
   const guardianId = user.linkedId ?? "";
-  const childIds = mockStudentGuardians[guardianId] ?? [];
+  const year = await getCurrentAcademicYear();
+
+  const links = await db.query.studentGuardians.findMany({
+    where: eq(studentGuardians.guardianId, guardianId),
+  });
+  const childIds = links.map((l) => l.studentId);
   if (childIds.length === 0) notFound();
 
-  const children = childIds.flatMap((id) => {
-    const student = mockStudents.find((s) => s.id === id);
-    if (!student) return [];
-    const cls = mockClasses.find((c) => c.id === student.classId);
-    return [{ student, className: cls?.name ?? student.className }];
+  const studentRows = await db.query.students.findMany({ where: inArray(students.id, childIds) });
+  const enrollmentRows = await db
+    .select({
+      studentId: enrollments.studentId,
+      className: classes.name,
+      division: classes.division,
+    })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .where(
+      and(
+        inArray(enrollments.studentId, childIds),
+        eq(enrollments.academicYear, year),
+        eq(enrollments.status, "Active")
+      )
+    );
+  const enrByStudent = new Map(enrollmentRows.map((e) => [e.studentId, e]));
+
+  const children = studentRows.map((s) => {
+    const enr = enrByStudent.get(s.id);
+    return {
+      student: {
+        id: s.id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        gender: s.gender ?? "Male",
+        dob: s.dob ?? "",
+        division: (enr?.division ?? "KG") as "KG" | "Lower Primary" | "Upper Primary" | "JHS",
+        isActive: s.isActive ?? true,
+        nationality: s.nationality,
+        religion: s.religion,
+        photoUrl: s.photoUrl,
+      },
+      className: enr?.className ?? "",
+    };
   });
 
   if (children.length === 0) notFound();
@@ -55,9 +92,13 @@ export default async function ParentChildrenPage() {
           <Card key={student.id}>
             <CardContent className="pt-5 space-y-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                  {student.firstName[0]}{student.lastName[0]}
-                </div>
+                <UserAvatar
+                  photoUrl={student.photoUrl}
+                  firstName={student.firstName}
+                  lastName={student.lastName}
+                  size="md"
+                  gradient="from-blue-400 to-blue-600"
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-base font-semibold">
                     {student.firstName} {student.lastName}

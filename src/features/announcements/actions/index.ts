@@ -1,9 +1,17 @@
 "use server";
 
-import { mockAnnouncements } from "@/lib/mock/announcements";
-import { mockStaff } from "@/lib/mock/staff";
-import { mockStudents } from "@/lib/mock/students";
-import { mockStudentGuardians } from "@/lib/mock/student-guardians";
+import { revalidatePath } from "next/cache";
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/db";
+import {
+  announcements,
+  staff,
+  studentGuardians,
+  enrollments,
+  classes,
+} from "@/db/schema";
+import { getCurrentSchoolId } from "@/lib/school";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import type {
   Announcement,
   CreateAnnouncementInput,
@@ -12,80 +20,114 @@ import { parseAudience } from "@/features/announcements/types";
 
 type ActionResult = { success: true } | { success: false; error: string };
 
-const announcements = mockAnnouncements;
+async function hydrateMany(rows: (typeof announcements.$inferSelect)[]): Promise<Announcement[]> {
+  if (rows.length === 0) return [];
+  const authorIds = Array.from(new Set(rows.map((r) => r.createdById)));
+  const authorRows = await db.query.staff.findMany({ where: inArray(staff.id, authorIds) });
+  const authorById = new Map(authorRows.map((a) => [a.id, a]));
+  return rows.map((r) => {
+    const a = authorById.get(r.createdById);
+    return {
+      id: r.id,
+      schoolId: r.schoolId,
+      title: r.title,
+      body: r.body,
+      audience: r.audience,
+      isCritical: r.isCritical ?? false,
+      createdById: r.createdById,
+      createdByName: a ? `${a.firstName} ${a.lastName}` : "",
+      createdAt: r.createdAt?.toISOString() ?? new Date().toISOString(),
+    } satisfies Announcement;
+  });
+}
 
 export async function listAnnouncementsAction(): Promise<Announcement[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  return [...announcements].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const schoolId = await getCurrentSchoolId();
+  const rows = await db.query.announcements.findMany({
+    where: eq(announcements.schoolId, schoolId),
+  });
+  const list = await hydrateMany(rows);
+  return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function listAnnouncementsForDeputyAction(
   deputyId: string
 ): Promise<Announcement[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  const deputy = mockStaff.find((s) => s.id === deputyId);
+  const deputy = await db.query.staff.findFirst({ where: eq(staff.id, deputyId) });
   if (!deputy || deputy.systemRole !== "DeputyHead" || !deputy.division) return [];
 
-  return [...announcements]
-    .filter((a) => {
-      const p = parseAudience(a.audience);
-      if (p.kind === "all") return true;
-      if (p.kind === "division") return p.division === deputy.division;
-      return false;
-    })
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const list = await listAnnouncementsAction();
+  return list.filter((a) => {
+    const p = parseAudience(a.audience);
+    if (p.kind === "all") return true;
+    if (p.kind === "division") return p.division === deputy.division;
+    return false;
+  });
 }
 
 export async function listAnnouncementsForTeacherAction(
   teacherId: string
 ): Promise<Announcement[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
-  const teacher = mockStaff.find((s) => s.id === teacherId);
+  const teacher = await db.query.staff.findFirst({ where: eq(staff.id, teacherId) });
   if (!teacher) return [];
 
-  return [...announcements]
-    .filter((a) => {
-      const p = parseAudience(a.audience);
-      if (p.kind === "all") return true;
-      if (p.kind === "division") return teacher.division === p.division;
-      // class:<id> announcements are visible to all teachers (a teacher may
-      // teach a subject in a class even if they're not the class teacher).
-      return true;
-    })
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const list = await listAnnouncementsAction();
+  return list.filter((a) => {
+    const p = parseAudience(a.audience);
+    if (p.kind === "all") return true;
+    if (p.kind === "division") return teacher.division === p.division;
+    return true;
+  });
 }
 
 export async function listAnnouncementsForGuardianAction(
   guardianId: string
 ): Promise<Announcement[]> {
-  if (process.env.USE_MOCK_DATA !== "true") return [];
+  const year = await getCurrentAcademicYear();
+  // Children of this guardian
+  const links = await db.query.studentGuardians.findMany({
+    where: eq(studentGuardians.guardianId, guardianId),
+  });
+  const childIds = links.map((l) => l.studentId);
+  if (childIds.length === 0) {
+    return (await listAnnouncementsAction()).filter(
+      (a) => parseAudience(a.audience).kind === "all"
+    );
+  }
 
-  const childIds = mockStudentGuardians[guardianId] ?? [];
-  const children = mockStudents.filter((s) => childIds.includes(s.id));
-  const childDivisions = new Set(children.map((c) => c.division));
-  const childClassIds = new Set(children.map((c) => c.classId));
+  // Active enrollments for those children → division + classId
+  const enrRows = await db
+    .select({ classId: classes.id, division: classes.division })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .where(
+      and(
+        inArray(enrollments.studentId, childIds),
+        eq(enrollments.academicYear, year),
+        eq(enrollments.status, "Active")
+      )
+    );
+  const childDivisions = new Set(enrRows.map((e) => e.division));
+  const childClassIds = new Set(enrRows.map((e) => e.classId));
 
-  return [...announcements]
-    .filter((a) => {
-      const p = parseAudience(a.audience);
-      if (p.kind === "all") return true;
-      if (p.kind === "division") return childDivisions.has(p.division);
-      if (p.kind === "class") return childClassIds.has(p.classId);
-      return false;
-    })
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const list = await listAnnouncementsAction();
+  return list.filter((a) => {
+    const p = parseAudience(a.audience);
+    if (p.kind === "all") return true;
+    if (p.kind === "division") return childDivisions.has(p.division);
+    if (p.kind === "class") return childClassIds.has(p.classId);
+    return false;
+  });
 }
 
 export async function createAnnouncementAction(input: {
   authorId: string;
   data: CreateAnnouncementInput;
 }): Promise<{ success: true; id: string } | { success: false; error: string }> {
-  if (process.env.USE_MOCK_DATA !== "true") return { success: false, error: "DB not connected" };
-
-  const author = mockStaff.find((s) => s.id === input.authorId);
+  const schoolId = await getCurrentSchoolId();
+  const author = await db.query.staff.findFirst({ where: eq(staff.id, input.authorId) });
   if (!author) return { success: false, error: "Author not found." };
 
-  // Authorize audience by role
   const parsed = parseAudience(input.data.audience);
   if (parsed.kind === "all" && author.systemRole !== "Admin") {
     return { success: false, error: "Only Admin can post school-wide announcements." };
@@ -106,17 +148,19 @@ export async function createAnnouncementAction(input: {
   }
 
   const id = `ann-${Date.now()}`;
-  announcements.push({
+  await db.insert(announcements).values({
     id,
-    schoolId: "school-uhas-001",
+    schoolId,
     title: input.data.title,
     body: input.data.body,
     audience: input.data.audience,
     isCritical: input.data.isCritical,
     createdById: author.id,
-    createdByName: `${author.firstName} ${author.lastName}`,
-    createdAt: new Date().toISOString(),
   });
+  revalidatePath("/admin/announcements");
+  revalidatePath("/deputy-head/announcements");
+  revalidatePath("/teacher/announcements");
+  revalidatePath("/parent/announcements");
   return { success: true, id };
 }
 
@@ -124,17 +168,21 @@ export async function deleteAnnouncementAction(input: {
   id: string;
   authorId: string;
 }): Promise<ActionResult> {
-  if (process.env.USE_MOCK_DATA !== "true") return { success: false, error: "DB not connected" };
-  const idx = announcements.findIndex((a) => a.id === input.id);
-  if (idx === -1) return { success: false, error: "Announcement not found." };
+  const row = await db.query.announcements.findFirst({
+    where: eq(announcements.id, input.id),
+  });
+  if (!row) return { success: false, error: "Announcement not found." };
 
-  const author = mockStaff.find((s) => s.id === input.authorId);
+  const author = await db.query.staff.findFirst({ where: eq(staff.id, input.authorId) });
   if (!author) return { success: false, error: "Author not found." };
 
-  const isOwner = announcements[idx].createdById === input.authorId;
+  const isOwner = row.createdById === input.authorId;
   if (!isOwner && author.systemRole !== "Admin") {
     return { success: false, error: "You can only delete your own announcements." };
   }
-  announcements.splice(idx, 1);
+
+  await db.delete(announcements).where(eq(announcements.id, input.id));
+  revalidatePath("/admin/announcements");
+  revalidatePath("/deputy-head/announcements");
   return { success: true };
 }

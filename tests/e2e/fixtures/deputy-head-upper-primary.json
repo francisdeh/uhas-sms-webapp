@@ -1,0 +1,75 @@
+{
+  "cookies": [
+    {
+      "name": "session_uid",
+      "value": "uid-deputyhead-upper-primary",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385833.309295,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_role",
+      "value": "DeputyHead",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385833.309521,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_display_name",
+      "value": "Edinam%20Asare",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385833.309603,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_email",
+      "value": "dh.upper-primary%40uhas.edu.gh",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385833.30972,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_linked_id",
+      "value": "STAFF-016",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385833.309747,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_expires_at",
+      "value": "1779385833300",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385833.309761,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3100",
+      "localStorage": [
+        {
+          "name": "uhas_last_email",
+          "value": "dh.upper-primary@uhas.edu.gh"
+        }
+      ]
+    }
+  ]
+}

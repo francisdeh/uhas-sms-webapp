@@ -4,7 +4,7 @@ import { BookOpen, CheckCircle2, AlertCircle, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import type { Subject, ClassSubject, SchoolClass } from "@/features/classes/types";
 
@@ -17,15 +17,6 @@ interface DepartmentViewProps {
   subject: Subject;
   hodName: string;
   rows: DepartmentRow[];
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 }
 
 export function DepartmentView({ subject, hodName, rows }: DepartmentViewProps) {
@@ -113,11 +104,12 @@ export function DepartmentView({ subject, hodName, rows }: DepartmentViewProps) 
 
                   {covered ? (
                     <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="bg-gradient-to-br from-orange-400 to-orange-600 text-white text-[9px] font-semibold">
-                          {initials(assignment!.teacherName!)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar
+                        firstName={assignment!.teacherName!.split(" ")[0] ?? "?"}
+                        lastName={assignment!.teacherName!.split(" ").slice(1).join(" ")}
+                        size="xs"
+                        gradient="from-orange-400 to-orange-600"
+                      />
                       <span className="text-sm">{assignment!.teacherName}</span>
                     </div>
                   ) : (

@@ -3,13 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { CheckCheck, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 
 import { saveStaffSessionAction } from "@/features/attendance/actions";
@@ -54,10 +55,10 @@ function buildInitialRows(
   return rows;
 }
 
-function avatarClasses(role: Staff["systemRole"]): string {
-  if (role === "Admin") return "bg-gray-100 text-gray-700";
-  if (role === "DeputyHead") return "bg-purple-100 text-purple-700";
-  return "bg-green-100 text-green-700";
+function avatarGradient(role: Staff["systemRole"]): string {
+  if (role === "Admin") return "from-gray-400 to-gray-600";
+  if (role === "DeputyHead") return "from-purple-400 to-purple-600";
+  return "from-green-400 to-green-600";
 }
 
 const STAFF_STATUS_LABELS: { value: StaffAttendanceStatus; label: string }[] = [
@@ -107,6 +108,46 @@ export function StaffAttendanceSheet({
       ...prev,
       [staffId]: { ...prev[staffId], expanded: !prev[staffId].expanded },
     }));
+  }
+
+  function markAllPresent() {
+    // Keep approved-leave staff on their leave status — only flip the rest.
+    const next: Record<string, RowState> = {};
+    for (const s of staff) {
+      const wasOnLeave = approvedLeaveStaffIds.has(s.id);
+      next[s.id] = {
+        ...(rows[s.id] ?? { note: "", expanded: false }),
+        status: wasOnLeave ? "on_leave" : "present",
+      };
+    }
+    setRows(next);
+
+    startTransition(async () => {
+      const records = staff.map((s) => ({
+        staffId: s.id,
+        status: next[s.id].status,
+        note: next[s.id].note || undefined,
+      }));
+      const result = await saveStaffSessionAction({
+        division,
+        date,
+        term,
+        submittedById,
+        records,
+      });
+      if (result.success) {
+        const presentCount = records.filter((r) => r.status === "present").length;
+        const leaveCount = records.filter((r) => r.status === "on_leave").length;
+        toast.success(
+          leaveCount > 0
+            ? `${presentCount} marked present · ${leaveCount} kept on leave.`
+            : `All ${presentCount} staff marked present.`
+        );
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
   }
 
   function handleSave() {
@@ -172,6 +213,26 @@ export function StaffAttendanceSheet({
           </Alert>
         )}
 
+        {editable && staff.length > 0 && (
+          <div className="mb-3 flex items-center justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={markAllPresent}
+              disabled={isPending}
+              className="text-xs"
+            >
+              {isPending ? (
+                <Loader2 size={13} className="mr-1.5 animate-spin" />
+              ) : (
+                <CheckCheck size={13} className="mr-1.5" />
+              )}
+              Mark all present
+            </Button>
+          </div>
+        )}
+
         <div>
           {staff.map((s) => {
             const row = rows[s.id];
@@ -181,14 +242,13 @@ export function StaffAttendanceSheet({
               <div key={s.id}>
                 <div className="flex items-center gap-3 py-3 border-b border-border/40 last:border-0">
                   <div className="flex-1 flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0",
-                        avatarClasses(s.systemRole)
-                      )}
-                    >
-                      {`${s.firstName[0]}${s.lastName[0]}`.toUpperCase()}
-                    </div>
+                    <UserAvatar
+                      photoUrl={s.photoUrl}
+                      firstName={s.firstName}
+                      lastName={s.lastName}
+                      size="sm"
+                      gradient={avatarGradient(s.systemRole)}
+                    />
                     <div>
                       <p className="text-sm font-medium">
                         {s.firstName} {s.lastName}

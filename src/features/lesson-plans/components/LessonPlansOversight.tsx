@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronDown, FileText, Search, BookOpen, Filter } from "lucide-react";
+import { ChevronDown, Search, BookOpen, Filter } from "lucide-react";
+import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -177,14 +178,11 @@ export function LessonPlansOversight({ plans }: LessonPlansOversightProps) {
                       {plan.fileUrl && (
                         <div>
                           <p className="text-xs font-medium text-muted-foreground mb-1">Attachment</p>
-                          <a
-                            href={plan.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-sm text-blue-600 hover:underline"
-                          >
-                            <FileText size={13} className="mr-1.5" /> Open attachment
-                          </a>
+                          <ClientDocumentDownloadLink
+                            storagePath={plan.fileUrl}
+                            label="Open attachment"
+                            variant="inline"
+                          />
                         </div>
                       )}
                       {plan.reviewerComment && (

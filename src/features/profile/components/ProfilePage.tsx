@@ -17,7 +17,10 @@ import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
+import { updateMyPhotoAction } from "@/features/profile/actions/update-my-photo";
+import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -31,10 +34,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { SessionUser } from "@/features/auth/types";
-
-function initials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-}
 
 const LANG_OPTIONS = [
   { value: "en", label: "English" },
@@ -69,9 +68,10 @@ const MOCK_SESSIONS = [
 
 interface ProfilePageProps {
   user: SessionUser;
+  currentPhotoUrl?: string | null;
 }
 
-export function ProfilePage({ user }: ProfilePageProps) {
+export function ProfilePage({ user, currentPhotoUrl = null }: ProfilePageProps) {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-6">
@@ -92,7 +92,7 @@ export function ProfilePage({ user }: ProfilePageProps) {
         <TabsContent value="profile">
           <AnimatePresence mode="wait">
             <motion.div key="profile" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
-              <ProfileTab user={user} />
+              <ProfileTab user={user} currentPhotoUrl={currentPhotoUrl} />
             </motion.div>
           </AnimatePresence>
         </TabsContent>
@@ -125,8 +125,22 @@ export function ProfilePage({ user }: ProfilePageProps) {
   );
 }
 
-function ProfileTab({ user }: { user: SessionUser }) {
+function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhotoUrl: string | null }) {
+  const router = useRouter();
   const [language, setLanguage] = useState("en");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(currentPhotoUrl);
+  const canEditPhoto = !!user.linkedId && user.linkedId.startsWith("STAFF-");
+
+  async function onPhotoChange(next: string | null) {
+    setPhotoUrl(next);
+    const result = await updateMyPhotoAction(next);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(next ? "Photo updated." : "Photo removed.");
+    router.refresh();
+  }
 
   const {
     register,
@@ -151,18 +165,15 @@ function ProfileTab({ user }: { user: SessionUser }) {
         <CardDescription>Update your name, contact info, and language preference.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative">
-            <Avatar className="h-16 w-16">
-              <AvatarFallback className="bg-gradient-to-br from-accent-orange to-red-400 text-white text-lg font-semibold">
-                {initials(user.displayName)}
-              </AvatarFallback>
-            </Avatar>
-            <button className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity text-white text-xs font-medium">
-              Upload
-            </button>
-          </div>
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+          <UserAvatar
+            photoUrl={photoUrl}
+            firstName={user.displayName?.split(" ")[0] ?? "?"}
+            lastName={user.displayName?.split(" ").slice(1).join(" ") ?? ""}
+            size="lg"
+            gradient="from-accent-orange to-red-400"
+          />
+          <div className="flex-1">
             <p className="font-semibold">{user.displayName}</p>
             <p className="text-sm text-muted-foreground">{user.email || "—"}</p>
             {user.linkedId && (
@@ -171,6 +182,18 @@ function ProfileTab({ user }: { user: SessionUser }) {
             <Badge variant="secondary" className="mt-1.5 text-xs">{user.role}</Badge>
           </div>
         </div>
+
+        {canEditPhoto && (
+          <div className="mb-6 max-w-sm">
+            <ImageUploadField
+              ownerId={user.linkedId}
+              kind="staff/photo"
+              value={photoUrl}
+              onChange={onPhotoChange}
+              label="Update profile photo"
+            />
+          </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <FieldGroup className="gap-4 max-w-sm">

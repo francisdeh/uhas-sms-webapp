@@ -1,15 +1,24 @@
-import { mockStudents } from "@/lib/mock/students";
-import { mockClasses } from "@/lib/mock/classes";
-import { mockSubjects } from "@/lib/mock/subjects";
-import { mockClassSubjects } from "@/lib/mock/class-subjects";
-import { mockExams } from "@/lib/mock/exams";
-import { mockScores } from "@/lib/mock/scores";
-import { mockStaff } from "@/lib/mock/staff";
-import { mockAttendanceSessions, mockAttendanceRecords } from "@/lib/mock/attendance";
-import { mockStudentRemarks } from "@/lib/mock/class-reports";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import {
+  students,
+  classes,
+  subjects,
+  classSubjects,
+  exams,
+  scores,
+  enrollments,
+  attendanceSessions,
+  attendanceRecords,
+  studentReportRemarks,
+} from "@/db/schema";
+import { getCurrentSchoolId } from "@/lib/school";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
+import { getClassTeachersFor } from "@/features/classes/queries/get-class-by-id";
 import { computeAggregate } from "@/features/exams/utils";
 import type { Exam, Score } from "@/features/exams/types";
 import type { Student } from "@/features/students/types";
+import type { Division } from "@/features/auth/types";
 
 export type ReportCardSubjectRow = {
   subjectId: string;
@@ -44,33 +53,76 @@ export async function getReportCardData(
   studentId: string,
   examId: string
 ): Promise<ReportCardData | null> {
-  if (process.env.USE_MOCK_DATA !== "true") return null;
+  const schoolId = await getCurrentSchoolId();
+  const year = await getCurrentAcademicYear();
 
-  const student = mockStudents.find((s) => s.id === studentId);
-  if (!student) return null;
+  const [studentRow, examRow] = await Promise.all([
+    db.query.students.findFirst({
+      where: and(eq(students.id, studentId), eq(students.schoolId, schoolId)),
+    }),
+    db.query.exams.findFirst({
+      where: and(eq(exams.id, examId), eq(exams.schoolId, schoolId)),
+    }),
+  ]);
+  if (!studentRow || !examRow) return null;
 
-  const exam = mockExams.find((e) => e.id === examId);
-  if (!exam) return null;
+  // Resolve student's class via the active enrollment for the exam's year.
+  const enrollmentRow = await db
+    .select({ classId: classes.id, className: classes.name, division: classes.division })
+    .from(enrollments)
+    .innerJoin(classes, eq(classes.id, enrollments.classId))
+    .where(
+      and(
+        eq(enrollments.studentId, studentId),
+        eq(enrollments.academicYear, examRow.academicYear),
+        eq(enrollments.status, "Active")
+      )
+    )
+    .limit(1);
+  if (enrollmentRow.length === 0) return null;
+  const { classId, className, division } = enrollmentRow[0];
 
-  const schoolClass = mockClasses.find((c) => c.id === student.classId);
-  if (!schoolClass) return null;
-
-  const classRoster = mockStudents.filter((s) => s.classId === student.classId && s.isActive);
-  const numberOnRoll = classRoster.length;
-
-  // Subjects the class actually takes (via class_subjects), plus any direct-division subjects
-  const classSubjectIds = new Set(
-    mockClassSubjects.filter((cs) => cs.classId === student.classId).map((cs) => cs.subjectId)
-  );
-  const classSubjects = mockSubjects.filter(
-    (s) => classSubjectIds.has(s.id) || s.division === schoolClass.division
-  );
-
-  // Build subject rows. For each subject, look up the student's score (if any).
-  const buildRow = (subjectId: string, subjectName: string, category: "Core" | "Elective"): ReportCardSubjectRow => {
-    const score = mockScores.find(
-      (sc) => sc.examId === examId && sc.subjectId === subjectId && sc.studentId === studentId
+  // Class roster (active students in the class for the exam's year).
+  const rosterRows = await db
+    .select({ studentId: enrollments.studentId })
+    .from(enrollments)
+    .innerJoin(students, eq(students.id, enrollments.studentId))
+    .where(
+      and(
+        eq(enrollments.classId, classId),
+        eq(enrollments.academicYear, examRow.academicYear),
+        eq(enrollments.status, "Active"),
+        eq(students.isActive, true)
+      )
     );
+  const numberOnRoll = rosterRows.length;
+
+  // Subjects: class_subjects ∪ (subjects in division).
+  const classSubjectRows = await db
+    .select({ subjectId: classSubjects.subjectId })
+    .from(classSubjects)
+    .where(eq(classSubjects.classId, classId));
+  const classSubjectIds = new Set(classSubjectRows.map((r) => r.subjectId));
+
+  const divisionSubjects = await db.query.subjects.findMany({
+    where: and(eq(subjects.schoolId, schoolId), eq(subjects.division, division)),
+  });
+  const allSubjects = divisionSubjects.filter(
+    (s) => classSubjectIds.has(s.id) || s.division === division
+  );
+
+  // Scores for this student in this exam.
+  const scoreRows = await db.query.scores.findMany({
+    where: and(eq(scores.examId, examId), eq(scores.studentId, studentId)),
+  });
+  const scoreBySubject = new Map(scoreRows.map((s) => [s.subjectId, s]));
+
+  const buildRow = (
+    subjectId: string,
+    subjectName: string,
+    category: "Core" | "Elective"
+  ): ReportCardSubjectRow => {
+    const score = scoreBySubject.get(subjectId);
     return {
       subjectId,
       subjectName,
@@ -87,53 +139,94 @@ export async function getReportCardData(
     };
   };
 
-  const coreRows = classSubjects
+  const coreRows = allSubjects
     .filter((s) => s.category === "Core")
     .map((s) => buildRow(s.id, s.name, "Core"))
     .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
 
-  const electiveRows = classSubjects
+  const electiveRows = allSubjects
     .filter((s) => s.category === "Elective")
     .map((s) => buildRow(s.id, s.name, "Elective"))
     .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
 
-  const aggregate = computeAggregate([...coreRows, ...electiveRows] as Pick<Score, "grade">[]);
-
-  // Attendance — count sessions for this class against present/late vs absent.
-  const classSessions = mockAttendanceSessions.filter((sess) => sess.classId === student.classId);
-  const sessionIds = new Set(classSessions.map((sess) => sess.id));
-  const studentRecords = mockAttendanceRecords.filter(
-    (r) => r.studentId === studentId && sessionIds.has(r.sessionId)
+  const aggregate = computeAggregate(
+    [...coreRows, ...electiveRows] as Pick<Score, "grade">[]
   );
-  const attended = studentRecords.filter((r) => r.status === "present" || r.status === "late").length;
-  const total = studentRecords.length;
 
-  const classTeacherNames = schoolClass.classTeachers
-    .map((t) => t.staffName)
-    .filter((name): name is string => !!name);
-  // Fall back to looking up via mockStaff if no name embedded (should not happen with fixtures)
-  if (classTeacherNames.length === 0 && schoolClass.classTeachers.length > 0) {
-    for (const t of schoolClass.classTeachers) {
-      const s = mockStaff.find((st) => st.id === t.staffId);
-      if (s) classTeacherNames.push(`${s.firstName} ${s.lastName}`);
-    }
-  }
+  // Attendance for this student in this class.
+  const attendanceRows = await db
+    .select({ status: attendanceRecords.status })
+    .from(attendanceRecords)
+    .innerJoin(
+      attendanceSessions,
+      eq(attendanceSessions.id, attendanceRecords.sessionId)
+    )
+    .where(
+      and(
+        eq(attendanceRecords.studentId, studentId),
+        eq(attendanceSessions.classId, classId)
+      )
+    );
+  const total = attendanceRows.length;
+  const attended = attendanceRows.filter(
+    (r) => r.status === "present" || r.status === "late"
+  ).length;
 
-  const remark = mockStudentRemarks.find(
-    (r) => r.examId === examId && r.studentId === studentId
-  );
+  // Class teacher names for this class.
+  const teachersMap = await getClassTeachersFor([classId]);
+  const classTeacherNames = (teachersMap.get(classId) ?? []).map((t) => t.staffName);
+
+  // Class report remarks.
+  const remarkRow = await db.query.studentReportRemarks.findFirst({
+    where: and(
+      eq(studentReportRemarks.examId, examId),
+      eq(studentReportRemarks.studentId, studentId)
+    ),
+  });
+
+  const student: Student = {
+    id: studentRow.id,
+    schoolId: studentRow.schoolId,
+    firstName: studentRow.firstName,
+    middleName: studentRow.middleName ?? undefined,
+    lastName: studentRow.lastName,
+    dob: studentRow.dob ?? "",
+    gender: (studentRow.gender as "Male" | "Female") ?? "Male",
+    classId,
+    className,
+    division: division as Division,
+    phone: studentRow.phone ?? undefined,
+    address: studentRow.address ?? undefined,
+    nationality: studentRow.nationality ?? undefined,
+    religion: studentRow.religion ?? undefined,
+    photoUrl: studentRow.photoUrl ?? undefined,
+    isActive: studentRow.isActive ?? true,
+    createdAt: studentRow.createdAt?.toISOString() ?? new Date().toISOString(),
+  };
+
+  const exam: Exam = {
+    id: examRow.id,
+    schoolId: examRow.schoolId,
+    name: examRow.name,
+    type: examRow.type as Exam["type"],
+    term: examRow.term,
+    academicYear: examRow.academicYear,
+    isPublished: examRow.isPublished ?? false,
+    publishedAt: examRow.publishedAt?.toISOString() ?? null,
+    createdAt: examRow.createdAt?.toISOString() ?? new Date().toISOString(),
+  };
 
   return {
     exam,
     student,
-    className: schoolClass.name,
+    className,
     numberOnRoll,
     coreRows,
     electiveRows,
     aggregate,
     attendance: { attended, total },
     classTeacherNames,
-    classTeacherRemark: remark?.classTeacherRemark ?? null,
-    headOfSchoolComment: remark?.headOfSchoolComment ?? null,
+    classTeacherRemark: remarkRow?.classTeacherRemark ?? null,
+    headOfSchoolComment: remarkRow?.headOfSchoolComment ?? null,
   };
 }

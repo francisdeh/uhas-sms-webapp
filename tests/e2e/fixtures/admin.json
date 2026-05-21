@@ -1,0 +1,75 @@
+{
+  "cookies": [
+    {
+      "name": "session_uid",
+      "value": "uid-admin-001",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385829.909381,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_role",
+      "value": "Admin",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385829.909483,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_display_name",
+      "value": "Mawuli%20Agbenyega",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385829.909495,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_email",
+      "value": "admin%40uhas.edu.gh",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385829.909505,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_linked_id",
+      "value": "STAFF-001",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385829.909518,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_expires_at",
+      "value": "1779385829907",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385829.909529,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3100",
+      "localStorage": [
+        {
+          "name": "uhas_last_email",
+          "value": "admin@uhas.edu.gh"
+        }
+      ]
+    }
+  ]
+}

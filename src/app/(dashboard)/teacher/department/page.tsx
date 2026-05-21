@@ -1,10 +1,13 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Building2, Check, Clock, Users } from "lucide-react";
+import { and, eq, inArray } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { mockClasses } from "@/lib/mock/classes";
-import { mockStudents } from "@/lib/mock/students";
-import { mockStaff } from "@/lib/mock/staff";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
+import { getCurrentSchoolId } from "@/lib/school";
+import { db } from "@/db";
+import { classes, enrollments, staff, students } from "@/db/schema";
+import { getClassTeachersFor } from "@/features/classes/queries/get-class-by-id";
 import { listAllSessionsAction } from "@/features/attendance/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,27 +31,58 @@ export default async function TeacherDepartmentPage() {
   }
 
   const division = user.unitHeadOf;
-  const classes = mockClasses.filter((c) => c.division === division);
+  const schoolId = await getCurrentSchoolId();
+  const year = await getCurrentAcademicYear();
+
+  const divisionClasses = await db.query.classes.findMany({
+    where: and(
+      eq(classes.schoolId, schoolId),
+      eq(classes.division, division),
+      eq(classes.academicYear, year)
+    ),
+  });
+  const classIds = divisionClasses.map((c) => c.id);
+
   const today = new Date().toISOString().slice(0, 10);
   const todaySessions = await listAllSessionsAction({ from: today, to: today });
   const submittedClassIds = new Set(todaySessions.map((s) => s.classId));
 
-  const teachers = mockStaff.filter(
-    (s) => s.isActive && s.division === division && s.systemRole === "Teacher"
-  );
-
-  const classRows = classes.map((cls) => {
-    const studentCount = mockStudents.filter(
-      (s) => s.classId === cls.id && s.isActive
-    ).length;
-    const classTeacherNames = cls.classTeachers.map((t) => t.staffName);
-    return {
-      ...cls,
-      studentCount,
-      classTeacherNames,
-      attendanceMarked: submittedClassIds.has(cls.id),
-    };
+  const teachers = await db.query.staff.findMany({
+    where: and(
+      eq(staff.schoolId, schoolId),
+      eq(staff.isActive, true),
+      eq(staff.division, division),
+      eq(staff.systemRole, "Teacher")
+    ),
   });
+
+  const teachersMap = await getClassTeachersFor(classIds);
+  const enrolledRows = classIds.length === 0
+    ? []
+    : await db
+        .select({ classId: enrollments.classId })
+        .from(enrollments)
+        .innerJoin(students, eq(students.id, enrollments.studentId))
+        .where(
+          and(
+            inArray(enrollments.classId, classIds),
+            eq(enrollments.academicYear, year),
+            eq(enrollments.status, "Active"),
+            eq(students.isActive, true)
+          )
+        );
+  const studentCountByClass = new Map<string, number>();
+  for (const r of enrolledRows) {
+    studentCountByClass.set(r.classId, (studentCountByClass.get(r.classId) ?? 0) + 1);
+  }
+
+  const classRows = divisionClasses.map((cls) => ({
+    ...cls,
+    studentCount: studentCountByClass.get(cls.id) ?? 0,
+    classTeacherNames: (teachersMap.get(cls.id) ?? []).map((t) => t.staffName),
+    attendanceMarked: submittedClassIds.has(cls.id),
+  }));
+
 
   const todayLabel = new Date().toLocaleDateString("en-GB", {
     weekday: "long",
@@ -67,10 +101,10 @@ export default async function TeacherDepartmentPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <SummaryCard label="Classes" value={classes.length} />
+        <SummaryCard label="Classes" value={divisionClasses.length} />
         <SummaryCard
           label="Marked today"
-          value={`${classRows.filter((c) => c.attendanceMarked).length} / ${classes.length}`}
+          value={`${classRows.filter((c) => c.attendanceMarked).length} / ${divisionClasses.length}`}
         />
         <SummaryCard label="Teachers in unit" value={teachers.length} />
       </div>
@@ -149,7 +183,7 @@ export default async function TeacherDepartmentPage() {
                     <p className="text-sm font-medium">
                       {t.firstName} {t.lastName}
                     </p>
-                    <p className="text-xs text-muted-foreground">{t.rank}</p>
+                    <p className="text-xs text-muted-foreground">{t.rank ?? ""}</p>
                   </div>
                   {t.isUnitHead && (
                     <Badge variant="secondary" className="text-[10px]">

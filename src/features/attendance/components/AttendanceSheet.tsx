@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { saveSessionAction } from "@/features/attendance/actions";
 import type { AttendanceStatus, SessionWithRecords } from "@/features/attendance/types";
 import type { Student } from "@/features/students/types";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { CheckCheck } from "lucide-react";
 
 interface AttendanceSheetProps {
@@ -52,11 +53,11 @@ function buildInitialRows(
   return rows;
 }
 
-function avatarClasses(division: Student["division"]): string {
-  if (division === "KG") return "bg-purple-100 text-purple-700";
-  if (division === "Lower Primary") return "bg-sky-100 text-sky-700";
-  if (division === "Upper Primary") return "bg-blue-100 text-blue-700";
-  return "bg-orange-100 text-orange-700";
+function avatarGradient(division: Student["division"]): string {
+  if (division === "KG") return "from-purple-400 to-purple-600";
+  if (division === "Lower Primary") return "from-sky-400 to-sky-600";
+  if (division === "Upper Primary") return "from-blue-400 to-blue-600";
+  return "from-orange-400 to-orange-600";
 }
 
 const STATUS_LABELS: AttendanceStatus[] = ["present", "absent", "late"];
@@ -119,12 +120,35 @@ export function AttendanceSheet({
   }
 
   function markAllPresent() {
-    setRows((prev) => {
-      const next: Record<string, RowState> = {};
-      for (const id of Object.keys(prev)) {
-        next[id] = { ...prev[id], status: "present", lateReason: "" };
+    const next: Record<string, RowState> = {};
+    for (const s of students) {
+      next[s.id] = {
+        ...(rows[s.id] ?? { note: "", expanded: false }),
+        status: "present",
+        lateReason: "",
+      };
+    }
+    setRows(next);
+
+    startTransition(async () => {
+      const records = students.map((s) => ({
+        studentId: s.id,
+        status: "present" as const,
+        note: next[s.id].note || undefined,
+      }));
+      const result = await saveSessionAction({
+        classId,
+        date,
+        term,
+        submittedById,
+        records,
+      });
+      if (result.success) {
+        toast.success(`All ${students.length} students marked present.`);
+        router.refresh();
+      } else {
+        toast.error(result.error);
       }
-      return next;
     });
   }
 
@@ -199,9 +223,15 @@ export function AttendanceSheet({
               variant="outline"
               size="sm"
               onClick={markAllPresent}
+              disabled={isPending}
               className="text-xs"
             >
-              <CheckCheck size={13} className="mr-1.5" /> Mark all present
+              {isPending ? (
+                <Loader2 size={13} className="mr-1.5 animate-spin" />
+              ) : (
+                <CheckCheck size={13} className="mr-1.5" />
+              )}
+              Mark all present
             </Button>
           </div>
         )}
@@ -215,14 +245,13 @@ export function AttendanceSheet({
               <div key={student.id}>
                 <div className="flex items-center gap-3 py-3 border-b border-border/40 last:border-0">
                   <div className="flex-1 flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0",
-                        avatarClasses(student.division)
-                      )}
-                    >
-                      {student.firstName[0]}{student.lastName[0]}
-                    </div>
+                    <UserAvatar
+                      photoUrl={student.photoUrl}
+                      firstName={student.firstName}
+                      lastName={student.lastName}
+                      size="sm"
+                      gradient={avatarGradient(student.division)}
+                    />
                     <div>
                       <p className="text-sm font-medium">
                         {student.firstName} {student.lastName}

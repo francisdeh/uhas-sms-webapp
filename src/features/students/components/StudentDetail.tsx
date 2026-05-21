@@ -10,7 +10,8 @@ import { TriangleAlert, Printer, Loader2, UserCircle, BookOpen, Phone, Users } f
 import { motion, AnimatePresence } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -76,6 +77,7 @@ const editSchema = z.object({
   address: z.string().optional(),
   nationality: z.string().optional(),
   religion: z.string().optional(),
+  photoUrl: z.string().optional(),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
@@ -90,10 +92,6 @@ interface Props {
   student: Student;
   classes: ClassRecord[];
   guardian: GuardianProfile | null;
-}
-
-function initials(first: string, last: string) {
-  return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase();
 }
 
 function InfoRow({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
@@ -124,6 +122,7 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
       address: student.address ?? "",
       nationality: student.nationality ?? "",
       religion: student.religion ?? "",
+      photoUrl: student.photoUrl ?? "",
     },
   });
 
@@ -164,16 +163,13 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16 shrink-0">
-            <AvatarFallback
-              className={cn(
-                "bg-gradient-to-br text-white text-lg font-semibold",
-                AVATAR_GRADIENT[student.division]
-              )}
-            >
-              {initials(student.firstName, student.lastName)}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            photoUrl={student.photoUrl}
+            firstName={student.firstName}
+            lastName={student.lastName}
+            size="lg"
+            gradient={AVATAR_GRADIENT[student.division]}
+          />
           <div>
             <h1 className="text-xl font-bold">
               {student.firstName} {student.lastName}
@@ -376,6 +372,18 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
           </DialogHeader>
           <form onSubmit={editForm.handleSubmit(onEditSubmit)}>
             <FieldGroup className="gap-4 py-1">
+              <Controller
+                name="photoUrl"
+                control={editForm.control}
+                render={({ field }) => (
+                  <ImageUploadField
+                    ownerId={student.id}
+                    kind="students/photo"
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                  />
+                )}
+              />
               <Field>
                 <FieldLabel htmlFor="firstName">First Name</FieldLabel>
                 <Input id="firstName" {...editForm.register("firstName")} />

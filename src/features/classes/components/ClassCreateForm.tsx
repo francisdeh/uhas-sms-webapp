@@ -34,9 +34,9 @@ const CLASS_NAMES = [
   { name: "Primary 4", division: "Upper Primary" as Division },
   { name: "Primary 5", division: "Upper Primary" as Division },
   { name: "Primary 6", division: "Upper Primary" as Division },
-  { name: "JHS 1A", division: "JHS" as Division },
-  { name: "JHS 2A", division: "JHS" as Division },
-  { name: "JHS 3A", division: "JHS" as Division },
+  { name: "JHS 1", division: "JHS" as Division },
+  { name: "JHS 2", division: "JHS" as Division },
+  { name: "JHS 3", division: "JHS" as Division },
 ];
 
 const schema = z.object({

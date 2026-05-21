@@ -31,6 +31,7 @@ export type CreateStudentInput = {
   address?: string;
   nationality?: string;
   religion?: string;
+  photoUrl?: string;
 };
 
 export type UpdateStudentInput = {

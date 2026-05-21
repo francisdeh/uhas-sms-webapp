@@ -1,0 +1,75 @@
+{
+  "cookies": [
+    {
+      "name": "session_uid",
+      "value": "uid-teacher-001",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385839.248177,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_role",
+      "value": "Teacher",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385839.248252,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_display_name",
+      "value": "Selorm%20Tornu",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385839.248272,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_email",
+      "value": "teacher%40uhas.edu.gh",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385839.248409,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_linked_id",
+      "value": "STAFF-005",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385839.24851,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_expires_at",
+      "value": "1779385839243",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385839.248536,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3100",
+      "localStorage": [
+        {
+          "name": "uhas_last_email",
+          "value": "teacher@uhas.edu.gh"
+        }
+      ]
+    }
+  ]
+}

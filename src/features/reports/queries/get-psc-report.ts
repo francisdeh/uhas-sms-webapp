@@ -1,6 +1,8 @@
-import { mockStudents } from "@/lib/mock/students";
-import { mockStaff } from "@/lib/mock/staff";
-import { mockClasses } from "@/lib/mock/classes";
+import { and, asc, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { classes, enrollments, staff, students } from "@/db/schema";
+import { getCurrentSchoolId } from "@/lib/school";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { DIVISIONS } from "@/features/auth/types";
 import type { Division } from "@/features/auth/types";
 
@@ -34,29 +36,48 @@ export type PscReportData = {
 };
 
 export async function getPscReportData(): Promise<PscReportData> {
-  if (process.env.USE_MOCK_DATA !== "true") {
-    return {
-      schoolName: "UHAS Basic School",
-      asOf: new Date().toISOString().slice(0, 10),
-      totals: { students: 0, boys: 0, girls: 0, leavers: 0, teachers: 0, admins: 0 },
-      classRows: [],
-      staffByDivision: [],
-    };
-  }
+  const schoolId = await getCurrentSchoolId();
+  const year = await getCurrentAcademicYear();
 
-  const active = mockStudents.filter((s) => s.isActive);
-  const inactive = mockStudents.filter((s) => !s.isActive);
+  const activeStudents = await db.query.students.findMany({
+    where: and(eq(students.schoolId, schoolId), eq(students.isActive, true)),
+  });
+  const inactiveStudents = await db.query.students.findMany({
+    where: and(eq(students.schoolId, schoolId), eq(students.isActive, false)),
+  });
 
-  const classRows: PscClassRow[] = mockClasses
+  // Map studentId → classId via active enrollments for this year
+  const enrollmentRows = await db
+    .select({
+      studentId: enrollments.studentId,
+      classId: enrollments.classId,
+      gender: students.gender,
+    })
+    .from(enrollments)
+    .innerJoin(students, eq(students.id, enrollments.studentId))
+    .where(
+      and(
+        eq(enrollments.academicYear, year),
+        eq(enrollments.status, "Active"),
+        eq(students.isActive, true)
+      )
+    );
+
+  const classRows = await db.query.classes.findMany({
+    where: and(eq(classes.schoolId, schoolId), eq(classes.academicYear, year)),
+    orderBy: [asc(classes.name)],
+  });
+
+  const pscClassRows: PscClassRow[] = classRows
     .map((c) => {
-      const studs = active.filter((s) => s.classId === c.id);
+      const inClass = enrollmentRows.filter((e) => e.classId === c.id);
       return {
         classId: c.id,
         className: c.name,
-        division: c.division,
-        boys: studs.filter((s) => s.gender === "Male").length,
-        girls: studs.filter((s) => s.gender === "Female").length,
-        total: studs.length,
+        division: c.division as Division,
+        boys: inClass.filter((s) => s.gender === "Male").length,
+        girls: inClass.filter((s) => s.gender === "Female").length,
+        total: inClass.length,
       };
     })
     .sort((a, b) => {
@@ -71,46 +92,49 @@ export async function getPscReportData(): Promise<PscReportData> {
       return a.className.localeCompare(b.className);
     });
 
+  const allStaff = await db.query.staff.findMany({
+    where: and(eq(staff.schoolId, schoolId), eq(staff.isActive, true)),
+  });
+
   const staffByDivision: PscDivisionStaff[] = DIVISIONS.map((d) => ({
     division: d,
-    staff: mockStaff
-      .filter((s) => s.division === d && s.isActive)
+    staff: allStaff
+      .filter((s) => s.division === d)
       .map((s) => ({
         id: s.id,
         name: `${s.firstName} ${s.lastName}`,
-        rank: s.rank,
-        isUnitHead: s.isUnitHead,
+        rank: s.rank ?? "",
+        isUnitHead: s.isUnitHead ?? false,
       })),
   }));
-
-  // Admins / cross-division staff
   staffByDivision.push({
     division: "Cross",
-    staff: mockStaff
-      .filter((s) => s.division == null && s.isActive)
+    staff: allStaff
+      .filter((s) => s.division == null)
       .map((s) => ({
         id: s.id,
         name: `${s.firstName} ${s.lastName}`,
-        rank: s.rank,
-        isUnitHead: s.isUnitHead,
+        rank: s.rank ?? "",
+        isUnitHead: s.isUnitHead ?? false,
       })),
   });
 
-  const teachers = mockStaff.filter((s) => s.isActive && s.systemRole === "Teacher").length;
-  const admins = mockStaff.filter((s) => s.isActive && s.systemRole === "Admin").length;
+  const teachers = allStaff.filter((s) => s.systemRole === "Teacher").length;
+  const admins = allStaff.filter((s) => s.systemRole === "Admin").length;
 
   return {
     schoolName: "UHAS Basic School",
     asOf: new Date().toISOString().slice(0, 10),
     totals: {
-      students: active.length,
-      boys: active.filter((s) => s.gender === "Male").length,
-      girls: active.filter((s) => s.gender === "Female").length,
-      leavers: inactive.length,
+      students: activeStudents.length,
+      boys: activeStudents.filter((s) => s.gender === "Male").length,
+      girls: activeStudents.filter((s) => s.gender === "Female").length,
+      leavers: inactiveStudents.length,
       teachers,
       admins,
     },
-    classRows,
+    classRows: pscClassRows,
     staffByDivision,
   };
 }
+

@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Check, X, FileText, Inbox, History } from "lucide-react";
+import { Loader2, Check, X, Inbox, History } from "lucide-react";
+import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -151,14 +152,11 @@ export function ReviewQueue({ reviewerId, reviewerRole, pending, recent }: Revie
                       {plan.fileUrl && (
                         <div>
                           <p className="text-xs font-medium text-muted-foreground mb-1">Attachment</p>
-                          <a
-                            href={plan.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-sm text-blue-600 hover:underline"
-                          >
-                            <FileText size={13} className="mr-1.5" /> View attachment
-                          </a>
+                          <ClientDocumentDownloadLink
+                            storagePath={plan.fileUrl}
+                            label="View attachment"
+                            variant="inline"
+                          />
                         </div>
                       )}
                       {plan.reviewerComment && (

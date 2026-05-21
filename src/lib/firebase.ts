@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getStorage, connectStorageEmulator } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,16 +13,22 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 if (
   process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true" &&
   typeof window !== "undefined"
 ) {
-  // Only connect once — guard against hot-reload double-connect
   // @ts-expect-error - emulator flag not on auth type
   if (!auth._isEmulator) {
     connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
   }
+  // @ts-expect-error - emulator flag not on storage type
+  if (!storage._isEmulator) {
+    connectStorageEmulator(storage, "localhost", 9199);
+    // @ts-expect-error
+    storage._isEmulator = true;
+  }
 }
 
-export { app, auth };
+export { app, auth, storage };

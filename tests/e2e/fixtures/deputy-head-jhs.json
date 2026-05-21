@@ -1,0 +1,75 @@
+{
+  "cookies": [
+    {
+      "name": "session_uid",
+      "value": "uid-deputyhead-jhs",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385830.980991,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_role",
+      "value": "DeputyHead",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385830.981131,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_display_name",
+      "value": "Dzifa%20Adzogenu",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385830.981166,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_email",
+      "value": "dh.jhs%40uhas.edu.gh",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385830.981182,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_linked_id",
+      "value": "STAFF-002",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385830.981197,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_expires_at",
+      "value": "1779385830973",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779385830.981215,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3100",
+      "localStorage": [
+        {
+          "name": "uhas_last_email",
+          "value": "dh.jhs@uhas.edu.gh"
+        }
+      ]
+    }
+  ]
+}
