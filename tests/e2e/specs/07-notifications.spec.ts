@@ -42,7 +42,10 @@ test.describe("Notifications · announcement fans out + bell auto-clears", () =>
     await expect(bell).toBeVisible({ timeout: 10_000 });
 
     await bell.click();
-    await expect(parentPage.getByText(title)).toBeVisible();
+    // Title may appear in both the dropdown and a "Recent announcements"
+    // widget on the dashboard. Either match is fine — we just want to
+    // confirm the parent sees the notification surfaced.
+    await expect(parentPage.getByText(title).first()).toBeVisible();
     // After opening, the dropdown auto-marks as read; close + re-check the
     // accessible label dropped the "unread" suffix.
     await parentPage.keyboard.press("Escape");
