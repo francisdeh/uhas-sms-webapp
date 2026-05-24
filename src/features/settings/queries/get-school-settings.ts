@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { eq, asc } from "drizzle-orm";
 import { db } from "@/db";
 import { schools, schoolTerms } from "@/db/schema";
@@ -10,6 +11,12 @@ import type {
   NotificationDefaults,
   GradingBand,
 } from "@/features/settings/types";
+
+// Cache tag for invalidating school settings across requests. Any action
+// that mutates `schools` or `school_terms` should call
+// `revalidateTag(SCHOOL_SETTINGS_TAG)` so subsequent reads pick up the
+// change. See applySchoolSettingsPatch + setSchoolTermsAction.
+export const SCHOOL_SETTINGS_TAG = "school-settings";
 
 // Defaults used when a column is null on the row (fresh install / new tenant).
 // These mirror the values seeded by scripts/_seed-data/school.ts.
@@ -27,10 +34,22 @@ const DEFAULT_NOTIFICATIONS: NotificationDefaults = {
   onResultsPublished: true,
 };
 
-// React `cache()` dedupes within a single server request. Every server
-// component / action that calls this within one request gets one DB read.
-export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {
-  const schoolId = await getCurrentSchoolId();
+// Two layers of caching:
+//
+//   1. unstable_cache — process-level cache, persists across requests.
+//      Invalidated only by revalidateTag(SCHOOL_SETTINGS_TAG) when an admin
+//      saves the settings page. Settings change rarely, so this is a big
+//      Neon-cost reduction (one DB read per setting-change vs one per page
+//      render).
+//
+//   2. React cache() — request-level dedup. Multiple Server Components in
+//      the same render call this; React.cache ensures the unstable_cache
+//      layer is hit just once per request even before checking the
+//      cross-request cache.
+//
+// The cache key is the school ID (pass-through). With multi-tenancy the
+// keyed cache scales per tenant — no work needed.
+async function fetchSchoolSettings(schoolId: string): Promise<SchoolSettings> {
   const row = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
   if (!row) {
     throw new Error(`School row not found: ${schoolId}`);
@@ -74,4 +93,15 @@ export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {
     defaultColorScheme: row.defaultColorScheme ?? "uhas",
     sidebarAccentHex: row.sidebarAccentHex,
   };
+}
+
+const fetchSchoolSettingsCached = unstable_cache(
+  fetchSchoolSettings,
+  ["school-settings"],
+  { tags: [SCHOOL_SETTINGS_TAG] }
+);
+
+export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {
+  const schoolId = await getCurrentSchoolId();
+  return fetchSchoolSettingsCached(schoolId);
 });

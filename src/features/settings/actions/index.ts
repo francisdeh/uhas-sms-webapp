@@ -2,11 +2,12 @@
 
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { db } from "@/db";
 import { schoolTerms } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
 import { applySchoolSettingsPatch } from "./_helpers";
+import { SCHOOL_SETTINGS_TAG } from "@/features/settings/queries/get-school-settings";
 import type { ActionResult } from "@/features/settings/types";
 
 // ─── Identity tab ────────────────────────────────────────────────────────────
@@ -103,6 +104,7 @@ export async function updateCalendarAction(
       });
     }
   }
+  updateTag(SCHOOL_SETTINGS_TAG);  // bust the unstable_cache; read-your-own-writes
   revalidatePath("/admin/settings");
   return { success: true };
 }

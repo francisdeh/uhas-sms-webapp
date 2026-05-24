@@ -406,7 +406,28 @@ One PR, ~3–5 h. Could be incremental — define relations for the 5 most-joine
 
 ---
 
-## 12. No caching strategy — `~5–8 h`
+## 12. Caching strategy — ✅ Done (PR #11, 2026-05-21)
+
+Shipped: two-layer cache for `getSchoolSettings`, the highest-traffic slow-changing read (every page hits it for school name, logo, grading config, etc.).
+
+1. **`unstable_cache` (process-level, cross-request)**: cached by school ID with tag `"school-settings"`. Settings change rarely → one DB read per setting save instead of one per page render. Big Neon-cost reduction.
+
+2. **React `cache()` (request-level dedup)**: kept as the outer layer so multiple Server Components in one render share a single call.
+
+Invalidation: `applySchoolSettingsPatch` and `setSchoolTermsAction` call `updateTag("school-settings")` after writing — Next 16's read-your-own-writes API ensures the user who just saved sees the new value on the next render.
+
+`tests/setup.ts` adds a no-op `unstable_cache` mock to keep Vitest pass-through behavior.
+
+Future candidates (defer until measured slow):
+- `listClassesAction` (changes ~once/year)
+- `listSubjectsAction` (rare)
+- Audit-log filter aggregates
+
+For multi-tenancy, the cache key is already per-school — no further work needed.
+
+---
+
+### Original findings (kept for reference)
 
 **Findings:** Next has multiple cache layers (`unstable_cache`, `revalidateTag`, `revalidatePath`, route-level `dynamic = 'force-cache'` / `'force-dynamic'`). We use `revalidatePath` in a few actions; nothing else.
 
