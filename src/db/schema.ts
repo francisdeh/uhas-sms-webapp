@@ -74,15 +74,23 @@ export const schoolTerms = pgTable("school_terms", {
 
 // ─── Auth Bridge & RBAC ──────────────────────────────────────────────────────
 
-export const users = pgTable("users", {
-  id: varchar("id", { length: 128 }).primaryKey(),                     // Firebase Auth UID
-  schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  role: varchar("role", { length: 50 }).notNull(),                     // 'Admin' | 'DeputyHead' | 'Teacher' | 'Parent'
-  linkedId: varchar("linked_id", { length: 128 }),                    // FK to staff.id | students.id | guardians.id
-  isActive: boolean("is_active").default(true),
-  mustChangePassword: boolean("must_change_password").default(true),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: varchar("id", { length: 128 }).primaryKey(),                     // Firebase Auth UID
+    schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
+    email: varchar("email", { length: 255 }).notNull().unique(),
+    role: varchar("role", { length: 50 }).notNull(),                     // 'Admin' | 'DeputyHead' | 'Teacher' | 'Parent'
+    linkedId: varchar("linked_id", { length: 128 }),                    // FK to staff.id | students.id | guardians.id
+    isActive: boolean("is_active").default(true),
+    mustChangePassword: boolean("must_change_password").default(true),
+  },
+  (t) => [
+    // loginAction falls back from id-lookup to email-lookup (already indexed
+    // by uniqueness); listUsersAction joins staff and guardians on linkedId.
+    index("users_linked_id_idx").on(t.linkedId),
+  ]
+);
 
 // ─── People ──────────────────────────────────────────────────────────────────
 
@@ -104,22 +112,29 @@ export const staff = pgTable("staff", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const students = pgTable("students", {
-  id: varchar("id", { length: 50 }).primaryKey(),                      // e.g. UHAS-2026-0001
-  schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
-  firstName: varchar("first_name", { length: 255 }).notNull(),
-  middleName: varchar("middle_name", { length: 255 }),
-  lastName: varchar("last_name", { length: 255 }).notNull(),
-  dob: date("dob"),
-  gender: varchar("gender", { length: 10 }),
-  photoUrl: varchar("photo_url", { length: 500 }),
-  phone: varchar("phone", { length: 50 }),
-  address: text("address"),
-  nationality: varchar("nationality", { length: 100 }),
-  religion: varchar("religion", { length: 100 }),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const students = pgTable(
+  "students",
+  {
+    id: varchar("id", { length: 50 }).primaryKey(),                      // e.g. UHAS-2026-0001
+    schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
+    firstName: varchar("first_name", { length: 255 }).notNull(),
+    middleName: varchar("middle_name", { length: 255 }),
+    lastName: varchar("last_name", { length: 255 }).notNull(),
+    dob: date("dob"),
+    gender: varchar("gender", { length: 10 }),
+    photoUrl: varchar("photo_url", { length: 500 }),
+    phone: varchar("phone", { length: 50 }),
+    address: text("address"),
+    nationality: varchar("nationality", { length: 100 }),
+    religion: varchar("religion", { length: 100 }),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (t) => [
+    // Students list / search filtered by school + active status.
+    index("students_school_active_idx").on(t.schoolId, t.isActive),
+  ]
+);
 
 export const guardians = pgTable("guardians", {
   id: varchar("id", { length: 50 }).primaryKey(),
@@ -143,13 +158,20 @@ export const studentGuardians = pgTable(
 
 // ─── Academic Structure ──────────────────────────────────────────────────────
 
-export const classes = pgTable("classes", {
-  id: varchar("id", { length: 50 }).primaryKey(),
-  schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
-  name: varchar("name", { length: 50 }).notNull(),                     // e.g. "JHS 1"
-  division: varchar("division", { length: 50 }).notNull(),             // 'KG' | 'Lower Primary' | 'Upper Primary' | 'JHS'
-  academicYear: varchar("academic_year", { length: 9 }).notNull(),
-});
+export const classes = pgTable(
+  "classes",
+  {
+    id: varchar("id", { length: 50 }).primaryKey(),
+    schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
+    name: varchar("name", { length: 50 }).notNull(),                     // e.g. "JHS 1"
+    division: varchar("division", { length: 50 }).notNull(),             // 'KG' | 'Lower Primary' | 'Upper Primary' | 'JHS'
+    academicYear: varchar("academic_year", { length: 9 }).notNull(),
+  },
+  (t) => [
+    // listClassesAction filters by (school, year, optional division).
+    index("classes_school_year_idx").on(t.schoolId, t.academicYear),
+  ]
+);
 
 // Junction: classes ↔ staff (allows multiple class teachers per class)
 export const classTeachers = pgTable(
@@ -181,26 +203,43 @@ export const classSubjects = pgTable(
 );
 
 // Student ↔ class per academic year — drives promotion history
-export const enrollments = pgTable("enrollments", {
-  id: varchar("id", { length: 80 }).primaryKey(),
-  studentId: varchar("student_id", { length: 50 }).references(() => students.id).notNull(),
-  classId: varchar("class_id", { length: 50 }).references(() => classes.id).notNull(),
-  academicYear: varchar("academic_year", { length: 9 }).notNull(),
-  status: varchar("status", { length: 50 }).default("Active").notNull(), // 'Active' | 'Completed' | 'Repeating'
-  enrollmentDate: date("enrollment_date").notNull(),
-});
+export const enrollments = pgTable(
+  "enrollments",
+  {
+    id: varchar("id", { length: 80 }).primaryKey(),
+    studentId: varchar("student_id", { length: 50 }).references(() => students.id).notNull(),
+    classId: varchar("class_id", { length: 50 }).references(() => classes.id).notNull(),
+    academicYear: varchar("academic_year", { length: 9 }).notNull(),
+    status: varchar("status", { length: 50 }).default("Active").notNull(), // 'Active' | 'Completed' | 'Repeating'
+    enrollmentDate: date("enrollment_date").notNull(),
+  },
+  (t) => [
+    // Resolve a student's class for the current year.
+    index("enrollments_student_year_idx").on(t.studentId, t.academicYear),
+    // Class roster: who's in classId for the active year.
+    index("enrollments_class_idx").on(t.classId),
+  ]
+);
 
 // ─── Attendance ──────────────────────────────────────────────────────────────
 
-export const attendanceSessions = pgTable("attendance_sessions", {
-  id: varchar("id", { length: 80 }).primaryKey(),
-  schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
-  classId: varchar("class_id", { length: 50 }).references(() => classes.id).notNull(),
-  date: date("date").notNull(),
-  term: integer("term").notNull(),
-  submittedById: varchar("submitted_by_id", { length: 50 }).references(() => staff.id),
-  submittedAt: timestamp("submitted_at").defaultNow(),
-});
+export const attendanceSessions = pgTable(
+  "attendance_sessions",
+  {
+    id: varchar("id", { length: 80 }).primaryKey(),
+    schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
+    classId: varchar("class_id", { length: 50 }).references(() => classes.id).notNull(),
+    date: date("date").notNull(),
+    term: integer("term").notNull(),
+    submittedById: varchar("submitted_by_id", { length: 50 }).references(() => staff.id),
+    submittedAt: timestamp("submitted_at").defaultNow(),
+  },
+  (t) => [
+    // Locate the session for a class on a specific date — done every page
+    // load on the attendance sheet and every parent attendance lookup.
+    index("attendance_sessions_class_date_idx").on(t.classId, t.date),
+  ]
+);
 
 export const attendanceRecords = pgTable(
   "attendance_records",
@@ -211,20 +250,33 @@ export const attendanceRecords = pgTable(
     lateReason: varchar("late_reason", { length: 255 }),               // required when status = 'late'
     note: varchar("note", { length: 255 }),
   },
-  (t) => [primaryKey({ columns: [t.sessionId, t.studentId] })]
+  (t) => [
+    primaryKey({ columns: [t.sessionId, t.studentId] }),
+    // Roster lookups (all records for a session) and per-student history
+    // (every record for studentId across sessions).
+    index("attendance_records_student_idx").on(t.studentId),
+  ]
 );
 
 // ─── Staff Attendance ───────────────────────────────────────────────────────
 
-export const staffAttendanceSessions = pgTable("staff_attendance_sessions", {
-  id: varchar("id", { length: 80 }).primaryKey(),
-  schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
-  division: varchar("division", { length: 50 }).notNull(),               // 'KG' | 'Lower Primary' | 'Upper Primary' | 'JHS'
-  date: date("date").notNull(),
-  term: integer("term").notNull(),
-  submittedById: varchar("submitted_by_id", { length: 50 }).references(() => staff.id),
-  submittedAt: timestamp("submitted_at").defaultNow(),
-});
+export const staffAttendanceSessions = pgTable(
+  "staff_attendance_sessions",
+  {
+    id: varchar("id", { length: 80 }).primaryKey(),
+    schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
+    division: varchar("division", { length: 50 }).notNull(),               // 'KG' | 'Lower Primary' | 'Upper Primary' | 'JHS'
+    date: date("date").notNull(),
+    term: integer("term").notNull(),
+    submittedById: varchar("submitted_by_id", { length: 50 }).references(() => staff.id),
+    submittedAt: timestamp("submitted_at").defaultNow(),
+  },
+  (t) => [
+    // Find existing session for (division, date) — the DH page loads this
+    // on every staff-attendance render.
+    index("staff_attendance_sessions_div_date_idx").on(t.division, t.date),
+  ]
+);
 
 export const staffAttendanceRecords = pgTable(
   "staff_attendance_records",
@@ -254,27 +306,36 @@ export const leaveRequests = pgTable("leave_requests", {
 
 // ─── Academic Planning ───────────────────────────────────────────────────────
 
-export const lessonPlans = pgTable("lesson_plans", {
-  id: varchar("id", { length: 80 }).primaryKey(),
-  schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
-  teacherId: varchar("teacher_id", { length: 50 }).references(() => staff.id).notNull(),
-  subjectId: varchar("subject_id", { length: 50 }).references(() => subjects.id).notNull(),
-  classId: varchar("class_id", { length: 50 }).references(() => classes.id).notNull(),
-  term: integer("term").notNull(),
-  week: integer("week").notNull(),
-  topic: varchar("topic", { length: 255 }),
-  learningObjectives: text("learning_objectives"),
-  teachingMethods: text("teaching_methods"),
-  resources: text("resources"),
-  assessmentPlan: text("assessment_plan"),
-  fileUrl: varchar("file_url", { length: 500 }),
-  status: varchar("status", { length: 50 }).default("draft").notNull(), // 'draft' | 'submitted' | 'unit_head_approved' | 'approved' | 'rejected'
-  reviewerComment: text("reviewer_comment"),
-  reviewedById: varchar("reviewed_by_id", { length: 50 }).references(() => staff.id),
-  reviewedAt: timestamp("reviewed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+export const lessonPlans = pgTable(
+  "lesson_plans",
+  {
+    id: varchar("id", { length: 80 }).primaryKey(),
+    schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
+    teacherId: varchar("teacher_id", { length: 50 }).references(() => staff.id).notNull(),
+    subjectId: varchar("subject_id", { length: 50 }).references(() => subjects.id).notNull(),
+    classId: varchar("class_id", { length: 50 }).references(() => classes.id).notNull(),
+    term: integer("term").notNull(),
+    week: integer("week").notNull(),
+    topic: varchar("topic", { length: 255 }),
+    learningObjectives: text("learning_objectives"),
+    teachingMethods: text("teaching_methods"),
+    resources: text("resources"),
+    assessmentPlan: text("assessment_plan"),
+    fileUrl: varchar("file_url", { length: 500 }),
+    status: varchar("status", { length: 50 }).default("draft").notNull(), // 'draft' | 'submitted' | 'unit_head_approved' | 'approved' | 'rejected'
+    reviewerComment: text("reviewer_comment"),
+    reviewedById: varchar("reviewed_by_id", { length: 50 }).references(() => staff.id),
+    reviewedAt: timestamp("reviewed_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (t) => [
+    // Teacher dashboard: my plans grouped by status.
+    index("lesson_plans_teacher_status_idx").on(t.teacherId, t.status),
+    // Unit Head + DH review queues filter by status across all teachers.
+    index("lesson_plans_school_status_idx").on(t.schoolId, t.status),
+  ]
+);
 
 // Term-level Scheme of Work (SoW) and Scheme of Learning (SoL) submitted to
 // Head of School. Teachers either upload a file URL or fill the structured
@@ -302,38 +363,54 @@ export const schemes = pgTable("schemes", {
 
 // ─── Exams & Scores ──────────────────────────────────────────────────────────
 
-export const exams = pgTable("exams", {
-  id: varchar("id", { length: 80 }).primaryKey(),
-  schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
-  name: varchar("name", { length: 100 }).notNull(),                    // e.g. "Mid-Term 1"
-  type: varchar("type", { length: 50 }).notNull(),                     // 'MidTerm' | 'EndOfTerm'
-  term: integer("term").notNull(),
-  academicYear: varchar("academic_year", { length: 9 }).notNull(),
-  isPublished: boolean("is_published").default(false),
-  publishedAt: timestamp("published_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const exams = pgTable(
+  "exams",
+  {
+    id: varchar("id", { length: 80 }).primaryKey(),
+    schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
+    name: varchar("name", { length: 100 }).notNull(),                    // e.g. "Mid-Term 1"
+    type: varchar("type", { length: 50 }).notNull(),                     // 'MidTerm' | 'EndOfTerm'
+    term: integer("term").notNull(),
+    academicYear: varchar("academic_year", { length: 9 }).notNull(),
+    isPublished: boolean("is_published").default(false),
+    publishedAt: timestamp("published_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (t) => [
+    // Exam list filters by (school, year, term).
+    index("exams_school_year_term_idx").on(t.schoolId, t.academicYear, t.term),
+  ]
+);
 
-export const scores = pgTable("scores", {
-  id: varchar("id", { length: 120 }).primaryKey(),
-  examId: varchar("exam_id", { length: 80 }).references(() => exams.id).notNull(),
-  studentId: varchar("student_id", { length: 50 }).references(() => students.id).notNull(),
-  subjectId: varchar("subject_id", { length: 50 }).references(() => subjects.id).notNull(),
-  // End-of-term components (all 0-100, nullable). Mid-Term ignores these.
-  cat1: integer("cat1"),
-  cat2: integer("cat2"),
-  projectWork: integer("project_work"),
-  groupWork: integer("group_work"),
-  // Exam score (0-100). Mid-Term: raw exam = total. End-of-Term: weighted into total.
-  examScore: integer("exam_score"),
-  // Derived
-  totalScore: integer("total_score"),                                  // rounded 0-100
-  grade: varchar("grade", { length: 5 }),                              // '1' through '9'
-  interpretation: varchar("interpretation", { length: 50 }),           // 'Highest', 'Higher', etc.
-  subjectPosition: integer("subject_position"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+export const scores = pgTable(
+  "scores",
+  {
+    id: varchar("id", { length: 120 }).primaryKey(),
+    examId: varchar("exam_id", { length: 80 }).references(() => exams.id).notNull(),
+    studentId: varchar("student_id", { length: 50 }).references(() => students.id).notNull(),
+    subjectId: varchar("subject_id", { length: 50 }).references(() => subjects.id).notNull(),
+    // End-of-term components (all 0-100, nullable). Mid-Term ignores these.
+    cat1: integer("cat1"),
+    cat2: integer("cat2"),
+    projectWork: integer("project_work"),
+    groupWork: integer("group_work"),
+    // Exam score (0-100). Mid-Term: raw exam = total. End-of-Term: weighted into total.
+    examScore: integer("exam_score"),
+    // Derived
+    totalScore: integer("total_score"),                                  // rounded 0-100
+    grade: varchar("grade", { length: 5 }),                              // '1' through '9'
+    interpretation: varchar("interpretation", { length: 50 }),           // 'Highest', 'Higher', etc.
+    subjectPosition: integer("subject_position"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (t) => [
+    // Score grid for a class subject — most-traffic exam query.
+    index("scores_exam_subject_idx").on(t.examId, t.subjectId),
+    // Student report card — all scores for one student in one exam.
+    index("scores_student_exam_idx").on(t.studentId, t.examId),
+  ]
+);
 
 // One row per (exam, class). Tracks the class-teacher submission to Head of School.
 export const classReportSubmissions = pgTable("class_report_submissions", {
@@ -378,16 +455,23 @@ export const assignments = pgTable("assignments", {
 
 // ─── Announcements ───────────────────────────────────────────────────────────
 
-export const announcements = pgTable("announcements", {
-  id: varchar("id", { length: 80 }).primaryKey(),
-  schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  body: text("body").notNull(),
-  audience: varchar("audience", { length: 100 }).notNull(),            // 'all' | 'division:JHS' | 'class:<id>'
-  isCritical: boolean("is_critical").default(false),
-  createdById: varchar("created_by_id", { length: 50 }).references(() => staff.id).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const announcements = pgTable(
+  "announcements",
+  {
+    id: varchar("id", { length: 80 }).primaryKey(),
+    schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    body: text("body").notNull(),
+    audience: varchar("audience", { length: 100 }).notNull(),            // 'all' | 'division:JHS' | 'class:<id>'
+    isCritical: boolean("is_critical").default(false),
+    createdById: varchar("created_by_id", { length: 50 }).references(() => staff.id).notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (t) => [
+    // Recent announcements query: ORDER BY createdAt DESC LIMIT N.
+    index("announcements_school_created_idx").on(t.schoolId, t.createdAt),
+  ]
+);
 
 // ─── Academic Calendar ───────────────────────────────────────────────────────
 
@@ -469,17 +553,28 @@ export const promotionDecisions = pgTable("promotion_decisions", {
 
 // ─── Audit Log ───────────────────────────────────────────────────────────────
 
-export const auditLog = pgTable("audit_log", {
-  id: varchar("id", { length: 80 }).primaryKey(),
-  schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
-  userId: varchar("user_id", { length: 128 }).notNull(),
-  action: varchar("action", { length: 100 }).notNull(),                // e.g. 'SCORE_OVERRIDE' | 'STUDENT_EDIT'
-  targetTable: varchar("target_table", { length: 100 }),
-  targetId: varchar("target_id", { length: 128 }),
-  before: text("before"),                                              // JSON snapshot
-  after: text("after"),                                               // JSON snapshot
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: varchar("id", { length: 80 }).primaryKey(),
+    schoolId: varchar("school_id", { length: 64 }).references(() => schools.id).notNull(),
+    userId: varchar("user_id", { length: 128 }).notNull(),
+    action: varchar("action", { length: 100 }).notNull(),                // e.g. 'SCORE_OVERRIDE' | 'STUDENT_EDIT'
+    targetTable: varchar("target_table", { length: 100 }),
+    targetId: varchar("target_id", { length: 128 }),
+    before: text("before"),                                              // JSON snapshot
+    after: text("after"),                                               // JSON snapshot
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (t) => [
+    // Audit log viewer filters by (action, date range).
+    index("audit_log_action_created_idx").on(t.action, t.createdAt),
+    // "Who did what" — single-user audit history.
+    index("audit_log_user_idx").on(t.userId),
+    // "What happened to this row" — single-target history (planned filter).
+    index("audit_log_target_idx").on(t.targetTable, t.targetId),
+  ]
+);
 
 // ─── In-App Notifications ────────────────────────────────────────────────────
 // One row per (recipient, event). The bell dropdown reads from here; events
