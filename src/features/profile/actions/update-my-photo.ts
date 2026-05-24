@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -6,7 +7,6 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { staff } from "@/db/schema";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 export async function updateMyPhotoAction(photoUrl: string | null): Promise<ActionResult> {
   const cookieStore = await cookies();

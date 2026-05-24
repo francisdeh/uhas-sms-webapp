@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull } from "drizzle-orm";
@@ -13,7 +14,6 @@ import type {
   UpdateAssignmentInput,
 } from "@/features/assignments/types";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 async function hydrateMany(rows: (typeof assignments.$inferSelect)[]): Promise<Assignment[]> {
   if (rows.length === 0) return [];
@@ -109,7 +109,7 @@ export async function listAssignmentsForStudentsAction(
 export async function createAssignmentAction(input: {
   teacherId: string;
   data: CreateAssignmentInput;
-}): Promise<{ success: true; id: string } | { success: false; error: string }> {
+}): Promise<ActionResult<{ id: string }>> {
   const schoolId = await getCurrentSchoolId();
   const cls = await db.query.classes.findFirst({ where: eq(classes.id, input.data.classId) });
   if (!cls) return { success: false, error: "Class not found." };

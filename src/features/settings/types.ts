@@ -62,4 +62,4 @@ export type SchoolSettings = {
   sidebarAccentHex: string | null;
 };
 
-export type ActionResult = { success: true } | { success: false; error: string };
+export type { ActionResult } from "@/lib/action-result";

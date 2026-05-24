@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { revalidatePath } from "next/cache";
 import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
@@ -18,7 +19,6 @@ import type {
   AddClassSubjectInput,
 } from "@/features/classes/types";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 const DIVISION_WEIGHT: Record<Division, number> = {
   KG: 0,
@@ -55,7 +55,7 @@ export async function listClassesAction(
 
 export async function createClassAction(
   input: CreateClassInput
-): Promise<{ success: true; id: string } | { success: false; error: string }> {
+): Promise<ActionResult<{ id: string }>> {
   const schoolId = await getCurrentSchoolId();
   const duplicate = await db.query.classes.findFirst({
     where: and(
@@ -116,7 +116,7 @@ export async function listSubjectsAction(
 
 export async function createSubjectAction(
   input: CreateSubjectInput
-): Promise<{ success: true; id: string } | { success: false; error: string }> {
+): Promise<ActionResult<{ id: string }>> {
   const schoolId = await getCurrentSchoolId();
   const duplicate = await db.query.subjects.findFirst({
     where: and(

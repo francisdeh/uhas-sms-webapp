@@ -8,6 +8,7 @@ import { schools } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
 import { writeAuditLog } from "@/lib/audit-log";
 import { SCHOOL_SETTINGS_TAG } from "@/features/settings/queries/get-school-settings";
+import type { ActionResult } from "@/lib/action-result";
 
 // Shared write path for every settings tab. Reads the current row,
 // applies the patch, writes an audit_log row with field-level before/after.
@@ -17,7 +18,7 @@ import { SCHOOL_SETTINGS_TAG } from "@/features/settings/queries/get-school-sett
 // the logo). Callers don't need to revalidate themselves.
 export async function applySchoolSettingsPatch<T extends Partial<typeof schools.$inferInsert>>(
   patch: T
-): Promise<{ success: true } | { success: false; error: string }> {
+): Promise<ActionResult> {
   const schoolId = await getCurrentSchoolId();
   const cookieStore = await cookies();
   const actor = cookieStore.get("session_uid")?.value ?? "system";

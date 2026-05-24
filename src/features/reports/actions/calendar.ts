@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { revalidatePath } from "next/cache";
 import { asc, eq } from "drizzle-orm";
@@ -10,7 +11,6 @@ import type {
   CreateCalendarEventInput,
 } from "@/features/reports/types";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 function toEvent(row: typeof calendarEvents.$inferSelect): CalendarEvent {
   return {
@@ -38,7 +38,7 @@ export async function listCalendarEventsAction(): Promise<CalendarEvent[]> {
 export async function createCalendarEventAction(input: {
   authorId: string;
   data: CreateCalendarEventInput;
-}): Promise<{ success: true; id: string } | { success: false; error: string }> {
+}): Promise<ActionResult<{ id: string }>> {
   const author = await db.query.staff.findFirst({ where: eq(staff.id, input.authorId) });
   if (!author || author.systemRole !== "Admin") {
     return { success: false, error: "Only Admin can manage the academic calendar." };

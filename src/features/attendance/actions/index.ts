@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { revalidatePath } from "next/cache";
 import { and, asc, desc, eq, gte, inArray, lte, or } from "drizzle-orm";
@@ -26,7 +27,6 @@ import type {
 } from "@/features/attendance/types";
 import type { Division } from "@/features/auth/types";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 function toSession(row: typeof attendanceSessions.$inferSelect): AttendanceSession {
   return {
@@ -81,7 +81,7 @@ export async function saveSessionAction(input: {
   term: number;
   submittedById: string;
   records: { studentId: string; status: AttendanceStatus; lateReason?: string; note?: string }[];
-}): Promise<{ success: true; sessionId: string } | { success: false; error: string }> {
+}): Promise<ActionResult<{ sessionId: string }>> {
   const missingLateReason = input.records.find(
     (r) => r.status === "late" && !r.lateReason?.trim()
   );
@@ -226,7 +226,7 @@ export async function saveStaffSessionAction(input: {
   term: number;
   submittedById: string;
   records: { staffId: string; status: StaffAttendanceStatus; note?: string }[];
-}): Promise<{ success: true; sessionId: string } | { success: false; error: string }> {
+}): Promise<ActionResult<{ sessionId: string }>> {
   const schoolId = await getCurrentSchoolId();
   const sessionId = `staff-session-${input.division.replace(/\s+/g, "")}-${input.date}`;
 
@@ -341,7 +341,7 @@ export async function submitLeaveRequestAction(
   staffId: string,
   _staffName: string,
   input: CreateLeaveRequestInput
-): Promise<{ success: true; id: string } | { success: false; error: string }> {
+): Promise<ActionResult<{ id: string }>> {
   if (input.endDate < input.startDate) {
     return { success: false, error: "End date must be on or after start date" };
   }

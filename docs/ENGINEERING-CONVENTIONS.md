@@ -119,28 +119,49 @@ const schema = z.object({
 
 ## Server Actions
 
-### 9. Consistent return shape
+### 9. Consistent return shape — `ActionResult<T>`
 
-All server actions return `Promise<ActionResult<T>>` where:
+Every server action returns `Promise<ActionResult<T>>` from [`src/lib/action-result.ts`](../src/lib/action-result.ts):
 
 ```ts
-type ActionResult<T = void> =
-  | { success: true; data?: T }
+export type ActionResult<T = void> =
+  | (T extends void ? { success: true } : { success: true } & T)
   | { success: false; error: string };
 ```
 
-Don't throw from a server action — catch and return `{ success: false }`. Throwing crashes the route and shows a generic error page; the structured return lets the UI render a toast or inline message.
+The generic intersects data fields directly into the success branch, so callers destructure inline (matches existing patterns like `if (result.success) router.push(result.redirect)`).
+
+```ts
+import type { ActionResult } from "@/lib/action-result";
+
+// No data on success
+export async function deactivateUserAction(uid: string): Promise<ActionResult> {
+  // …
+  return { success: true };
+}
+
+// With data on success
+export async function createStudentAction(input): Promise<ActionResult<{ id: string }>> {
+  // …
+  return { success: true, id: created.id };
+}
+
+// Multiple fields
+Promise<ActionResult<{ sessionId: string; redirect: string }>>
+```
+
+**Don't throw from a public server action** — catch internally and return the failure shape. Throwing crashes the route and falls through to the closest `error.tsx` boundary. That's correct for *unexpected* errors (programming bugs, DB down) but wrong for *expected* business errors like "not found" or "not allowed". For those, return `{ success: false, error }` so the UI can render an inline toast.
 
 ```ts
 // ✅
 export async function approveLessonPlanAction(id: string): Promise<ActionResult> {
   try {
-    const plan = await getLessonPlanService(id);
+    const plan = await db.query.lessonPlans.findFirst({ where: eq(lessonPlans.id, id) });
     if (!plan) return { success: false, error: "Lesson plan not found." };
     if (plan.status !== "submitted") {
       return { success: false, error: "Plan must be submitted to approve." };
     }
-    await applyApprovalService(id);
+    await applyReview(id, /* … */);
     return { success: true };
   } catch (err) {
     console.error("[approveLessonPlan]", err);
@@ -149,7 +170,7 @@ export async function approveLessonPlanAction(id: string): Promise<ActionResult>
 }
 ```
 
-Services (when extracted) can throw freely — they're internal. Actions are the boundary that catches.
+Internal helpers (private functions inside actions/, services if/when extracted) can throw freely — they're internal. Public exported actions are the boundary that catches and returns.
 
 ### 10. Audit-log sensitive mutations
 

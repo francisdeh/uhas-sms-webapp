@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
@@ -22,7 +23,6 @@ import type {
   RespondToAppointmentInput,
 } from "@/features/appointments/types";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 async function hydrateMany(rows: (typeof appointments.$inferSelect)[]): Promise<Appointment[]> {
   if (rows.length === 0) return [];
@@ -156,7 +156,7 @@ export async function listTeachersForStudentAction(
 export async function createAppointmentAction(input: {
   guardianId: string;
   data: CreateAppointmentInput;
-}): Promise<{ success: true; id: string } | { success: false; error: string }> {
+}): Promise<ActionResult<{ id: string }>> {
   const schoolId = await getCurrentSchoolId();
   // Validate guardian-student link
   const link = await db.query.studentGuardians.findFirst({
