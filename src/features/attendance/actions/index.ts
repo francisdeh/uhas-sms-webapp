@@ -12,6 +12,7 @@ import {
   staff,
 } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
+import { formatDate } from "@/lib/dates";
 import { notifyAudience } from "@/features/notifications/lib/create-notification";
 import type {
   AttendanceStatus,
@@ -135,11 +136,7 @@ export async function saveSessionAction(input: {
     .filter((r) => r.status === "absent")
     .map((r) => r.studentId);
   if (absentStudentIds.length > 0) {
-    const dateLabel = new Date(input.date + "T00:00:00").toLocaleDateString("en-GB", {
-      weekday: "long",
-      day: "numeric",
-      month: "short",
-    });
+    const dateLabel = formatDate(input.date, "EEEE, d MMM");
     for (const studentId of absentStudentIds) {
       await notifyAudience(
         { type: "parentsOfStudents", studentIds: [studentId] },

@@ -46,6 +46,7 @@ import {
 import type { Appointment } from "@/features/appointments/types";
 import { SLOT_LABELS } from "@/features/appointments/types";
 import { AppointmentStatusPill } from "./AppointmentStatusPill";
+import { formatDateWithWeekday as formatDate } from "@/lib/dates";
 
 const schema = z.object({
   studentId: z.string().min(1, { message: "Pick a child" }),
@@ -68,15 +69,6 @@ interface ParentAppointmentsViewProps {
   guardianId: string;
   childOptions: ChildOption[];
   appointments: Appointment[];
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 export function ParentAppointmentsView({

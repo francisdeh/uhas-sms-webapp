@@ -22,6 +22,7 @@ import {
   approveLeaveRequestAction,
   rejectLeaveRequestAction,
 } from "@/features/attendance/actions";
+import { formatDate } from "@/lib/dates";
 import type { LeaveRequest } from "@/features/attendance/types";
 
 interface LeaveRequestListProps {
@@ -31,13 +32,7 @@ interface LeaveRequestListProps {
 }
 
 function formatDateRange(start: string, end: string): string {
-  const fmt = (d: string) =>
-    new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  return start === end ? fmt(start) : `${fmt(start)} – ${fmt(end)}`;
+  return start === end ? formatDate(start) : `${formatDate(start)} – ${formatDate(end)}`;
 }
 
 const leaveTypePill: Record<string, string> = {

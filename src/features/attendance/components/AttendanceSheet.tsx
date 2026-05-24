@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 import { saveSessionAction } from "@/features/attendance/actions";
+import { formatDateLong } from "@/lib/dates";
 import type { AttendanceStatus, SessionWithRecords } from "@/features/attendance/types";
 import type { Student } from "@/features/students/types";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -188,12 +189,7 @@ export function AttendanceSheet({
     });
   }
 
-  const formattedDate = new Date(date + "T00:00:00").toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const formattedDate = formatDateLong(date);
 
   const presentCount = students.filter((s) => rows[s.id]?.status === "present").length;
   const absentCount = students.filter((s) => rows[s.id]?.status === "absent").length;

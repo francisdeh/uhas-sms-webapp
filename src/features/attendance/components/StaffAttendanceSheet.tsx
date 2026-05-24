@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
+import { formatDateLong } from "@/lib/dates";
 
 import { saveStaffSessionAction } from "@/features/attendance/actions";
 import type { StaffAttendanceStatus, StaffSessionWithRecords } from "@/features/attendance/types";
@@ -175,12 +176,7 @@ export function StaffAttendanceSheet({
     });
   }
 
-  const formattedDate = new Date(date + "T00:00:00").toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const formattedDate = formatDateLong(date);
 
   const presentCount = staff.filter((s) => rows[s.id]?.status === "present").length;
   const absentCount = staff.filter((s) => rows[s.id]?.status === "absent").length;

@@ -1,11 +1,10 @@
+import { formatDate as fmtDate } from "@/lib/dates";
 import type { PscReportData } from "@/features/reports/queries/get-psc-report";
 
+// PSC uses long month names ("5 January 2026") rather than the shared
+// default ("5 Jan 2026") because the report is a printed document.
 function formatDate(iso: string): string {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  return fmtDate(iso, "d MMMM yyyy");
 }
 
 export function PscReport({ data }: { data: PscReportData }) {

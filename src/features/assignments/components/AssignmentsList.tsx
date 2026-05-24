@@ -4,20 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { formatDateWithWeekday as formatDate } from "@/lib/dates";
 import type { Assignment } from "@/features/assignments/types";
 
 interface AssignmentsListProps {
   assignments: Assignment[];
   baseHref: string;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 export function AssignmentsList({ assignments, baseHref }: AssignmentsListProps) {

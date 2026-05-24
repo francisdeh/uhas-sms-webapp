@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDateWithWeekday } from "@/lib/dates";
 import type { AttendanceSession } from "@/features/attendance/types";
 
 interface SessionHistoryProps {
@@ -40,12 +41,7 @@ export function SessionHistory({ sessions, basePath }: SessionHistoryProps) {
               {sessions.map((session) => (
                 <tr key={session.id} className="border-b border-border/40 last:border-0">
                   <td className="py-2.5">
-                    {new Date(session.date + "T00:00:00").toLocaleDateString("en-GB", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {formatDateWithWeekday(session.date)}
                   </td>
                   <td className="py-2.5 text-muted-foreground">Term {session.term}</td>
                   <td className="py-2.5 text-right">

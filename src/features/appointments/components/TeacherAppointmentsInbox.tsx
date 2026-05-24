@@ -23,15 +23,7 @@ import { respondToAppointmentAction } from "@/features/appointments/actions";
 import type { Appointment } from "@/features/appointments/types";
 import { SLOT_LABELS } from "@/features/appointments/types";
 import { AppointmentStatusPill } from "./AppointmentStatusPill";
-
-function formatDate(iso: string): string {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
+import { formatDateWithWeekday as formatDate } from "@/lib/dates";
 
 export function TeacherAppointmentsInbox({
   teacherId,
