@@ -34,10 +34,10 @@ import {
   updateUserAction,
 } from "@/features/auth/actions/manage-users";
 import type { ManagedUser } from "@/features/auth/actions/manage-users";
-import type { UserRole } from "@/features/auth/types";
+import { USER_ROLES, type UserRole } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
-const ROLES: UserRole[] = ["Admin", "DeputyHead", "Teacher", "Parent"];
+const ROLES = USER_ROLES;
 
 const ROLE_LABELS: Record<UserRole, string> = {
   Admin: "Admin",

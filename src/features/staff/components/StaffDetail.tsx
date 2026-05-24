@@ -59,6 +59,7 @@ import {
 import type { Staff } from "@/features/staff/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
+import { STAFF_SYSTEM_ROLES } from "@/features/auth/types";
 
 const ROLE_AVATAR: Record<Staff["systemRole"], string> = {
   Admin: "from-purple-400 to-purple-600",
@@ -91,7 +92,7 @@ type EditFormValues = z.infer<typeof editSchema>;
 
 const changeRoleSchema = z
   .object({
-    systemRole: z.enum(["Admin", "DeputyHead", "Teacher"], {
+    systemRole: z.enum(STAFF_SYSTEM_ROLES, {
       message: "Select a role",
     }),
     division: z.enum(["KG", "Lower Primary", "Upper Primary", "JHS"]).optional(),

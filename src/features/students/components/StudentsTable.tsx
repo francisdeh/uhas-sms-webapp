@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -121,7 +121,10 @@ export default function StudentsTable({
     });
   }
 
-  const columns: ColumnDef<Student>[] = [
+  // useMemo keeps the TanStack column array reference stable across
+  // re-renders. Otherwise every parent state change (filter input, etc.)
+  // creates a new columns array, defeating TanStack's internal row memoization.
+  const columns = useMemo<ColumnDef<Student>[]>(() => [
     {
       id: "student",
       header: "Student",
@@ -244,7 +247,7 @@ export default function StudentsTable({
         );
       },
     },
-  ];
+  ], [isPending, listHref]);
 
   return (
     <div className="space-y-5">
