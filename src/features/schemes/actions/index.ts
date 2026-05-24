@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { schemes, classes, subjects, staff } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
@@ -70,10 +70,13 @@ async function hydrateMany(
   });
 }
 
+// Excludes soft-deleted rows from every read.
+const NOT_DELETED = isNull(schemes.deletedAt);
+
 export async function listSchemesForTeacherAction(teacherId: string): Promise<Scheme[]> {
   const year = await getCurrentAcademicYear();
   const rows = await db.query.schemes.findMany({
-    where: and(eq(schemes.teacherId, teacherId), eq(schemes.academicYear, year)),
+    where: and(eq(schemes.teacherId, teacherId), eq(schemes.academicYear, year), NOT_DELETED),
   });
   const hydrated = await hydrateMany(rows);
   return hydrated.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -92,7 +95,8 @@ export async function listSchemesAction(filter?: {
     where: and(
       eq(schemes.academicYear, year),
       statusList && statusList.length > 0 ? inArray(schemes.status, statusList) : undefined,
-      filter?.type ? eq(schemes.type, filter.type) : undefined
+      filter?.type ? eq(schemes.type, filter.type) : undefined,
+      NOT_DELETED
     ),
   });
   const hydrated = await hydrateMany(rows);
@@ -100,7 +104,7 @@ export async function listSchemesAction(filter?: {
 }
 
 export async function getSchemeAction(id: string): Promise<Scheme | null> {
-  const row = await db.query.schemes.findFirst({ where: eq(schemes.id, id) });
+  const row = await db.query.schemes.findFirst({ where: and(eq(schemes.id, id), NOT_DELETED) });
   if (!row) return null;
   const [hydrated] = await hydrateMany([row]);
   return hydrated ?? null;
@@ -143,7 +147,7 @@ export async function updateSchemeAction(input: {
   teacherId: string;
   data: UpdateSchemeInput;
 }): Promise<ActionResult> {
-  const row = await db.query.schemes.findFirst({ where: eq(schemes.id, input.id) });
+  const row = await db.query.schemes.findFirst({ where: and(eq(schemes.id, input.id), NOT_DELETED) });
   if (!row) return { success: false, error: "Scheme not found." };
   if (row.teacherId !== input.teacherId) {
     return { success: false, error: "You can only edit your own schemes." };
@@ -180,7 +184,7 @@ export async function submitSchemeAction(input: {
   id: string;
   teacherId: string;
 }): Promise<ActionResult> {
-  const row = await db.query.schemes.findFirst({ where: eq(schemes.id, input.id) });
+  const row = await db.query.schemes.findFirst({ where: and(eq(schemes.id, input.id), NOT_DELETED) });
   if (!row) return { success: false, error: "Scheme not found." };
   if (row.teacherId !== input.teacherId) {
     return { success: false, error: "You can only submit your own schemes." };
@@ -204,7 +208,7 @@ export async function acknowledgeSchemeAction(input: {
   reviewerId: string;
   comment?: string;
 }): Promise<ActionResult> {
-  const row = await db.query.schemes.findFirst({ where: eq(schemes.id, input.id) });
+  const row = await db.query.schemes.findFirst({ where: and(eq(schemes.id, input.id), NOT_DELETED) });
   if (!row) return { success: false, error: "Scheme not found." };
 
   const reviewer = await db.query.staff.findFirst({ where: eq(staff.id, input.reviewerId) });
@@ -233,7 +237,7 @@ export async function deleteSchemeAction(input: {
   id: string;
   teacherId: string;
 }): Promise<ActionResult> {
-  const row = await db.query.schemes.findFirst({ where: eq(schemes.id, input.id) });
+  const row = await db.query.schemes.findFirst({ where: and(eq(schemes.id, input.id), NOT_DELETED) });
   if (!row) return { success: false, error: "Scheme not found." };
   if (row.teacherId !== input.teacherId) {
     return { success: false, error: "You can only delete your own schemes." };
@@ -241,7 +245,11 @@ export async function deleteSchemeAction(input: {
   if (row.status === "acknowledged") {
     return { success: false, error: "Acknowledged schemes cannot be deleted." };
   }
-  await db.delete(schemes).where(eq(schemes.id, input.id));
+  // Soft delete: row stays for the future admin Trash UI.
+  await db
+    .update(schemes)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(eq(schemes.id, input.id));
   revalidatePath("/teacher/schemes");
   return { success: true };
 }

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { classes, lessonPlans } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
@@ -29,7 +29,8 @@ export async function getNavBadges(user: SessionUser): Promise<Record<string, nu
           where: and(
             eq(lessonPlans.schoolId, schoolId),
             inArray(lessonPlans.classId, classIds),
-            eq(lessonPlans.status, "unit_head_approved")
+            eq(lessonPlans.status, "unit_head_approved"),
+            isNull(lessonPlans.deletedAt)
           ),
         });
         if (pending.length > 0) badges["/deputy-head/lesson-plans"] = pending.length;
@@ -51,7 +52,8 @@ export async function getNavBadges(user: SessionUser): Promise<Record<string, nu
         where: and(
           eq(lessonPlans.schoolId, schoolId),
           inArray(lessonPlans.classId, classIds),
-          eq(lessonPlans.status, "submitted")
+          eq(lessonPlans.status, "submitted"),
+          isNull(lessonPlans.deletedAt)
         ),
       });
       if (pending.length > 0) badges["/teacher/reviews"] = pending.length;

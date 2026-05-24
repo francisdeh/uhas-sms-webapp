@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { lessonPlans, classes, subjects, staff, users } from "@/db/schema";
 import type { InferSelectModel } from "drizzle-orm";
@@ -77,10 +77,13 @@ function sortByRecent(plans: LessonPlan[]): LessonPlan[] {
   });
 }
 
+// Excludes soft-deleted rows. Used by every read except the (future) Trash UI.
+const NOT_DELETED = isNull(lessonPlans.deletedAt);
+
 export async function listLessonPlansForTeacherAction(teacherId: string): Promise<LessonPlan[]> {
   const year = await getCurrentAcademicYear();
   const rows = await db.query.lessonPlans.findMany({
-    where: eq(lessonPlans.teacherId, teacherId),
+    where: and(eq(lessonPlans.teacherId, teacherId), NOT_DELETED),
     with: PLAN_WITH,
   });
   return sortByRecent(rows.map(hydrateOne).filter((p) => p.academicYear === year));
@@ -97,8 +100,8 @@ export async function listLessonPlansForReviewAction(filter: {
 
   const rows = await db.query.lessonPlans.findMany({
     where: statusList && statusList.length > 0
-      ? inArray(lessonPlans.status, statusList)
-      : undefined,
+      ? and(inArray(lessonPlans.status, statusList), NOT_DELETED)
+      : NOT_DELETED,
     with: PLAN_WITH,
   });
   return sortByRecent(
@@ -113,7 +116,7 @@ export async function listLessonPlansForReviewAction(filter: {
 
 export async function getLessonPlanAction(id: string): Promise<LessonPlan | null> {
   const row = await db.query.lessonPlans.findFirst({
-    where: eq(lessonPlans.id, id),
+    where: and(eq(lessonPlans.id, id), NOT_DELETED),
     with: PLAN_WITH,
   });
   return row ? hydrateOne(row) : null;
@@ -170,7 +173,7 @@ export async function updateLessonPlanAction(input: {
   teacherId: string;
   data: UpdateLessonPlanInput;
 }): Promise<ActionResult> {
-  const plan = await db.query.lessonPlans.findFirst({ where: eq(lessonPlans.id, input.id) });
+  const plan = await db.query.lessonPlans.findFirst({ where: and(eq(lessonPlans.id, input.id), NOT_DELETED) });
   if (!plan) return { success: false, error: "Lesson plan not found." };
   if (plan.teacherId !== input.teacherId) {
     return { success: false, error: "You can only edit your own lesson plans." };
@@ -219,7 +222,7 @@ export async function submitLessonPlanAction(input: {
   teacherId: string;
 }): Promise<ActionResult> {
   const plan = await db.query.lessonPlans.findFirst({
-    where: eq(lessonPlans.id, input.id),
+    where: and(eq(lessonPlans.id, input.id), NOT_DELETED),
     with: { class: true },
   });
   if (!plan) return { success: false, error: "Lesson plan not found." };
@@ -290,7 +293,7 @@ async function notifyTeacherOfReview(
   comment: string | undefined
 ) {
   const plan = await db.query.lessonPlans.findFirst({
-    where: eq(lessonPlans.id, planId),
+    where: and(eq(lessonPlans.id, planId), NOT_DELETED),
   });
   if (!plan) return;
   const topic = plan.topic ?? "(untitled)";
@@ -329,7 +332,7 @@ async function notifyTeacherOfRejection(
   if (!settings.notificationDefaults.onLessonPlanRejected) return;
 
   const plan = await db.query.lessonPlans.findFirst({
-    where: eq(lessonPlans.id, planId),
+    where: and(eq(lessonPlans.id, planId), NOT_DELETED),
   });
   if (!plan) return;
   const [teacherUser, reviewer] = await Promise.all([
@@ -365,7 +368,7 @@ export async function unitHeadReviewAction(input: {
   // Plan + class join in one round-trip; reviewer is from input (separate fetch).
   const [planWithClass, reviewer] = await Promise.all([
     db.query.lessonPlans.findFirst({
-      where: eq(lessonPlans.id, input.id),
+      where: and(eq(lessonPlans.id, input.id), NOT_DELETED),
       with: { class: true },
     }),
     db.query.staff.findFirst({ where: eq(staff.id, input.reviewerId) }),
@@ -413,7 +416,7 @@ export async function deputyHeadReviewAction(input: {
 }): Promise<ActionResult> {
   const [planWithClass, reviewer] = await Promise.all([
     db.query.lessonPlans.findFirst({
-      where: eq(lessonPlans.id, input.id),
+      where: and(eq(lessonPlans.id, input.id), NOT_DELETED),
       with: { class: true },
     }),
     db.query.staff.findFirst({ where: eq(staff.id, input.reviewerId) }),
@@ -448,7 +451,7 @@ export async function deleteLessonPlanAction(input: {
   id: string;
   teacherId: string;
 }): Promise<ActionResult> {
-  const plan = await db.query.lessonPlans.findFirst({ where: eq(lessonPlans.id, input.id) });
+  const plan = await db.query.lessonPlans.findFirst({ where: and(eq(lessonPlans.id, input.id), NOT_DELETED) });
   if (!plan) return { success: false, error: "Lesson plan not found." };
   if (plan.teacherId !== input.teacherId) {
     return { success: false, error: "You can only delete your own lesson plans." };
@@ -456,7 +459,12 @@ export async function deleteLessonPlanAction(input: {
   if (plan.status !== "draft" && plan.status !== "rejected") {
     return { success: false, error: "Only draft or rejected plans can be deleted." };
   }
-  await db.delete(lessonPlans).where(eq(lessonPlans.id, input.id));
+  // Soft delete: mark deletedAt and let reads filter it out. Hard delete
+  // is reserved for an admin Trash UI (future).
+  await db
+    .update(lessonPlans)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(eq(lessonPlans.id, input.id));
   revalidatePath("/teacher/lesson-plans");
   return { success: true };
 }

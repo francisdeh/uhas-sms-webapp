@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   students,
@@ -101,7 +101,9 @@ export async function getSchoolStats(): Promise<SchoolStats> {
       db.query.exams.findMany({
         where: and(eq(exams.schoolId, schoolId), eq(exams.academicYear, year)),
       }),
-      db.query.lessonPlans.findMany({ where: eq(lessonPlans.schoolId, schoolId) }),
+      db.query.lessonPlans.findMany({
+        where: and(eq(lessonPlans.schoolId, schoolId), isNull(lessonPlans.deletedAt)),
+      }),
     ]);
 
   const activeStudents = allStudents.filter((s) => s.isActive);
@@ -196,7 +198,7 @@ export async function getDivisionStats(division: Division): Promise<DivisionStat
 
   // Lesson plans per status, scoped to this division (via class lookup)
   const allLessonPlans = await db.query.lessonPlans.findMany({
-    where: eq(lessonPlans.schoolId, schoolId),
+    where: and(eq(lessonPlans.schoolId, schoolId), isNull(lessonPlans.deletedAt)),
   });
   const divisionLessonPlans = allLessonPlans.filter((p) => classIds.includes(p.classId));
   const lessonPlansCounts = {

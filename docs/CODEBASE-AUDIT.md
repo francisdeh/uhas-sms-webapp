@@ -149,7 +149,29 @@ Replace literal strings with the `UserRole` type values from `@/features/auth/ty
 
 ---
 
-## 4. Zero soft-delete columns across 30+ tables — `~6–10 h`
+## 4. Soft deletes on high-risk tables — ✅ Done (PR #12, 2026-05-21)
+
+Three user-facing hard-delete sites converted to soft delete:
+
+- `lesson_plans` — `deleteLessonPlanAction` now sets `deletedAt` instead of `db.delete(...)`
+- `assignments` — `deleteAssignmentAction` same
+- `schemes` — `deleteSchemeAction` same
+
+All reads against these tables now filter `deletedAt IS NULL`:
+
+- Lesson plans: list/get/submit/review/delete actions + the nav-badge query + reports stats
+- Assignments: list/get/update/publish/delete + parent-side list
+- Schemes: list/get/update/submit/review/delete
+
+Migration: `drizzle/0004_slim_veda.sql` — additive (just adds `deleted_at timestamp` columns).
+
+**Why scores stayed hard-delete:** the only "score delete" is the data-normalization path when all components are cleared. That state is already captured by the `SCORE_OVERRIDE` audit log. Re-creation = re-entering the values, which is the user action anyway. Soft-delete adds no value.
+
+**Follow-up deferred:** admin Trash UI at `/admin/trash` to list + restore soft-deleted rows. Documented in [FEATURE-ENHANCEMENTS.md](FEATURE-ENHANCEMENTS.md) as a future feature; the data side is in place.
+
+---
+
+### Original findings (kept for reference)
 
 **Findings:** every "delete" is either a hard `db.delete(...)` (lesson plans, scores) or an `isActive=false` toggle (staff, students). No `deletedAt` column anywhere.
 
