@@ -256,16 +256,54 @@ Classes: KG 1–2 · Primary 1–6 · JHS 1–3
 | Admin Settings page | ⏭ Next | New `/admin/settings` route to configure school identity, academic calendar, grading bands + score weights, communication defaults, security policy (session timeout, password rules), and branding. Surfaces what's currently hardcoded (`DEFAULT_SCHOOL_ID`, `DEFAULT_ACADEMIC_YEAR`, GES grade bands, 8-h session, placeholder weighting) into the `schools` row. ~11 h across 5 PRs. Details in [docs/implementation-spec.md](docs/implementation-spec.md#next-up--admin-settings-page). |
 | Drop JHS class streams | ✅ Done | School runs one class per level — no streams. Renamed `class-jhs1a/2a/3a` → `class-jhs1/2/3` and `"JHS 1A/2A/3A"` → `"JHS 1/2/3"` across seed + tests + UI. Deleted the now-dead `stripSuffix`/`streamSuffix` helpers and the three stream-specific tests; tightened the JHS-3-graduates check from `startsWith("JHS 3")` to `=== "JHS 3"`. |
 
-## Potential future improvements
+## Roadmap & audits
 
-Not on the roadmap yet — captured so we don't re-derive them each time. Full notes in [`docs/implementation-spec.md`](docs/implementation-spec.md#potential-future-improvements).
+Persistent reference docs — pick up when you have the time, not in any forced order:
 
-- **PWA wrapper** (manifest + service worker + web push) — cheapest way to give parents an installable home-screen app. ~1–2 wk; reuses everything.
+| Doc | Purpose |
+|---|---|
+| [`docs/COMPETITIVE-ANALYSIS.md`](docs/COMPETITIVE-ANALYSIS.md) | Where we win/lose vs SchoolPad et al; missing features ranked by market impact |
+| [`docs/FEATURE-ENHANCEMENTS.md`](docs/FEATURE-ENHANCEMENTS.md) | Depth gaps in features we already shipped (leave, student/staff profiles, exams, report cards, etc.) |
+| [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) | Technical-debt items (DB indexes, drizzle relations, loading states, caching, etc.) |
+| [`docs/PRICING.md`](docs/PRICING.md) | Pricing model, scaling math, negotiation room |
+| [`docs/implementation-spec.md`](docs/implementation-spec.md#next-up--commercial-roadmap-drives-sales-readiness) | Engineering-side punch list of the commercial roadmap items |
+
+## Commercial roadmap (drives sales-readiness)
+
+Sales-driven priorities benchmarked against SchoolPad, iSchool, TopHat, ClassEra and other Ghana / West Africa school ERPs. Full reasoning in [`docs/COMPETITIVE-ANALYSIS.md`](docs/COMPETITIVE-ANALYSIS.md); engineering-side punch list in [`docs/implementation-spec.md`](docs/implementation-spec.md#next-up--commercial-roadmap-drives-sales-readiness); pricing model in [`docs/PRICING.md`](docs/PRICING.md).
+
+**Track 1 — close the critical sales-blocking gaps (next 2 months)**
+
+- **Fee management** (~40–60 h) — fee structures, term invoicing, Paystack pay-now (MoMo + card + bank), receipts, bursaries, collection reporting. Single biggest revenue lever; without it, every conversation against SchoolPad ends with "does it handle fees?".
+- **SMS gateway** (~10–15 h) — mNotify / Hubtel integration, per-school credit pool, fallback from in-app notifications when users haven't logged in. Reaches the 100% of parents who don't open the app daily.
+
+**Track 2 — kill remaining objections + unblock scale (months 2–4)**
+
+- **Timetable management** (~30–40 h) — period structure, teacher/class/room slotting, conflict detection, substitute overrides on staff leave.
+- **Multi-tenancy refactor** (~80 h) — turn the single-school `getCurrentSchoolId()` constant into per-session resolution. **Hard prerequisite for school #2.**
+
+**Track 3 — differentiation + Ghana-specific value (months 4–6)**
+
+- **Mobile PWA** (~30–50 h) — manifest + service worker + offline reads + web push (Android). Differentiates vs SchoolPad's "must be online".
+- **WhatsApp Business API** (~20–30 h) — mirror SMS triggers + two-way replies + bulk audience messaging. Replaces ad-hoc WhatsApp groups with structured comms.
+
+**Track 4 — post-PMF, opportunistic**
+
+- AI-assisted lesson plans + report comments (~25–35 h) — premium tier
+- Online admissions (~25–35 h) — seasonal but real
+- Library / inventory (~30–40 h) — fills the gaps
+- Parent-teacher chat (~25–40 h) — differentiator
+
+**Track 5 — defer indefinitely unless a customer asks**
+
+- HR / payroll, hostel, transport, cafeteria, video class, online CBT, alumni.
+
+## Other potential improvements (engineering-only, no commercial urgency)
+
 - **Refactor `actions/` → `services/`** — prerequisite for any non-web client. Costs little now, costs a lot later.
 - **JSON API surface** (`app/api/*` route handlers with `Authorization: Bearer` ID-token auth) — for mobile, partner schools, integrations.
-- **Capacitor shell** — App Store / Play Store presence + reliable FCM push without a separate codebase. Pick this over React Native unless PWA + Capacitor stop scaling.
-- **Firebase Cloud Messaging** — server-side push triggers (absence marked, result published, lesson-plan rejected, announcement posted).
-- **Offline cache** — last-fetched view stays visible offline. Only build when users complain.
+- **Capacitor shell** — App Store / Play Store presence with the existing codebase + FCM push.
+- **Firebase Cloud Messaging** — server-side push triggers (paired with PWA work above).
+- **Offline cache** — last-fetched view stays visible offline. Wait until users complain.
 - **Transactional email upgrade** — swap Gmail SMTP for Resend when bulk sends or analytics matter.
-- **Multi-school tenancy** — every query already filters by `schoolId`, but the helper returns a fixed constant. Real product decision, not a tech change.
 - **Component-level tests / mobile-viewport E2E** — gaps left by the current layer-1/2/3 mix.

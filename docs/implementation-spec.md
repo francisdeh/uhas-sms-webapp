@@ -505,6 +505,112 @@ Total: **~11 hours**, 5 PRs. None of them touch the same files as the Profile co
 
 ---
 
+## Next up — Commercial roadmap (drives sales-readiness)
+
+Sequencing comes from [docs/COMPETITIVE-ANALYSIS.md](COMPETITIVE-ANALYSIS.md), which benchmarks us against SchoolPad, iSchool, TopHat, ClassEra, and others on the Ghana / West Africa basic-school market. Full reasoning, effort breakdown, and revenue impact are in that doc; this section is the engineering-side punch list.
+
+### Track 1 (next 2 months) — close the critical sales-blocking gaps
+
+Without these two, every conversation against SchoolPad ends with "but does it handle fees?" / "but does it text parents?".
+
+#### 1. **Fee management** — ~40–60 h, single PR
+- Fee structures table: `fee_structures (id, school_id, class_id, term, year, item, amount)`
+- Per-student-per-term invoice generation (`fee_invoices` + `fee_invoice_lines`)
+- Pay-now → **Paystack** hosted checkout (Ghana MoMo + card + bank transfer)
+- Webhook receiver flips invoice status, audit-log entry on every state change
+- Parent view: "what I owe + pay now" on the parent dashboard
+- Admin view: collection rate, outstanding by class, overdue list
+- Receipts: server-rendered PDFs, emailed via existing `src/lib/email.ts`
+- Bursaries / scholarships / sibling discounts as percentage-off adjustments on the invoice level
+- Unblocks: justifies subscription bump from €3,000 → ~€3,800–4,200/year
+
+#### 2. **SMS gateway** — ~10–15 h, single PR
+- Provider plug: **mNotify** (Ghana-local, MoMo top-ups) or **Hubtel** (broader)
+- `src/lib/sms.ts` mirroring the `src/lib/email.ts` pattern (provider-agnostic, env-gated, logs in dev)
+- Trigger SMS for: absence today, fee reminder, results published, urgent announcement
+- Per-school SMS credit pool stored on `schools.sms_credits`, topped up via Paystack
+- Falls back from in-app notification when user hasn't opened the app in N days (configurable)
+- Admin dashboard: SMS usage chart, balance, top-up button
+- Unblocks: communication reaches 100% of parents, not just app users
+
+### Track 2 (months 2–4) — kill the remaining objections + unblock scale
+
+#### 3. **Timetable management** — ~30–40 h
+- Schema: `periods (period_number, start_time, end_time)`, `timetable_slots (class_id, period, day_of_week, subject_id, teacher_staff_id, room)`
+- Conflict detection: teacher can't be in two rooms, room can't host two classes
+- Per-teacher view ("my week"), per-class view ("our timetable")
+- Substitute overrides when a class teacher is on approved leave
+- Print-friendly layouts
+- Removes a sales objection ("does it have a timetable?")
+
+#### 4. **Multi-tenancy refactor** — ~80 h, multi-PR
+- Replace `getCurrentSchoolId()` constant with per-session resolution from `users.schoolId`
+- Tenant-aware Firebase setup decision: single project + `schoolId` custom claim filtering, or one Firebase project per tenant. **Decision call** before starting.
+- Storage path scoping: `photos/<schoolId>/staff/<id>.jpg`, `documents/<schoolId>/lesson-plans/...`
+- Storage rules updated to read `schoolId` from auth token claims
+- Admin-of-admins UI for adding new schools (only you / your business have this role)
+- Tenant isolation tests in Vitest
+- **Hard prerequisite for school #2** — without this, every new tenant is a fresh stack at ~3 hours of setup + recurring infra cost
+
+### Track 3 (months 4–6) — differentiation + Ghana-specific value
+
+#### 5. **Mobile PWA** — ~30–50 h
+- `public/manifest.json` with proper icons + install banner
+- Service worker with stale-while-revalidate for already-fetched routes
+- Offline reads for: attendance roster, lesson plans, recent results
+- Web Push subscription flow (Android only initially; iOS push is limited)
+- Differentiates vs SchoolPad's "must be online to do anything"
+
+#### 6. **WhatsApp Business API** — ~20–30 h
+- Connect via **Meta Cloud API** or **Twilio**
+- Mirror SMS triggers; deliver via WhatsApp where the parent has opted in
+- Two-way replies: parents text structured queries ("FEE 2025-0021" → fee balance reply)
+- Bulk messaging UI for defined audiences (all JHS 3 parents, etc.)
+- Replaces the school's ad-hoc WhatsApp group with structured comms; unique Ghana-market value
+
+### Track 4 (post-product-market-fit) — opportunistic
+
+#### 7. **AI-assisted features** — ~25–35 h
+- "Generate this week's lesson plan from my scheme of work" → LLM call → editable draft
+- "Suggest personalized comments for each student" → consume term scores + attendance + lesson record → 30 draft comments
+- Teacher always reviews / edits before save — never auto-published
+- Use Anthropic API (Claude Haiku for cost) or OpenAI 4o-mini
+- Premium-tier feature, +€500–1,000/year on subscription
+
+#### 8. **Online admissions** — ~25–35 h
+- Public application form (no login)
+- Document uploads via Firebase Storage signed URL
+- Application tracking dashboard for admin
+- Entrance exam scheduling
+- Acceptance / rejection email workflow
+- Auto-create student record on acceptance
+
+#### 9. **Library / inventory** — ~30–40 h
+- Book catalog + barcode lookup
+- Checkout / return flow per student
+- Asset register for non-book items (computers, projectors)
+- Maintenance / repair tracking
+
+#### 10. **Parent-teacher chat** — ~25–40 h
+- Threads per student, opt-in
+- Teacher availability hours respected
+- Admin oversight: all chats logged + auditable
+- Notifications via in-app + SMS + WhatsApp (depends on those modules)
+
+### Track 5 — deferred indefinitely (don't build unless a customer asks)
+
+- HR / payroll, hostel, transport, cafeteria, video class, online CBT, alumni management.
+
+### Validations before betting heavily on the roadmap
+
+1. **UHAS willingness to pay** for fees + SMS as an add-on — would they pay €1,000+ for the upgrade? If yes, the modules pay for their own engineering. If no, treat UHAS as a free beta on those modules in exchange for case-study rights.
+2. **Sales pipeline existence** — is there a real path to school #2 and #3? Without that, multi-tenancy is premature.
+3. **Paystack / Hubtel / mNotify accounts** — verify they can be opened from Europe; most require a Ghana-resident director + Ghana phone number. Workaround: partner with a Ghana-based operator who fronts the merchant account.
+4. **WhatsApp Business API approval** — Meta has tightened verification. Verify eligibility before committing engineering.
+5. **Multi-tenancy effort** — spec it in detail before starting; the Firebase claim model is a non-trivial design call.
+
+---
+
 ## ✅ Done — Drop JHS class streams
 
 The school runs **one class per level** — no parallel streams. The current seed has JHS classes named with a stream suffix (`JHS 1A`, `JHS 2A`, `JHS 3A`) and IDs like `class-jhs1a`. Drop the `A` everywhere; keep "Primary 1-6" + "JHS 1/2/3" as the canonical names. KG 1 / KG 2 already match.
