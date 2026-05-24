@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { memo, useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
@@ -84,7 +84,9 @@ export function AttendanceSheet({
     buildInitialRows(students, existingSession)
   );
 
-  function setStatus(studentId: string, status: AttendanceStatus) {
+  // Stable callbacks so the memoized row only re-renders when its own
+  // row state actually changes.
+  const setStatus = useCallback((studentId: string, status: AttendanceStatus) => {
     setRows((prev) => ({
       ...prev,
       [studentId]: {
@@ -96,28 +98,28 @@ export function AttendanceSheet({
         lateReason: status === "late" ? prev[studentId].lateReason : "",
       },
     }));
-  }
+  }, []);
 
-  function updateLateReason(studentId: string, lateReason: string) {
+  const updateLateReason = useCallback((studentId: string, lateReason: string) => {
     setRows((prev) => ({
       ...prev,
       [studentId]: { ...prev[studentId], lateReason },
     }));
-  }
+  }, []);
 
-  function updateNote(studentId: string, note: string) {
+  const updateNote = useCallback((studentId: string, note: string) => {
     setRows((prev) => ({
       ...prev,
       [studentId]: { ...prev[studentId], note },
     }));
-  }
+  }, []);
 
-  function toggleExpanded(studentId: string) {
+  const toggleExpanded = useCallback((studentId: string) => {
     setRows((prev) => ({
       ...prev,
       [studentId]: { ...prev[studentId], expanded: !prev[studentId].expanded },
     }));
-  }
+  }, []);
 
   function markAllPresent() {
     const next: Record<string, RowState> = {};
@@ -240,85 +242,17 @@ export function AttendanceSheet({
           {students.map((student) => {
             const row = rows[student.id];
             if (!row) return null;
-
             return (
-              <div key={student.id}>
-                <div className="flex items-center gap-3 py-3 border-b border-border/40 last:border-0">
-                  <div className="flex-1 flex items-center gap-3">
-                    <UserAvatar
-                      photoUrl={student.photoUrl}
-                      firstName={student.firstName}
-                      lastName={student.lastName}
-                      size="sm"
-                      gradient={avatarGradient(student.division)}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {student.firstName} {student.lastName}
-                      </p>
-                      <p className="hidden sm:block text-xs text-muted-foreground font-mono">{student.id}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    {STATUS_LABELS.map((status) => (
-                      <Button
-                        key={status}
-                        variant="outline"
-                        size="sm"
-                        disabled={!editable}
-                        onClick={() => setStatus(student.id, status)}
-                        className={cn(
-                          "capitalize px-2 sm:px-3",
-                          row.status === status && statusActiveClass(status)
-                        )}
-                      >
-                        <span className="hidden sm:inline">{status}</span>
-                        <span className="sm:hidden">{status[0].toUpperCase()}</span>
-                      </Button>
-                    ))}
-
-                    {editable && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleExpanded(student.id)}
-                        className="px-1"
-                      >
-                        {row.expanded ? (
-                          <ChevronUp size={14} />
-                        ) : (
-                          <ChevronDown size={14} />
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {row.expanded && editable && (
-                  <div className="pb-3 pl-12 space-y-2">
-                    {row.status === "late" && (
-                      <div>
-                        <Input
-                          placeholder="Reason for lateness (required)"
-                          value={row.lateReason}
-                          onChange={(e) => updateLateReason(student.id, e.target.value)}
-                          className={cn(
-                            "h-8 text-sm",
-                            !row.lateReason.trim() && "border-amber-300 focus-visible:ring-amber-300"
-                          )}
-                        />
-                      </div>
-                    )}
-                    <Input
-                      placeholder="Add a note (optional)"
-                      value={row.note}
-                      onChange={(e) => updateNote(student.id, e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                )}
-              </div>
+              <AttendanceRow
+                key={student.id}
+                student={student}
+                row={row}
+                editable={editable}
+                onSetStatus={setStatus}
+                onToggleExpanded={toggleExpanded}
+                onUpdateLateReason={updateLateReason}
+                onUpdateNote={updateNote}
+              />
             );
           })}
         </div>
@@ -342,3 +276,102 @@ export function AttendanceSheet({
     </Card>
   );
 }
+
+interface AttendanceRowProps {
+  student: Student;
+  row: RowState;
+  editable: boolean;
+  onSetStatus: (studentId: string, status: AttendanceStatus) => void;
+  onToggleExpanded: (studentId: string) => void;
+  onUpdateLateReason: (studentId: string, lateReason: string) => void;
+  onUpdateNote: (studentId: string, note: string) => void;
+}
+
+// Memoized so a single row only re-renders when its own row state or the
+// editable flag changes, not on every parent state update. At 350 students,
+// avoiding 349 wasted renders per cell change makes the sheet feel instant.
+const AttendanceRow = memo(function AttendanceRow({
+  student,
+  row,
+  editable,
+  onSetStatus,
+  onToggleExpanded,
+  onUpdateLateReason,
+  onUpdateNote,
+}: AttendanceRowProps) {
+  return (
+    <div>
+      <div className="flex items-center gap-3 py-3 border-b border-border/40 last:border-0">
+        <div className="flex-1 flex items-center gap-3">
+          <UserAvatar
+            photoUrl={student.photoUrl}
+            firstName={student.firstName}
+            lastName={student.lastName}
+            size="sm"
+            gradient={avatarGradient(student.division)}
+          />
+          <div>
+            <p className="text-sm font-medium">
+              {student.firstName} {student.lastName}
+            </p>
+            <p className="hidden sm:block text-xs text-muted-foreground font-mono">{student.id}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          {STATUS_LABELS.map((status) => (
+            <Button
+              key={status}
+              variant="outline"
+              size="sm"
+              disabled={!editable}
+              onClick={() => onSetStatus(student.id, status)}
+              className={cn(
+                "capitalize px-2 sm:px-3",
+                row.status === status && statusActiveClass(status)
+              )}
+            >
+              <span className="hidden sm:inline">{status}</span>
+              <span className="sm:hidden">{status[0].toUpperCase()}</span>
+            </Button>
+          ))}
+
+          {editable && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onToggleExpanded(student.id)}
+              className="px-1"
+            >
+              {row.expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {row.expanded && editable && (
+        <div className="pb-3 pl-12 space-y-2">
+          {row.status === "late" && (
+            <div>
+              <Input
+                placeholder="Reason for lateness (required)"
+                value={row.lateReason}
+                onChange={(e) => onUpdateLateReason(student.id, e.target.value)}
+                className={cn(
+                  "h-8 text-sm",
+                  !row.lateReason.trim() && "border-amber-300 focus-visible:ring-amber-300"
+                )}
+              />
+            </div>
+          )}
+          <Input
+            placeholder="Add a note (optional)"
+            value={row.note}
+            onChange={(e) => onUpdateNote(student.id, e.target.value)}
+            className="h-8 text-sm"
+          />
+        </div>
+      )}
+    </div>
+  );
+});

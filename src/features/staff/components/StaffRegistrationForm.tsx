@@ -35,6 +35,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { createStaffAction } from "@/features/staff/actions";
+import { STAFF_SYSTEM_ROLES } from "@/features/auth/types";
 
 const schema = z
   .object({
@@ -46,7 +47,7 @@ const schema = z
     firstName: z.string().min(2, { message: "Must be at least 2 characters" }),
     lastName: z.string().min(2, { message: "Must be at least 2 characters" }),
     rank: z.string().min(2, { message: "Must be at least 2 characters" }),
-    systemRole: z.enum(["Admin", "DeputyHead", "Teacher"], {
+    systemRole: z.enum(STAFF_SYSTEM_ROLES, {
       message: "Select a role",
     }),
     division: z.enum(["KG", "Lower Primary", "Upper Primary", "JHS"]).optional(),

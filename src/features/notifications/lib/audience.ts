@@ -11,6 +11,7 @@ import {
 import { getCurrentSchoolId } from "@/lib/school";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import type { AudienceSpec } from "@/features/notifications/types";
+import type { StaffSystemRole } from "@/features/auth/types";
 
 // Resolves an AudienceSpec to a deduped list of active user IDs (Firebase UIDs).
 // Deactivated users (`users.isActive = false`) are filtered out — they don't
@@ -55,7 +56,7 @@ async function resolve(spec: AudienceSpec, schoolId: string): Promise<string[]> 
       });
       const ids = staffRows
         .filter((s) =>
-          !spec.roles || (s.systemRole && spec.roles.includes(s.systemRole as "Admin" | "DeputyHead" | "Teacher"))
+          !spec.roles || (s.systemRole && spec.roles.includes(s.systemRole as StaffSystemRole))
         )
         .map((s) => s.id);
       if (ids.length === 0) return [];

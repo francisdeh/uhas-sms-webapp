@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -55,7 +55,7 @@ function renderJson(obj: unknown, highlight: Set<string>): React.ReactNode {
   );
 }
 
-export function AuditEventRow({ event }: Props) {
+function AuditEventRowInner({ event }: Props) {
   const [open, setOpen] = useState(false);
   const highlight = changedKeys(event.before, event.after);
   const when = new Date(event.createdAt);
@@ -110,3 +110,7 @@ export function AuditEventRow({ event }: Props) {
     </div>
   );
 }
+
+// Memoized — audit list filters frequently and the JSON-diff cost per row is
+// non-trivial. Row only re-renders when its event payload changes by reference.
+export const AuditEventRow = memo(AuditEventRowInner);

@@ -113,7 +113,23 @@ Take the top 10 worst offenders, fix in a PR per file. Each PR is ~30 min. Total
 
 ---
 
-## 3. Hardcoded role strings — `~3–5 h`
+## 3. Hardcoded role strings — ✅ Done (PR #10, 2026-05-21)
+
+On audit: looked closer than the headline 76-occurrence count suggested. Most sites were already type-narrowed comparisons (`role === "Admin"` against `UserRole`) — TS catches typos at those sites already.
+
+Real shipped wins:
+- Added `STAFF_SYSTEM_ROLES` + `StaffSystemRole` in `src/features/auth/types.ts` as a `readonly` tuple — doubles as a `z.enum()`-compatible literal.
+- Replaced the only `as "Admin" | "DeputyHead" | "Teacher"` cast in `audience.ts`.
+- De-duplicated identical role arrays in `StaffRegistrationForm`, `StaffDetail`, `UsersTable`.
+- `AudienceSpec.roles` in `notifications/types.ts` now uses `StaffSystemRole[]` instead of an inline string union.
+
+Pure comparison + filter sites (`eq(users.role, "Admin")`, `if (role === "Parent")`, etc.) were left as literals — TypeScript already narrows them. Display strings like `label: "Admin"` are intentionally separate and stay literal.
+
+The convention going forward (per ENGINEERING-CONVENTIONS.md §7): **use exported constants when the value participates in a cast, array, or zod schema; bare literals are fine for type-narrowed comparisons.**
+
+---
+
+### Original findings (kept for reference)
 
 **Findings:** 76 occurrences of literal `"Admin"` / `"Teacher"` / `"Parent"` / `"DeputyHead"` across the codebase. A `USER_ROLES` constant exists in `src/features/auth/types.ts` but isn't used everywhere.
 
@@ -226,6 +242,21 @@ Add `loading.tsx` (skeleton) + `error.tsx` (graceful retry) to:
 Each is ~30 min. Total ~6 h. Add the global `error.tsx` for unhandled cases (~1 h).
 
 ---
+
+## 7. Memoization on hot list/grid components — ✅ Done (PR #10, 2026-05-21)
+
+Shipped:
+- **AttendanceSheet** — extracted `AttendanceRow` as a `memo`'d component. Per-cell state changes now re-render 1 row instead of 350. State handlers wrapped in `useCallback` so the row's prop refs are stable.
+- **AuditEventRow** — wrapped the existing row component in `memo`. JSON-diff cost was real; filter operations on the parent no longer re-render every row.
+- **StudentsTable** — wrapped the TanStack column definitions in `useMemo([isPending])`. Stable column refs across re-renders unlock TanStack's internal row memoization.
+
+Deferred to a follow-up:
+- **ScoreEntryGrid** — needs a `memo` wrapper on `ScoreCell` *plus* a refactor of the per-cell inline closures (`onChange={(v) => updateField(row.studentId, "cat1", v)}`) into stable handlers that take `studentId + field` as arguments. ~1.5h on its own; left out of this PR to keep scope tight.
+- **NotificationsDropdown** — only ~10 items in the dropdown, polling refetch is the whole point. Skipping; cost vs benefit doesn't justify.
+
+---
+
+### Original findings (kept for reference)
 
 ## 7. 4 of ~60+ components use memoization — `~4–6 h targeted`
 

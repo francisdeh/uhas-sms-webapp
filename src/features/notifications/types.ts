@@ -1,3 +1,5 @@
+import type { StaffSystemRole } from "@/features/auth/types";
+
 // In-app notification kinds. Add new ones here; the lib/templates.ts
 // resolver narrows on the union.
 export type NotificationKind =
@@ -17,7 +19,7 @@ export type AudienceSpec =
   | { type: "user"; userId: string }
   | { type: "users"; userIds: string[] }
   | { type: "staff"; staffId: string }
-  | { type: "staffByDivision"; division: string; roles?: ("Admin" | "DeputyHead" | "Teacher")[] }
+  | { type: "staffByDivision"; division: string; roles?: StaffSystemRole[] }
   | { type: "unitHeadOfDivision"; division: string }
   | { type: "allTeachers" }
   | { type: "allAdmins" }
