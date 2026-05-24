@@ -265,6 +265,7 @@ Persistent reference docs — pick up when you have the time, not in any forced 
 | [`docs/COMPETITIVE-ANALYSIS.md`](docs/COMPETITIVE-ANALYSIS.md) | Where we win/lose vs SchoolPad et al; missing features ranked by market impact |
 | [`docs/FEATURE-ENHANCEMENTS.md`](docs/FEATURE-ENHANCEMENTS.md) | Depth gaps in features we already shipped (leave, student/staff profiles, exams, report cards, etc.) |
 | [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) | Technical-debt items (DB indexes, drizzle relations, loading states, caching, etc.) |
+| [`docs/ENGINEERING-CONVENTIONS.md`](docs/ENGINEERING-CONVENTIONS.md) | Coding principles future PRs follow — the load-bearing rules also live in [`CLAUDE.md`](CLAUDE.md) |
 | [`docs/PRICING.md`](docs/PRICING.md) | Pricing model, scaling math, negotiation room |
 | [`docs/implementation-spec.md`](docs/implementation-spec.md#next-up--commercial-roadmap-drives-sales-readiness) | Engineering-side punch list of the commercial roadmap items |
 

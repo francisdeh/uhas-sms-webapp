@@ -83,17 +83,42 @@ src/features/<name>/
 
 ## Coding Conventions
 
+Full conventions in [docs/ENGINEERING-CONVENTIONS.md](docs/ENGINEERING-CONVENTIONS.md). Load-bearing rules:
+
+### General style
 - **No comments** unless the WHY is non-obvious. Well-named identifiers are self-documenting.
 - **No speculative abstractions.** Don't build helpers or utilities until you need them in 3+ places.
 - **TypeScript strict mode is on.** No `any`, no `@ts-ignore` unless absolutely unavoidable and explained.
+- **Use exported constants for known unions** — `USER_ROLES`, `Division`, `LessonPlanStatus`, etc. Never compare against bare string literals.
 - **Tailwind for all styling.** No CSS modules, no inline styles. Use `cn()` from `src/lib/utils.ts` for conditional classes.
 - **shadcn/ui for all UI primitives** — inputs, buttons, labels, dialogs, selects, etc. Components live in `src/components/ui/`. Add missing ones with `npx shadcn@latest add <name> -y`. Never use raw HTML form elements in feature components.
 - **Zod for all form validation.** Every form uses `react-hook-form` + `zodResolver` + a Zod schema. Pass error messages as objects (`{ message: "..." }`) not bare strings.
 - **Sonner for all toasts.** Import from `sonner` — `toast.success()`, `toast.error()`.
+
+### Database
+- **Always filter by `schoolId`** via `getCurrentSchoolId()` — every table is multi-tenant-anchored.
+- **Index FK columns and filter-heavy columns** in the same migration that adds them. Postgres doesn't auto-index FKs.
+- **Prefer Drizzle relations + `with:` over manual joins.** Relations live in `src/db/schema.ts`. One query beats four.
+- **Migrations only, no `db:push`.** `npm run db:generate` then `npm run db:migrate`. SQL must be reviewable in the PR.
+- **Soft-delete high-risk tables** (lesson plans, scores, assignments, schemes) with `deletedAt` rather than `db.delete(...)`.
+
+### Server Actions
+- **Return `ActionResult<T>`** — `{ success: true; data?: T } | { success: false; error: string }`. Never throw from an action; catch and return.
+- **Audit-log sensitive mutations** (score overrides, student edits, role changes, promotion approvals, settings updates) via `src/lib/audit-log.ts`.
+- **Never log auth tokens or session cookies.** Decoded `uid` / `email` only.
+- **Call `revalidatePath`** after data-mutating actions for routes that show the data.
+
+### UI
+- **Server Components by default.** Add `"use client"` only for interactivity / hooks / browser APIs.
+- **`loading.tsx` + `error.tsx` on every data-fetching route.** The 4 role-dashboard routes are templates.
+- **Memoize hot list/grid components** (50+ rows): `React.memo` on rows, `useCallback` for prop handlers.
 - **All destructive actions need a confirmation dialog** before executing.
-- **Audit-log admin mutations** (score overrides, student edits, role changes) via the `audit_log` table.
 - **Theming**: two orthogonal axes on `<html>` — `class="dark"` (light/dark via `useTheme().setTheme()`) and `data-color-scheme="uhas"` (UHAS brand colours via `useTheme().setColorScheme()`). **UHAS is the default**: the root layout renders `<html data-color-scheme="uhas">` so the brand palette applies on first paint. Switching to `"default"` removes the attribute. Brand palette overrides live in `globals.css` under `:root[data-color-scheme="uhas"]`. Reference brand colours through Tailwind tokens (`bg-brand`, `text-accent-orange`) — never hardcode hex literals in components, or theme switching will skip them.
 - **Mobile responsive**: every page-header row that pairs a title with an action button uses `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`. Wide tables wrap in `overflow-x-auto`. Report cards / PSC report use `overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0` to allow side-scroll on phones while keeping print layout intact.
+
+### Quality
+- **Don't commit secrets.** `.env.local`, service-account JSONs, Firebase keys, Neon URLs, App Passwords all stay out of git.
+- **CI must be green before merge.** Lint + tsc + Vitest on every PR; E2E on `main` pushes. Railway deploy is gated on it.
 
 ---
 
