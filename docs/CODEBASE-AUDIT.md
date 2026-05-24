@@ -90,6 +90,36 @@ That's ~16 indexes covering the 10 worst hot paths. One migration.
 
 ---
 
+## 2. Type escape hatches — ✅ Done (PR #13, 2026-05-21)
+
+**The original "162 occurrences" figure was a false alarm.** The audit grep `"any\|@ts-ignore\|@ts-expect-error"` matched the literal word "any" wherever it appeared — including comments ("any user can…"), strings, and words containing "any" ("many", "company", "anyway"). Re-counting with a stricter pattern revealed the actual scale:
+
+- **0** `as any` casts
+- **0** `: any` annotations
+- **3** `@ts-expect-error` directives (all in one file, all for Firebase SDK's private `_isEmulator` field)
+- **9** `as unknown as` escape hatches
+
+Shipped:
+
+- **`src/lib/firebase.ts`** — replaced 3 `@ts-expect-error` directives with a local `EmulatorAware` view type.
+- **`src/db/with-tx.ts`** (new) — `asDbClient<T>(tx)` helper isolates the `tx as unknown as typeof db` cast pattern. Folds 4 scattered call-site casts into one well-documented helper. Used by `writeAuditLog` callers in promotions + exams.
+
+After cleanup, **5 `as unknown as` casts remain**, all justified and documented:
+
+| Site | Reason |
+|---|---|
+| `app/(dashboard)/teacher/page.tsx:51` | Select projection shape coerced to `$inferSelect` for hydration helper. Comment notes the mismatch. |
+| `features/settings/queries/get-school-settings.ts:79–80` | Drizzle's `date` column is typed as `Date` but stored/returned as ISO string. Cross-cutting Drizzle quirk. |
+| `features/settings/actions/_helpers.ts:33` | Iterating an arbitrary Drizzle row as `Record<string, unknown>` to compute field-level audit diffs. Fundamental — diff helper needs runtime keys. |
+| `db/index.ts:47` | Proxy property access for the lazy `db` client. By design — Proxy intercepts arbitrary keys. |
+| `db/with-tx.ts:16` | The single isolated helper that replaces the previous 4 scattered casts. |
+
+The codebase was already type-safe to a reasonable degree; this item closed out by tightening what was tightenable and documenting the rest. **Convention going forward**: prefer typed views (`type EmulatorAware = …`) over `@ts-expect-error`, and prefer named helpers (`asDbClient`) over scattered `as unknown as`.
+
+---
+
+### Original findings (kept for reference)
+
 ## 2. 162 `any` / `ts-ignore` / `ts-expect-error` occurrences — `~30–60 h incremental`
 
 **Findings:** 162 instances of `any`, `@ts-ignore`, or `@ts-expect-error` across the codebase. For a project this size, that's high — it means a fair amount of code escapes the type system.
