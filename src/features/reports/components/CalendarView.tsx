@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import { formatDateWithWeekday as formatDate } from "@/lib/dates";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,15 +59,6 @@ const TYPE_COLORS: Record<CalendarEventType, string> = {
   holiday: "bg-amber-100 text-amber-700",
   event: "bg-purple-100 text-purple-700",
 };
-
-function formatDate(iso: string): string {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function formatRange(start: string, end: string | null): string {
   if (!end) return formatDate(start);

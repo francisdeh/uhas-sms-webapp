@@ -3,11 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatCardLite, Bar } from "./StatCardLite";
+import { formatDate } from "@/lib/dates";
 import type { ClassStats } from "@/features/reports/types";
 
 function formatDateShort(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
+  return formatDate(iso, "EEE, d");
 }
 
 function gradeBadgeColor(avg: number): string {

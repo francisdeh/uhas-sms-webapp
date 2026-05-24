@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
+import { formatDate } from "@/lib/dates";
 import { db } from "@/db";
 import { classes, enrollments, studentGuardians, students } from "@/db/schema";
 import Link from "next/link";
@@ -19,11 +20,7 @@ const DIVISION_PILL: Record<string, string> = {
 };
 
 function formatDob(dob: string) {
-  return new Date(dob + "T00:00:00").toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDate(dob);
 }
 
 export default async function ParentChildrenPage() {

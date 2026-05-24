@@ -330,6 +330,25 @@ Targeted optimization for the 5 listed components. ~1 h each. Use `React.memo` o
 
 ---
 
+## 8. Date / time handling — ✅ Done (PR #14, 2026-05-21)
+
+Shipped:
+
+- **`src/lib/dates.ts` (new)** — `date-fns`-backed helpers: `formatDate`, `formatDateLong`, `formatDateWithWeekday`, `formatDateShort`, `formatDateTime`, `todayISO`, `daysBetween`. Single place to change format conventions or swap libraries.
+- **17 timezone-fragile `new Date(\`${date}T00:00:00\`).toLocaleDateString(...)` sites converted** across 14 files. The pattern interpreted `YYYY-MM-DD` as local midnight in the server's TZ — Railway pod TZ varies by region, so a date stored "2026-05-15" could render as 14 May or 15 May depending on which deploy region the request hit. The helpers parse with `parseISO`, which is consistent.
+- **`date-fns` added** as a runtime dep (~70 kB raw, tree-shakes well).
+
+What stayed:
+- **`audit-log/queries/list-audit-events.ts`** — uses `T00:00:00Z` (explicit UTC) for query bounds. Intentional and documented inline; not the fragile pattern.
+- **Test fixtures** in `suggestion.test.ts` use hardcoded ISO timestamps — fine, no display rendering involved.
+- **Drizzle ORM internal date typing** (the `as unknown as string` cast in `get-school-settings`) — documented in [§2](#2-type-escape-hatches--done-pr-13-2026-05-21).
+
+Going forward: ENGINEERING-CONVENTIONS.md §20 now has concrete helper signatures and explicit no-no patterns. PR reviews can cite the rule.
+
+---
+
+### Original findings (kept for reference)
+
 ## 8. Date / time handling inconsistent — `~10–15 h`
 
 **Findings:** dates are handled as raw strings or `Date` constructors inconsistently:

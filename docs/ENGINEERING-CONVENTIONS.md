@@ -230,15 +230,27 @@ Vitest tests live in `tests/{unit,integration}/<feature>.test.ts`. Playwright sp
 
 ## Dates and times
 
-### 20. Centralize date handling
+### 20. Centralize date handling via `src/lib/dates.ts`
 
-When `src/lib/dates.ts` exists (planned per [CODEBASE-AUDIT.md §8](CODEBASE-AUDIT.md#8-date--time-handling-inconsistent--1015-h)), use its helpers. Until then:
+Use the helpers in [`src/lib/dates.ts`](../src/lib/dates.ts), never raw `new Date(...)` for display. The helpers wrap `date-fns` and enforce consistent formatting.
 
-- **Date-only values** (DoB, exam date, term start/end): store as `YYYY-MM-DD` strings, never `Date`.
-- **Timestamps** (createdAt, reviewedAt): store as `Date` / `timestamp` columns.
-- **Display in Africa/Accra**: planned for centralization; today inline `toLocaleDateString("en-GB", ...)` is acceptable.
+```ts
+import { formatDate, formatDateLong, formatDateWithWeekday, todayISO } from "@/lib/dates";
 
-Avoid string concat to build dates: `new Date(`${date}T00:00:00`)` is timezone-fragile. Use ISO strings or a library.
+formatDate("2026-05-15")                  // "15 May 2026"
+formatDateLong("2026-05-15")              // "Friday, 15 May 2026"
+formatDateWithWeekday("2026-05-15")       // "Fri, 15 May 2026"
+formatDate("2026-05-15", "EEEE, d MMM")   // custom format via date-fns tokens
+todayISO()                                // "2026-05-22" — for date input defaults
+```
+
+Storage conventions:
+- **Date-only values** (DoB, exam date, term start/end, attendance date): store as `YYYY-MM-DD` strings. The helpers parse those correctly as local-date (no timezone shift).
+- **Timestamps** (createdAt, reviewedAt): store as `Date` / `timestamp` columns. The helpers accept either Date or ISO-string.
+
+**Never write** `new Date(\`${date}T00:00:00\`).toLocaleDateString(...)` — string concat to local-midnight is timezone-fragile (in dev's TZ, a school in Accra would render midnight Accra; on a Railway pod in a different region, the date drifts). The helpers parse with `parseISO`, which is consistent regardless of server TZ.
+
+If you need a custom format, pass a date-fns token string to `formatDate(value, fmt)`. Don't recreate the parsing.
 
 ---
 

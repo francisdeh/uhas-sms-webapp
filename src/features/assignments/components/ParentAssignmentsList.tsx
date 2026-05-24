@@ -3,21 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DocumentDownloadLink } from "@/features/uploads/components/DocumentDownloadLink";
 import { EmptyState } from "@/components/ui/empty-state";
+import { formatDateWithWeekday as formatDate } from "@/lib/dates";
 import type { Assignment } from "@/features/assignments/types";
 
 interface ParentAssignmentsListProps {
   assignments: Assignment[];
   childNames: Record<string, string>;
   classChildIds: Record<string, string[]>;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function dueState(iso: string): "overdue" | "today" | "upcoming" {
