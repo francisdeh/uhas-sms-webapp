@@ -222,6 +222,42 @@ Two paths:
 
 ---
 
+## 5. Error-handling normalization — ✅ Done (PR #15, 2026-05-21)
+
+The audit framed this as "actions return inconsistently; do a services-layer refactor". On closer look, the actual problem was **17 ad-hoc copies of the same `type ActionResult = ...` definition** plus **14 inline `Promise<{ success: true; ... } | { success: false; error: string }>` return shapes** — not behavioral inconsistency. The actions all already used the success/error pattern; they just each redeclared the type.
+
+Shipped:
+
+- **[`src/lib/action-result.ts`](../src/lib/action-result.ts)** (new) — single canonical generic:
+
+  ```ts
+  export type ActionResult<T = void> =
+    | (T extends void ? { success: true } : { success: true } & T)
+    | { success: false; error: string };
+  ```
+
+  Intersection-with-T preserves the existing destructure ergonomic (`result.id`, `result.redirect`, etc.).
+
+- **17 duplicate local types removed** across the feature modules. Each `actions/index.ts` now `import type { ActionResult } from "@/lib/action-result"`.
+
+- **14 inline return shapes converted** to `Promise<ActionResult<{ id: string }>>` etc. for clarity at the function signature.
+
+- **`extendSessionAction`** — was the only action with a custom-data success shape via a private type; now uses `ActionResult<{ newExpiryMs: number }>`.
+
+- **`createUserAction`** — was `Promise<ActionResult & { uid?: string; inviteLink?: string }>` (optionals on both branches, type-lossy); now `Promise<ActionResult<{ uid: string; inviteLink: string }>>` (data only on success).
+
+- **`features/settings/types.ts` + `features/notifications/types.ts`** — switch from local definitions to `export type { ActionResult } from "@/lib/action-result"`.
+
+- **[ENGINEERING-CONVENTIONS.md §9](ENGINEERING-CONVENTIONS.md)** updated with the canonical type, usage examples, and the explicit "don't throw from public actions" rule with rationale (throwing falls through to `error.tsx` boundaries — correct for programming bugs, wrong for business errors like "not found").
+
+### What was deferred (true services-layer refactor)
+
+The audit's stretch goal was *"extract business logic out of actions into services; actions become thin try/catch adapters"*. That's a much bigger refactor (~12+ hours across 12 feature modules) and pairs naturally with the **JSON API surface** work on the commercial roadmap (mobile/partner-school clients need a non-Server-Action invocation path). Deferred to that workstream. The current actions are not bad enough to need a forced split; type + convention is the right scope for this audit item.
+
+---
+
+### Original findings (kept for reference)
+
 ## 5. Inconsistent error handling between server actions — `~8–12 h`
 
 **Findings:** some actions return `{ success: true } | { success: false, error: string }` (the typical pattern). Others throw `Error("...")`. Some return `null` for "not found", others throw. Some return `void` on success.

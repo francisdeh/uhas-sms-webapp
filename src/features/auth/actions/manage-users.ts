@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
@@ -63,11 +64,10 @@ export type CreateUserInput = {
   linkedId: string;
 };
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 export async function createUserAction(
   input: CreateUserInput
-): Promise<ActionResult & { uid?: string; inviteLink?: string }> {
+): Promise<ActionResult<{ uid: string; inviteLink: string }>> {
   try {
     const tempPassword = Math.random().toString(36).slice(-10) + "A1!";
     const created = await adminAuth.createUser({

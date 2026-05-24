@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull } from "drizzle-orm";
@@ -15,7 +16,6 @@ import type {
 } from "@/features/schemes/types";
 import type { Division } from "@/features/auth/types";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 async function hydrateMany(
   rows: (typeof schemes.$inferSelect)[]
@@ -113,7 +113,7 @@ export async function getSchemeAction(id: string): Promise<Scheme | null> {
 export async function createSchemeAction(input: {
   teacherId: string;
   data: CreateSchemeInput;
-}): Promise<{ success: true; id: string } | { success: false; error: string }> {
+}): Promise<ActionResult<{ id: string }>> {
   const schoolId = await getCurrentSchoolId();
   const year = await getCurrentAcademicYear();
 

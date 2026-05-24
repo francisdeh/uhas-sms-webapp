@@ -1,8 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-
-type ActionResult = { success: true; newExpiryMs: number } | { success: false; error: string };
+import type { ActionResult } from "@/lib/action-result";
 
 const SESSION_KEYS = [
   "session_uid",
@@ -14,7 +13,7 @@ const SESSION_KEYS = [
 
 // Re-issue every session cookie with a fresh 8h maxAge. Called from the
 // expiry-warning modal's "Extend" button.
-export async function extendSessionAction(): Promise<ActionResult> {
+export async function extendSessionAction(): Promise<ActionResult<{ newExpiryMs: number }>> {
   const cookieStore = await cookies();
   const uid = cookieStore.get("session_uid")?.value;
   if (!uid) return { success: false, error: "Not signed in." };

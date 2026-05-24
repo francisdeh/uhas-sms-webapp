@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
@@ -20,7 +21,6 @@ import { parseAudience } from "@/features/announcements/types";
 import { getSchoolSettings } from "@/features/settings/queries/get-school-settings";
 import { notifyAudience } from "@/features/notifications/lib/create-notification";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 async function hydrateMany(rows: (typeof announcements.$inferSelect)[]): Promise<Announcement[]> {
   if (rows.length === 0) return [];
@@ -125,7 +125,7 @@ export async function listAnnouncementsForGuardianAction(
 export async function createAnnouncementAction(input: {
   authorId: string;
   data: CreateAnnouncementInput;
-}): Promise<{ success: true; id: string } | { success: false; error: string }> {
+}): Promise<ActionResult<{ id: string }>> {
   const schoolId = await getCurrentSchoolId();
   const author = await db.query.staff.findFirst({ where: eq(staff.id, input.authorId) });
   if (!author) return { success: false, error: "Author not found." };

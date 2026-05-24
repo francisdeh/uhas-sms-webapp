@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { revalidatePath } from "next/cache";
 import { eq, inArray, and, isNull } from "drizzle-orm";
@@ -19,7 +20,6 @@ import type {
 } from "@/features/lesson-plans/types";
 import type { Division } from "@/features/auth/types";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 // Row shape after a query with `with: { teacher, reviewer, subject, class }`.
 type StaffRow = InferSelectModel<typeof staff>;
@@ -139,7 +139,7 @@ async function lookupNames(teacherId: string, subjectId: string, classId: string
 export async function createLessonPlanAction(input: {
   teacherId: string;
   data: CreateLessonPlanInput;
-}): Promise<{ success: true; id: string } | { success: false; error: string }> {
+}): Promise<ActionResult<{ id: string }>> {
   const schoolId = await getCurrentSchoolId();
   const names = await lookupNames(input.teacherId, input.data.subjectId, input.data.classId);
   if (!names.division) return { success: false, error: "Class not found." };

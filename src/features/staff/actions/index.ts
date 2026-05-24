@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -16,7 +17,6 @@ import type {
   ToggleUnitHeadInput,
 } from "@/features/staff/types";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 const ROLE_WEIGHT: Record<Staff["systemRole"], number> = {
   Admin: 0,

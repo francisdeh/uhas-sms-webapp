@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -25,7 +26,6 @@ import type {
 } from "@/features/students/types";
 import type { Division } from "@/features/auth/types";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 const DIVISION_WEIGHT: Record<Division, number> = {
   KG: 0,
@@ -103,7 +103,7 @@ export async function listStudentsAction(division?: Division): Promise<Student[]
 
 export async function createStudentAction(
   input: CreateStudentInput
-): Promise<{ success: true; id: string } | { success: false; error: string }> {
+): Promise<ActionResult<{ id: string }>> {
   const schoolId = await getCurrentSchoolId();
   const year = await getCurrentAcademicYear();
 

@@ -1,4 +1,5 @@
 "use server";
+import type { ActionResult } from "@/lib/action-result";
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -40,7 +41,6 @@ import {
   hasAnyComponentScore,
 } from "@/features/exams/utils";
 
-type ActionResult = { success: true } | { success: false; error: string };
 
 function toExam(row: typeof exams.$inferSelect): Exam {
   return {
@@ -113,7 +113,7 @@ export async function getExamAction(id: string): Promise<Exam | null> {
 
 export async function createExamAction(
   input: CreateExamInput
-): Promise<{ success: true; id: string } | { success: false; error: string }> {
+): Promise<ActionResult<{ id: string }>> {
   const schoolId = await getCurrentSchoolId();
 
   const duplicate = await db.query.exams.findFirst({

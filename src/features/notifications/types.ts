@@ -40,4 +40,4 @@ export type NotificationView = {
   createdAt: Date;
 };
 
-export type ActionResult = { success: true } | { success: false; error: string };
+export type { ActionResult } from "@/lib/action-result";
