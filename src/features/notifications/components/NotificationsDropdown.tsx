@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff, CheckCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +29,7 @@ export function NotificationsDropdown() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
-  const { data } = useQuery<BellData | null>({
+  const { data, isPending } = useQuery<BellData | null>({
     queryKey: ["bell-data"],
     queryFn: () => getBellDataAction(),
     refetchInterval: POLL_INTERVAL_MS,
@@ -83,7 +84,20 @@ export function NotificationsDropdown() {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
 
-        {items.length === 0 ? (
+        {isPending && items.length === 0 ? (
+          <div className="py-1">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="px-3 py-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-1.5 w-1.5 rounded-full" />
+                  <Skeleton className="h-3.5 flex-1" />
+                  <Skeleton className="h-2.5 w-8" />
+                </div>
+                <Skeleton className="h-3 w-4/5 ml-3.5" />
+              </div>
+            ))}
+          </div>
+        ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-8 px-4 text-center">
             <BellOff size={20} className="text-muted-foreground/60" />
             <p className="text-sm text-muted-foreground">No notifications yet</p>
