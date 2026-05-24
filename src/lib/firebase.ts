@@ -15,19 +15,22 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const storage = getStorage(app);
 
+// Firebase doesn't expose `_isEmulator` on its public types, but the field
+// is set internally after connect{Auth,Storage}Emulator. A local view type
+// reads/writes it without escape hatches; trades 3 ts-expect-error
+// directives for one well-named view.
+type EmulatorAware = { _isEmulator?: boolean };
+
 if (
   process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true" &&
   typeof window !== "undefined"
 ) {
-  // @ts-expect-error - emulator flag not on auth type
-  if (!auth._isEmulator) {
+  if (!(auth as EmulatorAware)._isEmulator) {
     connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
   }
-  // @ts-expect-error - emulator flag not on storage type
-  if (!storage._isEmulator) {
+  if (!(storage as EmulatorAware)._isEmulator) {
     connectStorageEmulator(storage, "localhost", 9199);
-    // @ts-expect-error
-    storage._isEmulator = true;
+    (storage as EmulatorAware)._isEmulator = true;
   }
 }
 

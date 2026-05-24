@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
+import { asDbClient } from "@/db/with-tx";
 import {
   classes,
   enrollments,
@@ -484,7 +485,7 @@ export async function approveSubmissionAction(input: {
       .where(eq(promotionSubmissions.id, sub.id));
 
     // 5. Audit log
-    await writeAuditLog(tx as unknown as typeof db, {
+    await writeAuditLog(asDbClient(tx), {
       userId: actor,
       action: "PROMOTION_APPROVED",
       targetTable: "promotion_submissions",

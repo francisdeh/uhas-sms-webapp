@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
+import { asDbClient } from "@/db/with-tx";
 import {
   exams,
   scores,
@@ -514,7 +515,7 @@ export async function saveClassReportDraftAction(input: {
 
   await db.transaction(async (tx) => {
     for (const r of input.remarks) {
-      await upsertRemark(tx as unknown as typeof db, input.examId, r.studentId, {
+      await upsertRemark(asDbClient(tx), input.examId, r.studentId, {
         classTeacherRemark: r.classTeacherRemark.trim() || null,
       });
     }
@@ -535,7 +536,7 @@ export async function submitClassReportAction(
 
   await db.transaction(async (tx) => {
     for (const r of input.remarks) {
-      await upsertRemark(tx as unknown as typeof db, input.examId, r.studentId, {
+      await upsertRemark(asDbClient(tx), input.examId, r.studentId, {
         classTeacherRemark: r.classTeacherRemark.trim() || null,
       });
     }
@@ -580,7 +581,7 @@ export async function updateHeadOfSchoolCommentAction(input: {
   if (exam.isPublished) return { success: false, error: "Exam is published; comments are locked." };
 
   await db.transaction(async (tx) => {
-    await upsertRemark(tx as unknown as typeof db, input.examId, input.studentId, {
+    await upsertRemark(asDbClient(tx), input.examId, input.studentId, {
       headOfSchoolComment: input.comment.trim() || null,
     });
   });
