@@ -186,7 +186,22 @@ Do this incrementally — pick one feature module (start with the one with the m
 
 ---
 
-## 6. Few loading + error boundaries — `~6–10 h`
+## 6. Loading + error boundaries — ✅ Done (PR #9, 2026-05-21)
+
+The loading-state side turned out to be near-complete on inspection: **80 `loading.tsx` files** across the app (4 per role + per-route skeletons everywhere). Only auth pages without data fetches were skipped — appropriate.
+
+The real gap was **error boundaries: zero in the entire app**. Shipped:
+
+- `src/components/ui/error-state.tsx` — shared visual component (icon, title, description, `error.digest`, retry + home buttons)
+- `src/app/(dashboard)/error.tsx` — catches all dashboard route errors inside the role layout (sidebar + header stay intact)
+- `src/app/error.tsx` — catches non-dashboard routes (auth flows etc.), links back to login
+- `src/app/global-error.tsx` — catastrophic boundary owning its own `<html>` + `<body>` with pure inline styles in case the design system itself failed to load
+
+Going forward, any new route that does DB reads is covered by the parent boundary automatically. The [ENGINEERING-CONVENTIONS.md §14](ENGINEERING-CONVENTIONS.md) rule about adding `error.tsx` siblings can now be enforced PR-by-PR for routes that need closer-than-segment-level handling.
+
+---
+
+### Original findings (kept for reference)
 
 **Findings:** 4 `loading.tsx` files (one per role dashboard). Zero `error.tsx` files. No skeletons on nested routes.
 
