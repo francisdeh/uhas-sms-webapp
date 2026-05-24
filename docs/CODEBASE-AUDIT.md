@@ -302,7 +302,21 @@ Adopt `next-intl`. Extract strings to message files. ~20–30 h spread across co
 
 ---
 
-## 11. Drizzle relations not defined — `~3–5 h`
+## 11. Drizzle relations — ✅ Done (PR #7, 2026-05-21)
+
+Shipped: `relations()` declarations added to `src/db/schema.ts` for 12 tables (users, staff, students, classes, enrollments, attendanceSessions, attendanceRecords, lessonPlans, schemes, exams, scores, announcements, notifications). The hottest path — `src/features/lesson-plans/actions/index.ts` — was migrated to use `with:` joins:
+
+- `listLessonPlansForTeacherAction`: **4 round-trips → 1**
+- `listLessonPlansForReviewAction`: **4 round-trips → 1**
+- `getLessonPlanAction`: **4 round-trips → 1**
+- `unitHeadReviewAction`, `deputyHeadReviewAction`: **3 round-trips → 2**
+- `submitLessonPlanAction`: **2 round-trips → 1**
+
+The `hydrateMany` + `attachAcademicYear` manual-batch pattern was removed entirely. Relations are now available for future refactors in other features (scores, attendance, etc.) without further schema work.
+
+---
+
+### Original findings (kept for reference)
 
 **Findings:** schema uses foreign keys but no Drizzle `relations()` declarations. Queries that need joined data manually wire the join:
 
