@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { lessonPlans, classes, subjects, staff, users } from "@/db/schema";
+import type { InferSelectModel } from "drizzle-orm";
 import { getCurrentSchoolId } from "@/lib/school";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { sendEmail, appUrl } from "@/lib/email";
@@ -20,72 +21,52 @@ import type { Division } from "@/features/auth/types";
 
 type ActionResult = { success: true } | { success: false; error: string };
 
-async function hydrateMany(
-  rows: (typeof lessonPlans.$inferSelect)[]
-): Promise<LessonPlan[]> {
-  if (rows.length === 0) return [];
-  const teacherIds = Array.from(new Set([
-    ...rows.map((r) => r.teacherId),
-    ...rows.map((r) => r.reviewedById).filter((id): id is string => !!id),
-  ]));
-  const subjectIds = Array.from(new Set(rows.map((r) => r.subjectId)));
-  const classIds = Array.from(new Set(rows.map((r) => r.classId)));
+// Row shape after a query with `with: { teacher, reviewer, subject, class }`.
+type StaffRow = InferSelectModel<typeof staff>;
+type SubjectRow = InferSelectModel<typeof subjects>;
+type ClassRow = InferSelectModel<typeof classes>;
+type LessonPlanWithJoins = InferSelectModel<typeof lessonPlans> & {
+  teacher: StaffRow | null;
+  reviewer: StaffRow | null;
+  subject: SubjectRow | null;
+  class: ClassRow | null;
+};
 
-  const [teacherRows, subjectRows, classRows] = await Promise.all([
-    teacherIds.length === 0
-      ? []
-      : db.query.staff.findMany({ where: inArray(staff.id, teacherIds) }),
-    db.query.subjects.findMany({ where: inArray(subjects.id, subjectIds) }),
-    db.query.classes.findMany({ where: inArray(classes.id, classIds) }),
-  ]);
-  const teacherById = new Map(teacherRows.map((t) => [t.id, t]));
-  const subjectById = new Map(subjectRows.map((s) => [s.id, s]));
-  const classById = new Map(classRows.map((c) => [c.id, c]));
+const PLAN_WITH = {
+  teacher: true,
+  reviewer: true,
+  subject: true,
+  class: true,
+} as const;
 
-  return rows.map((r) => {
-    const t = teacherById.get(r.teacherId);
-    const reviewer = r.reviewedById ? teacherById.get(r.reviewedById) : undefined;
-    const c = classById.get(r.classId);
-    const s = subjectById.get(r.subjectId);
-    return {
-      id: r.id,
-      schoolId: r.schoolId,
-      teacherId: r.teacherId,
-      teacherName: t ? `${t.firstName} ${t.lastName}` : "",
-      subjectId: r.subjectId,
-      subjectName: s?.name ?? "",
-      classId: r.classId,
-      className: c?.name ?? "",
-      division: (c?.division as Division) ?? "KG",
-      term: r.term,
-      week: r.week,
-      academicYear: "", // not on schema; reconstruct below
-      topic: r.topic,
-      learningObjectives: r.learningObjectives,
-      teachingMethods: r.teachingMethods,
-      resources: r.resources,
-      assessmentPlan: r.assessmentPlan,
-      fileUrl: r.fileUrl,
-      status: (r.status as LessonPlanStatus) ?? "draft",
-      reviewerComment: r.reviewerComment,
-      reviewedById: r.reviewedById,
-      reviewedByName: reviewer ? `${reviewer.firstName} ${reviewer.lastName}` : null,
-      reviewedAt: r.reviewedAt?.toISOString() ?? null,
-      createdAt: r.createdAt?.toISOString() ?? new Date().toISOString(),
-      updatedAt: r.updatedAt?.toISOString() ?? new Date().toISOString(),
-    } satisfies LessonPlan;
-  });
-}
-
-// The lesson_plans schema doesn't carry academicYear directly — we derive it
-// from the class's academicYear when needed.
-async function attachAcademicYear(plans: LessonPlan[]): Promise<LessonPlan[]> {
-  if (plans.length === 0) return plans;
-  const classIds = Array.from(new Set(plans.map((p) => p.classId)));
-  const classRows = await db.query.classes.findMany({ where: inArray(classes.id, classIds) });
-  const yearById = new Map(classRows.map((c) => [c.id, c.academicYear]));
-  for (const p of plans) p.academicYear = yearById.get(p.classId) ?? "";
-  return plans;
+function hydrateOne(r: LessonPlanWithJoins): LessonPlan {
+  return {
+    id: r.id,
+    schoolId: r.schoolId,
+    teacherId: r.teacherId,
+    teacherName: r.teacher ? `${r.teacher.firstName} ${r.teacher.lastName}` : "",
+    subjectId: r.subjectId,
+    subjectName: r.subject?.name ?? "",
+    classId: r.classId,
+    className: r.class?.name ?? "",
+    division: (r.class?.division as Division) ?? "KG",
+    term: r.term,
+    week: r.week,
+    academicYear: r.class?.academicYear ?? "",
+    topic: r.topic,
+    learningObjectives: r.learningObjectives,
+    teachingMethods: r.teachingMethods,
+    resources: r.resources,
+    assessmentPlan: r.assessmentPlan,
+    fileUrl: r.fileUrl,
+    status: (r.status as LessonPlanStatus) ?? "draft",
+    reviewerComment: r.reviewerComment,
+    reviewedById: r.reviewedById,
+    reviewedByName: r.reviewer ? `${r.reviewer.firstName} ${r.reviewer.lastName}` : null,
+    reviewedAt: r.reviewedAt?.toISOString() ?? null,
+    createdAt: r.createdAt?.toISOString() ?? new Date().toISOString(),
+    updatedAt: r.updatedAt?.toISOString() ?? new Date().toISOString(),
+  } satisfies LessonPlan;
 }
 
 function sortByRecent(plans: LessonPlan[]): LessonPlan[] {
@@ -100,9 +81,9 @@ export async function listLessonPlansForTeacherAction(teacherId: string): Promis
   const year = await getCurrentAcademicYear();
   const rows = await db.query.lessonPlans.findMany({
     where: eq(lessonPlans.teacherId, teacherId),
+    with: PLAN_WITH,
   });
-  const hydrated = await attachAcademicYear(await hydrateMany(rows));
-  return sortByRecent(hydrated.filter((p) => p.academicYear === year));
+  return sortByRecent(rows.map(hydrateOne).filter((p) => p.academicYear === year));
 }
 
 export async function listLessonPlansForReviewAction(filter: {
@@ -118,21 +99,24 @@ export async function listLessonPlansForReviewAction(filter: {
     where: statusList && statusList.length > 0
       ? inArray(lessonPlans.status, statusList)
       : undefined,
+    with: PLAN_WITH,
   });
-  const hydrated = await attachAcademicYear(await hydrateMany(rows));
   return sortByRecent(
-    hydrated.filter(
-      (p) =>
-        p.academicYear === year && (!filter.division || p.division === filter.division)
-    )
+    rows
+      .map(hydrateOne)
+      .filter(
+        (p) =>
+          p.academicYear === year && (!filter.division || p.division === filter.division)
+      )
   );
 }
 
 export async function getLessonPlanAction(id: string): Promise<LessonPlan | null> {
-  const row = await db.query.lessonPlans.findFirst({ where: eq(lessonPlans.id, id) });
-  if (!row) return null;
-  const [hydrated] = await attachAcademicYear(await hydrateMany([row]));
-  return hydrated ?? null;
+  const row = await db.query.lessonPlans.findFirst({
+    where: eq(lessonPlans.id, id),
+    with: PLAN_WITH,
+  });
+  return row ? hydrateOne(row) : null;
 }
 
 async function lookupNames(teacherId: string, subjectId: string, classId: string) {
@@ -234,7 +218,10 @@ export async function submitLessonPlanAction(input: {
   id: string;
   teacherId: string;
 }): Promise<ActionResult> {
-  const plan = await db.query.lessonPlans.findFirst({ where: eq(lessonPlans.id, input.id) });
+  const plan = await db.query.lessonPlans.findFirst({
+    where: eq(lessonPlans.id, input.id),
+    with: { class: true },
+  });
   if (!plan) return { success: false, error: "Lesson plan not found." };
   if (plan.teacherId !== input.teacherId) {
     return { success: false, error: "You can only submit your own lesson plans." };
@@ -258,11 +245,10 @@ export async function submitLessonPlanAction(input: {
 
   // Notify the Unit Head of the class's division. DH gets pinged when the
   // Unit Head approves (next step in the chain) — too noisy to ping both now.
-  const cls = await db.query.classes.findFirst({ where: eq(classes.id, plan.classId) });
-  if (cls?.division) {
+  if (plan.class?.division) {
     const topic = plan.topic ?? "(untitled)";
     await notifyAudience(
-      { type: "unitHeadOfDivision", division: cls.division },
+      { type: "unitHeadOfDivision", division: plan.class.division },
       {
         kind: "lesson_plan_submitted",
         title: "Lesson plan submitted",
@@ -376,13 +362,19 @@ export async function unitHeadReviewAction(input: {
   reviewerId: string;
   decision: ReviewLessonPlanInput;
 }): Promise<ActionResult> {
-  const plan = await db.query.lessonPlans.findFirst({ where: eq(lessonPlans.id, input.id) });
-  if (!plan) return { success: false, error: "Lesson plan not found." };
-  if (plan.status !== "submitted") {
+  // Plan + class join in one round-trip; reviewer is from input (separate fetch).
+  const [planWithClass, reviewer] = await Promise.all([
+    db.query.lessonPlans.findFirst({
+      where: eq(lessonPlans.id, input.id),
+      with: { class: true },
+    }),
+    db.query.staff.findFirst({ where: eq(staff.id, input.reviewerId) }),
+  ]);
+  if (!planWithClass) return { success: false, error: "Lesson plan not found." };
+  if (planWithClass.status !== "submitted") {
     return { success: false, error: "Plan must be submitted for Unit Head review." };
   }
-  const reviewer = await db.query.staff.findFirst({ where: eq(staff.id, input.reviewerId) });
-  const cls = await db.query.classes.findFirst({ where: eq(classes.id, plan.classId) });
+  const cls = planWithClass.class;
   if (!reviewer || !reviewer.isUnitHead || !cls || reviewer.unitHeadOf !== cls.division) {
     return { success: false, error: "Only the Unit Head for this division can review." };
   }
@@ -419,16 +411,21 @@ export async function deputyHeadReviewAction(input: {
   reviewerId: string;
   decision: ReviewLessonPlanInput;
 }): Promise<ActionResult> {
-  const plan = await db.query.lessonPlans.findFirst({ where: eq(lessonPlans.id, input.id) });
-  if (!plan) return { success: false, error: "Lesson plan not found." };
-  if (plan.status !== "unit_head_approved" && plan.status !== "submitted") {
+  const [planWithClass, reviewer] = await Promise.all([
+    db.query.lessonPlans.findFirst({
+      where: eq(lessonPlans.id, input.id),
+      with: { class: true },
+    }),
+    db.query.staff.findFirst({ where: eq(staff.id, input.reviewerId) }),
+  ]);
+  if (!planWithClass) return { success: false, error: "Lesson plan not found." };
+  if (planWithClass.status !== "unit_head_approved" && planWithClass.status !== "submitted") {
     return {
       success: false,
       error: "Plan must be submitted (or Unit-Head approved) for Deputy Head review.",
     };
   }
-  const reviewer = await db.query.staff.findFirst({ where: eq(staff.id, input.reviewerId) });
-  const cls = await db.query.classes.findFirst({ where: eq(classes.id, plan.classId) });
+  const cls = planWithClass.class;
   if (!reviewer || reviewer.systemRole !== "DeputyHead" || !cls || reviewer.division !== cls.division) {
     return { success: false, error: "Only the Deputy Head of this division can review." };
   }

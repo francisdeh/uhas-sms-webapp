@@ -11,6 +11,7 @@ import {
   unique,
   index,
 } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 // All entity IDs are varchar to preserve the human-readable IDs from the
 // original fixtures (e.g. "STAFF-001", "class-jhs1"). Runtime-created rows
@@ -600,3 +601,93 @@ export const notifications = pgTable(
     userReadIdx: index("notifications_user_read_idx").on(t.userId, t.readAt),
   })
 );
+
+// ─── Relations (Drizzle joins) ───────────────────────────────────────────────
+// These let queries fetch related rows in a single round-trip via `with`:
+//
+//   db.query.lessonPlans.findFirst({
+//     where: eq(lessonPlans.id, id),
+//     with: { teacher: true, subject: true, class: true },
+//   });
+//
+// Replaces the manual Promise.all + Map pattern in hydrateMany etc.
+
+export const usersRelations = relations(users, ({ one }) => ({
+  school: one(schools, { fields: [users.schoolId], references: [schools.id] }),
+  // linkedId points at staff OR guardians depending on role; relations() only
+  // supports one target, so we leave it unmodelled and join manually where
+  // needed (e.g. listUsersAction).
+}));
+
+export const staffRelations = relations(staff, ({ one, many }) => ({
+  school: one(schools, { fields: [staff.schoolId], references: [schools.id] }),
+  // Reverse sides — keep what hot paths actually need.
+  lessonPlans: many(lessonPlans),
+  schemes: many(schemes),
+}));
+
+export const studentsRelations = relations(students, ({ one, many }) => ({
+  school: one(schools, { fields: [students.schoolId], references: [schools.id] }),
+  enrollments: many(enrollments),
+  scores: many(scores),
+  attendance: many(attendanceRecords),
+}));
+
+export const classesRelations = relations(classes, ({ one, many }) => ({
+  school: one(schools, { fields: [classes.schoolId], references: [schools.id] }),
+  enrollments: many(enrollments),
+  attendanceSessions: many(attendanceSessions),
+}));
+
+export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
+  student: one(students, { fields: [enrollments.studentId], references: [students.id] }),
+  class: one(classes, { fields: [enrollments.classId], references: [classes.id] }),
+}));
+
+export const attendanceSessionsRelations = relations(attendanceSessions, ({ one, many }) => ({
+  school: one(schools, { fields: [attendanceSessions.schoolId], references: [schools.id] }),
+  class: one(classes, { fields: [attendanceSessions.classId], references: [classes.id] }),
+  submittedBy: one(staff, { fields: [attendanceSessions.submittedById], references: [staff.id] }),
+  records: many(attendanceRecords),
+}));
+
+export const attendanceRecordsRelations = relations(attendanceRecords, ({ one }) => ({
+  session: one(attendanceSessions, {
+    fields: [attendanceRecords.sessionId],
+    references: [attendanceSessions.id],
+  }),
+  student: one(students, { fields: [attendanceRecords.studentId], references: [students.id] }),
+}));
+
+export const lessonPlansRelations = relations(lessonPlans, ({ one }) => ({
+  school: one(schools, { fields: [lessonPlans.schoolId], references: [schools.id] }),
+  teacher: one(staff, { fields: [lessonPlans.teacherId], references: [staff.id], relationName: "lessonPlanTeacher" }),
+  reviewer: one(staff, { fields: [lessonPlans.reviewedById], references: [staff.id], relationName: "lessonPlanReviewer" }),
+  subject: one(subjects, { fields: [lessonPlans.subjectId], references: [subjects.id] }),
+  class: one(classes, { fields: [lessonPlans.classId], references: [classes.id] }),
+}));
+
+export const schemesRelations = relations(schemes, ({ one }) => ({
+  teacher: one(staff, { fields: [schemes.teacherId], references: [staff.id], relationName: "schemeTeacher" }),
+  reviewer: one(staff, { fields: [schemes.reviewedById], references: [staff.id], relationName: "schemeReviewer" }),
+  subject: one(subjects, { fields: [schemes.subjectId], references: [subjects.id] }),
+  class: one(classes, { fields: [schemes.classId], references: [classes.id] }),
+}));
+
+export const examsRelations = relations(exams, ({ many }) => ({
+  scores: many(scores),
+}));
+
+export const scoresRelations = relations(scores, ({ one }) => ({
+  exam: one(exams, { fields: [scores.examId], references: [exams.id] }),
+  student: one(students, { fields: [scores.studentId], references: [students.id] }),
+  subject: one(subjects, { fields: [scores.subjectId], references: [subjects.id] }),
+}));
+
+export const announcementsRelations = relations(announcements, ({ one }) => ({
+  createdBy: one(staff, { fields: [announcements.createdById], references: [staff.id] }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
+}));
