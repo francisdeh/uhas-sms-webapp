@@ -329,6 +329,11 @@ export const lessonPlans = pgTable(
     reviewedAt: timestamp("reviewed_at"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
+    // Soft-delete marker. Reads filter by `deletedAt IS NULL`; deletes
+    // set this rather than removing the row, so accidental deletions can be
+    // recovered (TBD admin Trash UI). Hard-delete remains available for
+    // permanent removal via direct SQL or a future admin tool.
+    deletedAt: timestamp("deleted_at"),
   },
   (t) => [
     // Teacher dashboard: my plans grouped by status.
@@ -360,6 +365,8 @@ export const schemes = pgTable("schemes", {
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  // Soft-delete marker. See lessonPlans.deletedAt for the rationale.
+  deletedAt: timestamp("deleted_at"),
 });
 
 // ─── Exams & Scores ──────────────────────────────────────────────────────────
@@ -452,6 +459,8 @@ export const assignments = pgTable("assignments", {
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  // Soft-delete marker. See lessonPlans.deletedAt for the rationale.
+  deletedAt: timestamp("deleted_at"),
 });
 
 // ─── Announcements ───────────────────────────────────────────────────────────

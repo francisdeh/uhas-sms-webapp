@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { assignments, classes, subjects, staff, enrollments } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
@@ -55,16 +55,21 @@ async function hydrateMany(rows: (typeof assignments.$inferSelect)[]): Promise<A
   });
 }
 
+// Excludes soft-deleted rows from every read.
+const NOT_DELETED = isNull(assignments.deletedAt);
+
 export async function listAssignmentsForTeacherAction(teacherId: string): Promise<Assignment[]> {
   const rows = await db.query.assignments.findMany({
-    where: eq(assignments.teacherId, teacherId),
+    where: and(eq(assignments.teacherId, teacherId), NOT_DELETED),
   });
   const list = await hydrateMany(rows);
   return list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export async function getAssignmentAction(id: string): Promise<Assignment | null> {
-  const row = await db.query.assignments.findFirst({ where: eq(assignments.id, id) });
+  const row = await db.query.assignments.findFirst({
+    where: and(eq(assignments.id, id), NOT_DELETED),
+  });
   if (!row) return null;
   const [hydrated] = await hydrateMany([row]);
   return hydrated ?? null;
@@ -93,7 +98,8 @@ export async function listAssignmentsForStudentsAction(
   const rows = await db.query.assignments.findMany({
     where: and(
       eq(assignments.status, "published"),
-      inArray(assignments.classId, classIds)
+      inArray(assignments.classId, classIds),
+      NOT_DELETED
     ),
   });
   const list = await hydrateMany(rows);
@@ -130,7 +136,7 @@ export async function updateAssignmentAction(input: {
   teacherId: string;
   data: UpdateAssignmentInput;
 }): Promise<ActionResult> {
-  const row = await db.query.assignments.findFirst({ where: eq(assignments.id, input.id) });
+  const row = await db.query.assignments.findFirst({ where: and(eq(assignments.id, input.id), NOT_DELETED) });
   if (!row) return { success: false, error: "Assignment not found." };
   if (row.teacherId !== input.teacherId) {
     return { success: false, error: "You can only edit your own assignments." };
@@ -158,7 +164,7 @@ export async function publishAssignmentAction(input: {
   id: string;
   teacherId: string;
 }): Promise<ActionResult> {
-  const row = await db.query.assignments.findFirst({ where: eq(assignments.id, input.id) });
+  const row = await db.query.assignments.findFirst({ where: and(eq(assignments.id, input.id), NOT_DELETED) });
   if (!row) return { success: false, error: "Assignment not found." };
   if (row.teacherId !== input.teacherId) {
     return { success: false, error: "You can only publish your own assignments." };
@@ -193,7 +199,7 @@ export async function unpublishAssignmentAction(input: {
   id: string;
   teacherId: string;
 }): Promise<ActionResult> {
-  const row = await db.query.assignments.findFirst({ where: eq(assignments.id, input.id) });
+  const row = await db.query.assignments.findFirst({ where: and(eq(assignments.id, input.id), NOT_DELETED) });
   if (!row) return { success: false, error: "Assignment not found." };
   if (row.teacherId !== input.teacherId) {
     return { success: false, error: "You can only unpublish your own assignments." };
@@ -210,12 +216,16 @@ export async function deleteAssignmentAction(input: {
   id: string;
   teacherId: string;
 }): Promise<ActionResult> {
-  const row = await db.query.assignments.findFirst({ where: eq(assignments.id, input.id) });
+  const row = await db.query.assignments.findFirst({ where: and(eq(assignments.id, input.id), NOT_DELETED) });
   if (!row) return { success: false, error: "Assignment not found." };
   if (row.teacherId !== input.teacherId) {
     return { success: false, error: "You can only delete your own assignments." };
   }
-  await db.delete(assignments).where(eq(assignments.id, input.id));
+  // Soft delete: row stays for the future admin Trash UI.
+  await db
+    .update(assignments)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(eq(assignments.id, input.id));
   revalidatePath("/teacher/assignments");
   return { success: true };
 }
