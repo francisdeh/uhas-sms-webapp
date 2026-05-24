@@ -1,12 +1,13 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { schools } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
 import { writeAuditLog } from "@/lib/audit-log";
+import { SCHOOL_SETTINGS_TAG } from "@/features/settings/queries/get-school-settings";
 
 // Shared write path for every settings tab. Reads the current row,
 // applies the patch, writes an audit_log row with field-level before/after.
@@ -50,6 +51,7 @@ export async function applySchoolSettingsPatch<T extends Partial<typeof schools.
     after: afterDiff,
   });
 
+  updateTag(SCHOOL_SETTINGS_TAG);  // bust the unstable_cache; read-your-own-writes
   revalidatePath("/admin/settings");
   revalidatePath("/", "layout"); // dashboard chrome reads school name + logo
 

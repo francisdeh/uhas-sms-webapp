@@ -44,10 +44,13 @@ vi.mock("next/headers", () => ({
     }),
 }));
 
-// next/cache — revalidatePath/Tag throw outside a request context. No-op them.
+// next/cache — revalidatePath/Tag/updateTag throw outside a request context.
+// unstable_cache is a no-op pass-through so cached functions work in tests.
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
+  updateTag: vi.fn(),
+  unstable_cache: <Args extends unknown[], R>(fn: (...args: Args) => R) => fn,
 }));
 
 // ─── Firebase Admin mock ─────────────────────────────────────────────────────
