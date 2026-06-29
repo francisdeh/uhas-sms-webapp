@@ -14,6 +14,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { det } from "../../scripts/_seed-data/_uuid";
 import { resetDb } from "../db";
 import { signInAs, signOut } from "../setup";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
@@ -73,7 +74,7 @@ describe("getSessionUser", () => {
       uid: "00000000-0000-0000-0000-000000000001",
       role: "Admin",
       email: "admin@uhas.edu.gh",
-      linkedId: "STAFF-001",
+      linkedId: det("STAFF-001"),
       mustChangePassword: false,
       isUnitHead: false,
       unitHeadOf: null,
@@ -85,7 +86,7 @@ describe("getSessionUser", () => {
   it("populates isUnitHead + unitHeadOf for a Unit-Head Teacher", async () => {
     signInAs("Teacher", {
       uid: "00000000-0000-0000-0000-000000000006",
-      linkedId: "STAFF-004",
+      linkedId: det("STAFF-004"),
     });
     const user = await getSessionUser();
     expect(user?.isUnitHead).toBe(true);

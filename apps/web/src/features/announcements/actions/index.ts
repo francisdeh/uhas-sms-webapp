@@ -149,16 +149,18 @@ export async function createAnnouncementAction(input: {
     return { success: false, error: "Only Admin can target a specific class." };
   }
 
-  const id = `ann-${Date.now()}`;
-  await db.insert(announcements).values({
-    id,
-    schoolId,
-    title: input.data.title,
-    body: input.data.body,
-    audience: input.data.audience,
-    isCritical: input.data.isCritical,
-    createdById: author.id,
-  });
+  const [inserted] = await db
+    .insert(announcements)
+    .values({
+      schoolId,
+      title: input.data.title,
+      body: input.data.body,
+      audience: input.data.audience,
+      isCritical: input.data.isCritical,
+      createdById: author.id,
+    })
+    .returning();
+  const id = inserted.id;
 
   // Fan out an in-app notification to the resolved audience. "all" hits
   // every active user; "division" hits both staff in that division and the

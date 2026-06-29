@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { det } from "../../scripts/_seed-data/_uuid";
 import { resetDb } from "../db";
 import { signInAs, signOut } from "../setup";
 import { writeAuditLog } from "@/lib/audit-log";
@@ -23,7 +24,7 @@ describe("writeAuditLog", () => {
       userId: "00000000-0000-0000-0000-000000000001",
       action: "STUDENT_EDIT",
       targetTable: "students",
-      targetId: "UHAS-2026-0001",
+      targetId: det("UHAS-2026-0001"),
       before: { phone: "0200000000" },
       after: { phone: "0244999999" },
     });
@@ -34,7 +35,7 @@ describe("writeAuditLog", () => {
     expect(r.userId).toBe("00000000-0000-0000-0000-000000000001");
     expect(r.action).toBe("STUDENT_EDIT");
     expect(r.targetTable).toBe("students");
-    expect(r.targetId).toBe("UHAS-2026-0001");
+    expect(r.targetId).toBe(det("UHAS-2026-0001"));
     expect(JSON.parse(r.before!)).toEqual({ phone: "0200000000" });
     expect(JSON.parse(r.after!)).toEqual({ phone: "0244999999" });
   });
@@ -44,7 +45,7 @@ describe("writeAuditLog", () => {
       userId: "00000000-0000-0000-0000-000000000001",
       action: "PROMOTION_APPROVED",
       targetTable: "promotion_submissions",
-      targetId: "promotion-sub-x",
+      targetId: det("promotion-sub-x"),
       after: { count: 25 },
     });
 
@@ -62,7 +63,7 @@ describe("listAuditEvents", () => {
         userId: "00000000-0000-0000-0000-000000000001",
         action: actions[i % actions.length],
         targetTable: "test",
-        targetId: `target-${i}`,
+        targetId: det(`target-${i}`),
         after: { i },
       });
     }
@@ -86,14 +87,14 @@ describe("listAuditEvents", () => {
       userId: "00000000-0000-0000-0000-000000000001",
       action: "STUDENT_EDIT",
       targetTable: "students",
-      targetId: "old",
+      targetId: det("old"),
     });
     await new Promise((r) => setTimeout(r, 10));
     await writeAuditLog(db, {
       userId: "00000000-0000-0000-0000-000000000001",
       action: "STUDENT_EDIT",
       targetTable: "students",
-      targetId: "newer",
+      targetId: det("newer"),
     });
 
     const today = new Date().toISOString().slice(0, 10);
@@ -103,8 +104,8 @@ describe("listAuditEvents", () => {
       to: today,
       page: 1,
     });
-    expect(result.events[0].targetId).toBe("newer");
-    expect(result.events[1].targetId).toBe("old");
+    expect(result.events[0].targetId).toBe(det("newer"));
+    expect(result.events[1].targetId).toBe(det("old"));
   });
 
   it("paginates correctly", async () => {
@@ -146,7 +147,7 @@ describe("getActorNames", () => {
   });
 
   it("falls back to email for users with no linkedId or no matching staff", async () => {
-    // The parent user (00000000-0000-0000-0000-000000000008) has linkedId="guardian-001" — not a staff.
+    // The parent user (00000000-0000-0000-0000-000000000008) has linkedId=det("guardian-001") — not a staff.
     const map = await getActorNames(["00000000-0000-0000-0000-000000000008"]);
     expect(map.get("00000000-0000-0000-0000-000000000008")).toBe("parent@uhas.edu.gh");
   });

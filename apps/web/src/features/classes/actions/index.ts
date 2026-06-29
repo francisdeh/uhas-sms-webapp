@@ -67,16 +67,20 @@ export async function createClassAction(
   if (duplicate) {
     return { success: false, error: "A class with this name already exists for this academic year." };
   }
-  const id = `class-${input.name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
-  await db.insert(classes).values({
-    id,
-    schoolId,
-    name: input.name,
-    division: input.division,
-    academicYear: input.academicYear,
-  });
+  // Slug is human-readable + URL-routable; uuid PK is DB-generated.
+  const slug = `class-${input.name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
+  const [inserted] = await db
+    .insert(classes)
+    .values({
+      slug,
+      schoolId,
+      name: input.name,
+      division: input.division,
+      academicYear: input.academicYear,
+    })
+    .returning();
   revalidatePath("/admin/classes");
-  return { success: true, id };
+  return { success: true, id: inserted.id };
 }
 
 export async function listSubjectsAction(
@@ -128,16 +132,19 @@ export async function createSubjectAction(
   if (duplicate) {
     return { success: false, error: "A subject with this name already exists for this division." };
   }
-  const id = `sub-${Date.now()}`;
-  await db.insert(subjects).values({
-    id,
-    schoolId,
-    name: input.name,
-    division: input.division,
-    category: input.category,
-  });
+  const slug = `sub-${Date.now()}`;
+  const [inserted] = await db
+    .insert(subjects)
+    .values({
+      slug,
+      schoolId,
+      name: input.name,
+      division: input.division,
+      category: input.category,
+    })
+    .returning();
   revalidatePath("/admin/subjects");
-  return { success: true, id };
+  return { success: true, id: inserted.id };
 }
 
 async function joinClassSubjects(

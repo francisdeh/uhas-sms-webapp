@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { det } from "../../scripts/_seed-data/_uuid";
 import { eq } from "drizzle-orm";
 import { resetDb } from "../db";
 import { signInAs, signOut } from "../setup";
@@ -28,7 +29,7 @@ beforeEach(() => {
   signInAs("Teacher");
 });
 
-const CLASS_ID = "class-jhs1";
+const CLASS_ID = det("class-jhs1");
 const DATE = "2026-09-01"; // fresh date with no seeded session
 
 describe("saveSessionAction (student attendance)", () => {
@@ -37,10 +38,10 @@ describe("saveSessionAction (student attendance)", () => {
       classId: CLASS_ID,
       date: DATE,
       term: 1,
-      submittedById: "STAFF-005",
+      submittedById: det("STAFF-005"),
       records: [
-        { studentId: "UHAS-2026-0001", status: "present" },
-        { studentId: "UHAS-2026-0002", status: "absent", note: "Sick" },
+        { studentId: det("UHAS-2026-0001"), status: "present" },
+        { studentId: det("UHAS-2026-0002"), status: "absent", note: "Sick" },
       ],
     });
     expect(result.success).toBe(true);
@@ -55,7 +56,7 @@ describe("saveSessionAction (student attendance)", () => {
       where: eq(attendanceRecords.sessionId, result.sessionId),
     });
     expect(records.length).toBe(2);
-    const absent = records.find((r) => r.studentId === "UHAS-2026-0002");
+    const absent = records.find((r) => r.studentId === det("UHAS-2026-0002"));
     expect(absent?.status).toBe("absent");
     expect(absent?.note).toBe("Sick");
   });
@@ -66,16 +67,16 @@ describe("saveSessionAction (student attendance)", () => {
       classId: CLASS_ID,
       date: DATE,
       term: 1,
-      submittedById: "STAFF-005",
-      records: [{ studentId: "UHAS-2026-0001", status: "absent" }],
+      submittedById: det("STAFF-005"),
+      records: [{ studentId: det("UHAS-2026-0001"), status: "absent" }],
     });
     // Re-save with different status
     const result = await saveSessionAction({
       classId: CLASS_ID,
       date: DATE,
       term: 1,
-      submittedById: "STAFF-005",
-      records: [{ studentId: "UHAS-2026-0001", status: "present" }],
+      submittedById: det("STAFF-005"),
+      records: [{ studentId: det("UHAS-2026-0001"), status: "present" }],
     });
     expect(result.success).toBe(true);
     if (!result.success) return;
@@ -92,9 +93,9 @@ describe("saveSessionAction (student attendance)", () => {
       classId: CLASS_ID,
       date: DATE,
       term: 1,
-      submittedById: "STAFF-005",
+      submittedById: det("STAFF-005"),
       records: [
-        { studentId: "UHAS-2026-0001", status: "late", lateReason: "" },
+        { studentId: det("UHAS-2026-0001"), status: "late", lateReason: "" },
       ],
     });
     expect(result.success).toBe(false);
@@ -105,8 +106,8 @@ describe("saveSessionAction (student attendance)", () => {
       classId: CLASS_ID,
       date: DATE,
       term: 1,
-      submittedById: "STAFF-005",
-      records: [{ studentId: "UHAS-2026-0001", status: "late", lateReason: "Bus" }],
+      submittedById: det("STAFF-005"),
+      records: [{ studentId: det("UHAS-2026-0001"), status: "late", lateReason: "Bus" }],
     });
     const session = await getSessionForClassDateAction(CLASS_ID, DATE);
     expect(session).not.toBeNull();
@@ -122,10 +123,10 @@ describe("saveStaffSessionAction", () => {
       division: "JHS",
       date: DATE,
       term: 1,
-      submittedById: "STAFF-002",
+      submittedById: det("STAFF-002"),
       records: [
-        { staffId: "STAFF-005", status: "present" },
-        { staffId: "STAFF-008", status: "absent" },
+        { staffId: det("STAFF-005"), status: "present" },
+        { staffId: det("STAFF-008"), status: "absent" },
       ],
     });
     expect(result.success).toBe(true);
@@ -144,7 +145,7 @@ describe("leave requests", () => {
   });
 
   it("submit creates a pending request", async () => {
-    const result = await submitLeaveRequestAction("STAFF-005", "Selorm Tornu", {
+    const result = await submitLeaveRequestAction(det("STAFF-005"), "Selorm Tornu", {
       type: "sick",
       startDate: "2026-09-10",
       endDate: "2026-09-11",
@@ -158,7 +159,7 @@ describe("leave requests", () => {
   });
 
   it("rejects when end date is before start date", async () => {
-    const result = await submitLeaveRequestAction("STAFF-005", "Kwame", {
+    const result = await submitLeaveRequestAction(det("STAFF-005"), "Kwame", {
       type: "sick",
       startDate: "2026-09-10",
       endDate: "2026-09-05",
@@ -167,12 +168,12 @@ describe("leave requests", () => {
   });
 
   it("rejects overlapping pending/approved requests", async () => {
-    await submitLeaveRequestAction("STAFF-005", "Kwame", {
+    await submitLeaveRequestAction(det("STAFF-005"), "Kwame", {
       type: "sick",
       startDate: "2026-09-10",
       endDate: "2026-09-11",
     });
-    const result = await submitLeaveRequestAction("STAFF-005", "Kwame", {
+    const result = await submitLeaveRequestAction(det("STAFF-005"), "Kwame", {
       type: "sick",
       startDate: "2026-09-11", // overlaps
       endDate: "2026-09-12",
@@ -181,32 +182,32 @@ describe("leave requests", () => {
   });
 
   it("approveLeaveRequestAction flips pending → approved", async () => {
-    const submit = await submitLeaveRequestAction("STAFF-005", "Kwame", {
+    const submit = await submitLeaveRequestAction(det("STAFF-005"), "Kwame", {
       type: "sick",
       startDate: "2026-09-15",
       endDate: "2026-09-16",
     });
     if (!submit.success) throw new Error("submit failed");
 
-    const result = await approveLeaveRequestAction(submit.id, "STAFF-002", "Abena");
+    const result = await approveLeaveRequestAction(submit.id, det("STAFF-002"), "Abena");
     expect(result.success).toBe(true);
 
     const row = await db.query.leaveRequests.findFirst({
       where: eq(leaveRequests.id, submit.id),
     });
     expect(row?.status).toBe("approved");
-    expect(row?.approvedById).toBe("STAFF-002");
+    expect(row?.approvedById).toBe(det("STAFF-002"));
   });
 
   it("rejectLeaveRequestAction flips pending → rejected", async () => {
-    const submit = await submitLeaveRequestAction("STAFF-005", "Kwame", {
+    const submit = await submitLeaveRequestAction(det("STAFF-005"), "Kwame", {
       type: "personal",
       startDate: "2026-09-20",
       endDate: "2026-09-20",
     });
     if (!submit.success) throw new Error("submit failed");
 
-    const result = await rejectLeaveRequestAction(submit.id, "STAFF-002", "Not enough notice");
+    const result = await rejectLeaveRequestAction(submit.id, det("STAFF-002"), "Not enough notice");
     expect(result.success).toBe(true);
 
     const row = await db.query.leaveRequests.findFirst({
@@ -216,15 +217,15 @@ describe("leave requests", () => {
   });
 
   it("listLeaveRequestsAction filters by status", async () => {
-    const submit1 = await submitLeaveRequestAction("STAFF-005", "Kwame", {
+    const submit1 = await submitLeaveRequestAction(det("STAFF-005"), "Kwame", {
       type: "sick",
       startDate: "2026-10-01",
       endDate: "2026-10-01",
     });
     if (!submit1.success) throw new Error("submit failed");
-    await approveLeaveRequestAction(submit1.id, "STAFF-002", "Abena");
+    await approveLeaveRequestAction(submit1.id, det("STAFF-002"), "Abena");
 
-    await submitLeaveRequestAction("STAFF-005", "Kwame", {
+    await submitLeaveRequestAction(det("STAFF-005"), "Kwame", {
       type: "sick",
       startDate: "2026-10-10",
       endDate: "2026-10-10",

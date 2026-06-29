@@ -56,33 +56,39 @@ export async function createStaffAction(
     return { success: false, error: "Division is required for this role." };
   }
 
+  // Slug sequence is computed off `staff.slug` ("STAFF-042"); the uuid
+  // PK is DB-generated. Slug stays unique per school (constraint enforced
+  // in the schema).
   const prefix = "STAFF-";
   const last = await db.query.staff.findFirst({
-    where: and(eq(staff.schoolId, schoolId), like(staff.id, `${prefix}%`)),
-    orderBy: [desc(staff.id)],
+    where: and(eq(staff.schoolId, schoolId), like(staff.slug, `${prefix}%`)),
+    orderBy: [desc(staff.slug)],
   });
-  const nextSeq = last ? Number(last.id.slice(prefix.length)) + 1 : 1;
-  const id = `${prefix}${String(nextSeq).padStart(3, "0")}`;
+  const nextSeq = last ? Number(last.slug.slice(prefix.length)) + 1 : 1;
+  const slug = `${prefix}${String(nextSeq).padStart(3, "0")}`;
 
-  await db.insert(staff).values({
-    id,
-    schoolId,
-    uhasId: data.uhasId ?? null,
-    firstName: data.firstName,
-    lastName: data.lastName,
-    rank: data.rank,
-    systemRole: data.systemRole,
-    division: data.division ?? null,
-    isUnitHead: data.isUnitHead ?? false,
-    unitHeadOf: data.unitHeadOf ?? null,
-    photoUrl: data.photoUrl ?? null,
-    phone: data.phone,
-    email: data.email,
-    isActive: true,
-  });
+  const [inserted] = await db
+    .insert(staff)
+    .values({
+      slug,
+      schoolId,
+      uhasId: data.uhasId ?? null,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      rank: data.rank,
+      systemRole: data.systemRole,
+      division: data.division ?? null,
+      isUnitHead: data.isUnitHead ?? false,
+      unitHeadOf: data.unitHeadOf ?? null,
+      photoUrl: data.photoUrl ?? null,
+      phone: data.phone,
+      email: data.email,
+      isActive: true,
+    })
+    .returning();
 
   revalidatePath("/admin/staff");
-  return { success: true, id, inviteLink: `/invite?token=${id}` };
+  return { success: true, id: inserted.id, inviteLink: `/invite?token=${inserted.id}` };
 }
 
 export async function updateStaffAction(

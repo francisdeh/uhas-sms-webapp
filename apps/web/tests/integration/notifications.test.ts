@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { det } from "../../scripts/_seed-data/_uuid";
 import { and, eq } from "drizzle-orm";
 import { resetDb } from "../db";
 import { signInAs, signOut } from "../setup";
@@ -28,7 +29,7 @@ describe("resolveAudience", () => {
   });
 
   it("staff → the user linked to that staff row", async () => {
-    const ids = await resolveAudience({ type: "staff", staffId: "STAFF-001" });
+    const ids = await resolveAudience({ type: "staff", staffId: det("STAFF-001") });
     expect(ids).toEqual(["00000000-0000-0000-0000-000000000001"]);
   });
 
@@ -53,7 +54,7 @@ describe("resolveAudience", () => {
     // Seeded guardian-001 is linked to UHAS-2026-0001 + UHAS-2026-0003.
     const ids = await resolveAudience({
       type: "parentsOfStudents",
-      studentIds: ["UHAS-2026-0001"],
+      studentIds: [det("UHAS-2026-0001")],
     });
     expect(ids).toEqual(["00000000-0000-0000-0000-000000000008"]);
   });
@@ -189,7 +190,7 @@ describe("event integration: announcement_posted fans out via createAnnouncement
       "@/features/announcements/actions"
     );
     const result = await createAnnouncementAction({
-      authorId: "STAFF-001",
+      authorId: det("STAFF-001"),
       data: {
         title: "School closed Friday",
         body: "Friday is a public holiday.",
