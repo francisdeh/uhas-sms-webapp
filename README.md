@@ -262,6 +262,7 @@ Persistent reference docs — pick up when you have the time, not in any forced 
 
 | Doc | Purpose |
 |---|---|
+| [`docs/HANDOVER.md`](docs/HANDOVER.md) | **Start here** if onboarding a new collaborator or a fresh Claude.ai session — single self-contained brief covering features, roles, gaps, next steps |
 | [`docs/COMPETITIVE-ANALYSIS.md`](docs/COMPETITIVE-ANALYSIS.md) | Where we win/lose vs SchoolPad et al; missing features ranked by market impact |
 | [`docs/FEATURE-ENHANCEMENTS.md`](docs/FEATURE-ENHANCEMENTS.md) | Depth gaps in features we already shipped (leave, student/staff profiles, exams, report cards, etc.) |
 | [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) | Technical-debt items (DB indexes, drizzle relations, loading states, caching, etc.) |
