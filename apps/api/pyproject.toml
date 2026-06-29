@@ -1,0 +1,110 @@
+[project]
+name = "uhas-sms-api"
+version = "0.1.0"
+description = "UHAS Basic School SMS — FastAPI backend"
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "Proprietary" }
+
+# Production dependencies — kept tight. New deps added in later phases
+# as their consumers land (SQLAlchemy + Alembic in PR #3, supabase /
+# python-jose in Phase 1, sentry / logfire in PR #5, etc.).
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    # ── Database ──────────────────────────────────────────────────────────
+    # SQLAlchemy 2.0 + asyncpg drives every DB call. Alembic owns the
+    # migration history; the Drizzle schema is ported as the baseline.
+    "sqlalchemy[asyncio]>=2.0.36",
+    "alembic>=1.14",
+    "asyncpg>=0.30",
+    "greenlet>=3.1",  # required by SQLAlchemy's asyncio bridge
+    # ── Observability ─────────────────────────────────────────────────────
+    # Sentry catches exceptions; Logfire gives request traces + slow-query
+    # detection. Both are no-ops when their respective DSN/token is unset,
+    # so the code can live here without forcing a paid account.
+    "sentry-sdk[fastapi,sqlalchemy]>=2.18",
+    "logfire[fastapi,sqlalchemy]>=2.0",
+    # ── Auth ──────────────────────────────────────────────────────────────
+    # PyJWT verifies the Supabase-issued JWT against either the project's
+    # JWT secret (HS256) or the JWKS endpoint (asymmetric keys when
+    # Supabase rotates). httpx is already pulled in by FastAPI's test
+    # client but we depend on it explicitly for JWKS fetches.
+    "pyjwt[crypto]>=2.10",
+    "httpx>=0.27",
+    # supabase-py used by the seed script (Phase 1 PR #9) to create the
+    # 8 role accounts via the admin API. Server-side only.
+    "supabase>=2.10",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+    "ruff>=0.7",
+    "mypy>=1.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# ─── Ruff ─────────────────────────────────────────────────────────────────────
+# Lint + format in one tool. Replaces flake8 + black + isort.
+[tool.ruff]
+line-length = 100
+target-version = "py313"  # ruff doesn't yet ship a py314 target; py313 is the closest available and produces lint compatible with 3.14.
+extend-exclude = [".venv", "alembic/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # import sorting
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade — modern Python idioms
+    "B",   # flake8-bugbear — likely bugs
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific rules
+]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ─── Mypy ─────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+no_implicit_reexport = true
+plugins = ["pydantic.mypy"]
+
+# Tests have looser typing — fixtures + mocks need flexibility.
+[[tool.mypy.overrides]]
+module = ["app.features.*.tests.*", "tests.*"]
+disallow_untyped_defs = false
+
+# ─── Pytest ───────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["app", "tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]

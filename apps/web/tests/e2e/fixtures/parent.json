@@ -1,0 +1,75 @@
+{
+  "cookies": [
+    {
+      "name": "session_uid",
+      "value": "00000000-0000-0000-0000-000000000008",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401368.484325,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_role",
+      "value": "Parent",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401368.484363,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_display_name",
+      "value": "Mawuli%20Agbeko",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401368.484375,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_email",
+      "value": "parent%40uhas.edu.gh",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401368.484386,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_linked_id",
+      "value": "guardian-001",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401368.484397,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_expires_at",
+      "value": "1779401368482",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401368.48441,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3100",
+      "localStorage": [
+        {
+          "name": "uhas_last_email",
+          "value": "parent@uhas.edu.gh"
+        }
+      ]
+    }
+  ]
+}

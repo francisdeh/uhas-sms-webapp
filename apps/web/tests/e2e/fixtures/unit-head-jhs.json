@@ -1,0 +1,75 @@
+{
+  "cookies": [
+    {
+      "name": "session_uid",
+      "value": "00000000-0000-0000-0000-000000000006",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401366.665279,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_role",
+      "value": "Teacher",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401366.665318,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_display_name",
+      "value": "Akpene%20Kpodo",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401366.665329,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_email",
+      "value": "unit-head.jhs%40uhas.edu.gh",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401366.665341,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_linked_id",
+      "value": "STAFF-004",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401366.665355,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session_expires_at",
+      "value": "1779401366663",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779401366.665367,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3100",
+      "localStorage": [
+        {
+          "name": "uhas_last_email",
+          "value": "unit-head.jhs@uhas.edu.gh"
+        }
+      ]
+    }
+  ]
+}

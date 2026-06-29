@@ -1,0 +1,81 @@
+"""FastAPI application entrypoint.
+
+Wires the app, CORS, the global error envelope, and every feature
+router. New features register their router here — that's the only
+place this file needs to grow.
+
+Run locally:
+    uv run uvicorn app.main:app --reload --port 8000
+"""
+
+from typing import Any
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.core.config import settings
+from app.core.db import engine
+from app.core.errors import AppError
+from app.core.observability import init_observability, instrument_app
+from app.features.health.router import router as health_router
+
+# Initialise observability before constructing the FastAPI app so that
+# Sentry's middleware integrations attach to the instance we create
+# below. Both Sentry and Logfire are no-ops when their credentials are
+# unset, so this line is safe in any environment.
+init_observability()
+
+
+def create_app() -> FastAPI:
+    """Build the FastAPI instance.
+
+    Factored as a function so tests can construct fresh instances
+    without import-time side effects.
+    """
+    app = FastAPI(
+        title=settings.app_name,
+        description="Backend API for the UHAS Basic School SMS.",
+        version="0.1.0",
+        # OpenAPI lives at /openapi.json; frontend codegen reads it.
+        openapi_url="/openapi.json",
+        docs_url="/docs",
+        redoc_url=None,
+    )
+
+    # ── CORS — only the Next.js origin in dev/prod ────────────────────────
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_allow_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # ── Global error envelope ────────────────────────────────────────────
+    @app.exception_handler(AppError)
+    async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+        """Convert domain exceptions to the consistent error shape."""
+        payload: dict[str, Any] = {
+            "error": {
+                "code": exc.code,
+                "message": exc.message,
+            }
+        }
+        if exc.details:
+            payload["error"]["details"] = exc.details
+        return JSONResponse(status_code=exc.status_code, content=payload)
+
+    # ── Routers ───────────────────────────────────────────────────────────
+    # Each feature's router lands here. Keep the list flat + alphabetised
+    # so it's easy to see what surfaces exist.
+    app.include_router(health_router)
+
+    # Logfire instrumentation attaches after routers register so it sees
+    # every endpoint. No-op when LOGFIRE_TOKEN is unset.
+    instrument_app(app, engine)
+
+    return app
+
+
+app = create_app()

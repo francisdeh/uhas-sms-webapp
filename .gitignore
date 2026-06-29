@@ -58,6 +58,18 @@ next-env.d.ts
 # ─── Docker ───────────────────────────────────────────────────────────────────
 docker-compose.override.yml
 
+# ─── Python (apps/api lands in Phase 0 PR #2) ─────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
 # ─── Misc ─────────────────────────────────────────────────────────────────────
 .vercel
 .turbo
