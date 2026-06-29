@@ -84,7 +84,6 @@ export async function openPromotionSeasonAction(input: {
       .where(eq(promotionSeasons.id, existing.id));
   } else {
     await db.insert(promotionSeasons).values({
-      id: `promotion-season-${year.replace("/", "-")}-${Date.now()}`,
       schoolId,
       academicYear: year,
       status: "open",
@@ -148,17 +147,16 @@ async function findOrCreateSubmission(classId: string) {
   });
   if (existing) return existing;
 
-  const id = `promotion-sub-${classId}-${year.replace("/", "-")}-${Date.now()}`;
-  await db.insert(promotionSubmissions).values({
-    id,
-    schoolId,
-    classId,
-    academicYear: year,
-    status: "draft",
-  });
-  return (await db.query.promotionSubmissions.findFirst({
-    where: eq(promotionSubmissions.id, id),
-  }))!;
+  const [inserted] = await db
+    .insert(promotionSubmissions)
+    .values({
+      schoolId,
+      classId,
+      academicYear: year,
+      status: "draft",
+    })
+    .returning();
+  return inserted;
 }
 
 async function ensureDecisionsForRoster(submissionId: string, classId: string) {
@@ -247,7 +245,6 @@ async function ensureDecisionsForRoster(submissionId: string, classId: string) {
           : null;
 
     newDecisions.push({
-      id: `promotion-dec-${submissionId}-${s.id}`,
       submissionId,
       studentId: s.id,
       decision: initialDecision,
@@ -455,7 +452,6 @@ export async function approveSubmissionAction(input: {
       const inserts = promoteRepeat
         .filter((d) => d.targetClassId)
         .map((d) => ({
-          id: `enr-${d.studentId}-${targetYear.replace("/", "-")}-${Date.now()}-${d.decision[0]}`,
           studentId: d.studentId,
           classId: d.targetClassId!,
           academicYear: targetYear,

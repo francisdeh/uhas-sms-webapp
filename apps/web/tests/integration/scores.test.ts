@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { det } from "../../scripts/_seed-data/_uuid";
 import { and, eq } from "drizzle-orm";
 import { resetDb } from "../db";
 import { signInAs, signOut } from "../setup";
@@ -22,9 +23,9 @@ beforeEach(() => {
 });
 
 // JHS 1 + Mathematics + the published Mid-Term 1 exam (seeded).
-const EXAM_ID = "exam-midterm-t1-2026";
-const SUBJECT_ID = "sub-jhs-002"; // Mathematics
-const CLASS_ID = "class-jhs1";
+const EXAM_ID = det("exam-midterm-t1-2026");
+const SUBJECT_ID = det("sub-jhs-002"); // Mathematics
+const CLASS_ID = det("class-jhs1");
 
 describe("saveScoresAction (MidTerm)", () => {
   beforeEach(async () => {
@@ -38,8 +39,8 @@ describe("saveScoresAction (MidTerm)", () => {
       subjectId: SUBJECT_ID,
       classId: CLASS_ID,
       rows: [
-        { studentId: "UHAS-2026-0001", examScore: 85 },
-        { studentId: "UHAS-2026-0002", examScore: 70 },
+        { studentId: det("UHAS-2026-0001"), examScore: 85 },
+        { studentId: det("UHAS-2026-0002"), examScore: 70 },
       ],
     });
     expect(result.success).toBe(true);
@@ -48,7 +49,7 @@ describe("saveScoresAction (MidTerm)", () => {
       where: and(
         eq(scores.examId, EXAM_ID),
         eq(scores.subjectId, SUBJECT_ID),
-        eq(scores.studentId, "UHAS-2026-0001")
+        eq(scores.studentId, det("UHAS-2026-0001"))
       ),
     });
     expect(sc1?.totalScore).toBe(85);
@@ -62,8 +63,8 @@ describe("saveScoresAction (MidTerm)", () => {
       subjectId: SUBJECT_ID,
       classId: CLASS_ID,
       rows: [
-        { studentId: "UHAS-2026-0001", examScore: 50 },
-        { studentId: "UHAS-2026-0002", examScore: 80 },
+        { studentId: det("UHAS-2026-0001"), examScore: 50 },
+        { studentId: det("UHAS-2026-0002"), examScore: 80 },
       ],
     });
 
@@ -71,14 +72,14 @@ describe("saveScoresAction (MidTerm)", () => {
       where: and(
         eq(scores.examId, EXAM_ID),
         eq(scores.subjectId, SUBJECT_ID),
-        eq(scores.studentId, "UHAS-2026-0001")
+        eq(scores.studentId, det("UHAS-2026-0001"))
       ),
     });
     const sc2 = await db.query.scores.findFirst({
       where: and(
         eq(scores.examId, EXAM_ID),
         eq(scores.subjectId, SUBJECT_ID),
-        eq(scores.studentId, "UHAS-2026-0002")
+        eq(scores.studentId, det("UHAS-2026-0002"))
       ),
     });
     expect(sc2?.subjectPosition).toBe(1);
@@ -91,7 +92,7 @@ describe("saveScoresAction (MidTerm)", () => {
       examId: EXAM_ID,
       subjectId: SUBJECT_ID,
       classId: CLASS_ID,
-      rows: [{ studentId: "UHAS-2026-0001", examScore: 50 }],
+      rows: [{ studentId: det("UHAS-2026-0001"), examScore: 50 }],
     });
     expect(result.success).toBe(false);
   });
@@ -102,7 +103,7 @@ describe("saveScoresAction (MidTerm)", () => {
       examId: EXAM_ID,
       subjectId: SUBJECT_ID,
       classId: CLASS_ID,
-      rows: [{ studentId: "UHAS-2026-0001", examScore: 55 }],
+      rows: [{ studentId: det("UHAS-2026-0001"), examScore: 55 }],
     });
 
     const beforeAudits = await db.query.auditLog.findMany({
@@ -114,7 +115,7 @@ describe("saveScoresAction (MidTerm)", () => {
       examId: EXAM_ID,
       subjectId: SUBJECT_ID,
       classId: CLASS_ID,
-      rows: [{ studentId: "UHAS-2026-0001", examScore: 90 }],
+      rows: [{ studentId: det("UHAS-2026-0001"), examScore: 90 }],
     });
 
     const afterAudits = await db.query.auditLog.findMany({
@@ -128,19 +129,19 @@ describe("saveScoresAction (MidTerm)", () => {
       examId: EXAM_ID,
       subjectId: SUBJECT_ID,
       classId: CLASS_ID,
-      rows: [{ studentId: "UHAS-2026-0001", examScore: 60 }],
+      rows: [{ studentId: det("UHAS-2026-0001"), examScore: 60 }],
     });
     await saveScoresAction({
       examId: EXAM_ID,
       subjectId: SUBJECT_ID,
       classId: CLASS_ID,
-      rows: [{ studentId: "UHAS-2026-0001", examScore: null }],
+      rows: [{ studentId: det("UHAS-2026-0001"), examScore: null }],
     });
     const row = await db.query.scores.findFirst({
       where: and(
         eq(scores.examId, EXAM_ID),
         eq(scores.subjectId, SUBJECT_ID),
-        eq(scores.studentId, "UHAS-2026-0001")
+        eq(scores.studentId, det("UHAS-2026-0001"))
       ),
     });
     expect(row).toBeUndefined();
@@ -151,7 +152,7 @@ describe("saveScoresAction (MidTerm)", () => {
       examId: EXAM_ID,
       subjectId: SUBJECT_ID,
       classId: CLASS_ID,
-      rows: [{ studentId: "UHAS-2026-0001", examScore: 150 }],
+      rows: [{ studentId: det("UHAS-2026-0001"), examScore: 150 }],
     });
     expect(result.success).toBe(false);
   });
@@ -194,7 +195,7 @@ describe("getScoresForGridAction", () => {
       examId: EXAM_ID,
       subjectId: SUBJECT_ID,
       classId: CLASS_ID,
-      rows: [{ studentId: "UHAS-2026-0001", examScore: 75 }],
+      rows: [{ studentId: det("UHAS-2026-0001"), examScore: 75 }],
     });
 
     const grid = await getScoresForGridAction({
@@ -204,7 +205,7 @@ describe("getScoresForGridAction", () => {
     });
     expect(grid.exam?.id).toBe(EXAM_ID);
     expect(grid.rows.length).toBeGreaterThan(0);
-    const adwoa = grid.rows.find((r) => r.studentId === "UHAS-2026-0001");
+    const adwoa = grid.rows.find((r) => r.studentId === det("UHAS-2026-0001"));
     expect(adwoa?.score?.totalScore).toBe(75);
   });
 });

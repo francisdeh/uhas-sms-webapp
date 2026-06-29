@@ -58,6 +58,40 @@ If a relation you need doesn't exist yet, add it to the `relations()` block in `
 
 Schema changes go through `npm run db:generate` (creates the migration file) and `npm run db:migrate` (applies it). Never `db:push` — the SQL must be reviewable in the PR and applied identically across dev/test/prod.
 
+### 3a. Primary keys are uuid; slug as secondary on entity tables
+
+Every primary key in the schema is `uuid PRIMARY KEY DEFAULT gen_random_uuid()`. **Never** declare a varchar PK on a new table. The DB generates the UUID at insert time — feature code does not construct ids via template literals like `\`xxx-${Date.now()}\``.
+
+Where the entity benefits from a human-readable identifier (URLs, audit logs, dropdowns), add a separate `slug` column:
+
+```ts
+export const staff = pgTable("staff", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: varchar("slug", { length: 50 }).notNull(),         // "STAFF-042"
+  schoolId: uuid("school_id").references(() => schools.id).notNull(),
+  // ...
+}, (t) => [
+  unique("staff_school_slug_unique").on(t.schoolId, t.slug),
+]);
+```
+
+Tables that get a slug today: **schools, staff, students, guardians, classes, subjects**. Everything else (audit_log, notifications, enrollments, scores, exams, lesson_plans, schemes, assignments, attendance, promotions, etc.) uses the UUID alone.
+
+`schools.slug` is globally unique; every other slug is unique-per-school.
+
+**Slug generation** lives in the service layer — for sequential schemes like `STAFF-042`, query the highest existing slug for the prefix + increment. For human-set slugs (school slug `"uhas-basic"`), accept from the admin form.
+
+**Upsert by natural key**, not by synthetic id. Patterns like "id = `session-${classId}-${date}`" don't work with uuid PKs. Query by `(classId, date)` and branch on existence:
+
+```ts
+const existing = await tx.query.attendanceSessions.findFirst({
+  where: and(eq(attendanceSessions.classId, classId), eq(attendanceSessions.date, date)),
+});
+if (existing) { ... } else { ... }
+```
+
+**Seed fixtures** use `det(key)` from `src/lib/uuid.ts` — a deterministic sha256-derived UUID. Same `det("STAFF-001")` resolves to the same UUID across runs, machines, CI. Tests reference seed entities by slug + `det()`, never by uuid literal.
+
 ### 4. Always filter by `schoolId`
 
 Every query must scope by `schoolId` via `getCurrentSchoolId()`. Even if there's only one school today, multi-tenancy is on the roadmap and untouched queries become silent leaks then.

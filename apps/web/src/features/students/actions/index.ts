@@ -114,35 +114,40 @@ export async function createStudentAction(
     return { success: false, error: "Invalid classId: class not found." };
   }
 
-  // Generate next sequence-based ID: UHAS-{YEAR}-{NNNN}
+  // Slug = UHAS-{YEAR}-{NNNN} — the official student id on report cards.
+  // The uuid PK is DB-generated.
   const yearShort = new Date().getFullYear();
   const prefix = `UHAS-${yearShort}-`;
   const last = await db.query.students.findFirst({
-    where: and(eq(students.schoolId, schoolId), like(students.id, `${prefix}%`)),
-    orderBy: [desc(students.id)],
+    where: and(eq(students.schoolId, schoolId), like(students.slug, `${prefix}%`)),
+    orderBy: [desc(students.slug)],
   });
-  const nextSeq = last ? Number(last.id.slice(prefix.length)) + 1 : 1;
-  const id = `${prefix}${String(nextSeq).padStart(4, "0")}`;
+  const nextSeq = last ? Number(last.slug.slice(prefix.length)) + 1 : 1;
+  const slug = `${prefix}${String(nextSeq).padStart(4, "0")}`;
 
+  let newStudentId = "";
   await db.transaction(async (tx) => {
-    await tx.insert(students).values({
-      id,
-      schoolId,
-      firstName: input.firstName,
-      middleName: input.middleName ?? null,
-      lastName: input.lastName,
-      dob: input.dob,
-      gender: input.gender,
-      phone: input.phone ?? null,
-      address: input.address ?? null,
-      nationality: input.nationality ?? null,
-      religion: input.religion ?? null,
-      photoUrl: input.photoUrl ?? null,
-      isActive: true,
-    });
+    const [inserted] = await tx
+      .insert(students)
+      .values({
+        slug,
+        schoolId,
+        firstName: input.firstName,
+        middleName: input.middleName ?? null,
+        lastName: input.lastName,
+        dob: input.dob,
+        gender: input.gender,
+        phone: input.phone ?? null,
+        address: input.address ?? null,
+        nationality: input.nationality ?? null,
+        religion: input.religion ?? null,
+        photoUrl: input.photoUrl ?? null,
+        isActive: true,
+      })
+      .returning();
+    newStudentId = inserted.id;
     await tx.insert(enrollments).values({
-      id: `enr-${id}-${year.replace("/", "-")}`,
-      studentId: id,
+      studentId: newStudentId,
       classId: input.classId,
       academicYear: year,
       status: "Active",
@@ -152,7 +157,7 @@ export async function createStudentAction(
 
   revalidatePath("/admin/students");
   revalidatePath("/deputy-head/students");
-  return { success: true, id };
+  return { success: true, id: newStudentId };
 }
 
 export async function deactivateStudentAction(id: string): Promise<ActionResult> {
@@ -258,7 +263,6 @@ export async function transferStudentAction(
         .where(eq(enrollments.id, current.id));
     }
     await tx.insert(enrollments).values({
-      id: `enr-${id}-${year.replace("/", "-")}-${Date.now()}`,
       studentId: id,
       classId: data.classId,
       academicYear: year,

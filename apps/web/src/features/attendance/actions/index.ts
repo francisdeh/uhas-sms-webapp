@@ -90,13 +90,22 @@ export async function saveSessionAction(input: {
   }
 
   const schoolId = await getCurrentSchoolId();
-  const sessionId = `session-${input.classId}-${input.date}`;
 
+  let sessionId = "";
   await db.transaction(async (tx) => {
+    // Upsert by (classId, date) — the natural key. After the UUID
+    // migration we no longer construct a synthetic deterministic id;
+    // the DB-generated UUID is meaningless to callers, and the
+    // (class_id, date) pair is what identifies "the attendance session
+    // for class X on day Y".
     const existing = await tx.query.attendanceSessions.findFirst({
-      where: eq(attendanceSessions.id, sessionId),
+      where: and(
+        eq(attendanceSessions.classId, input.classId),
+        eq(attendanceSessions.date, input.date),
+      ),
     });
     if (existing) {
+      sessionId = existing.id;
       await tx
         .update(attendanceSessions)
         .set({ term: input.term, submittedById: input.submittedById, submittedAt: new Date() })
@@ -105,14 +114,17 @@ export async function saveSessionAction(input: {
         .delete(attendanceRecords)
         .where(eq(attendanceRecords.sessionId, sessionId));
     } else {
-      await tx.insert(attendanceSessions).values({
-        id: sessionId,
-        schoolId,
-        classId: input.classId,
-        date: input.date,
-        term: input.term,
-        submittedById: input.submittedById,
-      });
+      const [inserted] = await tx
+        .insert(attendanceSessions)
+        .values({
+          schoolId,
+          classId: input.classId,
+          date: input.date,
+          term: input.term,
+          submittedById: input.submittedById,
+        })
+        .returning();
+      sessionId = inserted.id;
     }
 
     if (input.records.length > 0) {
@@ -228,13 +240,18 @@ export async function saveStaffSessionAction(input: {
   records: { staffId: string; status: StaffAttendanceStatus; note?: string }[];
 }): Promise<ActionResult<{ sessionId: string }>> {
   const schoolId = await getCurrentSchoolId();
-  const sessionId = `staff-session-${input.division.replace(/\s+/g, "")}-${input.date}`;
 
+  let sessionId = "";
   await db.transaction(async (tx) => {
+    // Upsert by (division, date) — same pattern as student attendance.
     const existing = await tx.query.staffAttendanceSessions.findFirst({
-      where: eq(staffAttendanceSessions.id, sessionId),
+      where: and(
+        eq(staffAttendanceSessions.division, input.division),
+        eq(staffAttendanceSessions.date, input.date),
+      ),
     });
     if (existing) {
+      sessionId = existing.id;
       await tx
         .update(staffAttendanceSessions)
         .set({ submittedById: input.submittedById, submittedAt: new Date() })
@@ -243,14 +260,17 @@ export async function saveStaffSessionAction(input: {
         .delete(staffAttendanceRecords)
         .where(eq(staffAttendanceRecords.sessionId, sessionId));
     } else {
-      await tx.insert(staffAttendanceSessions).values({
-        id: sessionId,
-        schoolId,
-        division: input.division,
-        date: input.date,
-        term: input.term,
-        submittedById: input.submittedById,
-      });
+      const [inserted] = await tx
+        .insert(staffAttendanceSessions)
+        .values({
+          schoolId,
+          division: input.division,
+          date: input.date,
+          term: input.term,
+          submittedById: input.submittedById,
+        })
+        .returning();
+      sessionId = inserted.id;
     }
     if (input.records.length > 0) {
       await tx.insert(staffAttendanceRecords).values(
@@ -361,17 +381,19 @@ export async function submitLeaveRequestAction(
     return { success: false, error: "You already have an overlapping leave request for those dates" };
   }
 
-  const id = `leave-${Date.now()}`;
-  await db.insert(leaveRequests).values({
-    id,
-    schoolId,
-    staffId,
-    type: input.type,
-    startDate: input.startDate,
-    endDate: input.endDate,
-    reason: input.reason ?? null,
-    status: "pending",
-  });
+  const [inserted] = await db
+    .insert(leaveRequests)
+    .values({
+      schoolId,
+      staffId,
+      type: input.type,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      reason: input.reason ?? null,
+      status: "pending",
+    })
+    .returning();
+  const id = inserted.id;
 
   // Notify approvers: the requester's DH (by division) + all Admins.
   const requester = await db.query.staff.findFirst({ where: eq(staff.id, staffId) });

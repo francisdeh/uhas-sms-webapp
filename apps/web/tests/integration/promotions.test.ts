@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { det } from "../../scripts/_seed-data/_uuid";
 import { and, eq, inArray } from "drizzle-orm";
 import { resetDb } from "../db";
 import { signInAs, signOut } from "../setup";
@@ -23,11 +24,11 @@ import {
 } from "@/db/schema";
 import { publishExamAction } from "@/features/exams/actions";
 
-const ADMIN_ID = "STAFF-001";
-const DEPUTY_HEAD_UPPER_PRIMARY = "STAFF-016";
-const TEACHER_P5 = "STAFF-006"; // primary class teacher of class-p5
-const P5_CLASS = "class-p5";
-const TERM_3_EXAM = "exam-eot-t3-2026"; // seeded, published
+const ADMIN_ID = det("STAFF-001");
+const DEPUTY_HEAD_UPPER_PRIMARY = det("STAFF-016");
+const TEACHER_P5 = det("STAFF-006"); // primary class teacher of class-p5
+const P5_CLASS = det("class-p5");
+const TERM_3_EXAM = det("exam-eot-t3-2026"); // seeded, published
 
 beforeAll(async () => {
   await resetDb();
@@ -134,7 +135,7 @@ describe("submission lifecycle", () => {
       submittedById: TEACHER_P5,
       updates: [
         {
-          studentId: "UHAS-2026-0010",
+          studentId: det("UHAS-2026-0010"),
           decision: "promote",
           targetClassId: null, // missing — should trigger the error
           reason: null,
@@ -142,9 +143,9 @@ describe("submission lifecycle", () => {
         {
           // 0011 defaults to "repeat" suggestion (fails 3 cores); make it a
           // valid promote so 0010's missing target is the only error left.
-          studentId: "UHAS-2026-0011",
+          studentId: det("UHAS-2026-0011"),
           decision: "promote",
-          targetClassId: "class-p6-2027",
+          targetClassId: det("class-p6-2027"),
           reason: null,
         },
       ],
@@ -160,9 +161,9 @@ describe("submission lifecycle", () => {
       submittedById: TEACHER_P5,
       updates: [
         {
-          studentId: "UHAS-2026-0011",
+          studentId: det("UHAS-2026-0011"),
           decision: "repeat",
-          targetClassId: "class-p5-2027",
+          targetClassId: det("class-p5-2027"),
           reason: null,
         },
       ],
@@ -184,9 +185,9 @@ describe("submission lifecycle", () => {
       classId: P5_CLASS,
       updates: [
         {
-          studentId: "UHAS-2026-0010",
+          studentId: det("UHAS-2026-0010"),
           decision: "promote",
-          targetClassId: "class-p6-2027",
+          targetClassId: det("class-p6-2027"),
           reason: null,
         },
       ],
@@ -221,15 +222,15 @@ describe("approveSubmissionAction (the transactional one)", () => {
       submittedById: TEACHER_P5,
       updates: [
         {
-          studentId: "UHAS-2026-0010",
+          studentId: det("UHAS-2026-0010"),
           decision: "promote",
-          targetClassId: "class-p6-2027",
+          targetClassId: det("class-p6-2027"),
           reason: null,
         },
         {
-          studentId: "UHAS-2026-0011",
+          studentId: det("UHAS-2026-0011"),
           decision: "repeat",
-          targetClassId: "class-p5-2027",
+          targetClassId: det("class-p5-2027"),
           reason: "Failed core subjects",
         },
       ],
@@ -244,7 +245,7 @@ describe("approveSubmissionAction (the transactional one)", () => {
     // Current-year enrollments closed
     const currentClosed = await db.query.enrollments.findMany({
       where: and(
-        inArray(enrollments.studentId, ["UHAS-2026-0010", "UHAS-2026-0011"]),
+        inArray(enrollments.studentId, [det("UHAS-2026-0010"), det("UHAS-2026-0011")]),
         eq(enrollments.academicYear, "2025/2026"),
         eq(enrollments.status, "Completed")
       ),
@@ -254,16 +255,16 @@ describe("approveSubmissionAction (the transactional one)", () => {
     // New-year enrollments created
     const newYear = await db.query.enrollments.findMany({
       where: and(
-        inArray(enrollments.studentId, ["UHAS-2026-0010", "UHAS-2026-0011"]),
+        inArray(enrollments.studentId, [det("UHAS-2026-0010"), det("UHAS-2026-0011")]),
         eq(enrollments.academicYear, "2026/2027")
       ),
     });
     expect(newYear.length).toBe(2);
-    const promoted = newYear.find((e) => e.studentId === "UHAS-2026-0010");
-    const repeating = newYear.find((e) => e.studentId === "UHAS-2026-0011");
-    expect(promoted?.classId).toBe("class-p6-2027");
+    const promoted = newYear.find((e) => e.studentId === det("UHAS-2026-0010"));
+    const repeating = newYear.find((e) => e.studentId === det("UHAS-2026-0011"));
+    expect(promoted?.classId).toBe(det("class-p6-2027"));
     expect(promoted?.status).toBe("Active");
-    expect(repeating?.classId).toBe("class-p5-2027");
+    expect(repeating?.classId).toBe(det("class-p5-2027"));
     expect(repeating?.status).toBe("Repeating");
 
     // Submission marked approved
@@ -292,15 +293,15 @@ describe("approveSubmissionAction (the transactional one)", () => {
       submittedById: TEACHER_P5,
       updates: [
         {
-          studentId: "UHAS-2026-0010",
+          studentId: det("UHAS-2026-0010"),
           decision: "withdraw",
           targetClassId: null,
           reason: "Family moving",
         },
         {
-          studentId: "UHAS-2026-0011",
+          studentId: det("UHAS-2026-0011"),
           decision: "promote",
-          targetClassId: "class-p6-2027",
+          targetClassId: det("class-p6-2027"),
           reason: null,
         },
       ],
@@ -312,13 +313,13 @@ describe("approveSubmissionAction (the transactional one)", () => {
     });
 
     const student = await db.query.students.findFirst({
-      where: eq(students.id, "UHAS-2026-0010"),
+      where: eq(students.id, det("UHAS-2026-0010")),
     });
     expect(student?.isActive).toBe(false);
 
     const newYearForWithdrawn = await db.query.enrollments.findFirst({
       where: and(
-        eq(enrollments.studentId, "UHAS-2026-0010"),
+        eq(enrollments.studentId, det("UHAS-2026-0010")),
         eq(enrollments.academicYear, "2026/2027")
       ),
     });
@@ -346,15 +347,15 @@ describe("approveSubmissionAction (the transactional one)", () => {
       submittedById: TEACHER_P5,
       updates: [
         {
-          studentId: "UHAS-2026-0010",
+          studentId: det("UHAS-2026-0010"),
           decision: "promote",
-          targetClassId: "class-p6-2027",
+          targetClassId: det("class-p6-2027"),
           reason: null,
         },
         {
-          studentId: "UHAS-2026-0011",
+          studentId: det("UHAS-2026-0011"),
           decision: "promote",
-          targetClassId: "class-p6-2027",
+          targetClassId: det("class-p6-2027"),
           reason: null,
         },
       ],
@@ -397,15 +398,15 @@ describe("sendBackSubmissionAction", () => {
       submittedById: TEACHER_P5,
       updates: [
         {
-          studentId: "UHAS-2026-0010",
+          studentId: det("UHAS-2026-0010"),
           decision: "promote",
-          targetClassId: "class-p6-2027",
+          targetClassId: det("class-p6-2027"),
           reason: null,
         },
         {
-          studentId: "UHAS-2026-0011",
+          studentId: det("UHAS-2026-0011"),
           decision: "promote",
-          targetClassId: "class-p6-2027",
+          targetClassId: det("class-p6-2027"),
           reason: null,
         },
       ],

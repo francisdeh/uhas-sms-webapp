@@ -8,6 +8,8 @@
 import { config } from "dotenv";
 import { vi } from "vitest";
 
+import { det } from "../scripts/_seed-data/_uuid";
+
 config({ path: ".env.test" });
 
 // ─── Cookie store mock ───────────────────────────────────────────────────────
@@ -140,12 +142,20 @@ const ROLE_UIDS: Record<TestRole, string> = {
   Parent: "00000000-0000-0000-0000-000000000008",
 };
 
+// linkedId values are the det() UUIDs of the matching staff / guardian
+// rows — same translation the seed-db.ts applies on insert. Tests that
+// override pass either the slug ("STAFF-004") expecting det() lookup,
+// or a raw uuid for adversarial cases.
 const ROLE_LINKED_IDS: Record<TestRole, string> = {
-  Admin: "STAFF-001",
-  DeputyHead: "STAFF-002",
-  Teacher: "STAFF-005",
-  Parent: "guardian-001",
+  Admin: det("STAFF-001"),
+  DeputyHead: det("STAFF-002"),
+  Teacher: det("STAFF-005"),
+  Parent: det("guardian-001"),
 };
+
+// Expose so tests can call signInAs("Teacher", { linkedId: linkedIdFromSlug("STAFF-004") }).
+export const linkedIdFromSlug = (slug: string) => det(slug);
+export const schoolIdFromSlug = (slug: string) => det(slug);
 
 const ROLE_EMAILS: Record<TestRole, string> = {
   Admin: "admin@uhas.edu.gh",
@@ -187,7 +197,7 @@ export function signInAs(
     phone: null,
     app_metadata: {
       role: overrides?.role ?? role,
-      school_id: "school-uhas-001",
+      school_id: det("school-uhas-001"),
       linked_id: overrides?.linkedId ?? ROLE_LINKED_IDS[role],
     },
     user_metadata: {

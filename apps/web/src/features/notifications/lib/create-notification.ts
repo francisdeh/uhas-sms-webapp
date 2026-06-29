@@ -20,7 +20,6 @@ export async function createNotification(
 ): Promise<void> {
   const schoolId = await getCurrentSchoolId();
   await db.insert(notifications).values({
-    id: makeId(),
     schoolId,
     userId,
     kind: payload.kind,
@@ -42,7 +41,6 @@ export async function notifyAudience(
 
   const schoolId = await getCurrentSchoolId();
   const rows = userIds.map((userId) => ({
-    id: makeId(),
     schoolId,
     userId,
     kind: payload.kind,
@@ -53,8 +51,4 @@ export async function notifyAudience(
 
   await db.insert(notifications).values(rows);
   return rows.length;
-}
-
-function makeId(): string {
-  return `notif-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }

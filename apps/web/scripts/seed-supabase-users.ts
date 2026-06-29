@@ -25,6 +25,7 @@
 
 import { createClient, type AuthError, type User } from "@supabase/supabase-js";
 
+import { det } from "./_seed-data/_uuid";
 import { mockUsers, type SeedUser } from "./_seed-data/users";
 
 const args = new Set(process.argv.slice(2));
@@ -42,7 +43,9 @@ if (!SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-const SCHOOL_ID = "school-uhas-001";
+// Both claims are the det() UUIDs of the rows in the public schema.
+// Matches what seed-db.ts produces and what FastAPI deps read.
+const SCHOOL_UUID = det("school-uhas-001");
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -51,8 +54,8 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 function appMetadataFor(user: SeedUser) {
   return {
     role: user.role,
-    school_id: SCHOOL_ID,
-    linked_id: user.linkedId,
+    school_id: SCHOOL_UUID,
+    linked_id: det(user.linkedId),
   };
 }
 

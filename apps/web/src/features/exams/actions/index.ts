@@ -128,20 +128,21 @@ export async function createExamAction(
     return { success: false, error: "An exam of this type already exists for this term." };
   }
 
-  const id = `exam-${input.type.toLowerCase()}-t${input.term}-${input.academicYear.replace("/", "-")}-${Date.now()}`;
-  await db.insert(exams).values({
-    id,
-    schoolId,
-    name: input.name,
-    type: input.type,
-    term: input.term,
-    academicYear: input.academicYear,
-    isPublished: false,
-    publishedAt: null,
-  });
+  const [inserted] = await db
+    .insert(exams)
+    .values({
+      schoolId,
+      name: input.name,
+      type: input.type,
+      term: input.term,
+      academicYear: input.academicYear,
+      isPublished: false,
+      publishedAt: null,
+    })
+    .returning();
 
   revalidatePath("/admin/examinations");
-  return { success: true, id };
+  return { success: true, id: inserted.id };
 }
 
 export async function publishExamAction(id: string): Promise<ActionResult> {
@@ -316,9 +317,7 @@ export async function saveScoresAction(input: {
           })
           .where(eq(scores.id, existing.id));
       } else {
-        const id = `score-${input.examId}-${input.subjectId}-${row.studentId}`;
         await tx.insert(scores).values({
-          id,
           examId: input.examId,
           studentId: row.studentId,
           subjectId: input.subjectId,
@@ -484,18 +483,20 @@ async function upsertRemark(
   studentId: string,
   patch: { classTeacherRemark?: string | null; headOfSchoolComment?: string | null }
 ) {
-  const id = `remark-${examId}-${studentId}`;
+  // Natural key is (examId, studentId) — one remark row per student per exam.
   const existing = await tx.query.studentReportRemarks.findFirst({
-    where: eq(studentReportRemarks.id, id),
+    where: and(
+      eq(studentReportRemarks.examId, examId),
+      eq(studentReportRemarks.studentId, studentId),
+    ),
   });
   if (existing) {
     const update: Partial<typeof studentReportRemarks.$inferInsert> = { updatedAt: new Date() };
     if (patch.classTeacherRemark !== undefined) update.classTeacherRemark = patch.classTeacherRemark;
     if (patch.headOfSchoolComment !== undefined) update.headOfSchoolComment = patch.headOfSchoolComment;
-    await tx.update(studentReportRemarks).set(update).where(eq(studentReportRemarks.id, id));
+    await tx.update(studentReportRemarks).set(update).where(eq(studentReportRemarks.id, existing.id));
   } else {
     await tx.insert(studentReportRemarks).values({
-      id,
       examId,
       studentId,
       classTeacherRemark: patch.classTeacherRemark ?? null,
@@ -541,9 +542,12 @@ export async function submitClassReportAction(
       });
     }
 
-    const id = `crs-${input.examId}-${input.classId}`;
+    // Natural key is (examId, classId) — one submission row per class per exam.
     const existing = await tx.query.classReportSubmissions.findFirst({
-      where: eq(classReportSubmissions.id, id),
+      where: and(
+        eq(classReportSubmissions.examId, input.examId),
+        eq(classReportSubmissions.classId, input.classId),
+      ),
     });
     if (existing) {
       await tx
@@ -553,10 +557,9 @@ export async function submitClassReportAction(
           submittedById: input.submittedById,
           submittedAt: new Date(),
         })
-        .where(eq(classReportSubmissions.id, id));
+        .where(eq(classReportSubmissions.id, existing.id));
     } else {
       await tx.insert(classReportSubmissions).values({
-        id,
         examId: input.examId,
         classId: input.classId,
         status: "submitted",
