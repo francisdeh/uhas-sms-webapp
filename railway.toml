@@ -1,12 +1,21 @@
+# Monorepo config — one service per app. The `api` service is added in
+# Phase 0 PR #2 alongside the FastAPI skeleton. For now only `web` is live.
+#
+# Each service block sets a sourceRoot so Railway only watches that path
+# for changes, runs install/build/start inside it, and ignores the rest.
+
+[[services]]
+  name = "web"
+  source = "apps/web"
+  buildCommand = "npm ci && npm run build"
+  # Apply Drizzle migrations + idempotent prod seed before booting the
+  # Next.js server. Both commands are no-ops when there's nothing to do.
+  startCommand = "npm run db:migrate && npm run db:seed:prod && npm run start"
+  restartPolicyType = "on_failure"
+  restartPolicyMaxRetries = 5
+
 [build]
 builder = "railpack"
 
 [build.args]
 NODE_VERSION = "20"
-
-[deploy]
-# Apply migrations + seed prod-minimum (school + Firebase-backed users) before
-# starting the app. db:seed:prod is idempotent — safe to re-run on every deploy.
-startCommand = "npm run db:migrate && npm run db:seed:prod && npm run start"
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 5

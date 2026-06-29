@@ -30,6 +30,12 @@ A web-based School Management System for UHAS Basic School, Ghana. Covers studen
 
 ## Getting Started
 
+> **Monorepo note.** The Next.js app lives in [`apps/web/`](apps/web/). All `npm` commands below run from that directory unless explicitly noted. `docker compose` and `git` commands run from the repo root. The FastAPI backend in [`apps/api/`](apps/api/) is a placeholder in this PR; its setup ships in Phase 0 PR #2 (see [v2/UHAS_Migration_Execution_Plan.md](v2/UHAS_Migration_Execution_Plan.md)).
+
+```bash
+cd apps/web      # everything in §§1–6 below runs from here
+```
+
 ### 1. Install dependencies
 
 ```bash
@@ -130,41 +136,29 @@ App runs at `http://localhost:3000`.
 ## Project Structure
 
 ```
-src/
-├── app/
-│   ├── (auth)/                 # Unauthenticated pages
-│   │   ├── login/
-│   │   ├── reset-password/
-│   │   └── change-password/
-│   └── (dashboard)/            # Role-specific dashboards
-│       ├── admin/
-│       ├── deputy-head/
-│       ├── teacher/
-│       └── parent/
-├── components/
-│   ├── ui/                     # shadcn/ui primitives
-│   └── providers.tsx           # TanStack Query provider
-├── db/
-│   ├── index.ts                # Neon + Drizzle client
-│   └── schema.ts               # All table definitions (15 tables)
-├── features/                   # Domain modules
-│   ├── auth/                   # Login, session, user management
-│   ├── shell/                  # Dashboard layout, Sidebar, Header, nav config
-│   ├── profile/                # User profile + security settings
-│   ├── students/
-│   ├── staff/
-│   ├── classes/
-│   ├── attendance/
-│   ├── exams/
-│   ├── lesson-plans/
-│   ├── announcements/
-│   └── reports/
-│   └── (each has: components/, actions/, queries/, types.ts)
-├── lib/
-│   ├── firebase.ts             # Firebase app + Auth emulator detection
-│   ├── mock/                   # Fixture data (active when USE_MOCK_DATA=true)
-│   └── utils.ts
-└── proxy.ts                    # Role-based routing (Next.js middleware)
+uhas-sms/
+├── apps/
+│   ├── web/                            # Next.js frontend (everything that exists today)
+│   │   ├── src/
+│   │   │   ├── app/                    # App Router — (auth) + (dashboard)/<role>/
+│   │   │   ├── components/ui/          # shadcn primitives
+│   │   │   ├── db/                     # Drizzle schema + client
+│   │   │   ├── features/<domain>/      # actions/, queries/, components/, types.ts
+│   │   │   ├── lib/                    # Cross-cutting (firebase, email, dates, …)
+│   │   │   └── proxy.ts                # Role-based routing
+│   │   ├── tests/                      # Vitest + Playwright
+│   │   ├── drizzle/                    # Committed migrations
+│   │   ├── scripts/                    # Seed + setup scripts
+│   │   └── package.json
+│   │
+│   └── api/                            # FastAPI backend (Phase 0 PR #2)
+│
+├── supabase/                           # Supabase CLI + Alembic baseline (Phase 0 PR #3)
+├── docs/                               # Persistent reference docs
+├── v2/                                 # Migration plan set (Strategy A target)
+├── docker-compose.yml                  # Local Postgres for both apps
+├── railway.toml                        # Multi-service deploy config
+└── .github/workflows/                  # CI (lint + tsc + tests + build + E2E)
 ```
 
 ---

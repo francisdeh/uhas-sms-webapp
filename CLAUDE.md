@@ -10,6 +10,21 @@ A Next.js web app for UHAS Basic School, Ghana. It's a School Management System 
 
 It is a real production system being built for a real school. Code quality, correctness, and security matter.
 
+## Monorepo layout
+
+```
+uhas-sms/
+├── apps/
+│   ├── web/         # Next.js frontend — what this CLAUDE.md mostly describes
+│   └── api/         # FastAPI backend — added in Phase 0 PR #2 (placeholder for now)
+├── supabase/        # Supabase CLI project + Alembic baseline (Phase 0 PR #3)
+├── docs/            # Persistent reference docs (HANDOVER, conventions, audits, …)
+├── v2/              # Migration plan set — Strategy A target architecture
+└── railway.toml     # Multi-service Railway config
+```
+
+When you see `apps/web/src/...` below, that's the current Next.js app. The Strategy A migration to FastAPI + Supabase is the active workstream — see [v2/UHAS_Migration_Execution_Plan.md](v2/UHAS_Migration_Execution_Plan.md).
+
 ---
 
 ## Current State
@@ -23,11 +38,11 @@ Most UI currently uses mock data (`USE_MOCK_DATA=true`). Real DB integration is 
 ## Architecture Rules
 
 ### Feature-Based Modules
-All domain code lives in `src/features/<name>/`. Never dump feature-specific components into `src/components/`. The `src/components/` folder is for truly shared, reusable UI primitives only.
+All domain code lives in `apps/web/src/features/<name>/`. Never dump feature-specific components into `apps/web/src/components/`. The `apps/web/src/components/` folder is for truly shared, reusable UI primitives only.
 
 Each feature folder contains:
 ```
-src/features/<name>/
+apps/web/src/features/<name>/
 ├── components/   # UI components for this domain
 ├── actions/      # Next.js Server Actions (mutations)
 ├── queries/      # Server-side query functions
@@ -43,16 +58,16 @@ src/features/<name>/
 - Drizzle ORM + Neon PostgreSQL in production.
 - Locally: Docker PostgreSQL 16 on port 5432.
 - All tables include `schoolId` for multi-tenant scoping — every query must filter by `schoolId`.
-- Schema is in `src/db/schema.ts`. After editing it, run `npm run db:generate` to emit a new migration file in `drizzle/`, then `npm run db:migrate` to apply it. `db:push` is **not** used — migrations are the only path to a schema change, so the SQL is reviewable in PRs and the test/E2E DBs stay in sync with prod via the same files.
+- Schema is in `apps/web/src/db/schema.ts`. After editing it, run `npm run db:generate` to emit a new migration file in `drizzle/`, then `npm run db:migrate` to apply it. `db:push` is **not** used — migrations are the only path to a schema change, so the SQL is reviewable in PRs and the test/E2E DBs stay in sync with prod via the same files.
 
 ### Auth
 - Firebase Authentication for identity.
 - Session stored as httpOnly cookies set by login Server Action.
-- `src/proxy.ts` enforces role-based routing on every request.
+- `apps/web/src/proxy.ts` enforces role-based routing on every request.
 - Locally: Firebase Auth Emulator on port 9099.
 
 ### Mock Data
-- `USE_MOCK_DATA=true` in `.env.local` makes Server Actions and queries return fixtures from `src/lib/mock/`.
+- `USE_MOCK_DATA=true` in `.env.local` makes Server Actions and queries return fixtures from `apps/web/src/lib/mock/`.
 - Remove mock data module-by-module as real DB integration is wired up per phase.
 - Never import mock files directly in UI components — they should only be used inside `actions/` and `queries/`.
 
@@ -90,21 +105,21 @@ Full conventions in [docs/ENGINEERING-CONVENTIONS.md](docs/ENGINEERING-CONVENTIO
 - **No speculative abstractions.** Don't build helpers or utilities until you need them in 3+ places.
 - **TypeScript strict mode is on.** No `any`, no `@ts-ignore` unless absolutely unavoidable and explained.
 - **Use exported constants for known unions** — `USER_ROLES`, `Division`, `LessonPlanStatus`, etc. Never compare against bare string literals.
-- **Tailwind for all styling.** No CSS modules, no inline styles. Use `cn()` from `src/lib/utils.ts` for conditional classes.
-- **shadcn/ui for all UI primitives** — inputs, buttons, labels, dialogs, selects, etc. Components live in `src/components/ui/`. Add missing ones with `npx shadcn@latest add <name> -y`. Never use raw HTML form elements in feature components.
+- **Tailwind for all styling.** No CSS modules, no inline styles. Use `cn()` from `apps/web/src/lib/utils.ts` for conditional classes.
+- **shadcn/ui for all UI primitives** — inputs, buttons, labels, dialogs, selects, etc. Components live in `apps/web/src/components/ui/`. Add missing ones with `npx shadcn@latest add <name> -y`. Never use raw HTML form elements in feature components.
 - **Zod for all form validation.** Every form uses `react-hook-form` + `zodResolver` + a Zod schema. Pass error messages as objects (`{ message: "..." }`) not bare strings.
 - **Sonner for all toasts.** Import from `sonner` — `toast.success()`, `toast.error()`.
 
 ### Database
 - **Always filter by `schoolId`** via `getCurrentSchoolId()` — every table is multi-tenant-anchored.
 - **Index FK columns and filter-heavy columns** in the same migration that adds them. Postgres doesn't auto-index FKs.
-- **Prefer Drizzle relations + `with:` over manual joins.** Relations live in `src/db/schema.ts`. One query beats four.
+- **Prefer Drizzle relations + `with:` over manual joins.** Relations live in `apps/web/src/db/schema.ts`. One query beats four.
 - **Migrations only, no `db:push`.** `npm run db:generate` then `npm run db:migrate`. SQL must be reviewable in the PR.
 - **Soft-delete high-risk tables** (lesson plans, scores, assignments, schemes) with `deletedAt` rather than `db.delete(...)`.
 
 ### Server Actions
 - **Return `ActionResult<T>`** — `{ success: true; data?: T } | { success: false; error: string }`. Never throw from an action; catch and return.
-- **Audit-log sensitive mutations** (score overrides, student edits, role changes, promotion approvals, settings updates) via `src/lib/audit-log.ts`.
+- **Audit-log sensitive mutations** (score overrides, student edits, role changes, promotion approvals, settings updates) via `apps/web/src/lib/audit-log.ts`.
 - **Never log auth tokens or session cookies.** Decoded `uid` / `email` only.
 - **Call `revalidatePath`** after data-mutating actions for routes that show the data.
 
@@ -150,12 +165,12 @@ Used for score calculation in `features/exams/`. Bands and interpretations come 
 
 | File | Purpose |
 |---|---|
-| `src/db/schema.ts` | Single source of truth for all DB tables |
-| `src/proxy.ts` | Role-based routing enforcement (Next.js 16 renamed middleware → proxy) |
-| `src/lib/firebase.ts` | Firebase client init + emulator detection |
-| `src/lib/firebase-admin.ts` | Firebase Admin SDK for server-side auth |
-| `src/lib/mock/*.ts` | Fixture data (replaced phase by phase with real DB) |
-| `src/components/ui/` | shadcn UI primitives |
+| `apps/web/src/db/schema.ts` | Single source of truth for all DB tables |
+| `apps/web/src/proxy.ts` | Role-based routing enforcement (Next.js 16 renamed middleware → proxy) |
+| `apps/web/src/lib/firebase.ts` | Firebase client init + emulator detection |
+| `apps/web/src/lib/firebase-admin.ts` | Firebase Admin SDK for server-side auth |
+| `apps/web/src/lib/mock/*.ts` | Fixture data (replaced phase by phase with real DB) |
+| `apps/web/src/components/ui/` | shadcn UI primitives |
 | `docs/implementation-spec.md` | Full feature spec and phase plan |
 | `scripts/seed-emulator-users.ts` | Seeds Firebase emulator with test users |
 
@@ -169,4 +184,4 @@ Used for score calculation in `features/exams/`. Bands and interpretations come 
 - Don't create API route handlers for mutations — use Server Actions.
 - Don't add `"use client"` to layouts or pages that don't need it.
 - Don't skip `schoolId` filtering in any DB query.
-- The project uses **Tailwind v4**. Config lives in `src/app/globals.css` via `@theme inline` — there is no `tailwind.config.ts`. Add new design tokens there, not in JS.
+- The project uses **Tailwind v4**. Config lives in `apps/web/src/app/globals.css` via `@theme inline` — there is no `tailwind.config.ts`. Add new design tokens there, not in JS.
