@@ -7,8 +7,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, Shield, ShieldCheck, Monitor, Copy, CheckCheck, UserCircle, Bell as BellIcon, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -260,17 +259,32 @@ function SecurityTab() {
   } = useForm<PasswordValues>({ resolver: zodResolver(passwordSchema) });
 
   async function onPasswordSubmit({ currentPassword, newPassword }: PasswordValues) {
-    const firebaseUser = auth.currentUser;
-    const email = firebaseUser?.email;
-    if (!firebaseUser || !email) { toast.error("Not authenticated."); return; }
-    try {
-      const credential = EmailAuthProvider.credential(email, currentPassword);
-      await reauthenticateWithCredential(firebaseUser, credential);
-      await updatePassword(firebaseUser, newPassword);
-      toast.success("Password updated successfully.");
-    } catch {
-      toast.error("Current password is incorrect.");
+    const supabase = createSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const email = user?.email;
+    if (!user || !email) {
+      toast.error("Not authenticated.");
+      return;
     }
+    // Verify the current password by re-signing-in with it. Supabase
+    // doesn't expose a separate reauthenticate API — a successful
+    // signInWithPassword on the same account is the equivalent.
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email,
+      password: currentPassword,
+    });
+    if (reauthError) {
+      toast.error("Current password is incorrect.");
+      return;
+    }
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    if (updateError) {
+      toast.error("Failed to update password. Please try again.");
+      return;
+    }
+    toast.success("Password updated successfully.");
   }
 
   function handleCopyBackupCodes() {

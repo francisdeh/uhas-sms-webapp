@@ -61,10 +61,12 @@ apps/web/src/features/<name>/
 - Schema is in `apps/web/src/db/schema.ts`. After editing it, run `npm run db:generate` to emit a new migration file in `drizzle/`, then `npm run db:migrate` to apply it. `db:push` is **not** used — migrations are the only path to a schema change, so the SQL is reviewable in PRs and the test/E2E DBs stay in sync with prod via the same files.
 
 ### Auth
-- Firebase Authentication for identity.
-- Session stored as httpOnly cookies set by login Server Action.
-- `apps/web/src/proxy.ts` enforces role-based routing on every request.
-- Locally: Firebase Auth Emulator on port 9099.
+- **Supabase Auth** for identity. Staff sign in with email + password; parents can sign in with email + password OR phone + OTP.
+- Sessions are managed by `@supabase/ssr` via httpOnly cookies — Next.js never hand-rolls session cookies.
+- Role + linked_id come from the JWT's **`app_metadata`** (server-set, trusted). Never read role from `user_metadata` (user-writable).
+- `apps/web/src/proxy.ts` enforces role-based routing on every request and refreshes near-expired sessions automatically.
+- Locally: Supabase CLI stack via `supabase start` (Auth on `127.0.0.1:54321`, Postgres on `54322`). Local SMS uses `test_otp` from `supabase/config.toml` — no real provider needed.
+- Client helpers in `apps/web/src/lib/supabase/` — `client.ts` (browser), `server.ts` (Server Components / Actions), `middleware.ts` (proxy), `admin.ts` (service-role, for admin user-management).
 
 ### Mock Data
 - `USE_MOCK_DATA=true` in `.env.local` makes Server Actions and queries return fixtures from `apps/web/src/lib/mock/`.
@@ -167,12 +169,13 @@ Used for score calculation in `features/exams/`. Bands and interpretations come 
 |---|---|
 | `apps/web/src/db/schema.ts` | Single source of truth for all DB tables |
 | `apps/web/src/proxy.ts` | Role-based routing enforcement (Next.js 16 renamed middleware → proxy) |
-| `apps/web/src/lib/firebase.ts` | Firebase client init + emulator detection |
-| `apps/web/src/lib/firebase-admin.ts` | Firebase Admin SDK for server-side auth |
+| `apps/web/src/lib/supabase/{client,server,middleware,admin}.ts` | Supabase client helpers per execution context |
+| `apps/web/src/features/auth/queries/get-session-user.ts` | Resolves the current `SessionUser` from the Supabase session + DB bridge row |
 | `apps/web/src/lib/mock/*.ts` | Fixture data (replaced phase by phase with real DB) |
 | `apps/web/src/components/ui/` | shadcn UI primitives |
 | `docs/implementation-spec.md` | Full feature spec and phase plan |
-| `scripts/seed-emulator-users.ts` | Seeds Firebase emulator with test users |
+| `apps/web/scripts/seed-supabase-users.ts` | Seeds Supabase Auth with the 8 role-anchored test accounts |
+| `supabase/config.toml` | Local Supabase CLI config (Auth providers, storage buckets, test_otp) |
 
 ---
 

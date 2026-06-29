@@ -65,18 +65,21 @@ const ROLE_AVATAR: Record<Staff["systemRole"], string> = {
   Admin: "from-purple-400 to-purple-600",
   DeputyHead: "from-blue-400 to-blue-600",
   Teacher: "from-orange-400 to-accent-orange",
+  Accountant: "from-emerald-400 to-emerald-600",
 };
 
 const ROLE_PILL: Record<Staff["systemRole"], string> = {
   Admin: "bg-purple-100 text-purple-700",
   DeputyHead: "bg-blue-100 text-blue-700",
   Teacher: "bg-orange-100 text-accent-orange",
+  Accountant: "bg-emerald-100 text-emerald-700",
 };
 
 const ROLE_LABEL: Record<Staff["systemRole"], string> = {
   Admin: "Admin",
   DeputyHead: "Deputy Head",
   Teacher: "Teacher",
+  Accountant: "Accountant",
 };
 
 const editSchema = z.object({

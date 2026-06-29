@@ -1,7 +1,6 @@
 "use server";
 import type { ActionResult } from "@/lib/action-result";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { and, asc, desc, eq, like } from "drizzle-orm";
 import { db } from "@/db";
@@ -15,6 +14,7 @@ import {
 import { getCurrentSchoolId } from "@/lib/school";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { writeAuditLog } from "@/lib/audit-log";
+import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getActiveEnrollmentMap } from "@/features/students/queries/get-active-enrollment";
 import type {
   Student,
@@ -184,8 +184,8 @@ export async function updateStudentAction(
   data: UpdateStudentInput
 ): Promise<ActionResult> {
   const schoolId = await getCurrentSchoolId();
-  const cookieStore = await cookies();
-  const actor = cookieStore.get("session_uid")?.value ?? "system";
+  const session = await getSessionUser();
+  const actor = session?.uid ?? "system";
 
   const before = await db.query.students.findFirst({
     where: and(eq(students.id, id), eq(students.schoolId, schoolId)),

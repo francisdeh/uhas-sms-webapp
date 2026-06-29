@@ -117,9 +117,24 @@ const schema = z.object({
 
 ---
 
-## Server Actions
+## Mutations & Data Fetching (post-v2)
 
-### 9. Consistent return shape — `ActionResult<T>`
+### 8. No new Server Actions — mutations go through FastAPI
+
+As of Phase 1 PR #8, the v2 architecture supersedes the Next.js Server Action pattern:
+
+| Operation | Mechanism |
+|---|---|
+| **Auth** (sign in/out, refresh, OTP verify, password reset) | Supabase client SDK directly — `supabase.auth.signInWithPassword()`, `signOut()`, `verifyOtp()`. No Server Action, no FastAPI hop. |
+| **Initial page reads** | Server Components call FastAPI via `fetch()` with the JWT forwarded. No TanStack Query needed. |
+| **Interactive reads** (search, filters, polling, infinite scroll) | TanStack Query `useQuery` against FastAPI. |
+| **Mutations** (create/update/delete anything) | TanStack Query `useMutation` against FastAPI. |
+
+**Why:** Server Actions are RPC over Next's internal protocol — not a JSON API. A mobile app, partner school, or external integration can't call them. Every feature's logic lives in **one place** (FastAPI services), reachable by every client.
+
+**Existing Server Actions are being removed phase by phase** as each domain is ported to FastAPI in Phase 2. Don't add new ones. If you find yourself reaching for `"use server"`, you almost certainly want a FastAPI route + a TanStack Query hook instead.
+
+### 9. Legacy: `ActionResult<T>` (transitional — for remaining Server Actions only)
 
 Every server action returns `Promise<ActionResult<T>>` from [`src/lib/action-result.ts`](../src/lib/action-result.ts):
 
@@ -245,7 +260,96 @@ Don't dump feature-specific components into `src/components/`. That folder is fo
 
 ### 19. Co-locate tests with what they test
 
-Vitest tests live in `tests/{unit,integration}/<feature>.test.ts`. Playwright specs live in `tests/e2e/specs/<NN-name>.spec.ts`. New features get integration tests for the actions that touch the DB.
+**Web (Vitest + Playwright)** — top-level `apps/web/tests/`:
+- `tests/{unit,integration}/<feature>.test.ts` — Vitest, mocks `@/lib/supabase/server` via `tests/setup.ts`.
+- `tests/e2e/specs/<NN-name>.spec.ts` — Playwright, against `.env.e2e`'s local Supabase + seeded users.
+
+**API (pytest)** — feature-local:
+- Unit + router tests live **inside the feature**: `apps/api/app/features/<domain>/tests/test_service.py`, `test_router.py`, with a feature-scoped `conftest.py`.
+- Cross-feature integration tests + E2E live in a top-level `apps/api/tests/integration/` (and `tests/e2e/`).
+- Pytest finds both via `pyproject.toml` → `[tool.pytest.ini_options] testpaths = ["app", "tests"]`.
+
+The feature-local pattern enforces self-containment — porting, deleting, or extracting a domain moves *one folder*. Cross-feature flows ("lesson plan submission triggers a notification to the unit head") are the only thing that belongs in the top-level `tests/`; everything else is suspect there.
+
+New features ship with tests for the service layer (pure logic) and the router (HTTP contract). The service-layer test mocks the repository; the router test uses FastAPI's `TestClient` against an in-memory session.
+
+---
+
+## FastAPI conventions
+
+### 20. Pydantic schemas — one file per domain, `Create` / `Update` / `Read` naming
+
+All request and response bodies are typed Pydantic models in `apps/api/app/features/<domain>/schema.py`. Never accept or return raw `dict`s from routes (with the narrow exceptions called out below).
+
+**Naming follows the SQLModel / Tiangolo convention** — same naming family as our TS `CreateStudentInput` / `UpdateStudentInput`:
+
+```python
+class StudentBase(BaseModel):
+    """Fields shared by inbound and outbound shapes."""
+    first_name: str
+    last_name: str
+    dob: date
+    gender: Gender
+
+class StudentCreate(StudentBase):
+    """Inbound on POST /students."""
+    class_id: str
+
+class StudentUpdate(BaseModel):
+    """Inbound on PATCH /students/{id} — all fields optional, doesn't inherit Base."""
+    first_name: str | None = None
+    last_name: str | None = None
+
+class StudentRead(StudentBase):
+    """Outbound on every response that returns a student."""
+    id: str
+    school_id: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)  # accepts ORM rows
+```
+
+Rules:
+- **One file per domain**: `schema.py` next to `model.py`, `service.py`, `router.py`.
+- **`Base` for shared fields**, `Create` inherits, `Update` does NOT inherit (all-optional shape doesn't compose with required fields).
+- **`Read` carries the response shape** — including server-set fields (`id`, `created_at`, joined display names). `from_attributes=True` so it accepts SQLAlchemy rows directly via `StudentRead.model_validate(row)`.
+- **Variants when needed**: `StudentEnrollmentRead`, `StudentReportCardRead`. Never `StudentReadV2` or `StudentReadAdmin` — branch on intent, not version or audience.
+- **List wrappers** for paged collections: `class StudentList(BaseModel): items: list[StudentRead]; total: int`. Never tuples / dicts / bare lists with side-data.
+
+### 21. Routes declare `response_model=` — always
+
+Every router decorator sets `response_model`. The Python return type alone isn't enough — `response_model` does two things the annotation doesn't:
+
+1. **Strips fields not in the schema** — defense-in-depth against accidentally leaking a SQLAlchemy lazy-loaded relationship or a sensitive column.
+2. **Forms the OpenAPI contract** that drives `apps/web/src/types/api.d.ts` typegen. Skip it and the frontend types drift.
+
+```python
+@router.get("/students", response_model=list[StudentRead])
+async def list_students(...) -> list[StudentRead]:
+    ...
+
+@router.post(
+    "/students",
+    response_model=StudentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_student(...) -> StudentRead:
+    ...
+
+@router.patch("/students/{id}", response_model=StudentRead)
+async def update_student(...) -> StudentRead:
+    ...
+```
+
+Exceptions where a raw type is OK (rare):
+- `/health` → `dict[str, str]` — no domain meaning.
+- 204 No Content → `Response(status_code=204)`, no schema.
+- Streaming responses → `StreamingResponse`.
+
+Everything else: a schema.
+
+### 22. Error shape is the `AppError` envelope
+
+Domain errors raise an `AppError` subclass from `app/core/errors.py` (`NotFoundError`, `ConflictError`, `ForbiddenError`, etc.). The global handler in `app/main.py` converts these into `{"error": {"code": "...", "message": "..."}}` with the right status code. Don't `raise HTTPException` from feature code — use the typed error subclasses so the response shape stays uniform across the API.
 
 ---
 

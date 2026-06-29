@@ -1,7 +1,7 @@
 "use server";
 import type { ActionResult } from "@/lib/action-result";
 
-import { cookies } from "next/headers";
+import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { revalidatePath } from "next/cache";
 import { and, asc, desc, eq, like } from "drizzle-orm";
 import { db } from "@/db";
@@ -22,6 +22,7 @@ const ROLE_WEIGHT: Record<Staff["systemRole"], number> = {
   Admin: 0,
   DeputyHead: 1,
   Teacher: 2,
+  Accountant: 3,
 };
 
 export async function listStaffAction(): Promise<Staff[]> {
@@ -155,8 +156,8 @@ export async function changeRoleAction(
   await db.update(staff).set(patch).where(eq(staff.id, id));
 
   if (row.systemRole !== data.systemRole) {
-    const cookieStore = await cookies();
-    const actor = cookieStore.get("session_uid")?.value ?? "system";
+    const session = await getSessionUser();
+    const actor = session?.uid ?? "system";
     await writeAuditLog(db, {
       userId: actor,
       action: "ROLE_CHANGE",

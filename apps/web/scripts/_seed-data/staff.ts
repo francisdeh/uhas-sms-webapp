@@ -273,4 +273,24 @@ export const mockStaff: Staff[] = [
     isActive: true,
     createdAt: "2026-01-05T08:00:00Z",
   },
+  {
+    // Accountant — Phase 5 of the migration plan introduces the
+    // /accountant dashboard. We seed the account now so Phase 1 auth
+    // tests can cover the role, even though the UI is a placeholder.
+    id: "STAFF-017",
+    schoolId: "school-uhas-001",
+    uhasId: "UHAS1017",
+    firstName: "Yayra",
+    lastName: "Mensah",
+    rank: "Accountant",
+    systemRole: "Accountant",
+    division: null,
+    isUnitHead: false,
+    unitHeadOf: null,
+    photoUrl: null,
+    phone: "0244000017",
+    email: "accountant@uhas.edu.gh",
+    isActive: true,
+    createdAt: "2026-01-05T08:00:00Z",
+  },
 ];

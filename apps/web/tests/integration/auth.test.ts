@@ -1,190 +1,121 @@
+/**
+ * Auth integration tests — Supabase edition.
+ *
+ * The old Firebase-based tests for loginAction/changePasswordAction were
+ * removed in Phase 1 PR #8 along with loginAction itself. The remaining
+ * server-side auth surface is `getSessionUser()`, which composes:
+ *   1. `supabase.auth.getUser()` — identity + app_metadata claims
+ *   2. our `users` bridge row + linked staff/guardian record
+ *
+ * The global Supabase mock from tests/setup.ts drives the happy paths via
+ * signInAs(); a few edge cases reach past signInAs() to set a raw user
+ * shape (e.g. role only in user_metadata, ghost UID).
+ */
+
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+
 import { resetDb } from "../db";
-import { adminAuthMock, getCookie, signInAs, signOut } from "../setup";
-import { loginAction } from "@/features/auth/actions/login";
-import { changePasswordAction } from "@/features/auth/actions/change-password";
+import { signInAs, signOut } from "../setup";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { db } from "@/db";
-import { users } from "@/db/schema";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 
 beforeAll(async () => {
   await resetDb();
 });
 
-describe("loginAction", () => {
-  beforeEach(() => {
-    signOut();
-    adminAuthMock.verifyIdToken.mockReset();
-  });
-
-  it("seed user → success + cookies set + role-based redirect", async () => {
-    adminAuthMock.verifyIdToken.mockResolvedValueOnce({
-      uid: "uid-admin-001",
-      email: "admin@uhas.edu.gh",
-    });
-
-    const result = await loginAction("any-token");
-    expect(result).toEqual({ success: true, redirect: "/admin" });
-    expect(getCookie("session_uid")).toBe("uid-admin-001");
-    expect(getCookie("session_role")).toBe("Admin");
-    expect(getCookie("session_linked_id")).toBe("STAFF-001");
-    expect(getCookie("session_expires_at")).toMatch(/^\d+$/);
-  });
-
-  it("DeputyHead redirects to /deputy-head", async () => {
-    adminAuthMock.verifyIdToken.mockResolvedValueOnce({
-      uid: "uid-deputyhead-jhs",
-      email: "dh.jhs@uhas.edu.gh",
-    });
-    const result = await loginAction("any-token");
-    expect(result).toEqual({ success: true, redirect: "/deputy-head" });
-  });
-
-  it("Teacher redirects to /teacher", async () => {
-    adminAuthMock.verifyIdToken.mockResolvedValueOnce({
-      uid: "uid-teacher-001",
-      email: "teacher@uhas.edu.gh",
-    });
-    const result = await loginAction("any-token");
-    expect(result).toEqual({ success: true, redirect: "/teacher" });
-  });
-
-  it("unknown uid → error", async () => {
-    adminAuthMock.verifyIdToken.mockResolvedValueOnce({
-      uid: "uid-nobody",
-      email: "ghost@example.com",
-    });
-    const result = await loginAction("any-token");
-    expect(result).toEqual({
-      success: false,
-      error: "Account not found. Contact your administrator.",
-    });
-  });
-
-  it("deactivated user → error", async () => {
-    // Flip the admin to inactive first
-    await db.update(users).set({ isActive: false }).where(eq(users.id, "uid-admin-001"));
-    adminAuthMock.verifyIdToken.mockResolvedValueOnce({
-      uid: "uid-admin-001",
-      email: "admin@uhas.edu.gh",
-    });
-    const result = await loginAction("any-token");
-    expect(result).toEqual({
-      success: false,
-      error: "Account is deactivated. Contact your administrator.",
-    });
-    // Restore
-    await db.update(users).set({ isActive: true }).where(eq(users.id, "uid-admin-001"));
-  });
-
-  it("mustChangePassword → redirects to /change-password", async () => {
-    await db
-      .update(users)
-      .set({ mustChangePassword: true })
-      .where(eq(users.id, "uid-admin-001"));
-    adminAuthMock.verifyIdToken.mockResolvedValueOnce({
-      uid: "uid-admin-001",
-      email: "admin@uhas.edu.gh",
-    });
-    const result = await loginAction("any-token");
-    expect(result).toEqual({ success: true, redirect: "/change-password" });
-    // Reset
-    await db
-      .update(users)
-      .set({ mustChangePassword: false })
-      .where(eq(users.id, "uid-admin-001"));
-  });
-
-  it("invalid token throws → error response", async () => {
-    adminAuthMock.verifyIdToken.mockRejectedValueOnce(new Error("invalid"));
-    const result = await loginAction("garbage");
-    expect(result).toEqual({
-      success: false,
-      error: "Invalid session. Please try again.",
-    });
-  });
+beforeEach(() => {
+  signOut();
 });
 
-describe("changePasswordAction", () => {
-  beforeEach(() => {
-    signOut();
-    adminAuthMock.updateUser.mockReset();
-  });
-
-  it("clears mustChangePassword flag in DB", async () => {
-    signInAs("Admin");
-    await db
-      .update(users)
-      .set({ mustChangePassword: true })
-      .where(eq(users.id, "uid-admin-001"));
-    adminAuthMock.updateUser.mockResolvedValueOnce({});
-
-    const result = await changePasswordAction("NewSecure@123");
-    expect(result).toEqual({ success: true, redirect: "/admin" });
-
-    const after = await db.query.users.findFirst({ where: eq(users.id, "uid-admin-001") });
-    expect(after?.mustChangePassword).toBe(false);
-  });
-
-  it("returns error when no session", async () => {
-    signOut();
-    const result = await changePasswordAction("anything");
-    expect(result).toEqual({
-      success: false,
-      error: "Session expired. Please log in again.",
-    });
-  });
-
-  it("returns error if Firebase update throws", async () => {
-    signInAs("Admin");
-    adminAuthMock.updateUser.mockRejectedValueOnce(new Error("firebase err"));
-    const result = await changePasswordAction("anything");
-    expect(result).toEqual({
-      success: false,
-      error: "Failed to update password. Please try again.",
-    });
-  });
-});
+/**
+ * Some tests need to inject a Supabase user shape that signInAs() can't
+ * produce (e.g. claim-shape edge cases). This helper reaches into the
+ * mock's auth.getUser to return a one-shot custom shape.
+ */
+async function setRawSupabaseUser(user: unknown) {
+  const client = (await createSupabaseServerClient()) as unknown as {
+    auth: { getUser: ReturnType<typeof vi.fn> };
+  };
+  client.auth.getUser.mockResolvedValueOnce({ data: { user }, error: null });
+}
+import { vi } from "vitest";
 
 describe("getSessionUser", () => {
-  beforeEach(() => {
-    signOut();
+  it("returns null when no session exists", async () => {
+    expect(await getSessionUser()).toBeNull();
   });
 
-  it("returns null when no session cookie", async () => {
-    const user = await getSessionUser();
-    expect(user).toBeNull();
+  it("returns null when JWT has no role claim", async () => {
+    await setRawSupabaseUser({
+      id: "00000000-0000-0000-0000-000000000001",
+      email: "admin@uhas.edu.gh",
+      phone: null,
+      app_metadata: {}, // no role
+      user_metadata: {},
+    });
+    expect(await getSessionUser()).toBeNull();
   });
 
-  it("returns SessionUser for signed-in admin", async () => {
+  it("returns null when role claim is not in USER_ROLES", async () => {
+    signInAs("Admin", { role: "GhostRole" as never });
+    expect(await getSessionUser()).toBeNull();
+  });
+
+  it("returns null when the bridge users row is missing", async () => {
+    signInAs("Admin", { uid: "00000000-0000-0000-0000-DEADBEEF0000" });
+    expect(await getSessionUser()).toBeNull();
+  });
+
+  it("composes SessionUser for a seeded Admin", async () => {
     signInAs("Admin");
     const user = await getSessionUser();
     expect(user).toMatchObject({
-      uid: "uid-admin-001",
+      uid: "00000000-0000-0000-0000-000000000001",
       role: "Admin",
+      email: "admin@uhas.edu.gh",
       linkedId: "STAFF-001",
       mustChangePassword: false,
+      isUnitHead: false,
+      unitHeadOf: null,
     });
+    // displayName composed from staff row, not the JWT
+    expect(user?.displayName).toBe("Mawuli Agbenyega");
   });
 
-  it("populates isUnitHead + unitHeadOf for Teacher with the flag", async () => {
-    // Sign in as Akpene Kpodo (STAFF-004), seeded as JHS Unit Head.
+  it("populates isUnitHead + unitHeadOf for a Unit-Head Teacher", async () => {
     signInAs("Teacher", {
-      session_uid: "uid-unit-head-jhs",
-      session_linked_id: "STAFF-004",
+      uid: "00000000-0000-0000-0000-000000000006",
+      linkedId: "STAFF-004",
     });
     const user = await getSessionUser();
-    expect(user).toMatchObject({
-      isUnitHead: true,
-      unitHeadOf: "JHS",
-    });
+    expect(user?.isUnitHead).toBe(true);
+    expect(user?.unitHeadOf).toBe("JHS");
   });
 
-  it("isUnitHead is false for a non-unit-head teacher", async () => {
-    signInAs("Teacher"); // STAFF-005, not a unit head
+  it("isUnitHead is false for a plain Teacher", async () => {
+    signInAs("Teacher");
     const user = await getSessionUser();
     expect(user?.isUnitHead).toBe(false);
     expect(user?.unitHeadOf).toBeNull();
+  });
+
+  it("surfaces must_change_password from user_metadata", async () => {
+    signInAs("Admin", { mustChangePassword: true });
+    const user = await getSessionUser();
+    expect(user?.mustChangePassword).toBe(true);
+  });
+
+  it("ignores role claim if present only in user_metadata (privilege guard)", async () => {
+    // The frontend NEVER trusts user_metadata for role — that field is
+    // user-writable. This test pins the rule so future refactors can't
+    // accidentally start reading from it.
+    await setRawSupabaseUser({
+      id: "00000000-0000-0000-0000-000000000001",
+      email: "admin@uhas.edu.gh",
+      phone: null,
+      app_metadata: {}, // empty — role NOT here
+      user_metadata: { role: "Admin", linked_id: "STAFF-001" }, // attacker-controlled
+    });
+    expect(await getSessionUser()).toBeNull();
   });
 });

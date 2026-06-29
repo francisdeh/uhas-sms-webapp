@@ -1,6 +1,6 @@
-export type UserRole = "Admin" | "DeputyHead" | "Teacher" | "Parent";
+export type UserRole = "Admin" | "DeputyHead" | "Teacher" | "Parent" | "Accountant";
 
-export const USER_ROLES: UserRole[] = ["Admin", "DeputyHead", "Teacher", "Parent"];
+export const USER_ROLES: UserRole[] = ["Admin", "DeputyHead", "Teacher", "Parent", "Accountant"];
 
 // Subset of UserRole that excludes Parent. Used wherever a query needs to
 // filter for *staff-side* records (e.g. notification audience resolution,
@@ -9,7 +9,7 @@ export const USER_ROLES: UserRole[] = ["Admin", "DeputyHead", "Teacher", "Parent
 //
 // Declared as a `readonly` tuple via `as const` so it doubles as a
 // `z.enum()`-compatible literal — pass it directly into Zod schemas.
-export const STAFF_SYSTEM_ROLES = ["Admin", "DeputyHead", "Teacher"] as const;
+export const STAFF_SYSTEM_ROLES = ["Admin", "DeputyHead", "Teacher", "Accountant"] as const;
 export type StaffSystemRole = (typeof STAFF_SYSTEM_ROLES)[number];
 
 export type SessionUser = {
@@ -28,6 +28,7 @@ export const ROLE_DASHBOARD: Record<UserRole, string> = {
   DeputyHead: "/deputy-head",
   Teacher: "/teacher",
   Parent: "/parent",
+  Accountant: "/accountant",
 };
 
 export type Division = "KG" | "Lower Primary" | "Upper Primary" | "JHS";

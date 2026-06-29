@@ -3,10 +3,9 @@
 import { Share2, Zap, Bell, Menu, User, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signOut } from "firebase/auth";
 import { toast } from "sonner";
-import { auth } from "@/lib/firebase";
-import { logoutAction } from "@/features/auth/actions/logout";
+
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import type { SessionUser } from "@/features/auth/types";
 
 interface HeaderProps {
@@ -39,14 +38,17 @@ export default function Header({ onToggleSidebar, user }: HeaderProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const supabase = createSupabaseClient();
+
   async function handleLogout() {
-    try {
-      await signOut(auth);
-      await logoutAction();
-    } catch {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
       toast.error("Logout failed. Please try again.");
       router.push("/login");
+      return;
     }
+    router.push("/login");
+    router.refresh();
   }
 
   const displayName = user?.displayName ?? "User";

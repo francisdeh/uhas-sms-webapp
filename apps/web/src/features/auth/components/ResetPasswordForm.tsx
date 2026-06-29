@@ -6,8 +6,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2, MailCheck } from "lucide-react";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
@@ -21,6 +21,7 @@ type FormValues = z.infer<typeof schema>;
 export default function ResetPasswordForm() {
   const [sent, setSent] = useState(false);
   const [sentEmail, setSentEmail] = useState("");
+  const supabase = createSupabaseClient();
 
   const {
     register,
@@ -29,15 +30,21 @@ export default function ResetPasswordForm() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   async function onSubmit({ email }: FormValues) {
-    // Firebase sends the email from its servers using its own template.
-    // We don't await success vs failure differently — to avoid leaking
-    // which addresses are registered, we always show the same "check your
-    // inbox" message regardless of outcome.
+    // Supabase sends the reset email from its own SMTP using a configured
+    // template. The redirectTo lands the user on /change-password with a
+    // PASSWORD_RECOVERY session that lets them call supabase.auth.updateUser.
+    //
+    // We deliberately don't differentiate success vs failure responses —
+    // surfacing "no such email" would leak which addresses are registered.
     try {
-      await sendPasswordResetEmail(auth, email);
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo:
+          typeof window !== "undefined"
+            ? `${window.location.origin}/change-password`
+            : undefined,
+      });
     } catch (err) {
-      // Swallow auth/user-not-found etc — we deliberately don't surface them.
-      console.warn("sendPasswordResetEmail:", err);
+      console.warn("resetPasswordForEmail:", err);
     }
     setSentEmail(email);
     setSent(true);

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Upload, X, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { uploadFile, buildStoragePath } from "@/lib/firebase-storage";
+import { uploadFile, buildStoragePath } from "@/lib/supabase/storage";
 
 type Kind = "lesson-plans/file" | "schemes/file" | "assignments/file";
 
@@ -48,8 +48,10 @@ export function FileUploadField({
     setProgress(0);
     setOriginalName(file.name);
     try {
-      const path = buildStoragePath(kind, ownerId, file);
-      const { promise } = uploadFile(path, file, (p) => setProgress(Math.round(p.pct * 100)));
+      const { bucket, path } = buildStoragePath(kind, ownerId, file);
+      const { promise } = uploadFile(bucket, path, file, (p) =>
+        setProgress(Math.round(p.pct * 100)),
+      );
       const result = await promise;
       onChange(result.path);
       toast.success("File uploaded.");

@@ -1,7 +1,9 @@
 // Global Vitest setup. Runs once per worker before any test file.
 //
-// Loads .env.test, registers the cookie + firebase-admin mocks, and exposes
-// `signInAs(role)` so integration tests can stage a session in one line.
+// Loads .env.test, registers the cookie + Supabase server-client mocks,
+// and exposes `signInAs(role)` so integration tests can stage a session
+// in one line. Phase 1 PR #9 swapped Firebase Auth for Supabase Auth —
+// the signInAs() shape stays the same so existing tests still compile.
 
 import { config } from "dotenv";
 import { vi } from "vitest";
@@ -9,6 +11,9 @@ import { vi } from "vitest";
 config({ path: ".env.test" });
 
 // ─── Cookie store mock ───────────────────────────────────────────────────────
+// Cookies are still mocked so non-auth code paths that read cookies
+// (e.g. theme preferences) keep working. The Supabase session itself
+// is driven through the supabase-server mock below, not cookies.
 
 type CookieEntry = { value: string };
 let cookieStore = new Map<string, CookieEntry>();
@@ -53,60 +58,86 @@ vi.mock("next/cache", () => ({
   unstable_cache: <Args extends unknown[], R>(fn: (...args: Args) => R) => fn,
 }));
 
-// ─── Firebase Admin mock ─────────────────────────────────────────────────────
-// loginAction calls adminAuth.verifyIdToken(idToken); change-password +
-// manage-users call adminAuth.updateUser / createUser / generatePasswordResetLink.
-// We return controllable stubs so tests can drive the auth flow without a real
-// Firebase project.
+// ─── Supabase server-client mock ─────────────────────────────────────────────
+// getSessionUser() + any other server-side caller of @/lib/supabase/server
+// goes through here. The current "signed-in" user is held in
+// `currentSupabaseUser`; signInAs/signOut mutate it.
 
-const adminAuthMock = {
-  verifyIdToken: vi.fn(async (token: string) => {
-    // Convention: tests pass the seed UID as the token.
-    return { uid: token, email: token === "uid-admin-001" ? "admin@uhas.edu.gh" : "" };
-  }),
-  updateUser: vi.fn(async () => ({})),
-  createUser: vi.fn(async (input: { email: string }) => ({
-    uid: `fbuid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    email: input.email,
+type SupabaseAuthUserShape = {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  app_metadata: Record<string, unknown>;
+  user_metadata: Record<string, unknown>;
+};
+let currentSupabaseUser: SupabaseAuthUserShape | null = null;
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(async () => ({
+    auth: {
+      getUser: vi.fn(async () => ({
+        data: { user: currentSupabaseUser },
+        error: null,
+      })),
+      signOut: vi.fn(async () => {
+        currentSupabaseUser = null;
+        return { error: null };
+      }),
+    },
   })),
-  generatePasswordResetLink: vi.fn(async () => "https://example.invalid/reset"),
-  setCustomUserClaims: vi.fn(async () => ({})),
-  listUsers: vi.fn(async () => ({ users: [], pageToken: undefined })),
-  getUserByEmail: vi.fn(async () => ({ uid: "stub" })),
+}));
+
+// ─── Supabase admin client mock ──────────────────────────────────────────────
+// manage-users + storage-admin call getSupabaseAdmin() to mint signed
+// URLs and create/update auth users. We return a controllable stub so
+// tests can drive those paths without a real Supabase project.
+
+const supabaseAdminMock = {
+  auth: {
+    admin: {
+      createUser: vi.fn(async (input: { email?: string; phone?: string }) => ({
+        data: {
+          user: {
+            id: `supa-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            email: input.email ?? null,
+            phone: input.phone ?? null,
+          },
+        },
+        error: null,
+      })),
+      updateUserById: vi.fn(async () => ({ data: { user: null }, error: null })),
+      deleteUser: vi.fn(async () => ({ data: null, error: null })),
+      generateLink: vi.fn(async () => ({
+        data: { properties: { action_link: "https://example.invalid/recovery" } },
+        error: null,
+      })),
+    },
+  },
+  storage: {
+    from: vi.fn(() => ({
+      createSignedUrl: vi.fn(async () => ({
+        data: { signedUrl: "https://example.invalid/signed-url" },
+        error: null,
+      })),
+    })),
+  },
 };
 
-vi.mock("firebase-admin/auth", () => ({
-  getAuth: () => adminAuthMock,
-}));
-
-vi.mock("firebase-admin/app", () => ({
-  initializeApp: () => ({}),
-  getApps: () => [{}],
-  cert: () => ({}),
-}));
-
-vi.mock("firebase-admin/storage", () => ({
-  getStorage: () => ({
-    bucket: () => ({
-      name: "test-bucket",
-      file: () => ({
-        getSignedUrl: async () => ["https://example.invalid/signed-url"],
-      }),
-    }),
-  }),
+vi.mock("@/lib/supabase/admin", () => ({
+  getSupabaseAdmin: () => supabaseAdminMock,
 }));
 
 // ─── Test helpers ────────────────────────────────────────────────────────────
 
 export type TestRole = "Admin" | "DeputyHead" | "Teacher" | "Parent";
 
-// Pre-seeded UIDs from scripts/_seed-data/users.ts. Each role maps to a known
-// seed user so tests can sign in by role name.
+// Pre-seeded UUIDs from scripts/_seed-data/users.ts. Each role maps to
+// a known seed user so tests can sign in by role name.
 const ROLE_UIDS: Record<TestRole, string> = {
-  Admin: "uid-admin-001",
-  DeputyHead: "uid-deputyhead-jhs",
-  Teacher: "uid-teacher-001",
-  Parent: "uid-parent-001",
+  Admin: "00000000-0000-0000-0000-000000000001",
+  DeputyHead: "00000000-0000-0000-0000-000000000002",
+  Teacher: "00000000-0000-0000-0000-000000000007",
+  Parent: "00000000-0000-0000-0000-000000000008",
 };
 
 const ROLE_LINKED_IDS: Record<TestRole, string> = {
@@ -130,32 +161,51 @@ const ROLE_NAMES: Record<TestRole, string> = {
   Parent: "Mawuli Agbeko",
 };
 
-// Stage a session as one of the seed users. Call at the start of any test
-// that exercises a server action which reads cookies.
-export function signInAs(role: TestRole, overrides?: Partial<Record<string, string>>) {
+/**
+ * Stage a session as one of the seed users. Call at the start of any
+ * test that exercises a Server Component or Server Action which reads
+ * the current user via getSessionUser().
+ *
+ * Overrides let a test swap individual fields — e.g. signInAs("Teacher",
+ * { uid: "<other-uuid>", linkedId: "STAFF-004" }) to test the Unit-Head
+ * Teacher path with that specific bridge row.
+ */
+export function signInAs(
+  role: TestRole,
+  overrides?: Partial<{
+    uid: string;
+    linkedId: string;
+    email: string;
+    role: TestRole;
+    mustChangePassword: boolean;
+  }>,
+) {
   cookieStore = new Map();
-  cookieStore.set("session_uid", { value: ROLE_UIDS[role] });
-  cookieStore.set("session_role", { value: role });
-  cookieStore.set("session_display_name", { value: ROLE_NAMES[role] });
-  cookieStore.set("session_email", { value: ROLE_EMAILS[role] });
-  cookieStore.set("session_linked_id", { value: ROLE_LINKED_IDS[role] });
-  cookieStore.set("session_expires_at", { value: String(Date.now() + 8 * 60 * 60 * 1000) });
-  for (const [k, v] of Object.entries(overrides ?? {})) {
-    if (v == null) {
-      cookieStore.delete(k);
-    } else {
-      cookieStore.set(k, { value: v });
-    }
-  }
+  currentSupabaseUser = {
+    id: overrides?.uid ?? ROLE_UIDS[role],
+    email: overrides?.email ?? ROLE_EMAILS[role],
+    phone: null,
+    app_metadata: {
+      role: overrides?.role ?? role,
+      school_id: "school-uhas-001",
+      linked_id: overrides?.linkedId ?? ROLE_LINKED_IDS[role],
+    },
+    user_metadata: {
+      display_name: ROLE_NAMES[role],
+      must_change_password: overrides?.mustChangePassword ?? false,
+    },
+  };
 }
 
 export function signOut() {
   cookieStore = new Map();
+  currentSupabaseUser = null;
 }
 
 export function getCookie(key: string): string | undefined {
   return cookieStore.get(key)?.value;
 }
 
-// Lets tests change the verifyIdToken behaviour for a single test.
-export { adminAuthMock };
+// Lets tests change Supabase admin behaviour for a single test
+// (used by manage-users flows).
+export { supabaseAdminMock };

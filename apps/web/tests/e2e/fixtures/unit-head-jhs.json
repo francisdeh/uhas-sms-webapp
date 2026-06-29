@@ -2,7 +2,7 @@
   "cookies": [
     {
       "name": "session_uid",
-      "value": "uid-unit-head-jhs",
+      "value": "00000000-0000-0000-0000-000000000006",
       "domain": "localhost",
       "path": "/",
       "expires": 1779401366.665279,

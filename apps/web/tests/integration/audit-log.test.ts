@@ -20,7 +20,7 @@ beforeEach(async () => {
 describe("writeAuditLog", () => {
   it("inserts a row with shape we expect", async () => {
     await writeAuditLog(db, {
-      userId: "uid-admin-001",
+      userId: "00000000-0000-0000-0000-000000000001",
       action: "STUDENT_EDIT",
       targetTable: "students",
       targetId: "UHAS-2026-0001",
@@ -31,7 +31,7 @@ describe("writeAuditLog", () => {
     const rows = await db.query.auditLog.findMany({});
     expect(rows.length).toBe(1);
     const r = rows[0];
-    expect(r.userId).toBe("uid-admin-001");
+    expect(r.userId).toBe("00000000-0000-0000-0000-000000000001");
     expect(r.action).toBe("STUDENT_EDIT");
     expect(r.targetTable).toBe("students");
     expect(r.targetId).toBe("UHAS-2026-0001");
@@ -41,7 +41,7 @@ describe("writeAuditLog", () => {
 
   it("accepts undefined before/after", async () => {
     await writeAuditLog(db, {
-      userId: "uid-admin-001",
+      userId: "00000000-0000-0000-0000-000000000001",
       action: "PROMOTION_APPROVED",
       targetTable: "promotion_submissions",
       targetId: "promotion-sub-x",
@@ -59,7 +59,7 @@ describe("listAuditEvents", () => {
     const actions = ["SCORE_OVERRIDE", "STUDENT_EDIT", "ROLE_CHANGE", "PROMOTION_APPROVED"] as const;
     for (let i = 0; i < 12; i++) {
       await writeAuditLog(db, {
-        userId: "uid-admin-001",
+        userId: "00000000-0000-0000-0000-000000000001",
         action: actions[i % actions.length],
         targetTable: "test",
         targetId: `target-${i}`,
@@ -83,14 +83,14 @@ describe("listAuditEvents", () => {
 
   it("returns events newest first", async () => {
     await writeAuditLog(db, {
-      userId: "uid-admin-001",
+      userId: "00000000-0000-0000-0000-000000000001",
       action: "STUDENT_EDIT",
       targetTable: "students",
       targetId: "old",
     });
     await new Promise((r) => setTimeout(r, 10));
     await writeAuditLog(db, {
-      userId: "uid-admin-001",
+      userId: "00000000-0000-0000-0000-000000000001",
       action: "STUDENT_EDIT",
       targetTable: "students",
       targetId: "newer",
@@ -135,9 +135,9 @@ describe("listAuditEvents", () => {
 
 describe("getActorNames", () => {
   it("resolves Firebase UIDs to staff names via users + staff join", async () => {
-    const map = await getActorNames(["uid-admin-001", "uid-teacher-001"]);
-    expect(map.get("uid-admin-001")).toBe("Mawuli Agbenyega");
-    expect(map.get("uid-teacher-001")).toBe("Selorm Tornu");
+    const map = await getActorNames(["00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000007"]);
+    expect(map.get("00000000-0000-0000-0000-000000000001")).toBe("Mawuli Agbenyega");
+    expect(map.get("00000000-0000-0000-0000-000000000007")).toBe("Selorm Tornu");
   });
 
   it("returns empty map for empty input", async () => {
@@ -146,9 +146,9 @@ describe("getActorNames", () => {
   });
 
   it("falls back to email for users with no linkedId or no matching staff", async () => {
-    // The parent user (uid-parent-001) has linkedId="guardian-001" — not a staff.
-    const map = await getActorNames(["uid-parent-001"]);
-    expect(map.get("uid-parent-001")).toBe("parent@uhas.edu.gh");
+    // The parent user (00000000-0000-0000-0000-000000000008) has linkedId="guardian-001" — not a staff.
+    const map = await getActorNames(["00000000-0000-0000-0000-000000000008"]);
+    expect(map.get("00000000-0000-0000-0000-000000000008")).toBe("parent@uhas.edu.gh");
   });
 });
 

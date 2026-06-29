@@ -1,8 +1,6 @@
-# Monorepo config — one service per app. The `api` service is added in
-# Phase 0 PR #2 alongside the FastAPI skeleton. For now only `web` is live.
-#
-# Each service block sets a sourceRoot so Railway only watches that path
-# for changes, runs install/build/start inside it, and ignores the rest.
+# Monorepo config — one service per app. Each service block sets a
+# `source` so Railway only watches that path for changes and runs
+# install/build/start scoped to it.
 
 [[services]]
   name = "web"
@@ -14,8 +12,20 @@
   restartPolicyType = "on_failure"
   restartPolicyMaxRetries = 5
 
+[[services]]
+  name = "api"
+  source = "apps/api"
+  # Frozen install matches the committed uv.lock exactly.
+  buildCommand = "uv sync --frozen"
+  # Railway assigns $PORT at runtime; binding 0.0.0.0 makes the service
+  # reachable from the public URL Railway provisions for it.
+  startCommand = "uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+  restartPolicyType = "on_failure"
+  restartPolicyMaxRetries = 5
+
 [build]
 builder = "railpack"
 
 [build.args]
+# Node for apps/web; Python pinned for apps/api via apps/api/.python-version.
 NODE_VERSION = "20"

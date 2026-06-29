@@ -1,7 +1,7 @@
 "use server";
 import type { ActionResult } from "@/lib/action-result";
 
-import { cookies } from "next/headers";
+import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { revalidatePath } from "next/cache";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -260,8 +260,8 @@ export async function saveScoresAction(input: {
     }
   }
 
-  const cookieStore = await cookies();
-  const actor = cookieStore.get("session_uid")?.value ?? "system";
+  const session = await getSessionUser();
+  const actor = session?.uid ?? "system";
 
   const now = new Date();
 

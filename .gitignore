@@ -70,10 +70,6 @@ __pycache__/
 .coverage
 htmlcov/
 
-# ─── Supabase CLI (supabase/ lands in Phase 0 PR #3) ──────────────────────────
-supabase/.branches/
-supabase/.temp/
-
 # ─── Misc ─────────────────────────────────────────────────────────────────────
 .vercel
 .turbo

@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { changePasswordAction } from "@/features/auth/actions/change-password";
+
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
+import { ROLE_DASHBOARD, USER_ROLES, type UserRole } from "@/features/auth/types";
 
 const schema = z
   .object({
@@ -24,8 +26,20 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
+/**
+ * Used in two contexts, both work the same at the Supabase layer:
+ *   1. First-login forced change — user_metadata.must_change_password is true
+ *      and the proxy / login form has routed them here right after sign-in.
+ *   2. Email recovery — the user clicked a link from resetPasswordForEmail
+ *      and arrived with a PASSWORD_RECOVERY session.
+ *
+ * In both cases, the current session lets supabase.auth.updateUser change
+ * the password. We also clear must_change_password from user_metadata so
+ * subsequent logins skip this page.
+ */
 export default function ChangePasswordForm() {
   const router = useRouter();
+  const supabase = useMemo(() => createSupabaseClient(), []);
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -35,13 +49,32 @@ export default function ChangePasswordForm() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   async function onSubmit({ newPassword }: FormValues) {
-    const result = await changePasswordAction(newPassword);
-    if (!result.success) {
-      toast.error(result.error);
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+      // Clear the force-change flag whether or not it was set. Idempotent.
+      data: { must_change_password: false },
+    });
+
+    if (error) {
+      if (error.code === "same_password") {
+        toast.error("New password must be different from your current one.");
+      } else if (error.code === "weak_password") {
+        toast.error("Password is too weak. Try a longer, less common phrase.");
+      } else {
+        toast.error("Failed to update password. Please try again.");
+      }
       return;
     }
+
+    // Fetch the (refreshed) user to figure out which dashboard to land on.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const role = user?.app_metadata?.role as UserRole | undefined;
+    const dest = role && USER_ROLES.includes(role) ? ROLE_DASHBOARD[role] : "/login";
+
     toast.success("Password updated. Welcome!");
-    router.push(result.redirect);
+    router.push(dest);
     router.refresh();
   }
 

@@ -23,30 +23,30 @@ beforeEach(async () => {
 
 describe("resolveAudience", () => {
   it("user → single user id", async () => {
-    const ids = await resolveAudience({ type: "user", userId: "uid-admin-001" });
-    expect(ids).toEqual(["uid-admin-001"]);
+    const ids = await resolveAudience({ type: "user", userId: "00000000-0000-0000-0000-000000000001" });
+    expect(ids).toEqual(["00000000-0000-0000-0000-000000000001"]);
   });
 
   it("staff → the user linked to that staff row", async () => {
     const ids = await resolveAudience({ type: "staff", staffId: "STAFF-001" });
-    expect(ids).toEqual(["uid-admin-001"]);
+    expect(ids).toEqual(["00000000-0000-0000-0000-000000000001"]);
   });
 
   it("allTeachers → every user with role=Teacher", async () => {
     const ids = await resolveAudience({ type: "allTeachers" });
     // Seed has two teachers: unit-head.jhs + teacher
-    expect(ids).toContain("uid-teacher-001");
-    expect(ids).toContain("uid-unit-head-jhs");
+    expect(ids).toContain("00000000-0000-0000-0000-000000000007");
+    expect(ids).toContain("00000000-0000-0000-0000-000000000006");
   });
 
   it("allAdmins → every user with role=Admin", async () => {
     const ids = await resolveAudience({ type: "allAdmins" });
-    expect(ids).toEqual(["uid-admin-001"]);
+    expect(ids).toEqual(["00000000-0000-0000-0000-000000000001"]);
   });
 
   it("unitHeadOfDivision → user linked to the unit head staff row", async () => {
     const ids = await resolveAudience({ type: "unitHeadOfDivision", division: "JHS" });
-    expect(ids).toEqual(["uid-unit-head-jhs"]);
+    expect(ids).toEqual(["00000000-0000-0000-0000-000000000006"]);
   });
 
   it("parentsOfStudents → guardians of given students", async () => {
@@ -55,7 +55,7 @@ describe("resolveAudience", () => {
       type: "parentsOfStudents",
       studentIds: ["UHAS-2026-0001"],
     });
-    expect(ids).toEqual(["uid-parent-001"]);
+    expect(ids).toEqual(["00000000-0000-0000-0000-000000000008"]);
   });
 
   it("staffByDivision with role filter narrows down", async () => {
@@ -64,29 +64,29 @@ describe("resolveAudience", () => {
       division: "JHS",
       roles: ["DeputyHead"],
     });
-    expect(ids).toEqual(["uid-deputyhead-jhs"]);
+    expect(ids).toEqual(["00000000-0000-0000-0000-000000000002"]);
   });
 
   it("deduplicates across overlapping resolves", async () => {
     const ids = await resolveAudience({
       type: "users",
-      userIds: ["uid-admin-001", "uid-admin-001"],
+      userIds: ["00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000001"],
     });
-    expect(ids).toEqual(["uid-admin-001"]);
+    expect(ids).toEqual(["00000000-0000-0000-0000-000000000001"]);
   });
 });
 
 describe("createNotification + notifyAudience", () => {
   it("createNotification writes one row for one user", async () => {
     signInAs("Admin");
-    await createNotification("uid-teacher-001", {
+    await createNotification("00000000-0000-0000-0000-000000000007", {
       kind: "lesson_plan_reviewed",
       title: "Approved",
       body: "Your plan was approved.",
       link: "/teacher/lesson-plans/abc",
     });
     const rows = await db.query.notifications.findMany({
-      where: eq(notifications.userId, "uid-teacher-001"),
+      where: eq(notifications.userId, "00000000-0000-0000-0000-000000000007"),
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].title).toBe("Approved");
@@ -129,7 +129,7 @@ describe("bell actions", () => {
     signInAs("Admin");
     // Seed three notifications for the current admin user.
     for (let i = 0; i < 3; i++) {
-      await createNotification("uid-admin-001", {
+      await createNotification("00000000-0000-0000-0000-000000000001", {
         kind: "announcement_posted",
         title: `Notif ${i}`,
         body: "body",
@@ -171,7 +171,7 @@ describe("bell actions", () => {
 
   it("does not return another user's notifications", async () => {
     // Add a notification for someone else.
-    await createNotification("uid-teacher-001", {
+    await createNotification("00000000-0000-0000-0000-000000000007", {
       kind: "lesson_plan_reviewed",
       title: "Not mine",
       body: "body",

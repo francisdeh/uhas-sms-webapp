@@ -29,9 +29,7 @@ import { SearchCommand } from "./SearchCommand";
 import { NotificationsDropdown } from "@/features/notifications/components/NotificationsDropdown";
 import type { SessionUser } from "@/features/auth/types";
 import { ROLE_DASHBOARD } from "@/features/auth/types";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { logoutAction } from "@/features/auth/actions/logout";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useTheme } from "@/components/theme-provider";
 
@@ -58,14 +56,16 @@ export function Header({ user, currentYear, onMobileMenuOpen, userPhotoUrl = nul
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  const supabase = createSupabaseClient();
+
   async function handleLogout() {
-    try {
-      await signOut(auth);
-    } catch {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
       toast.error("Logout failed. Please try again.");
       return;
     }
-    await logoutAction();
+    router.push("/login");
+    router.refresh();
   }
 
   const { theme, resolvedTheme, setTheme, colorScheme, setColorScheme } = useTheme();

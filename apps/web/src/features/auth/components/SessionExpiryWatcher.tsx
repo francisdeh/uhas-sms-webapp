@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Clock, LogOut } from "lucide-react";
+
 import {
   AlertDialog,
   AlertDialogContent,
@@ -13,18 +14,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { extendSessionAction } from "@/features/auth/actions/extend-session";
-import { logoutAction } from "@/features/auth/actions/logout";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 
 const WARNING_LEAD_MS = 5 * 60 * 1000; // show modal 5 min before expiry
-
-function readExpiryMs(): number | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(/(?:^|;\s*)session_expires_at=(\d+)/);
-  if (!match) return null;
-  const n = Number(match[1]);
-  return Number.isFinite(n) ? n : null;
-}
 
 function formatTimeLeft(ms: number): string {
   if (ms <= 0) return "0:00";
@@ -34,8 +26,20 @@ function formatTimeLeft(ms: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/**
+ * Warns the user 5 minutes before their Supabase session expires and
+ * offers to extend it. "Extend" calls `supabase.auth.refreshSession()`,
+ * which mints a fresh access token using the refresh token (no
+ * re-credential prompt). "Sign out" signs out via the Supabase client.
+ *
+ * Reads expiry from the Supabase client's in-memory session — no
+ * cookies parsed by hand. Subscribed to `onAuthStateChange` so any
+ * sign-in / refresh / sign-out elsewhere in the tab reschedules the
+ * warning correctly.
+ */
 export function SessionExpiryWatcher() {
   const router = useRouter();
+  const supabase = createSupabaseClient();
   const [open, setOpen] = useState(false);
   const [expiryMs, setExpiryMs] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -43,32 +47,48 @@ export function SessionExpiryWatcher() {
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Reschedule the warning timer whenever the expiry changes (login/extend).
-  useEffect(() => {
-    function schedule() {
-      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
-      const expiry = readExpiryMs();
-      setExpiryMs(expiry);
-      if (expiry == null) return;
-
-      const timeUntilWarning = expiry - WARNING_LEAD_MS - Date.now();
-      if (timeUntilWarning <= 0) {
-        if (Date.now() < expiry) {
-          setOpen(true);
-        } else {
-          // Already expired — hard reset
-          router.push("/login");
-        }
-        return;
-      }
-      warningTimerRef.current = setTimeout(() => setOpen(true), timeUntilWarning);
+  function scheduleWarning(expirySec: number | null | undefined) {
+    if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+    if (!expirySec) {
+      setExpiryMs(null);
+      return;
     }
+    const expiry = expirySec * 1000;
+    setExpiryMs(expiry);
 
-    schedule();
+    const timeUntilWarning = expiry - WARNING_LEAD_MS - Date.now();
+    if (timeUntilWarning <= 0) {
+      if (Date.now() < expiry) {
+        setOpen(true);
+      } else {
+        router.push("/login");
+      }
+      return;
+    }
+    warningTimerRef.current = setTimeout(() => setOpen(true), timeUntilWarning);
+  }
+
+  // Pull the current session on mount + subscribe to any auth changes.
+  useEffect(() => {
+    let cancelled = false;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      scheduleWarning(session?.expires_at);
+    });
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      scheduleWarning(session?.expires_at);
+    });
+
     return () => {
+      cancelled = true;
+      subscription.subscription.unsubscribe();
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
     };
-  }, [router]);
+    // supabase client is stable across renders; safe to omit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // While modal is open, tick once per second to update the countdown text.
   useEffect(() => {
@@ -92,26 +112,20 @@ export function SessionExpiryWatcher() {
 
   function handleExtend() {
     startTransition(async () => {
-      const result = await extendSessionAction();
-      if (!result.success) {
-        toast.error(result.error);
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error || !data.session) {
+        toast.error(error?.message ?? "Couldn't extend session. Please sign in again.");
         return;
       }
-      setExpiryMs(result.newExpiryMs);
       setOpen(false);
       toast.success("Session extended.");
-      // Re-schedule warning for the new expiry
-      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
-      const timeUntilWarning = result.newExpiryMs - WARNING_LEAD_MS - Date.now();
-      if (timeUntilWarning > 0) {
-        warningTimerRef.current = setTimeout(() => setOpen(true), timeUntilWarning);
-      }
+      // scheduleWarning will fire again via onAuthStateChange("TOKEN_REFRESHED")
     });
   }
 
   function handleLogout() {
     startTransition(async () => {
-      await logoutAction();
+      await supabase.auth.signOut();
       router.push("/login");
     });
   }

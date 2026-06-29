@@ -1,13 +1,14 @@
 "use server";
 import type { ActionResult } from "@/lib/action-result";
 
-import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
-import { adminAuth } from "@/lib/firebase-admin";
+
 import { db } from "@/db";
 import { users, staff, guardians, schools } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
 import { writeAuditLog } from "@/lib/audit-log";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import type { UserRole } from "@/features/auth/types";
 
 export type ManagedUser = {
@@ -19,6 +20,10 @@ export type ManagedUser = {
   isActive: boolean;
   photoUrl: string | null;
 };
+
+// "Ban for 100 years" is Supabase's idiomatic way to disable an account
+// at the Auth layer. Reactivation sets it to "none".
+const PERMANENT_BAN = "876600h";
 
 export async function listUsersAction(): Promise<ManagedUser[]> {
   const schoolId = await getCurrentSchoolId();
@@ -64,24 +69,41 @@ export type CreateUserInput = {
   linkedId: string;
 };
 
-
 export async function createUserAction(
-  input: CreateUserInput
+  input: CreateUserInput,
 ): Promise<ActionResult<{ uid: string; inviteLink: string }>> {
   try {
-    const tempPassword = Math.random().toString(36).slice(-10) + "A1!";
-    const created = await adminAuth.createUser({
-      email: input.email,
-      displayName: input.displayName,
-      password: tempPassword,
-    });
-
+    const supabase = getSupabaseAdmin();
     const schoolId = await getCurrentSchoolId();
     const schoolRow = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
     const forceChange = schoolRow?.forcePasswordChangeOnFirstLogin ?? true;
 
+    // Random throwaway password — the invite email gives the user a
+    // recovery link to set their own. The password just satisfies
+    // Supabase's "email signups need a password" requirement.
+    const tempPassword = Math.random().toString(36).slice(-10) + "A1!";
+
+    const { data: created, error: createError } = await supabase.auth.admin.createUser({
+      email: input.email,
+      password: tempPassword,
+      email_confirm: true,
+      app_metadata: {
+        role: input.role,
+        school_id: schoolId,
+        linked_id: input.linkedId,
+      },
+      user_metadata: {
+        display_name: input.displayName,
+        must_change_password: forceChange,
+      },
+    });
+    if (createError || !created.user) {
+      return { success: false, error: createError?.message ?? "Failed to create user." };
+    }
+    const uid = created.user.id;
+
     await db.insert(users).values({
-      id: created.uid,
+      id: uid,
       schoolId,
       email: input.email,
       role: input.role,
@@ -90,8 +112,21 @@ export async function createUserAction(
       mustChangePassword: forceChange,
     });
 
-    const inviteLink = await adminAuth.generatePasswordResetLink(input.email);
-    return { success: true, uid: created.uid, inviteLink };
+    // generateLink returns a single-use recovery URL the admin can hand
+    // the new user. They click → land on /change-password → set real password.
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: "recovery",
+      email: input.email,
+    });
+    if (linkError) {
+      return { success: false, error: linkError.message };
+    }
+
+    return {
+      success: true,
+      uid,
+      inviteLink: linkData.properties?.action_link ?? "",
+    };
   } catch (err: unknown) {
     const msg = (err as { message?: string }).message ?? "Unknown error";
     return { success: false, error: msg };
@@ -100,7 +135,11 @@ export async function createUserAction(
 
 export async function deactivateUserAction(uid: string): Promise<ActionResult> {
   try {
-    await adminAuth.updateUser(uid, { disabled: true });
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.auth.admin.updateUserById(uid, {
+      ban_duration: PERMANENT_BAN,
+    });
+    if (error) return { success: false, error: error.message };
     await db.update(users).set({ isActive: false }).where(eq(users.id, uid));
     return { success: true };
   } catch (err: unknown) {
@@ -111,7 +150,11 @@ export async function deactivateUserAction(uid: string): Promise<ActionResult> {
 
 export async function reactivateUserAction(uid: string): Promise<ActionResult> {
   try {
-    await adminAuth.updateUser(uid, { disabled: false });
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.auth.admin.updateUserById(uid, {
+      ban_duration: "none",
+    });
+    if (error) return { success: false, error: error.message };
     await db.update(users).set({ isActive: true }).where(eq(users.id, uid));
     return { success: true };
   } catch (err: unknown) {
@@ -122,17 +165,31 @@ export async function reactivateUserAction(uid: string): Promise<ActionResult> {
 
 export async function updateUserAction(
   uid: string,
-  input: Pick<CreateUserInput, "displayName" | "role" | "linkedId">
+  input: Pick<CreateUserInput, "displayName" | "role" | "linkedId">,
 ): Promise<ActionResult> {
   try {
-    await adminAuth.updateUser(uid, { displayName: input.displayName });
+    const supabase = getSupabaseAdmin();
+    const schoolId = await getCurrentSchoolId();
+    const session = await getSessionUser();
+    const actor = session?.uid ?? "system";
 
-    const cookieStore = await cookies();
-    const actor = cookieStore.get("session_uid")?.value ?? "system";
+    // Update Supabase user — both the privileged role claim (app_metadata)
+    // and the user-displayed name (user_metadata). The proxy + getSessionUser
+    // read role from app_metadata so the change takes effect on next request.
+    const { error: updateError } = await supabase.auth.admin.updateUserById(uid, {
+      app_metadata: {
+        role: input.role,
+        school_id: schoolId,
+        linked_id: input.linkedId,
+      },
+      user_metadata: {
+        display_name: input.displayName,
+      },
+    });
+    if (updateError) return { success: false, error: updateError.message };
 
     // Detect role change for audit log
     const before = await db.query.users.findFirst({ where: eq(users.id, uid) });
-
     await db
       .update(users)
       .set({ role: input.role, linkedId: input.linkedId })

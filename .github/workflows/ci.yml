@@ -88,6 +88,80 @@ jobs:
       - name: Build
         run: npm run build
 
+  api:
+    name: API · Lint · Type check · Test · Migrate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    services:
+      # Used by the alembic upgrade step below to prove the baseline
+      # migration actually applies cleanly against a fresh Postgres.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: uhas
+          POSTGRES_PASSWORD: uhas_dev_secret
+          POSTGRES_DB: uhas_sms_api_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U uhas"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://uhas:uhas_dev_secret@localhost:5432/uhas_sms_api_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.10.11"
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Install dependencies (frozen)
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Mypy
+        run: uv run mypy app
+
+      - name: Pytest
+        run: uv run pytest
+
+      - name: Alembic upgrade head
+        # Proves the baseline migration applies cleanly against fresh
+        # Postgres. Will catch SQL drift the moment a future migration
+        # breaks the chain.
+        run: uv run alembic upgrade head
+
+      - name: OpenAPI → TypeScript types drift check
+        # Fails if a Pydantic schema changed in apps/api without
+        # regenerating apps/web/src/types/api.d.ts. Boots FastAPI on
+        # :8001, regenerates, diffs against committed.
+        working-directory: ${{ github.workspace }}
+        run: |
+          # The drift script needs `npx openapi-typescript`; install
+          # apps/web deps here so it's available.
+          cd apps/web && npm ci --legacy-peer-deps && cd "$GITHUB_WORKSPACE"
+          bash scripts/check-api-types-drift.sh
+
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest

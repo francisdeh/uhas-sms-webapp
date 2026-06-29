@@ -2,7 +2,7 @@
   "cookies": [
     {
       "name": "session_uid",
-      "value": "uid-admin-001",
+      "value": "00000000-0000-0000-0000-000000000001",
       "domain": "localhost",
       "path": "/",
       "expires": 1779401363.91564,

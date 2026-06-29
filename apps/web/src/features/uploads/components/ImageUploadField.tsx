@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { uploadFile, buildStoragePath } from "@/lib/firebase-storage";
+import { uploadFile, buildStoragePath } from "@/lib/supabase/storage";
 
 type Kind = "students/photo" | "staff/photo" | "school/logo";
 
@@ -44,8 +44,10 @@ export function ImageUploadField({
     setIsUploading(true);
     setProgress(0);
     try {
-      const path = buildStoragePath(kind, ownerId, file);
-      const { promise } = uploadFile(path, file, (p) => setProgress(Math.round(p.pct * 100)));
+      const { bucket, path } = buildStoragePath(kind, ownerId, file);
+      const { promise } = uploadFile(bucket, path, file, (p) =>
+        setProgress(Math.round(p.pct * 100)),
+      );
       const { publicUrl } = await promise;
       onChange(publicUrl);
       toast.success("Photo uploaded.");

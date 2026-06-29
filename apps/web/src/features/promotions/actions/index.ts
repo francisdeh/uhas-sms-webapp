@@ -1,7 +1,7 @@
 "use server";
 import type { ActionResult } from "@/lib/action-result";
 
-import { cookies } from "next/headers";
+import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -412,8 +412,8 @@ export async function approveSubmissionAction(input: {
   const open = await findOpenSeasonRow();
   if (!open) return { success: false, error: "Promotion season is closed." };
 
-  const cookieStore = await cookies();
-  const actor = cookieStore.get("session_uid")?.value ?? "system";
+  const session = await getSessionUser();
+  const actor = session?.uid ?? "system";
 
   const result = await db.transaction(async (tx) => {
     const sub = await tx.query.promotionSubmissions.findFirst({

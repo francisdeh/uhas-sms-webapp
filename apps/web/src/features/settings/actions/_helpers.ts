@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath, updateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -8,6 +7,7 @@ import { schools } from "@/db/schema";
 import { getCurrentSchoolId } from "@/lib/school";
 import { writeAuditLog } from "@/lib/audit-log";
 import { SCHOOL_SETTINGS_TAG } from "@/features/settings/queries/get-school-settings";
+import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import type { ActionResult } from "@/lib/action-result";
 
 // Shared write path for every settings tab. Reads the current row,
@@ -20,8 +20,8 @@ export async function applySchoolSettingsPatch<T extends Partial<typeof schools.
   patch: T
 ): Promise<ActionResult> {
   const schoolId = await getCurrentSchoolId();
-  const cookieStore = await cookies();
-  const actor = cookieStore.get("session_uid")?.value ?? "system";
+  const session = await getSessionUser();
+  const actor = session?.uid ?? "system";
 
   const before = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
   if (!before) return { success: false, error: "School row not found." };
