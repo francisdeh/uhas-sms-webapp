@@ -50,7 +50,7 @@ fi
 
 echo "→ Generating types…"
 cd "$WEB_DIR"
-npx openapi-typescript http://localhost:8001/openapi.json -o "$TMP_TYPES" >/dev/null
+pnpm exec openapi-typescript http://localhost:8001/openapi.json -o "$TMP_TYPES" >/dev/null
 
 if diff -q "$COMMITTED_TYPES" "$TMP_TYPES" >/dev/null 2>&1; then
   echo "✓ api.d.ts is in sync with the FastAPI OpenAPI schema."
@@ -62,7 +62,7 @@ echo "✗ api.d.ts is out of date with the FastAPI OpenAPI schema."
 echo ""
 echo "  Regenerate locally with:"
 echo "    cd apps/api && uv run uvicorn app.main:app --port 8000 &"
-echo "    cd apps/web && npm run generate:api-types"
+echo "    cd apps/web && pnpm generate:api-types"
 echo "    kill %1"
 echo ""
 echo "  Then commit the updated apps/web/src/types/api.d.ts."

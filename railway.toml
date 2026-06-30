@@ -5,10 +5,14 @@
 [[services]]
   name = "web"
   source = "apps/web"
-  buildCommand = "npm ci && npm run build"
+  # Railpack auto-detects pnpm via `packageManager` in apps/web/package.json
+  # + the root pnpm-lock.yaml, and natively understands the workspace —
+  # so no corepack/install boilerplate here. We just filter to the web
+  # package for the build + start steps.
+  buildCommand = "pnpm --filter uhas-sms-webapp build"
   # Apply Drizzle migrations + idempotent prod seed before booting the
-  # Next.js server. Both commands are no-ops when there's nothing to do.
-  startCommand = "npm run db:migrate && npm run db:seed:prod && npm run start"
+  # Next.js server. Both are no-ops when there's nothing to do.
+  startCommand = "pnpm --filter uhas-sms-webapp db:migrate && pnpm --filter uhas-sms-webapp db:seed:prod && pnpm --filter uhas-sms-webapp start"
   restartPolicyType = "on_failure"
   restartPolicyMaxRetries = 5
 

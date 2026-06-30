@@ -57,6 +57,34 @@ export interface paths {
         patch: operations["patch_school_school_patch"];
         trace?: never;
     };
+    "/school/terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all terms for the current school
+         * @description Return every configured term row, sorted (academic_year, term).
+         */
+        get: operations["list_terms_school_terms_get"];
+        /**
+         * Upsert the three terms for one academic year (Admin only)
+         * @description Replace all three terms for the given academic_year in one call.
+         *
+         *     Schema-level validators already enforced "exactly 3 distinct terms
+         *     numbered 1/2/3, end ≥ start". The service walks the batch, upserts
+         *     by natural key (school, year, term), and writes a single audit row.
+         */
+        put: operations["upsert_terms_school_terms_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -288,6 +316,76 @@ export interface components {
             /** Projectwork */
             projectWork: number;
         };
+        /**
+         * TermInput
+         * @description One row in the upsert payload — no id (server upserts by natural key).
+         */
+        TermInput: {
+            /** Term */
+            term: number;
+            /**
+             * Startdate
+             * Format: date
+             */
+            startDate: string;
+            /**
+             * Enddate
+             * Format: date
+             */
+            endDate: string;
+        };
+        /**
+         * TermRead
+         * @description Outbound representation of a single school_terms row.
+         */
+        TermRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /** Academicyear */
+            academicYear: string;
+            /** Term */
+            term: number;
+            /**
+             * Startdate
+             * Format: date
+             */
+            startDate: string;
+            /**
+             * Enddate
+             * Format: date
+             */
+            endDate: string;
+        };
+        /**
+         * TermsListResponse
+         * @description Wrapper for `GET /school/terms` — keeps room for future metadata
+         *     (counts, last-updated timestamps) without breaking the wire format.
+         */
+        TermsListResponse: {
+            /** Items */
+            items: components["schemas"]["TermRead"][];
+        };
+        /**
+         * TermsUpsertRequest
+         * @description Payload for `PUT /school/terms` — replaces all 3 terms for a year.
+         *
+         *     The Calendar tab edits all three terms as one unit of work, so the
+         *     API mirrors that: send the full set, server upserts atomically.
+         */
+        TermsUpsertRequest: {
+            /** Academicyear */
+            academicYear: string;
+            /** Terms */
+            terms: components["schemas"]["TermInput"][];
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -383,6 +481,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SchoolRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_terms_school_terms_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TermsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_terms_school_terms_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TermsUpsertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TermsListResponse"];
                 };
             };
             /** @description Validation Error */

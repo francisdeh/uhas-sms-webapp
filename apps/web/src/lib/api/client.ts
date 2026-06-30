@@ -92,5 +92,23 @@ export function createApiClient(getAuthToken: TokenGetter) {
           body: JSON.stringify(payload),
         }),
     },
+    schoolTerms: {
+      /** List every configured term row for the caller's school. Any role. */
+      list: () =>
+        apiFetch<components["schemas"]["TermsListResponse"]>(
+          getAuthToken,
+          "/school/terms",
+        ),
+      /** Upsert all three terms for one academic year. Admin only. */
+      put: (payload: components["schemas"]["TermsUpsertRequest"]) =>
+        apiFetch<components["schemas"]["TermsListResponse"]>(
+          getAuthToken,
+          "/school/terms",
+          {
+            method: "PUT",
+            body: JSON.stringify(payload),
+          },
+        ),
+    },
   };
 }

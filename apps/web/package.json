@@ -2,6 +2,7 @@
   "name": "uhas-sms-webapp",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build",
@@ -79,6 +80,7 @@
     "@types/react-dom": "^18",
     "@vitest/coverage-v8": "^4.1.6",
     "autoprefixer": "^10.0.1",
+    "dotenv": "^17.4.2",
     "dotenv-cli": "^8.0.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.4",

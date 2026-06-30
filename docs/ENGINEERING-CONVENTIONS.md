@@ -56,7 +56,7 @@ If a relation you need doesn't exist yet, add it to the `relations()` block in `
 
 ### 3. Migrations only, no `db:push`
 
-Schema changes go through `npm run db:generate` (creates the migration file) and `npm run db:migrate` (applies it). Never `db:push` — the SQL must be reviewable in the PR and applied identically across dev/test/prod.
+Schema changes go through `pnpm db:generate` (creates the migration file) and `pnpm db:migrate` (applies it). Never `db:push` — the SQL must be reviewable in the PR and applied identically across dev/test/prod.
 
 ### 3a. Primary keys are uuid; slug as secondary on entity tables
 

@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateCalendarAction } from "@/features/settings/actions";
+import { api, ApiError } from "@/lib/api/browser";
 import type { SchoolSettings, SchoolTerm } from "@/features/settings/types";
 
 const TERM_LABEL: Record<number, string> = { 1: "First Term", 2: "Second Term", 3: "Third Term" };
@@ -46,16 +46,43 @@ export function CalendarTab({ settings }: { settings: SchoolSettings }) {
   }
 
   async function onSave() {
+    // Validate dates client-side before the round-trip — same rule the
+    // server-side validator enforces, but a quicker error path for users.
+    for (const t of terms) {
+      if (!t.startDate || !t.endDate) {
+        toast.error(`Term ${t.term}: both dates are required.`);
+        return;
+      }
+      if (t.endDate < t.startDate) {
+        toast.error(`Term ${t.term}: end date is before start date.`);
+        return;
+      }
+    }
+
     setSaving(true);
-    const result = await updateCalendarAction({
-      academicYear,
-      currentTerm: Number(currentTerm),
-      terms,
-    });
-    setSaving(false);
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      // Two PUTs in sequence — academicYear + currentTerm live on the
+      // `schools` row; the per-term date ranges live in `school_terms`.
+      // Doing them as separate requests mirrors REST resource boundaries;
+      // the worst-case interleaving (one succeeds, the other fails) is
+      // still a coherent state — the data is just stale on one side.
+      await api.school.patch({
+        academicYear,
+        currentTerm: Number(currentTerm),
+      });
+      await api.schoolTerms.put({
+        academicYear,
+        terms: terms.map((t) => ({
+          term: t.term,
+          startDate: t.startDate,
+          endDate: t.endDate,
+        })),
+      });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Update failed.");
       return;
+    } finally {
+      setSaving(false);
     }
     toast.success("Calendar updated.");
     router.refresh();

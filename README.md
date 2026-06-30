@@ -23,23 +23,28 @@ A web-based School Management System for UHAS Basic School, Ghana. Covers studen
 ## Prerequisites
 
 - Node.js 20+
+- [pnpm](https://pnpm.io) 11+ (`npm install -g pnpm` if you don't have it)
 - Docker Desktop (for local database)
-- Firebase CLI (`npm install -g firebase-tools`)
+- Firebase CLI (`pnpm add -g firebase-tools`)
 
 ---
 
 ## Getting Started
 
-> **Monorepo note.** The Next.js app lives in [`apps/web/`](apps/web/). All `npm` commands below run from that directory unless explicitly noted. `docker compose` and `git` commands run from the repo root. The FastAPI backend in [`apps/api/`](apps/api/) is a placeholder in this PR; its setup ships in Phase 0 PR #2 (see [v2/UHAS_Migration_Execution_Plan.md](v2/UHAS_Migration_Execution_Plan.md)).
-
-```bash
-cd apps/web      # everything in §§1–6 below runs from here
-```
+> **Monorepo note.** The Next.js app lives in [`apps/web/`](apps/web/). The pnpm workspace lockfile is at the repo root; `pnpm install` runs there once and hoists `node_modules` for every package. App-scoped scripts (`pnpm dev`, `pnpm test`, etc.) run from inside `apps/web/`. `docker compose` and `git` commands run from the repo root. The FastAPI backend in [`apps/api/`](apps/api/) is uv-managed Python — see [apps/api/README.md](apps/api/README.md).
 
 ### 1. Install dependencies
 
+From the repo root:
+
 ```bash
-npm install
+pnpm install
+```
+
+The remaining web-scoped commands run from `apps/web/`:
+
+```bash
+cd apps/web
 ```
 
 ### 2. Set up environment variables
@@ -53,7 +58,7 @@ The defaults work out of the box for local development (Firebase emulator + Dock
 ### 3. Start the local database
 
 ```bash
-npm run docker:up
+pnpm docker:up
 ```
 
 This starts PostgreSQL 16 on port `5436` and Adminer (DB browser UI) on port `8080`.
@@ -61,11 +66,11 @@ This starts PostgreSQL 16 on port `5436` and Adminer (DB browser UI) on port `80
 ### 4. Apply migrations + seed demo data
 
 ```bash
-npm run db:migrate
-npm run db:seed
+pnpm db:migrate
+pnpm db:seed
 ```
 
-`db:migrate` applies the Drizzle baseline. `db:seed` is idempotent and ports every fixture from `scripts/_seed-data/` into the DB so the demo flows work end-to-end. Use `npm run db:seed:reset` to truncate and re-seed.
+`db:migrate` applies the Drizzle baseline. `db:seed` is idempotent and ports every fixture from `scripts/_seed-data/` into the DB so the demo flows work end-to-end. Use `pnpm db:seed:reset` to truncate and re-seed.
 
 ### 5. Start the Firebase Auth Emulator
 
@@ -76,13 +81,13 @@ firebase emulators:start
 Then seed it with test users (one per row in the `users` table):
 
 ```bash
-npm run seed:emulator
+pnpm seed:emulator
 ```
 
 ### 6. Start the dev server
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 App runs at `http://localhost:3000`.
@@ -108,28 +113,28 @@ App runs at `http://localhost:3000`.
 
 | Script | Description |
 |---|---|
-| `npm run dev` | Start dev server (webpack) |
-| `npm run build` | Production build |
-| `npm run lint` | ESLint |
-| `npm run docker:up` | Start PostgreSQL + Adminer |
-| `npm run docker:down` | Stop containers |
-| `npm run docker:reset` | Wipe DB volume and restart |
-| `npm run db:generate` | Generate a new Drizzle migration from schema changes — review the SQL in `drizzle/` then commit it |
-| `npm run db:migrate` | Apply pending Drizzle migrations (the only way to change schema — `db:push` is intentionally not used) |
-| `npm run db:studio` | Open Drizzle Studio (DB GUI) |
-| `npm run db:seed` | Seed demo data (idempotent — safe to re-run) |
-| `npm run db:seed:reset` | Truncate all tables and re-seed |
-| `npm run db:seed:prod` | Seed school + Firebase-backed users only (production minimum) |
-| `npm run seed:emulator` | Seed Firebase Auth Emulator with users from the DB |
-| `seed:firebase` | Seed real Firebase project with production users + custom claims (requires `.env.seed`) |
-| `npm run db:test:setup` | Create `uhas_sms_test` Postgres + apply migrations (one-shot, before first `npm test`) |
-| `npm test` | Run the full Vitest suite (`.env.test`) |
-| `npm run test:watch` | Vitest watch mode |
-| `npm run db:e2e:setup` | Create `uhas_sms_e2e` Postgres + apply migrations (one-shot, before first `npm run e2e`) |
-| `npm run e2e:build` | Production build for Playwright (run after schema/UI changes) |
-| `npm run e2e` | Run the Playwright E2E suite (`.env.e2e`) — boots `next start` on port 3100 |
-| `npm run e2e:ui` | Playwright UI mode |
-| `npm run e2e:headed` | Playwright in headed Chromium |
+| `pnpm dev` | Start dev server (webpack) |
+| `pnpm build` | Production build |
+| `pnpm lint` | ESLint |
+| `pnpm docker:up` | Start PostgreSQL + Adminer |
+| `pnpm docker:down` | Stop containers |
+| `pnpm docker:reset` | Wipe DB volume and restart |
+| `pnpm db:generate` | Generate a new Drizzle migration from schema changes — review the SQL in `drizzle/` then commit it |
+| `pnpm db:migrate` | Apply pending Drizzle migrations (the only way to change schema — `db:push` is intentionally not used) |
+| `pnpm db:studio` | Open Drizzle Studio (DB GUI) |
+| `pnpm db:seed` | Seed demo data (idempotent — safe to re-run) |
+| `pnpm db:seed:reset` | Truncate all tables and re-seed |
+| `pnpm db:seed:prod` | Seed school + Firebase-backed users only (production minimum) |
+| `pnpm seed:emulator` | Seed Firebase Auth Emulator with users from the DB |
+| `pnpm seed:firebase` | Seed real Firebase project with production users + custom claims (requires `.env.seed`) |
+| `pnpm db:test:setup` | Create `uhas_sms_test` Postgres + apply migrations (one-shot, before first `pnpm test`) |
+| `pnpm test` | Run the full Vitest suite (`.env.test`) |
+| `pnpm test:watch` | Vitest watch mode |
+| `pnpm db:e2e:setup` | Create `uhas_sms_e2e` Postgres + apply migrations (one-shot, before first `pnpm e2e`) |
+| `pnpm e2e:build` | Production build for Playwright (run after schema/UI changes) |
+| `pnpm e2e` | Run the Playwright E2E suite (`.env.e2e`) — boots `next start` on port 3100 |
+| `pnpm e2e:ui` | Playwright UI mode |
+| `pnpm e2e:headed` | Playwright in headed Chromium |
 
 ---
 
@@ -180,7 +185,7 @@ uhas-sms/
 To create users in a real Firebase project (production or staging), create a `.env.seed` file (gitignored) with the Admin SDK credentials and run:
 
 ```bash
-npx dotenv -e .env.seed -- npx tsx scripts/seed-firebase-users.ts
+pnpm exec dotenv -e .env.seed -- pnpm exec tsx scripts/seed-firebase-users.ts
 ```
 
 This creates one Firebase Auth account per role with the correct custom claims (`{ role, linkedId }`) that map to the mock data IDs. Delete `.env.seed` after seeding.
@@ -194,7 +199,7 @@ This creates one Firebase Auth account per role with the correct custom claims (
 | App | http://localhost:3000 | — |
 | Firebase Emulator UI | http://localhost:4000 | — |
 | Adminer (DB browser) | http://localhost:8080 | server: `db` / user: `uhas` / pass: `uhas_dev_secret` / db: `uhas_sms` (Docker port `5436` externally) |
-| Drizzle Studio | http://localhost:4983 | run `npm run db:studio` |
+| Drizzle Studio | http://localhost:4983 | run `pnpm db:studio` |
 
 ---
 
