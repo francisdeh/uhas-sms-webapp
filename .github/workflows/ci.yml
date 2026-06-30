@@ -142,14 +142,16 @@ jobs:
       - name: Mypy
         run: uv run mypy app
 
-      - name: Pytest
-        run: uv run pytest
-
       - name: Alembic upgrade head
-        # Proves the baseline migration applies cleanly against fresh
-        # Postgres. Will catch SQL drift the moment a future migration
+        # Apply migrations FIRST — pytest needs the schema present
+        # (feature tests insert into `schools`, `audit_log`, etc.).
+        # Also proves the baseline migration applies cleanly against
+        # fresh Postgres; catches SQL drift if a future migration
         # breaks the chain.
         run: uv run alembic upgrade head
+
+      - name: Pytest
+        run: uv run pytest
 
       - name: OpenAPI → TypeScript types drift check
         # Fails if a Pydantic schema changed in apps/api without
