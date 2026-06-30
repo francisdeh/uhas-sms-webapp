@@ -1,0 +1,11 @@
+{
+  "name": "uhas-sms-monorepo",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "web": "pnpm --filter uhas-sms-webapp"
+  }
+}
