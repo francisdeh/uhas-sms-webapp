@@ -35,6 +35,13 @@ Most UI currently uses mock data (`USE_MOCK_DATA=true`). Real DB integration is 
 
 ---
 
+## Tooling
+
+- **Node package manager: pnpm.** The workspace lockfile lives at the repo root (`pnpm-lock.yaml`) and `apps/web/package.json` pins the version via `packageManager: pnpm@…`. Never use `npm` or `npx` in commands — `pnpm` / `pnpm exec` / `pnpm dlx` instead. `node_modules` is hoisted at the repo root.
+- **Python package manager: uv.** Lockfile in `apps/api/uv.lock`. Always prefix `uv` commands with `unset VIRTUAL_ENV;` to avoid conflicts with the user's pyenv-set VIRTUAL_ENV.
+
+---
+
 ## Architecture Rules
 
 ### Feature-Based Modules
@@ -58,7 +65,7 @@ apps/web/src/features/<name>/
 - Drizzle ORM + Neon PostgreSQL in production.
 - Locally: Docker PostgreSQL 16 on port 5432.
 - All tables include `schoolId` for multi-tenant scoping — every query must filter by `schoolId`.
-- Schema is in `apps/web/src/db/schema.ts`. After editing it, run `npm run db:generate` to emit a new migration file in `drizzle/`, then `npm run db:migrate` to apply it. `db:push` is **not** used — migrations are the only path to a schema change, so the SQL is reviewable in PRs and the test/E2E DBs stay in sync with prod via the same files.
+- Schema is in `apps/web/src/db/schema.ts`. After editing it, run `pnpm db:generate` to emit a new migration file in `drizzle/`, then `pnpm db:migrate` to apply it. `db:push` is **not** used — migrations are the only path to a schema change, so the SQL is reviewable in PRs and the test/E2E DBs stay in sync with prod via the same files.
 
 ### Auth
 - **Supabase Auth** for identity. Staff sign in with email + password; parents can sign in with email + password OR phone + OTP.
@@ -108,7 +115,7 @@ Full conventions in [docs/ENGINEERING-CONVENTIONS.md](docs/ENGINEERING-CONVENTIO
 - **TypeScript strict mode is on.** No `any`, no `@ts-ignore` unless absolutely unavoidable and explained.
 - **Use exported constants for known unions** — `USER_ROLES`, `Division`, `LessonPlanStatus`, etc. Never compare against bare string literals.
 - **Tailwind for all styling.** No CSS modules, no inline styles. Use `cn()` from `apps/web/src/lib/utils.ts` for conditional classes.
-- **shadcn/ui for all UI primitives** — inputs, buttons, labels, dialogs, selects, etc. Components live in `apps/web/src/components/ui/`. Add missing ones with `npx shadcn@latest add <name> -y`. Never use raw HTML form elements in feature components.
+- **shadcn/ui for all UI primitives** — inputs, buttons, labels, dialogs, selects, etc. Components live in `apps/web/src/components/ui/`. Add missing ones with `pnpm dlx shadcn@latest add <name> -y`. Never use raw HTML form elements in feature components.
 - **Zod for all form validation.** Every form uses `react-hook-form` + `zodResolver` + a Zod schema. Pass error messages as objects (`{ message: "..." }`) not bare strings.
 - **Sonner for all toasts.** Import from `sonner` — `toast.success()`, `toast.error()`.
 
@@ -116,7 +123,7 @@ Full conventions in [docs/ENGINEERING-CONVENTIONS.md](docs/ENGINEERING-CONVENTIO
 - **Always filter by `schoolId`** via `getCurrentSchoolId()` — every table is multi-tenant-anchored.
 - **Index FK columns and filter-heavy columns** in the same migration that adds them. Postgres doesn't auto-index FKs.
 - **Prefer Drizzle relations + `with:` over manual joins.** Relations live in `apps/web/src/db/schema.ts`. One query beats four.
-- **Migrations only, no `db:push`.** `npm run db:generate` then `npm run db:migrate`. SQL must be reviewable in the PR.
+- **Migrations only, no `db:push`.** `pnpm db:generate` then `pnpm db:migrate`. SQL must be reviewable in the PR.
 - **Soft-delete high-risk tables** (lesson plans, scores, assignments, schemes) with `deletedAt` rather than `db.delete(...)`.
 
 ### Server Actions

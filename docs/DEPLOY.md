@@ -19,7 +19,7 @@ Target stack: **Next.js app on Railway** + **Neon Postgres** + **Firebase Auth &
   - `DB_DRIVER` — `neon-http` for Neon, `pg` for Railway Postgres. The client also auto-detects `*.neon.tech` hosts, but the var is the source of truth.
 - [ ] Release runs the migrator + idempotent prod seed, wired in [`railway.toml`](../railway.toml):
   ```
-  npm run db:migrate && npm run db:seed:prod && npm run start
+  pnpm --filter uhas-sms-webapp db:migrate && pnpm --filter uhas-sms-webapp db:seed:prod && pnpm --filter uhas-sms-webapp start
   ```
   `db:seed:prod` is `--idempotent --no-demo` — creates/keeps the school + Firebase-backed users only, no demo data.
 - [ ] Tables added by the deferred-tasks branch (verify they appear after the first migrate against an existing prod DB): `staff_attendance_sessions`, `staff_attendance_records`, `promotion_seasons`, `promotion_submissions`, `promotion_decisions`, `audit_log`, plus extra columns on `students` / `enrollments` / `exams`.
@@ -43,8 +43,8 @@ Target stack: **Next.js app on Railway** + **Neon Postgres** + **Firebase Auth &
 - [ ] **Reset-password email template** customized — Authentication → Templates → Password reset.
 - [ ] Seed the production users + custom claims once (locally, with `.env.seed` pointing at PROD service-account creds):
   ```bash
-  npm run seed:firebase -- --dry-run    # preview
-  npm run seed:firebase                 # additive: create missing, set claims on existing
+  pnpm seed:firebase -- --dry-run    # preview
+  pnpm seed:firebase                 # additive: create missing, set claims on existing
   ```
   This sets the `role` custom claim the proxy + `loginAction` rely on. Re-run with `--force` only if you need to reset a password on an existing user.
 - [ ] Production cookies are `secure` — already enforced by [`src/features/auth/actions/login.ts`](../src/features/auth/actions/login.ts) (`secure: NODE_ENV === "production"`). The app must be served over HTTPS. Railway provides HTTPS by default.

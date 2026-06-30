@@ -1,0 +1,19 @@
+# Only one Node package in the monorepo (apps/api is Python/uv-managed,
+# supabase/ is CLI config). Workspace declared anyway so future packages
+# — apps/mobile, packages/ui, etc. — slot in without restructuring.
+packages:
+  - "apps/web"
+# Explicit allowlist for dependencies that need to run their install
+# scripts — pnpm requires opt-in per package. All five below ship native
+# binaries we genuinely need:
+#   @sentry/cli   — uploads source maps during `next build`
+#   esbuild        — pulls the platform-specific binary
+#   msw            — installs the service-worker bootstrapper (E2E mocks)
+#   sharp          — libvips for Next.js image optimisation
+#   unrs-resolver  — Rust-based module resolver used by tooling
+allowBuilds:
+  '@sentry/cli': true
+  esbuild: true
+  msw: true
+  sharp: true
+  unrs-resolver: true

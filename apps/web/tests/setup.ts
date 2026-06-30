@@ -81,12 +81,108 @@ vi.mock("@/lib/supabase/server", () => ({
         data: { user: currentSupabaseUser },
         error: null,
       })),
+      // `getSession` is what the FastAPI API client (src/lib/api/server.ts)
+      // calls to mint the Authorization header. Return a synthetic session
+      // wrapping `currentSupabaseUser` so server-side API calls in tests
+      // don't crash with "getSession is not a function".
+      getSession: vi.fn(async () => ({
+        data: {
+          session: currentSupabaseUser
+            ? { access_token: "test-token", user: currentSupabaseUser }
+            : null,
+        },
+        error: null,
+      })),
       signOut: vi.fn(async () => {
         currentSupabaseUser = null;
         return { error: null };
       }),
     },
   })),
+}));
+
+// ─── FastAPI server-side client mock ────────────────────────────────────────
+// `getSchoolSettings()` and friends call `getApi()` which would otherwise
+// fetch the live FastAPI service. Tests don't boot FastAPI, so we stub
+// the only two endpoints `getSchoolSettings` reads — school row + terms.
+// Defaults mirror what the seed produces.
+
+vi.mock("@/lib/api/server", () => ({
+  getApi: vi.fn(async () => ({
+    health: { get: vi.fn() },
+    school: {
+      get: vi.fn(async () => ({
+        id: "00000000-0000-0000-0000-000000000100",
+        slug: "uhas-basic",
+        name: "UHAS Basic School",
+        motto: "Knowledge for Service",
+        address: "Hohoe, Volta Region, Ghana",
+        phone: "+233 24 000 0000",
+        email: "info@uhas.edu.gh",
+        principalName: "Mawuli Agbenyega",
+        logoUrl: null,
+        academicYear: "2025/2026",
+        currentTerm: 1,
+        gradingScale: "GES_STANDARD",
+        gradingBands: null,
+        scoreWeights: {
+          exam: 60,
+          cat1: 10,
+          cat2: 10,
+          groupWork: 10,
+          projectWork: 10,
+        },
+        passMark: 40,
+        emailFromName: "UHAS Basic School",
+        emailReplyTo: "info@uhas.edu.gh",
+        notificationDefaults: {
+          onLessonPlanRejected: true,
+          onAnnouncementPosted: true,
+          onResultsPublished: true,
+        },
+        sessionTimeoutMinutes: 480,
+        passwordMinLength: 8,
+        forcePasswordChangeOnFirstLogin: true,
+        defaultColorScheme: "uhas",
+        sidebarAccentHex: null,
+        isActive: true,
+        createdAt: null,
+      })),
+      patch: vi.fn(),
+    },
+    schoolTerms: {
+      list: vi.fn(async () => ({
+        items: [
+          {
+            id: "term-mock-1",
+            schoolId: "00000000-0000-0000-0000-000000000100",
+            academicYear: "2025/2026",
+            term: 1,
+            startDate: "2025-09-08",
+            endDate: "2025-12-19",
+          },
+          {
+            id: "term-mock-2",
+            schoolId: "00000000-0000-0000-0000-000000000100",
+            academicYear: "2025/2026",
+            term: 2,
+            startDate: "2026-01-12",
+            endDate: "2026-04-03",
+          },
+          {
+            id: "term-mock-3",
+            schoolId: "00000000-0000-0000-0000-000000000100",
+            academicYear: "2025/2026",
+            term: 3,
+            startDate: "2026-04-27",
+            endDate: "2026-07-31",
+          },
+        ],
+      })),
+      put: vi.fn(),
+    },
+  })),
+  ApiError: class ApiError extends Error {},
 }));
 
 // ─── Supabase admin client mock ──────────────────────────────────────────────

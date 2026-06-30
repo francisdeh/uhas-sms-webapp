@@ -20,7 +20,7 @@ Not yet wired (intentional — future PRs):
 - ❌ Inngest client + jobs — PR #3
 - ❌ Hubtel SMS integration — Phase 3
 - ❌ Sentry + Logfire — PR #5
-- ❌ Pre-commit hooks (`ruff`, `mypy`) at repo root — coming with `pnpm` migration
+- ❌ Pre-commit hooks (`ruff`, `mypy`) at repo root — still TODO (lefthook or husky-mono)
 
 ## Quick start
 

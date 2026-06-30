@@ -347,7 +347,7 @@ Top 10 (full list of 23 in [ENGINEERING-CONVENTIONS.md](ENGINEERING-CONVENTIONS.
 2. **Mutations = Server Actions** in `src/features/<name>/actions/`. Never use API route handlers for mutations.
 3. **Every server action returns `Promise<ActionResult<T>>`** from `src/lib/action-result.ts`. Catch + return — don't throw from public actions.
 4. **Every DB query filters by `schoolId`** via `getCurrentSchoolId()`. Multi-tenant safety, even though we're single-tenant today.
-5. **Migrations only.** `db:push` is intentionally not used. After editing `schema.ts`: `npm run db:generate && npm run db:migrate`.
+5. **Migrations only.** `db:push` is intentionally not used. After editing `schema.ts`: `pnpm db:generate && pnpm db:migrate`.
 6. **Audit-log sensitive mutations.** Score overrides, student edits, role changes, promotion approvals, settings updates — all go through `src/lib/audit-log.ts`.
 7. **Forms = react-hook-form + Zod.** No raw `<input>` / `<button>` in feature components. Use `Field`/`Input`/`Button` from `src/components/ui/`.
 8. **Tailwind only.** No CSS modules, no inline styles outside the login brand panel. Conditional classes via `cn()`.
@@ -716,7 +716,7 @@ Before customer #2:
 
 | Need to | Look at |
 |---|---|
-| Add or change a DB table | `src/db/schema.ts` → run `npm run db:generate` |
+| Add or change a DB table | `src/db/schema.ts` → run `pnpm db:generate` |
 | Add a feature | `src/features/<name>/` matching the convention in §5 |
 | Add a Server Action | `src/features/<name>/actions/` — must return `Promise<ActionResult<T>>` |
 | Add a Server Component query | `src/features/<name>/queries/` |
@@ -766,7 +766,7 @@ teacher@uhas.edu.gh         Teacher@1234     Selorm Tornu        (Teacher, JHS)
 parent@uhas.edu.gh          Parent@1234      Selorm Agbeko       (Parent, 2 children)
 ```
 
-In prod the same emails exist but with real Firebase passwords seeded via `npm run seed:firebase`.
+In prod the same emails exist but with real Firebase passwords seeded via `pnpm seed:firebase`.
 
 ---
 
