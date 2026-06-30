@@ -85,6 +85,216 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Staff */
+        get: operations["list_staff_staff_get"];
+        put?: never;
+        /** Create Staff */
+        post: operations["create_staff_staff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff/{staff_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Staff */
+        get: operations["get_staff_staff__staff_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Staff */
+        patch: operations["update_staff_staff__staff_id__patch"];
+        trace?: never;
+    };
+    "/staff/{staff_id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Role */
+        patch: operations["change_role_staff__staff_id__role_patch"];
+        trace?: never;
+    };
+    "/staff/{staff_id}/unit-head": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Toggle Unit Head */
+        patch: operations["toggle_unit_head_staff__staff_id__unit_head_patch"];
+        trace?: never;
+    };
+    "/staff/{staff_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Staff */
+        post: operations["activate_staff_staff__staff_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff/{staff_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate Staff */
+        post: operations["deactivate_staff_staff__staff_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guardians": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Guardians */
+        get: operations["list_guardians_guardians_get"];
+        put?: never;
+        /** Create Guardian */
+        post: operations["create_guardian_guardians_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guardians/{guardian_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Guardian */
+        get: operations["get_guardian_guardians__guardian_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Guardian */
+        patch: operations["update_guardian_guardians__guardian_id__patch"];
+        trace?: never;
+    };
+    "/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Students */
+        get: operations["list_students_students_get"];
+        put?: never;
+        /** Create Student */
+        post: operations["create_student_students_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{student_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Student */
+        get: operations["get_student_students__student_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Student */
+        patch: operations["update_student_students__student_id__patch"];
+        trace?: never;
+    };
+    "/students/{student_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Student */
+        post: operations["activate_student_students__student_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{student_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate Student */
+        post: operations["deactivate_student_students__student_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -105,6 +315,65 @@ export interface components {
             grade: string;
             /** Interpretation */
             interpretation: string;
+        };
+        /** GuardianCreate */
+        GuardianCreate: {
+            /** Firstname */
+            firstName: string;
+            /** Lastname */
+            lastName: string;
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
+        };
+        /** GuardianRead */
+        GuardianRead: {
+            /** Firstname */
+            firstName: string;
+            /** Lastname */
+            lastName: string;
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+        };
+        /** GuardianUpdate */
+        GuardianUpdate: {
+            /** Firstname */
+            firstName?: string | null;
+            /** Lastname */
+            lastName?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
+        };
+        /**
+         * GuardiansListResponse
+         * @description Paged guardian list. See `app.core.pagination.Paginated`.
+         */
+        GuardiansListResponse: {
+            /** Items */
+            items: components["schemas"]["GuardianRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -315,6 +584,292 @@ export interface components {
             groupWork: number;
             /** Projectwork */
             projectWork: number;
+        };
+        /**
+         * StaffCreate
+         * @description Inbound payload for `POST /staff`.
+         *
+         *     `system_role` is required on create (different from `StaffBase`
+         *     where it's optional for partial reads); the service enforces that
+         *     non-Admin roles also supply a `division`.
+         */
+        StaffCreate: {
+            /** Firstname */
+            firstName: string;
+            /** Lastname */
+            lastName: string;
+            /** Rank */
+            rank?: string | null;
+            /**
+             * Systemrole
+             * @enum {string}
+             */
+            systemRole: "Admin" | "DeputyHead" | "Teacher" | "Accountant";
+            /** Division */
+            division?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+            /**
+             * Isunithead
+             * @default false
+             */
+            isUnitHead: boolean | null;
+            /** Unitheadof */
+            unitHeadOf?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+            /** Uhasid */
+            uhasId?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Photourl */
+            photoUrl?: string | null;
+        };
+        /**
+         * StaffListResponse
+         * @description Paged staff list. See `app.core.pagination.Paginated` for the envelope.
+         */
+        StaffListResponse: {
+            /** Items */
+            items: components["schemas"]["StaffRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
+         * StaffRead
+         * @description Outbound shape — everything plus the server-managed fields.
+         */
+        StaffRead: {
+            /** Firstname */
+            firstName: string;
+            /** Lastname */
+            lastName: string;
+            /** Rank */
+            rank?: string | null;
+            /** Systemrole */
+            systemRole?: ("Admin" | "DeputyHead" | "Teacher" | "Accountant") | null;
+            /** Division */
+            division?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+            /**
+             * Isunithead
+             * @default false
+             */
+            isUnitHead: boolean | null;
+            /** Unitheadof */
+            unitHeadOf?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+            /** Uhasid */
+            uhasId?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Photourl */
+            photoUrl?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Isactive
+             * @default true
+             */
+            isActive: boolean | null;
+            /** Createdat */
+            createdAt?: string | null;
+        };
+        /**
+         * StaffRoleChange
+         * @description `PATCH /staff/{id}/role` payload.
+         *
+         *     Role changes are tracked in audit_log; kept distinct from `StaffUpdate`
+         *     so the audit hook only fires for actual role moves.
+         */
+        StaffRoleChange: {
+            /**
+             * Systemrole
+             * @enum {string}
+             */
+            systemRole: "Admin" | "DeputyHead" | "Teacher" | "Accountant";
+            /** Division */
+            division?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+        };
+        /**
+         * StaffUnitHeadToggle
+         * @description `PATCH /staff/{id}/unit-head` payload.
+         */
+        StaffUnitHeadToggle: {
+            /** Isunithead */
+            isUnitHead: boolean;
+            /** Unitheadof */
+            unitHeadOf?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+        };
+        /**
+         * StaffUpdate
+         * @description Partial update for `PATCH /staff/{id}`.
+         *
+         *     Every field optional — only present fields are written.
+         */
+        StaffUpdate: {
+            /** Firstname */
+            firstName?: string | null;
+            /** Lastname */
+            lastName?: string | null;
+            /** Rank */
+            rank?: string | null;
+            /** Uhasid */
+            uhasId?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Photourl */
+            photoUrl?: string | null;
+        };
+        /**
+         * StudentCreate
+         * @description Inbound payload for `POST /students`.
+         *
+         *     `class_id` triggers the initial Enrollment row. `dob` and `gender`
+         *     are required on create (the report card needs them) even though
+         *     they're optional in `StudentBase` for read-shape flexibility.
+         */
+        StudentCreate: {
+            /** Firstname */
+            firstName: string;
+            /** Middlename */
+            middleName?: string | null;
+            /** Lastname */
+            lastName: string;
+            /**
+             * Dob
+             * Format: date
+             */
+            dob: string;
+            /**
+             * Gender
+             * @enum {string}
+             */
+            gender: "Male" | "Female";
+            /** Photourl */
+            photoUrl?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Address */
+            address?: string | null;
+            /** Nationality */
+            nationality?: string | null;
+            /** Religion */
+            religion?: string | null;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+        };
+        /**
+         * StudentRead
+         * @description Read shape — student row + the joined current-year enrollment.
+         *
+         *     `class_id` / `class_name` / `division` come from the enrollments
+         *     table. They're `None` for students who have no active enrollment
+         *     in the current academic year (inactive students, mid-promotion).
+         */
+        StudentRead: {
+            /** Firstname */
+            firstName: string;
+            /** Middlename */
+            middleName?: string | null;
+            /** Lastname */
+            lastName: string;
+            /** Dob */
+            dob?: string | null;
+            /** Gender */
+            gender?: ("Male" | "Female") | null;
+            /** Photourl */
+            photoUrl?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Address */
+            address?: string | null;
+            /** Nationality */
+            nationality?: string | null;
+            /** Religion */
+            religion?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Isactive
+             * @default true
+             */
+            isActive: boolean | null;
+            /** Createdat */
+            createdAt?: string | null;
+            /** Classid */
+            classId?: string | null;
+            /** Classname */
+            className?: string | null;
+            /** Division */
+            division?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+        };
+        /** StudentUpdate */
+        StudentUpdate: {
+            /** Firstname */
+            firstName?: string | null;
+            /** Middlename */
+            middleName?: string | null;
+            /** Lastname */
+            lastName?: string | null;
+            /** Dob */
+            dob?: string | null;
+            /** Gender */
+            gender?: ("Male" | "Female") | null;
+            /** Phone */
+            phone?: string | null;
+            /** Address */
+            address?: string | null;
+            /** Nationality */
+            nationality?: string | null;
+            /** Religion */
+            religion?: string | null;
+            /** Photourl */
+            photoUrl?: string | null;
+        };
+        /**
+         * StudentsListResponse
+         * @description Paged student list. See `app.core.pagination.Paginated`.
+         */
+        StudentsListResponse: {
+            /** Items */
+            items: components["schemas"]["StudentRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
         };
         /**
          * TermInput
@@ -547,6 +1102,638 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TermsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_staff_staff_get: {
+        parameters: {
+            query?: {
+                /** @description Search across name + email + UHAS ID */
+                q?: string | null;
+                /** @description 1-based page index */
+                page?: number;
+                /** @description Rows per page */
+                size?: number;
+                activeOnly?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_staff_staff_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_staff_staff__staff_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_staff_staff__staff_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_role_staff__staff_id__role_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffRoleChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    toggle_unit_head_staff__staff_id__unit_head_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffUnitHeadToggle"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_staff_staff__staff_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_staff_staff__staff_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_guardians_guardians_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardiansListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_guardian_guardians_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuardianCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardianRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_guardian_guardians__guardian_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                guardian_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardianRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_guardian_guardians__guardian_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                guardian_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuardianUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardianRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_students_students_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                page?: number;
+                size?: number;
+                division?: string | null;
+                activeOnly?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_student_students_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_student_students__student_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_student_students__student_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_student_students__student_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_student_students__student_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentRead"];
                 };
             };
             /** @description Validation Error */

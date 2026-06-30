@@ -22,8 +22,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.deps import CurrentSchoolIdDep, require_role
-from app.core.security import CurrentUser
+from app.core.deps import CurrentSchoolIdDep, RequireAdmin
 from app.features.schools.schema import SchoolRead, SchoolUpdate
 from app.features.schools.service import SchoolsService
 
@@ -61,7 +60,7 @@ async def patch_school(
     payload: SchoolUpdate,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    user: Annotated[CurrentUser, Depends(require_role("Admin"))],
+    user: RequireAdmin,
 ) -> SchoolRead:
     """Apply a partial update; writes an audit_log row with the diff.
 

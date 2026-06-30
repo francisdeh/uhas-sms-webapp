@@ -2,12 +2,8 @@ import "server-only";
 import { cache } from "react";
 
 import { getApi } from "@/lib/api/server";
-import type {
-  GradingBand,
-  NotificationDefaults,
-  SchoolSettings,
-  ScoreWeights,
-} from "@/features/settings/types";
+import type { components } from "@/types/api";
+import type { SchoolSettings } from "@/features/settings/types";
 
 /**
  * Single-request-deduped read of the full settings shape.
@@ -21,11 +17,18 @@ import type {
  * dedupes the merged result within a single Server Component render.
  *
  * Defaults below apply when the row's JSONB column is null (fresh
- * install / never-configured tenant). They mirror what the old
- * Drizzle-based getter applied.
+ * install / never-configured tenant).
  */
 
-const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
+// API-shape types — already concrete (not `Record<string, unknown>`)
+// because the FastAPI side declares them as proper Pydantic sub-models.
+// Aliasing them here keeps the rest of the file readable.
+type ApiScoreWeights = NonNullable<components["schemas"]["SchoolRead"]["scoreWeights"]>;
+type ApiNotificationDefaults = NonNullable<
+  components["schemas"]["SchoolRead"]["notificationDefaults"]
+>;
+
+const DEFAULT_SCORE_WEIGHTS: ApiScoreWeights = {
   exam: 60,
   cat1: 10,
   cat2: 10,
@@ -33,7 +36,7 @@ const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
   projectWork: 10,
 };
 
-const DEFAULT_NOTIFICATIONS: NotificationDefaults = {
+const DEFAULT_NOTIFICATIONS: ApiNotificationDefaults = {
   onLessonPlanRejected: true,
   onAnnouncementPosted: true,
   onResultsPublished: true,
@@ -65,13 +68,12 @@ export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {
       endDate: t.endDate,
     })),
     gradingScale: school.gradingScale ?? "GES_STANDARD",
-    gradingBands: (school.gradingBands as GradingBand[] | null) ?? null,
-    scoreWeights: (school.scoreWeights as ScoreWeights | null) ?? DEFAULT_SCORE_WEIGHTS,
+    gradingBands: school.gradingBands ?? null,
+    scoreWeights: school.scoreWeights ?? DEFAULT_SCORE_WEIGHTS,
     passMark: school.passMark ?? 40,
     emailFromName: school.emailFromName ?? null,
     emailReplyTo: school.emailReplyTo ?? null,
-    notificationDefaults:
-      (school.notificationDefaults as NotificationDefaults | null) ?? DEFAULT_NOTIFICATIONS,
+    notificationDefaults: school.notificationDefaults ?? DEFAULT_NOTIFICATIONS,
     sessionTimeoutMinutes: school.sessionTimeoutMinutes ?? 480,
     passwordMinLength: school.passwordMinLength ?? 8,
     forcePasswordChangeOnFirstLogin: school.forcePasswordChangeOnFirstLogin ?? true,

@@ -27,7 +27,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
-import { createStudentAction } from "@/features/students/actions";
+import { ApiError } from "@/lib/api/browser";
+import { useStudentMutations } from "@/features/students/hooks/use-students";
 import type { ClassRecord } from "@/features/students/types";
 
 const schema = z.object({
@@ -85,13 +86,26 @@ export default function StudentRegistrationForm({
     resolver: zodResolver(schema),
   });
 
+  const { create } = useStudentMutations();
+
   async function onSubmit(values: FormValues) {
-    const result = await createStudentAction(values);
-    if (result.success) {
-      toast.success(`Student registered — ID: ${result.id}`);
+    try {
+      const row = await create.mutateAsync({
+        firstName: values.firstName,
+        lastName: values.lastName,
+        dob: values.dob,
+        gender: values.gender,
+        phone: values.phone || null,
+        address: values.address || null,
+        nationality: values.nationality || null,
+        religion: values.religion || null,
+        photoUrl: values.photoUrl?.trim() ? values.photoUrl : null,
+        classId: values.classId,
+      });
+      toast.success(`Student registered — ID: ${row.slug}`);
       router.push(listHref);
-    } else {
-      toast.error(result.error);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Registration failed.");
     }
   }
 

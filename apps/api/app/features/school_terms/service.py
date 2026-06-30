@@ -21,6 +21,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.audit.actions import SCHOOL_TERMS_UPSERT
 from app.features.audit.service import write_audit_log
 from app.features.school_terms.model import SchoolTerm
 from app.features.school_terms.repository import SchoolTermsRepository
@@ -96,7 +97,7 @@ class SchoolTermsService:
                 session,
                 school_id=school_id,
                 user_id=actor_user_id,
-                action="SCHOOL_TERMS_UPSERT",
+                action=SCHOOL_TERMS_UPSERT,
                 target_table="school_terms",
                 target_id=None,  # batch op — no single target row
                 before={"academic_year": payload.academic_year, "terms": before}

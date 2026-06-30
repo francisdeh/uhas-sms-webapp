@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -27,28 +27,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ApiError } from "@/lib/api/browser";
 import {
-  deactivateStudentAction,
-  reactivateStudentAction,
-} from "@/features/students/actions";
-import type { Student } from "@/features/students/types";
+  useStudentMutations,
+  useStudentsList,
+  type StudentRow,
+  type StudentsListResponse,
+} from "@/features/students/hooks/use-students";
 import { cn } from "@/lib/utils";
 
-const DIVISION_AVATAR: Record<Student["division"], string> = {
+type Division = "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+
+const DIVISION_AVATAR: Record<Division, string> = {
   KG: "from-purple-400 to-purple-600",
   "Lower Primary": "from-sky-400 to-sky-600",
   "Upper Primary": "from-blue-400 to-blue-600",
   JHS: "from-orange-400 to-accent-orange",
 };
 
-const DIVISION_PILL: Record<Student["division"], string> = {
+const DIVISION_PILL: Record<Division, string> = {
   KG: "bg-purple-100 text-purple-700",
   "Lower Primary": "bg-sky-100 text-sky-700",
   "Upper Primary": "bg-blue-100 text-blue-700",
   JHS: "bg-orange-100 text-accent-orange",
 };
 
-function formatDob(dob: string) {
+function formatDob(dob: string | null | undefined) {
+  if (!dob) return "—";
   return new Date(dob).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
@@ -57,22 +62,32 @@ function formatDob(dob: string) {
 }
 
 interface StudentsTableProps {
-  initialStudents: Student[];
-  division?: string;
+  initialData: StudentsListResponse;
+  division?: Division;
   listHref: string;
 }
 
 export default function StudentsTable({
-  initialStudents,
+  initialData,
   division,
   listHref,
 }: StudentsTableProps) {
-  const [students, setStudents] = useState(initialStudents);
-  const [isPending, startTransition] = useTransition();
-  const [deactivateTarget, setDeactivateTarget] = useState<Student | null>(null);
-  const [divisionFilter, setDivisionFilter] = useState<Student["division"] | "All">("All");
+  // FastAPI is now the source of truth. When a `division` prop is given
+  // (deputy-head pages), the server filters; otherwise the client toggles
+  // a local divisionFilter for visual filtering only.
+  const { data } = useStudentsList(
+    { division, size: 100 },
+    { initialData },
+  );
+  const mutations = useStudentMutations();
+  const isPending =
+    mutations.activate.isPending || mutations.deactivate.isPending;
+
+  const [deactivateTarget, setDeactivateTarget] = useState<StudentRow | null>(null);
+  const [divisionFilter, setDivisionFilter] = useState<Division | "All">("All");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
 
+  const students = data?.items ?? [];
   const total = students.length;
   const activeCount = students.filter((s) => s.isActive).length;
   const inactiveCount = students.filter((s) => !s.isActive).length;
@@ -89,48 +104,54 @@ export default function StudentsTable({
       : "All Divisions";
 
   const displayedStudents = students.filter((s) => {
-    const divMatch =
-      division
-        ? s.division === division
-        : divisionFilter === "All" || s.division === divisionFilter;
+    const divMatch = division
+      ? s.division === division
+      : divisionFilter === "All" || s.division === divisionFilter;
     const statusMatch =
       statusFilter === "All" ||
       (statusFilter === "Active" ? s.isActive : !s.isActive);
     return divMatch && statusMatch;
   });
 
-  function doDeactivate(id: string) {
-    startTransition(async () => {
-      const result = await deactivateStudentAction(id);
-      if (!result.success) { toast.error(result.error); return; }
-      toast.success("Student deactivated.");
-      setStudents((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, isActive: false } : s))
-      );
-    });
-  }
+  // useCallback so the column-array useMemo can list these as deps
+  // without re-creating the columns on every render.
+  const doDeactivate = useCallback(
+    (id: string) => {
+      mutations.deactivate.mutate(id, {
+        onSuccess: () => toast.success("Student deactivated."),
+        onError: (err) =>
+          toast.error(
+            err instanceof ApiError ? err.message : "Deactivation failed.",
+          ),
+      });
+    },
+    [mutations.deactivate],
+  );
 
-  function doReactivate(id: string) {
-    startTransition(async () => {
-      const result = await reactivateStudentAction(id);
-      if (!result.success) { toast.error(result.error); return; }
-      toast.success("Student reactivated.");
-      setStudents((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, isActive: true } : s))
-      );
-    });
-  }
+  const doReactivate = useCallback(
+    (id: string) => {
+      mutations.activate.mutate(id, {
+        onSuccess: () => toast.success("Student reactivated."),
+        onError: (err) =>
+          toast.error(
+            err instanceof ApiError ? err.message : "Reactivation failed.",
+          ),
+      });
+    },
+    [mutations.activate],
+  );
 
   // useMemo keeps the TanStack column array reference stable across
   // re-renders. Otherwise every parent state change (filter input, etc.)
   // creates a new columns array, defeating TanStack's internal row memoization.
-  const columns = useMemo<ColumnDef<Student>[]>(() => [
+  const columns = useMemo<ColumnDef<StudentRow>[]>(() => [
     {
       id: "student",
       header: "Student",
       accessorFn: (row) => `${row.firstName} ${row.lastName}`,
       cell: ({ row }) => {
         const s = row.original;
+        const div = (s.division ?? "JHS") as Division;
         return (
           <div className="flex items-center gap-3 py-0.5">
             <UserAvatar
@@ -138,7 +159,7 @@ export default function StudentsTable({
               firstName={s.firstName}
               lastName={s.lastName}
               size="sm"
-              gradient={DIVISION_AVATAR[s.division]}
+              gradient={DIVISION_AVATAR[div]}
             />
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">
@@ -154,7 +175,7 @@ export default function StudentsTable({
       accessorKey: "className",
       header: "Class",
       cell: ({ row }) => (
-        <span className="text-sm">{row.original.className}</span>
+        <span className="text-sm">{row.original.className ?? "—"}</span>
       ),
     },
     {
@@ -162,11 +183,12 @@ export default function StudentsTable({
       header: "Division",
       cell: ({ row }) => {
         const div = row.original.division;
+        if (!div) return <span className="text-sm text-muted-foreground">—</span>;
         return (
           <span
             className={cn(
               "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-              DIVISION_PILL[div]
+              DIVISION_PILL[div as Division]
             )}
           >
             {div}
@@ -247,7 +269,7 @@ export default function StudentsTable({
         );
       },
     },
-  ], [isPending, listHref]);
+  ], [isPending, listHref, doReactivate]);
 
   return (
     <div className="space-y-5">

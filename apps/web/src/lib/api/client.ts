@@ -110,5 +110,136 @@ export function createApiClient(getAuthToken: TokenGetter) {
           },
         ),
     },
+    staff: {
+      /** Paginated list. `q` searches name/email/uhasId; `page` is 1-based. */
+      list: (
+        params: { q?: string; page?: number; size?: number; activeOnly?: boolean } = {},
+      ) =>
+        apiFetch<components["schemas"]["StaffListResponse"]>(
+          getAuthToken,
+          `/staff${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["StaffRead"]>(getAuthToken, `/staff/${id}`),
+      create: (payload: components["schemas"]["StaffCreate"]) =>
+        apiFetch<components["schemas"]["StaffRead"]>(getAuthToken, "/staff", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      update: (id: string, payload: components["schemas"]["StaffUpdate"]) =>
+        apiFetch<components["schemas"]["StaffRead"]>(getAuthToken, `/staff/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        }),
+      changeRole: (id: string, payload: components["schemas"]["StaffRoleChange"]) =>
+        apiFetch<components["schemas"]["StaffRead"]>(
+          getAuthToken,
+          `/staff/${id}/role`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      toggleUnitHead: (
+        id: string,
+        payload: components["schemas"]["StaffUnitHeadToggle"],
+      ) =>
+        apiFetch<components["schemas"]["StaffRead"]>(
+          getAuthToken,
+          `/staff/${id}/unit-head`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      activate: (id: string) =>
+        apiFetch<components["schemas"]["StaffRead"]>(
+          getAuthToken,
+          `/staff/${id}/activate`,
+          { method: "POST" },
+        ),
+      deactivate: (id: string) =>
+        apiFetch<components["schemas"]["StaffRead"]>(
+          getAuthToken,
+          `/staff/${id}/deactivate`,
+          { method: "POST" },
+        ),
+    },
+    guardians: {
+      list: (params: { q?: string; page?: number; size?: number } = {}) =>
+        apiFetch<components["schemas"]["GuardiansListResponse"]>(
+          getAuthToken,
+          `/guardians${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["GuardianRead"]>(
+          getAuthToken,
+          `/guardians/${id}`,
+        ),
+      create: (payload: components["schemas"]["GuardianCreate"]) =>
+        apiFetch<components["schemas"]["GuardianRead"]>(getAuthToken, "/guardians", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      update: (id: string, payload: components["schemas"]["GuardianUpdate"]) =>
+        apiFetch<components["schemas"]["GuardianRead"]>(
+          getAuthToken,
+          `/guardians/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+    },
+    students: {
+      list: (
+        params: {
+          q?: string;
+          page?: number;
+          size?: number;
+          division?: string;
+          activeOnly?: boolean;
+        } = {},
+      ) =>
+        apiFetch<components["schemas"]["StudentsListResponse"]>(
+          getAuthToken,
+          `/students${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["StudentRead"]>(
+          getAuthToken,
+          `/students/${id}`,
+        ),
+      create: (payload: components["schemas"]["StudentCreate"]) =>
+        apiFetch<components["schemas"]["StudentRead"]>(getAuthToken, "/students", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      update: (id: string, payload: components["schemas"]["StudentUpdate"]) =>
+        apiFetch<components["schemas"]["StudentRead"]>(
+          getAuthToken,
+          `/students/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      activate: (id: string) =>
+        apiFetch<components["schemas"]["StudentRead"]>(
+          getAuthToken,
+          `/students/${id}/activate`,
+          { method: "POST" },
+        ),
+      deactivate: (id: string) =>
+        apiFetch<components["schemas"]["StudentRead"]>(
+          getAuthToken,
+          `/students/${id}/deactivate`,
+          { method: "POST" },
+        ),
+    },
   };
+}
+
+/**
+ * Build a `?a=b&c=d` query string from a plain object.
+ *
+ * Omits keys whose value is `undefined`/`null`/empty-string — important
+ * so `api.staff.list({})` hits `/staff` cleanly, not `/staff?q=` (which
+ * the FastAPI side would parse as `q == ""` and short-circuit search).
+ */
+function buildQuery(params: Record<string, unknown>): string {
+  const pairs: string[] = [];
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === "") continue;
+    pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+  }
+  return pairs.length ? `?${pairs.join("&")}` : "";
 }

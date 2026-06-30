@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listStudentsAction } from "@/features/students/actions";
+import { getApi } from "@/lib/api/server";
 import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
 import StudentsTable from "@/features/students/components/StudentsTable";
 
@@ -9,12 +9,12 @@ export default async function DeputyHeadStudentsPage() {
   if (!user) redirect("/login");
 
   const division = await getDeputyHeadDivision(user.linkedId);
-
-  const students = await listStudentsAction(division);
+  const api = await getApi();
+  const initialData = await api.students.list({ division, size: 100 });
 
   return (
     <StudentsTable
-      initialStudents={students}
+      initialData={initialData}
       division={division}
       listHref="/deputy-head/students"
     />

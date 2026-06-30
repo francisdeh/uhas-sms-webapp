@@ -1,18 +1,15 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listStudentsAction } from "@/features/students/actions";
+import { getApi } from "@/lib/api/server";
 import StudentsTable from "@/features/students/components/StudentsTable";
 
 export default async function AdminStudentsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const students = await listStudentsAction();
+  // Prefetch from FastAPI so TanStack has initialData on first render.
+  const api = await getApi();
+  const initialData = await api.students.list({ size: 100 });
 
-  return (
-    <StudentsTable
-      initialStudents={students}
-      listHref="/admin/students"
-    />
-  );
+  return <StudentsTable initialData={initialData} listHref="/admin/students" />;
 }

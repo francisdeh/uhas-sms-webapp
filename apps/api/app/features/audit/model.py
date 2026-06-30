@@ -1,21 +1,21 @@
 """SQLAlchemy model for the `audit_log` table.
 
 Audit rows are written by domain services on sensitive mutations
-(settings updates, role changes, score overrides). The table is already
-present in the database (from the Alembic baseline) — this module just
-gives us a typed ORM handle so other features can write rows.
+(settings updates, role changes, score overrides).
 
-`before` and `after` are stored as JSON-serialised TEXT (not jsonb) to
-match the existing schema. The service helper does the json.dumps
-conversion so callers pass plain dicts.
+`before` and `after` are JSONB — callers pass plain Python dicts and
+SQLAlchemy hands them to the column. Migration `63bbd48d03f4` upgraded
+the columns from Text → JSONB.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, Uuid, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Uuid, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -32,11 +32,8 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(100), nullable=False)
     target_table: Mapped[str | None] = mapped_column(String(100), nullable=True)
     target_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
-    # JSON-serialised TEXT to match the existing schema (the other JSON
-    # columns are jsonb; audit predates that convention). The service
-    # helper does the serialisation so callers don't deal with it.
-    before: Mapped[str | None] = mapped_column(Text, nullable=True)
-    after: Mapped[str | None] = mapped_column(Text, nullable=True)
+    before: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    after: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime, server_default=func.now(), nullable=True
     )

@@ -163,7 +163,8 @@ async def test_patch_school_writes_audit_row(
         await db_session.execute(select(AuditLog).where(AuditLog.target_id == SCHOOL_UUID))
     ).scalar_one()
     assert audit.action == "SCHOOL_SETTINGS_UPDATE"
-    assert audit.after is not None and "Audit me" in audit.after
+    assert audit.after is not None
+    assert audit.after.get("motto") == "Audit me"
 
 
 async def test_patch_school_rejects_unknown_fields(

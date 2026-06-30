@@ -21,8 +21,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.deps import CurrentSchoolIdDep, require_role
-from app.core.security import CurrentUser
+from app.core.deps import CurrentSchoolIdDep, RequireAdmin
 from app.features.school_terms.schema import (
     TermRead,
     TermsListResponse,
@@ -59,7 +58,7 @@ async def upsert_terms(
     payload: TermsUpsertRequest,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    user: Annotated[CurrentUser, Depends(require_role("Admin"))],
+    user: RequireAdmin,
 ) -> TermsListResponse:
     """Replace all three terms for the given academic_year in one call.
 
