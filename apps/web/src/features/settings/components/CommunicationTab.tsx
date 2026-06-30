@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Field, FieldLabel, FieldGroup } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import { updateCommunicationAction } from "@/features/settings/actions";
+import { api, ApiError } from "@/lib/api/browser";
 import type { SchoolSettings, NotificationDefaults } from "@/features/settings/types";
 
 export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
@@ -27,15 +27,17 @@ export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
 
   async function onSave() {
     setSaving(true);
-    const result = await updateCommunicationAction({
-      emailFromName: fromName || null,
-      emailReplyTo: replyTo,
-      notificationDefaults: prefs,
-    });
-    setSaving(false);
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      await api.school.patch({
+        emailFromName: fromName || null,
+        emailReplyTo: replyTo || null,
+        notificationDefaults: prefs,
+      });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Update failed.");
       return;
+    } finally {
+      setSaving(false);
     }
     toast.success("Communication settings updated.");
     router.refresh();

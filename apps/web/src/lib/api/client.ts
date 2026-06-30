@@ -5,28 +5,23 @@
  *   1. Uses types from `@/types/api` so request/response shapes
  *      come straight from the FastAPI Pydantic schemas.
  *   2. Wraps `fetch` with the `Authorization: Bearer …` header
- *      (Supabase JWT, attached once Phase 1 ships).
- *   3. Throws on non-2xx so TanStack Query treats it as an error.
+ *      (Supabase JWT — the token-getter is supplied by the caller's
+ *      environment via `createApiClient`).
+ *   3. Throws `ApiError` on non-2xx so callers (TanStack Query +
+ *      route handlers) can branch on it cleanly.
  *
- * Domain hooks (`features/<x>/queries.ts` + `mutations.ts`) call into
- * this namespace — they don't `fetch` directly.
+ * Two wrappers consume this factory:
+ *   - `@/lib/api/browser` — Client Components, browser Supabase session
+ *   - `@/lib/api/server` — Server Components / Route Handlers, server
+ *     Supabase session (reads cookies via next/headers)
  *
- * See v2/UHAS_Backend_Architecture_v1.1.md §9 + §10.
+ * See v2/UHAS_Backend_Architecture_v1.1.md §9 + §10 and
+ * docs/ENGINEERING-CONVENTIONS.md §8.
  */
 
 import type { components } from "@/types/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-/**
- * Get the current user's Supabase JWT.
- *
- * Stub for now — Phase 1 wires this to `@supabase/ssr` to read the
- * session cookie. Until then, every call goes through unauthenticated.
- */
-async function getAuthToken(): Promise<string | null> {
-  return null;
-}
 
 export class ApiError extends Error {
   constructor(
@@ -40,7 +35,13 @@ export class ApiError extends Error {
   }
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+type TokenGetter = () => Promise<string | null>;
+
+async function apiFetch<T>(
+  getAuthToken: TokenGetter,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const token = await getAuthToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -66,16 +67,30 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
 
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
-// ── Domain namespaces ────────────────────────────────────────────────────────
-// One per feature folder in apps/api/app/features/. New domains get added
-// here as their FastAPI routers land in Phase 2.
+// ── Domain namespaces — one per feature folder in apps/api/app/features/ ─────
 
-export const api = {
-  health: {
-    get: () =>
-      apiFetch<components["schemas"]["HealthResponse"]>("/health"),
-  },
-};
+export type ApiClient = ReturnType<typeof createApiClient>;
+
+export function createApiClient(getAuthToken: TokenGetter) {
+  return {
+    health: {
+      get: () =>
+        apiFetch<components["schemas"]["HealthResponse"]>(getAuthToken, "/health"),
+    },
+    school: {
+      /** Fetch the caller's school settings. Any authenticated role. */
+      get: () =>
+        apiFetch<components["schemas"]["SchoolRead"]>(getAuthToken, "/school"),
+      /** Partial update of school settings. Admin only — service returns 403 otherwise. */
+      patch: (payload: components["schemas"]["SchoolUpdate"]) =>
+        apiFetch<components["schemas"]["SchoolRead"]>(getAuthToken, "/school", {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        }),
+    },
+  };
+}

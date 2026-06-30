@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { updateGradingAction } from "@/features/settings/actions";
+import { api, ApiError } from "@/lib/api/browser";
 import type { SchoolSettings, GradingBand, ScoreWeights } from "@/features/settings/types";
 
 // GES default bands — also defined in src/features/exams/utils.ts.
@@ -71,16 +71,18 @@ export function GradingTab({ settings }: { settings: SchoolSettings }) {
       return;
     }
     setSaving(true);
-    const result = await updateGradingAction({
-      gradingScale: scale,
-      gradingBands: scale === "CUSTOM" ? bands : null,
-      scoreWeights: weights,
-      passMark: Number(passMark),
-    });
-    setSaving(false);
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      await api.school.patch({
+        gradingScale: scale,
+        gradingBands: scale === "CUSTOM" ? bands : null,
+        scoreWeights: weights,
+        passMark: Number(passMark),
+      });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Update failed.");
       return;
+    } finally {
+      setSaving(false);
     }
     toast.success("Grading config updated.");
     router.refresh();

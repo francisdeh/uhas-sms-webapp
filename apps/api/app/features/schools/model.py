@@ -1,0 +1,76 @@
+"""SQLAlchemy model for the `schools` table.
+
+Schools is the multi-tenant anchor — every other domain has a
+`school_id` FK that points here. The table already exists from the
+Alembic baseline (`fb2f367656c5_drizzle_baseline_port`); this module
+gives us the typed ORM handle.
+
+Per the convention in
+[docs/ENGINEERING-CONVENTIONS.md §3a](../../../../../docs/ENGINEERING-CONVENTIONS.md):
+PK is `uuid` (DB-generated via `gen_random_uuid()`), and a separate
+`slug` column carries the human-readable identifier (`"uhas-basic"`)
+for URLs + audit-log readability. Slug is globally unique on schools;
+on every other entity table it's unique-per-school.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, Uuid, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.core.db import Base
+
+
+class School(Base):
+    __tablename__ = "schools"
+
+    # Identity + lifecycle
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, server_default=func.gen_random_uuid())
+    # Globally-unique URL-routable slug, e.g. "uhas-basic".
+    slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    academic_year: Mapped[str] = mapped_column(String(9), nullable=False)
+    current_term: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    grading_scale: Mapped[str | None] = mapped_column(
+        String(50), nullable=True, default="GES_STANDARD"
+    )
+    is_active: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime, server_default=func.now(), nullable=True
+    )
+
+    # Identity tab
+    motto: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    principal_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # Grading tab — JSONB carries the band/weight arrays + objects.
+    grading_bands: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
+    score_weights: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    pass_mark: Mapped[int | None] = mapped_column(Integer, nullable=True, default=40)
+
+    # Communication tab
+    email_from_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email_reply_to: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notification_defaults: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+
+    # Security tab
+    session_timeout_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True, default=480)
+    password_min_length: Mapped[int | None] = mapped_column(Integer, nullable=True, default=8)
+    force_password_change_on_first_login: Mapped[bool | None] = mapped_column(
+        Boolean, nullable=True, default=True
+    )
+
+    # Branding tab
+    default_color_scheme: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, default="uhas"
+    )
+    sidebar_accent_hex: Mapped[str | None] = mapped_column(String(7), nullable=True)
