@@ -27,6 +27,7 @@ from typing import Annotated
 from fastapi import Depends, Header
 
 from app.core.errors import ForbiddenError, UnauthorizedError
+from app.core.roles import ADMIN, DEPUTY_HEAD
 from app.core.security import CurrentUser, verify_supabase_jwt
 
 
@@ -86,6 +87,19 @@ def require_role(*allowed_roles: str) -> Callable[[CurrentUser], CurrentUser]:
         return user
 
     return _checker
+
+
+# ── Role-scoped dependency aliases ───────────────────────────────────────────
+# Saves the 5-line `Annotated[CurrentUser, Depends(require_role("Admin"))]`
+# boilerplate at every endpoint. Type-aliased so endpoint signatures stay
+# scannable. Add more as actual usage shows up — don't pre-build for every
+# theoretical role combination.
+
+RequireAdmin = Annotated[CurrentUser, Depends(require_role(ADMIN))]
+"""Endpoint that only Admins can hit (writes that affect the whole school)."""
+
+RequireAdminOrDeputy = Annotated[CurrentUser, Depends(require_role(ADMIN, DEPUTY_HEAD))]
+"""Endpoint that Admins + Deputy Heads can hit (division-scoped admin work)."""
 
 
 def get_current_school_id(user: CurrentUserDep) -> str:

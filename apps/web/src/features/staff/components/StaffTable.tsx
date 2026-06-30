@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -26,47 +26,55 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ApiError } from "@/lib/api/browser";
 import {
-  deactivateStaffAction,
-  reactivateStaffAction,
-} from "@/features/staff/actions";
-import type { Staff } from "@/features/staff/types";
+  useStaffList,
+  useStaffMutations,
+  type StaffListResponse,
+  type StaffRow,
+} from "@/features/staff/hooks/use-staff";
 import type { SchoolClass } from "@/features/classes/types";
 import { cn } from "@/lib/utils";
 
-const ROLE_PILL: Record<Staff["systemRole"], string> = {
+type SystemRole = "Admin" | "DeputyHead" | "Teacher" | "Accountant";
+
+const ROLE_PILL: Record<SystemRole, string> = {
   Admin: "bg-purple-100 text-purple-700",
   DeputyHead: "bg-blue-100 text-blue-700",
   Teacher: "bg-orange-100 text-accent-orange",
   Accountant: "bg-emerald-100 text-emerald-700",
 };
 
-const ROLE_LABEL: Record<Staff["systemRole"], string> = {
+const ROLE_LABEL: Record<SystemRole, string> = {
   Admin: "Admin",
   DeputyHead: "Deputy Head",
   Teacher: "Teacher",
   Accountant: "Accountant",
 };
 
-const ROLE_AVATAR: Record<Staff["systemRole"], string> = {
+const ROLE_AVATAR: Record<SystemRole, string> = {
   Admin: "from-purple-400 to-purple-600",
   DeputyHead: "from-blue-400 to-blue-600",
   Teacher: "from-orange-400 to-accent-orange",
   Accountant: "from-emerald-400 to-emerald-600",
 };
 
-type RoleFilter = Staff["systemRole"] | "All";
+type RoleFilter = SystemRole | "All";
 
 interface StaffTableProps {
-  initialStaff: Staff[];
+  initialData: StaffListResponse;
   classes?: SchoolClass[];
   listHref: string;
 }
 
-export default function StaffTable({ initialStaff, classes, listHref }: StaffTableProps) {
-  const [staff, setStaff] = useState(initialStaff);
-  const [isPending, startTransition] = useTransition();
-  const [deactivateTarget, setDeactivateTarget] = useState<Staff | null>(null);
+export default function StaffTable({ initialData, classes, listHref }: StaffTableProps) {
+  // FastAPI is now the source of truth. TanStack handles cache + invalidation;
+  // mutations call `onSuccess` → invalidate, which triggers a refetch.
+  const { data } = useStaffList({}, { initialData });
+  const mutations = useStaffMutations();
+  const isPending =
+    mutations.activate.isPending || mutations.deactivate.isPending;
+  const [deactivateTarget, setDeactivateTarget] = useState<StaffRow | null>(null);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("All");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
 
@@ -80,10 +88,11 @@ export default function StaffTable({ initialStaff, classes, listHref }: StaffTab
     return map;
   }, [classes]);
 
+  const staff = data?.items ?? [];
   const total = staff.length;
   const activeCount = staff.filter((s) => s.isActive).length;
   const inactiveCount = staff.filter((s) => !s.isActive).length;
-  const distinctRoles = new Set(staff.map((s) => s.systemRole)).size;
+  const distinctRoles = new Set(staff.map((s) => s.systemRole).filter(Boolean)).size;
 
   const displayedStaff = staff.filter((s) => {
     const roleMatch = roleFilter === "All" || s.systemRole === roleFilter;
@@ -94,28 +103,22 @@ export default function StaffTable({ initialStaff, classes, listHref }: StaffTab
   });
 
   function doDeactivate(id: string) {
-    startTransition(async () => {
-      const result = await deactivateStaffAction(id);
-      if (!result.success) { toast.error(result.error); return; }
-      toast.success("Staff member deactivated.");
-      setStaff((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, isActive: false } : s))
-      );
+    mutations.deactivate.mutate(id, {
+      onSuccess: () => toast.success("Staff member deactivated."),
+      onError: (err) =>
+        toast.error(err instanceof ApiError ? err.message : "Deactivation failed."),
     });
   }
 
   function doReactivate(id: string) {
-    startTransition(async () => {
-      const result = await reactivateStaffAction(id);
-      if (!result.success) { toast.error(result.error); return; }
-      toast.success("Staff member reactivated.");
-      setStaff((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, isActive: true } : s))
-      );
+    mutations.activate.mutate(id, {
+      onSuccess: () => toast.success("Staff member reactivated."),
+      onError: (err) =>
+        toast.error(err instanceof ApiError ? err.message : "Reactivation failed."),
     });
   }
 
-  const columns: ColumnDef<Staff>[] = [
+  const columns: ColumnDef<StaffRow>[] = [
     {
       id: "staff",
       header: "Staff",
@@ -129,7 +132,7 @@ export default function StaffTable({ initialStaff, classes, listHref }: StaffTab
               firstName={s.firstName}
               lastName={s.lastName}
               size="sm"
-              gradient={ROLE_AVATAR[s.systemRole]}
+              gradient={ROLE_AVATAR[(s.systemRole ?? "Teacher") as SystemRole]}
             />
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">
@@ -145,7 +148,7 @@ export default function StaffTable({ initialStaff, classes, listHref }: StaffTab
       accessorKey: "systemRole",
       header: "Role",
       cell: ({ row }) => {
-        const role = row.original.systemRole;
+        const role = (row.original.systemRole ?? "Teacher") as SystemRole;
         return (
           <span
             className={cn(

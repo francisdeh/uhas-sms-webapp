@@ -58,8 +58,9 @@ async def test_patch_applies_changes_and_writes_audit(
     assert audit.user_id == ACTOR
     assert audit.action == "SCHOOL_SETTINGS_UPDATE"
     assert audit.target_table == "schools"
-    # Diff carries only the changed fields.
-    assert audit.after is not None and "UHAS Basic School (Renamed)" in audit.after
+    # Diff carries only the changed fields. JSONB column → plain dict.
+    assert audit.after is not None
+    assert audit.after.get("name") == "UHAS Basic School (Renamed)"
 
 
 async def test_patch_with_unchanged_fields_skips_audit_row(
@@ -101,9 +102,9 @@ async def test_patch_diff_records_only_changed_fields(
     ).scalar_one()
     # Only `motto` appears in the diff — the other unchanged fields are skipped.
     assert audit.after is not None
-    assert "A brand new motto" in audit.after
-    assert "academic_year" not in (audit.after or "")
-    assert "name" not in (audit.after or "")
+    assert audit.after.get("motto") == "A brand new motto"
+    assert "academic_year" not in audit.after
+    assert "name" not in audit.after
 
 
 async def test_patch_empty_payload_is_noop(db_session: AsyncSession, seed_school: School) -> None:

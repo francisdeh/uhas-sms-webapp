@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError
+from app.features.audit.actions import SCHOOL_SETTINGS_UPDATE
 from app.features.audit.service import write_audit_log
 from app.features.schools.model import School
 from app.features.schools.repository import SchoolsRepository
@@ -119,7 +120,7 @@ class SchoolsService:
             session,
             school_id=school_id,
             user_id=actor_user_id,
-            action="SCHOOL_SETTINGS_UPDATE",
+            action=SCHOOL_SETTINGS_UPDATE,
             target_table="schools",
             target_id=school_id,
             before=before,

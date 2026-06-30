@@ -34,7 +34,8 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
-import { createStaffAction } from "@/features/staff/actions";
+import { ApiError } from "@/lib/api/browser";
+import { useStaffMutations } from "@/features/staff/hooks/use-staff";
 import { STAFF_SYSTEM_ROLES } from "@/features/auth/types";
 
 const schema = z
@@ -78,6 +79,7 @@ type FormValues = z.infer<typeof schema>;
 
 interface SuccessState {
   id: string;
+  /** Placeholder link until the Auth invite flow is wired in Phase 3. */
   inviteLink: string;
   firstName: string;
   lastName: string;
@@ -104,22 +106,37 @@ export default function StaffRegistrationForm({
     resolver: zodResolver(schema),
   });
 
+  const { create } = useStaffMutations();
+
   const systemRole = useWatch({ control, name: "systemRole" });
   const isUnitHead = useWatch({ control, name: "isUnitHead" });
   const showDivision = systemRole === "DeputyHead" || systemRole === "Teacher";
   const canBeUnitHead = systemRole === "Teacher";
 
   async function onSubmit(values: FormValues) {
-    const result = await createStaffAction(values);
-    if (result.success) {
+    try {
+      const row = await create.mutateAsync({
+        firstName: values.firstName,
+        lastName: values.lastName,
+        rank: values.rank,
+        systemRole: values.systemRole,
+        division: values.division ?? null,
+        isUnitHead: values.isUnitHead ?? false,
+        unitHeadOf: values.unitHeadOf ?? null,
+        uhasId: values.uhasId?.trim() ? values.uhasId.trim() : null,
+        phone: values.phone,
+        email: values.email,
+        photoUrl: values.photoUrl?.trim() ? values.photoUrl : null,
+      });
       setSuccessState({
-        id: result.id,
-        inviteLink: result.inviteLink,
+        id: row.id,
+        // Auth invite flow lands in Phase 3 — use the id as a placeholder.
+        inviteLink: `/invite?token=${row.id}`,
         firstName: values.firstName,
         lastName: values.lastName,
       });
-    } else {
-      toast.error(result.error);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Registration failed.");
     }
   }
 
