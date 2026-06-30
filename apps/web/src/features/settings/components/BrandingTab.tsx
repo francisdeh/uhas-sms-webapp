@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateBrandingAction } from "@/features/settings/actions";
+import { api, ApiError } from "@/lib/api/browser";
 import type { SchoolSettings } from "@/features/settings/types";
 
 export function BrandingTab({ settings }: { settings: SchoolSettings }) {
@@ -28,14 +28,16 @@ export function BrandingTab({ settings }: { settings: SchoolSettings }) {
 
   async function onSave() {
     setSaving(true);
-    const result = await updateBrandingAction({
-      defaultColorScheme: scheme,
-      sidebarAccentHex: accentHex || "",
-    });
-    setSaving(false);
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      await api.school.patch({
+        defaultColorScheme: scheme,
+        sidebarAccentHex: accentHex || null,
+      });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Update failed.");
       return;
+    } finally {
+      setSaving(false);
     }
     toast.success("Branding updated.");
     router.refresh();

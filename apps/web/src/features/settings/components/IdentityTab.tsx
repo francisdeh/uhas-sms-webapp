@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
-import { updateIdentityAction } from "@/features/settings/actions";
+import { api, ApiError } from "@/lib/api/browser";
 import type { SchoolSettings } from "@/features/settings/types";
 
 const schema = z.object({
@@ -52,9 +52,18 @@ export function IdentityTab({ settings }: { settings: SchoolSettings }) {
   });
 
   async function onSubmit(values: Values) {
-    const result = await updateIdentityAction({ ...values, logoUrl });
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      await api.school.patch({
+        name: values.name,
+        motto: values.motto || null,
+        address: values.address || null,
+        phone: values.phone || null,
+        email: values.email || null,
+        principalName: values.principalName || null,
+        logoUrl,
+      });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Update failed.");
       return;
     }
     toast.success("School identity updated.");
@@ -64,17 +73,10 @@ export function IdentityTab({ settings }: { settings: SchoolSettings }) {
   async function onLogoChange(next: string | null) {
     setLogoUrl(next);
     // Persist immediately so the upload doesn't depend on Save Changes.
-    const result = await updateIdentityAction({
-      name: settings.name,
-      motto: settings.motto,
-      address: settings.address,
-      phone: settings.phone,
-      email: settings.email ?? "",
-      principalName: settings.principalName,
-      logoUrl: next,
-    });
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      await api.school.patch({ logoUrl: next });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Update failed.");
       return;
     }
     toast.success(next ? "Logo updated." : "Logo removed.");

@@ -4,8 +4,11 @@ The frontend signs in via `@supabase/ssr`, which puts a session JWT in
 a cookie + sends it on every API request as `Authorization: Bearer …`.
 This module decodes that token and yields the claims we care about.
 
-Supabase signs with HS256 by default — symmetric, so we just need the
-`supabase_jwt_secret` from `app.core.config.settings` to verify.
+Supabase signs JWTs with ES256 (asymmetric, ECDSA P-256) on modern
+projects — the previous HS256-with-shared-secret scheme is legacy.
+We verify against the project's JWKS endpoint at
+`<SUPABASE_URL>/auth/v1/.well-known/jwks.json`. The JWKS client caches
+keys in-memory; lookup is by `kid` from the JWT header.
 
 What we read from the token:
 
@@ -22,12 +25,21 @@ the token until that happens.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 import jwt
+from jwt import PyJWKClient
 from jwt.exceptions import InvalidTokenError
 
 from app.core.config import settings
 from app.core.errors import UnauthorizedError
+
+# Supabase JWTs may carry either algorithm. Modern projects sign with
+# ES256 via per-project signing keys; legacy projects still use HS256
+# with the shared JWT secret. We accept both — the JWT header's `alg`
+# field selects which path verifies it.
+_ASYMMETRIC_ALGOS = ["ES256", "RS256"]
+_SYMMETRIC_ALGOS = ["HS256"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +58,49 @@ class CurrentUser:
     linked_id: str | None
 
 
+@lru_cache(maxsize=1)
+def _jwks_client() -> PyJWKClient:
+    """Cached JWKS client — fetches + memoises the project's signing keys.
+
+    PyJWKClient handles HTTP fetch, parsing, kid lookup, and per-key
+    caching internally. We wrap it in lru_cache so the client itself is
+    instantiated once per process.
+    """
+    jwks_url = f"{settings.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+    return PyJWKClient(jwks_url, cache_keys=True)
+
+
+def _verify_asymmetric(token: str) -> dict[str, object]:
+    """Verify an ES256/RS256-signed token against the project JWKS.
+
+    The signing key is looked up by `kid` from the JWT header. The
+    JWKS client refetches the key set if a kid isn't cached — handles
+    Supabase rotating keys without restarting the API.
+    """
+    signing_key = _jwks_client().get_signing_key_from_jwt(token).key
+    return jwt.decode(
+        token,
+        signing_key,
+        algorithms=_ASYMMETRIC_ALGOS,
+        options={"verify_aud": False, "require": ["sub", "exp"]},
+    )
+
+
+def _verify_symmetric(token: str) -> dict[str, object]:
+    """Verify an HS256-signed token against the shared JWT secret.
+
+    Kept as a fallback for legacy Supabase projects + local stacks that
+    haven't migrated to asymmetric signing. The secret comes from
+    `settings.supabase_jwt_secret`.
+    """
+    return jwt.decode(
+        token,
+        settings.supabase_jwt_secret,
+        algorithms=_SYMMETRIC_ALGOS,
+        options={"verify_aud": False, "require": ["sub", "exp"]},
+    )
+
+
 def verify_supabase_jwt(token: str) -> CurrentUser:
     """Decode + verify a Supabase JWT, return the request-scoped identity.
 
@@ -53,29 +108,40 @@ def verify_supabase_jwt(token: str) -> CurrentUser:
     expired, missing claims). The global error handler in `app.main`
     converts that to a 401 response.
 
+    Branches on the JWT header's `alg`:
+      - `ES256` / `RS256` → JWKS lookup + asymmetric verify
+      - `HS256`           → shared-secret symmetric verify
+
     Notes:
       - `verify_aud=False` because Supabase issues tokens with
         `aud="authenticated"`, which we don't strictly need to assert.
-        Switch to True + pass `audience="authenticated"` if you want
-        the extra belt-and-suspenders.
       - Required claims (`sub`, `exp`) are enforced by PyJWT itself.
     """
     try:
-        payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            options={"verify_aud": False, "require": ["sub", "exp"]},
-        )
+        header = jwt.get_unverified_header(token)
+        alg = header.get("alg")
+        if alg in _ASYMMETRIC_ALGOS:
+            payload = _verify_asymmetric(token)
+        elif alg in _SYMMETRIC_ALGOS:
+            payload = _verify_symmetric(token)
+        else:
+            raise UnauthorizedError(f"Unsupported JWT algorithm: {alg!r}.")
     except InvalidTokenError as exc:
         raise UnauthorizedError("Invalid or expired session.") from exc
+    except Exception as exc:
+        # JWKS fetch failures, key-not-found, etc. — all map to 401.
+        raise UnauthorizedError("Could not verify session.") from exc
 
     app_metadata = payload.get("app_metadata") or {}
+    if not isinstance(app_metadata, dict):
+        app_metadata = {}
 
+    email = payload.get("email")
+    phone = payload.get("phone")
     return CurrentUser(
         user_id=str(payload["sub"]),
-        email=payload.get("email"),
-        phone=payload.get("phone"),
+        email=email if isinstance(email, str) else None,
+        phone=phone if isinstance(phone, str) else None,
         # role + school_id + linked_id live in app_metadata, NOT
         # user_metadata — the latter is user-writable and untrusted.
         role=app_metadata.get("role"),

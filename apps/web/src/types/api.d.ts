@@ -24,10 +24,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/school": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch the current school's settings
+         * @description Return the full settings row for the caller's school.
+         *
+         *     Any authenticated user with a valid school_id claim can read this —
+         *     the settings drive UI everywhere (logo on every page, term on the
+         *     dashboard, brand colours), not just the Admin Settings page.
+         */
+        get: operations["get_school_school_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update school settings (Admin only)
+         * @description Apply a partial update; writes an audit_log row with the diff.
+         *
+         *     Only `Admin` can modify settings. The audit row records who, when,
+         *     and the field-level before/after — same shape as the legacy
+         *     `SCHOOL_SETTINGS_UPDATE` rows produced by the Next-side Server
+         *     Action, so historical entries remain queryable.
+         */
+        patch: operations["patch_school_school_patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * GradingBand
+         * @description One row in the school's grading-band table.
+         *
+         *     Boundaries are inclusive on both ends; the score ranges are
+         *     consecutive and cover 0-100 without gaps.
+         */
+        GradingBand: {
+            /** Min */
+            min: number;
+            /** Max */
+            max: number;
+            /** Grade */
+            grade: string;
+            /** Interpretation */
+            interpretation: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /**
          * HealthResponse
          * @description Liveness response — the minimum a load balancer needs.
@@ -58,6 +113,194 @@ export interface components {
              */
             env: string;
         };
+        /**
+         * NotificationDefaults
+         * @description Which event categories trigger an in-app + email notification by default.
+         */
+        NotificationDefaults: {
+            /** Onlessonplanrejected */
+            onLessonPlanRejected: boolean;
+            /** Onannouncementposted */
+            onAnnouncementPosted: boolean;
+            /** Onresultspublished */
+            onResultsPublished: boolean;
+        };
+        /**
+         * SchoolRead
+         * @description Outbound response shape — full school settings.
+         *
+         *     Includes server-set fields (`id`, `slug`, `is_active`, `created_at`)
+         *     on top of the editable `Base` shape. `from_attributes=True` lets
+         *     routers validate ORM rows directly:
+         *
+         *         return SchoolRead.model_validate(school_orm_row)
+         *
+         *     `id` is the uuid PK; `slug` is the human-readable identifier
+         *     ("uhas-basic") for URLs + audit-log readability. Pydantic
+         *     serialises UUID as ISO-string in JSON; the frontend treats it as
+         *     an opaque string.
+         */
+        SchoolRead: {
+            /** Name */
+            name: string;
+            /** Motto */
+            motto?: string | null;
+            /** Address */
+            address?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Principalname */
+            principalName?: string | null;
+            /** Logourl */
+            logoUrl?: string | null;
+            /** Academicyear */
+            academicYear: string;
+            /** Currentterm */
+            currentTerm: number;
+            /**
+             * Gradingscale
+             * @default GES_STANDARD
+             * @enum {string}
+             */
+            gradingScale: "GES_STANDARD" | "CUSTOM";
+            /** Gradingbands */
+            gradingBands?: components["schemas"]["GradingBand"][] | null;
+            scoreWeights?: components["schemas"]["ScoreWeights"] | null;
+            /**
+             * Passmark
+             * @default 40
+             */
+            passMark: number;
+            /** Emailfromname */
+            emailFromName?: string | null;
+            /** Emailreplyto */
+            emailReplyTo?: string | null;
+            notificationDefaults?: components["schemas"]["NotificationDefaults"] | null;
+            /**
+             * Sessiontimeoutminutes
+             * @default 480
+             */
+            sessionTimeoutMinutes: number;
+            /**
+             * Passwordminlength
+             * @default 8
+             */
+            passwordMinLength: number;
+            /**
+             * Forcepasswordchangeonfirstlogin
+             * @default true
+             */
+            forcePasswordChangeOnFirstLogin: boolean;
+            /**
+             * Defaultcolorscheme
+             * @default uhas
+             * @enum {string}
+             */
+            defaultColorScheme: "default" | "uhas";
+            /** Sidebaraccenthex */
+            sidebarAccentHex?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Isactive
+             * @default true
+             */
+            isActive: boolean;
+            /** Createdat */
+            createdAt?: string | null;
+        };
+        /**
+         * SchoolUpdate
+         * @description Partial update payload for `PATCH /school`.
+         *
+         *     All fields optional — clients send only what's changing. The router
+         *     builds the audit-log diff from the subset of fields actually present
+         *     in the parsed model.
+         *
+         *     Doesn't inherit `SchoolBase` — Update's all-optional shape can't
+         *     compose cleanly with Base's required fields.
+         *
+         *     `model_config(extra='forbid')` rejects unknown fields so a typo on
+         *     the client never silently no-ops.
+         */
+        SchoolUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Motto */
+            motto?: string | null;
+            /** Address */
+            address?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Principalname */
+            principalName?: string | null;
+            /** Logourl */
+            logoUrl?: string | null;
+            /** Academicyear */
+            academicYear?: string | null;
+            /** Currentterm */
+            currentTerm?: number | null;
+            /** Gradingscale */
+            gradingScale?: ("GES_STANDARD" | "CUSTOM") | null;
+            /** Gradingbands */
+            gradingBands?: components["schemas"]["GradingBand"][] | null;
+            scoreWeights?: components["schemas"]["ScoreWeights"] | null;
+            /** Passmark */
+            passMark?: number | null;
+            /** Emailfromname */
+            emailFromName?: string | null;
+            /** Emailreplyto */
+            emailReplyTo?: string | null;
+            notificationDefaults?: components["schemas"]["NotificationDefaults"] | null;
+            /** Sessiontimeoutminutes */
+            sessionTimeoutMinutes?: number | null;
+            /** Passwordminlength */
+            passwordMinLength?: number | null;
+            /** Forcepasswordchangeonfirstlogin */
+            forcePasswordChangeOnFirstLogin?: boolean | null;
+            /** Defaultcolorscheme */
+            defaultColorScheme?: ("default" | "uhas") | null;
+            /** Sidebaraccenthex */
+            sidebarAccentHex?: string | null;
+        };
+        /**
+         * ScoreWeights
+         * @description Mid-term + end-of-term score weighting. Must sum to 100.
+         */
+        ScoreWeights: {
+            /** Exam */
+            exam: number;
+            /** Cat1 */
+            cat1: number;
+            /** Cat2 */
+            cat2: number;
+            /** Groupwork */
+            groupWork: number;
+            /** Projectwork */
+            projectWork: number;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
+        };
     };
     responses: never;
     parameters: never;
@@ -83,6 +326,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    get_school_school_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_school_school_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchoolUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

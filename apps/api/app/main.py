@@ -19,6 +19,7 @@ from app.core.db import engine
 from app.core.errors import AppError
 from app.core.observability import init_observability, instrument_app
 from app.features.health.router import router as health_router
+from app.features.schools.router import router as schools_router
 
 # Initialise observability before constructing the FastAPI app so that
 # Sentry's middleware integrations attach to the instance we create
@@ -70,6 +71,7 @@ def create_app() -> FastAPI:
     # Each feature's router lands here. Keep the list flat + alphabetised
     # so it's easy to see what surfaces exist.
     app.include_router(health_router)
+    app.include_router(schools_router)
 
     # Logfire instrumentation attaches after routers register so it sees
     # every endpoint. No-op when LOGFIRE_TOKEN is unset.

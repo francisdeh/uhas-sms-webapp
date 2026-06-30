@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Field, FieldLabel, FieldGroup } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import { updateSecurityAction } from "@/features/settings/actions";
+import { api, ApiError } from "@/lib/api/browser";
 import type { SchoolSettings } from "@/features/settings/types";
 
 export function SecurityTab({ settings }: { settings: SchoolSettings }) {
@@ -34,15 +34,17 @@ export function SecurityTab({ settings }: { settings: SchoolSettings }) {
     }
 
     setSaving(true);
-    const result = await updateSecurityAction({
-      sessionTimeoutMinutes: timeoutNum,
-      passwordMinLength: minLenNum,
-      forcePasswordChangeOnFirstLogin: forceChange,
-    });
-    setSaving(false);
-    if (!result.success) {
-      toast.error(result.error);
+    try {
+      await api.school.patch({
+        sessionTimeoutMinutes: timeoutNum,
+        passwordMinLength: minLenNum,
+        forcePasswordChangeOnFirstLogin: forceChange,
+      });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Update failed.");
       return;
+    } finally {
+      setSaving(false);
     }
     toast.success("Security policy updated.");
     router.refresh();
