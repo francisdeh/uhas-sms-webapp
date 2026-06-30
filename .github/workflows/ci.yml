@@ -66,8 +66,11 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          # Version is read from apps/web/package.json's `packageManager` field;
-          # this step also wires `pnpm` onto PATH for subsequent steps.
+          # `packageManager` field lives in apps/web/package.json (the only
+          # Node package); point the action at it so it can read the version.
+          # Without this, the action looks at root package.json (absent) and
+          # errors with "No pnpm version is specified."
+          package_json_file: apps/web/package.json
           run_install: false
 
       - name: Setup Node.js
@@ -164,9 +167,10 @@ jobs:
 
       - name: Setup pnpm
         # Needed for the drift step below — the script runs
-        # `npx openapi-typescript` which resolves against the workspace.
+        # `pnpm exec openapi-typescript` which resolves against the workspace.
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: apps/web/package.json
           run_install: false
 
       - name: Setup Node.js (for OpenAPI drift step)
@@ -239,6 +243,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          package_json_file: apps/web/package.json
           run_install: false
 
       - name: Setup Node.js
