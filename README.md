@@ -22,7 +22,7 @@ A web-based School Management System for UHAS Basic School, Ghana. Covers studen
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+ (pnpm 11 requires ≥22.13)
 - [pnpm](https://pnpm.io) 11+ (`npm install -g pnpm` if you don't have it)
 - Docker Desktop (for local database)
 - Firebase CLI (`pnpm add -g firebase-tools`)
