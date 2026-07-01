@@ -25,7 +25,12 @@ PARENT: Final = "Parent"
 ACCOUNTANT: Final = "Accountant"
 
 Role = Literal["Admin", "DeputyHead", "Teacher", "Parent", "Accountant"]
-"""The closed set of role strings the API accepts."""
+"""The closed set of role strings the API accepts (auth-side)."""
+
+SystemRole = Literal["Admin", "DeputyHead", "Teacher", "Accountant"]
+"""Roles that a `staff` row's `system_role` column can hold — same as
+`Role` minus `Parent` (parents aren't staff). Kept as its own union so
+`staff.system_role = "Parent"` is a type error, not a runtime error."""
 
 ALL_ROLES: Final[tuple[Role, ...]] = (
     "Admin",

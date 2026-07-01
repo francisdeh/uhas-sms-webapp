@@ -14,6 +14,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ForbiddenError, NotFoundError, ValidationError
+from app.core.roles import ADMIN, DEPUTY_HEAD
 from app.features.leave_requests.constants import (
     APPROVED,
     CANCELLED,
@@ -25,6 +26,8 @@ from app.features.leave_requests.repository import LeaveRequestsRepository
 from app.features.leave_requests.schema import LeaveRequestCreate, LeaveStatusUpdate
 from app.features.staff.model import Staff
 from app.features.staff.repository import StaffRepository
+
+_APPROVER_ROLES: frozenset[str] = frozenset({ADMIN, DEPUTY_HEAD})
 
 _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     PENDING: {APPROVED, REJECTED, CANCELLED},
@@ -113,10 +116,7 @@ class LeaveRequestsService:
             not actor_staff_id or str(actor_staff_id) != str(row.staff_id)
         ):
             raise ForbiddenError("Only the requester can cancel a leave request.")
-        if payload.status in {APPROVED, REJECTED} and actor_role not in {
-            "Admin",
-            "DeputyHead",
-        }:
+        if payload.status in {APPROVED, REJECTED} and actor_role not in _APPROVER_ROLES:
             raise ForbiddenError("Only Admin or Deputy Head can approve/reject.")
 
         row.status = payload.status

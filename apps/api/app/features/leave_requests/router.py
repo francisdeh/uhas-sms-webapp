@@ -63,7 +63,7 @@ async def list_leave_requests(
     from `linked_id`); Admin/Deputy see everyone unless they narrow
     with `?staffId=…`."""
     effective_staff_id = staff_id
-    if user.role not in {"Admin", "DeputyHead"}:
+    if user.role not in _APPROVER_ROLES:
         effective_staff_id = UUID(user.linked_id) if user.linked_id else None
 
     rows, total = await LeaveRequestsService.list_for_school(

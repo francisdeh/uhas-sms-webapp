@@ -1,16 +1,16 @@
 """FastAPI dependencies for auth + scope enforcement.
 
-Routers compose these to declare what a route requires. Examples:
+Routers compose these to declare what a route requires. Prefer the
+pre-built aliases (RequireAdmin, RequireAdminOrDeputy) over hand-writing
+`Depends(require_role(...))` — they keep signatures scannable and route
+role names through `app.core.roles` constants.
 
   @router.get("/me")
   async def get_me(user: CurrentUserDep) -> ...:
       # any authenticated user
 
   @router.post("/students")
-  async def create_student(
-      user: Annotated[CurrentUser, Depends(require_role("Admin", "DeputyHead"))],
-      ...
-  ) -> ...:
+  async def create_student(user: RequireAdminOrDeputy) -> ...:
       # only Admin or Deputy Head
 
 The role/scope checks here are the **primary** authorization layer.
@@ -68,14 +68,16 @@ def require_role(*allowed_roles: str) -> Callable[[CurrentUser], CurrentUser]:
     mismatch, distinct from UnauthorizedError (→ 401) for missing/bad
     tokens.
 
-    Example:
+    Prefer the `RequireAdmin` / `RequireAdminOrDeputy` aliases below over
+    hand-writing `Depends(require_role(...))` — this constructor is the
+    building block, not the intended call site. When a new combination
+    (e.g. `RequireAccountant`) is needed, add it alongside them so the
+    role names route through `app.core.roles` constants.
 
-        @router.post("/exams/{id}/publish")
-        async def publish_exam(
-            id: str,
-            _user: Annotated[CurrentUser, Depends(require_role("Admin"))],
-        ) -> ActionResult:
-            ...
+    Example (building a new alias):
+
+        from app.core.roles import ACCOUNTANT
+        RequireAccountant = Annotated[CurrentUser, Depends(require_role(ACCOUNTANT))]
     """
     allowed = frozenset(allowed_roles)
 
@@ -90,7 +92,7 @@ def require_role(*allowed_roles: str) -> Callable[[CurrentUser], CurrentUser]:
 
 
 # ── Role-scoped dependency aliases ───────────────────────────────────────────
-# Saves the 5-line `Annotated[CurrentUser, Depends(require_role("Admin"))]`
+# Saves the 5-line `Annotated[CurrentUser, Depends(require_role(ADMIN))]`
 # boilerplate at every endpoint. Type-aliased so endpoint signatures stay
 # scannable. Add more as actual usage shows up — don't pre-build for every
 # theoretical role combination.
