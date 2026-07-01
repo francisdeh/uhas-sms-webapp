@@ -2,12 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { School, BookOpen, GraduationCap, BookMarked, Eye, Plus } from "lucide-react";
+import { School, BookOpen, GraduationCap, BookMarked, Eye, Plus, Loader2 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
+
 import { DataTable } from "@/components/ui/data-table";
 import { StatCard } from "@/components/ui/stat-card";
-import type { Division, SchoolClass } from "@/features/classes/types";
+import { useClasses } from "@/features/classes/hooks/use-classes";
+import type { components } from "@/types/api";
+import type { Division } from "@/features/classes/types";
 import { cn } from "@/lib/utils";
+
+type ClassRead = components["schemas"]["ClassRead"];
 
 const DIVISION_PILL: Record<Division, string> = {
   KG: "bg-purple-100 text-purple-700",
@@ -19,76 +24,65 @@ const DIVISION_PILL: Record<Division, string> = {
 type DivisionFilter = Division | "All";
 
 interface ClassesTableProps {
-  initialClasses: SchoolClass[];
-  studentCounts: Record<string, number>;
+  /** Where the "Add class" button + row-detail links point to. */
   listHref: string;
+  /** Read-only view — no create / no edit affordances. */
   readonly?: boolean;
 }
 
-function primaryTeacherName(c: SchoolClass): string | null {
-  if (c.classTeachers.length === 0) return null;
-  const primary = c.classTeachers.find((t) => t.isPrimary) ?? c.classTeachers[0];
-  if (c.classTeachers.length === 1) return primary.staffName;
-  return `${primary.staffName} +${c.classTeachers.length - 1}`;
-}
-
 export default function ClassesTable({
-  initialClasses,
-  studentCounts,
   listHref,
   readonly = false,
 }: ClassesTableProps) {
   const [divisionFilter, setDivisionFilter] = useState<DivisionFilter>("All");
 
-  const total = initialClasses.length;
-  const kgCount = initialClasses.filter((c) => c.division === "KG").length;
-  const lowerPrimaryCount = initialClasses.filter((c) => c.division === "Lower Primary").length;
-  const upperPrimaryCount = initialClasses.filter((c) => c.division === "Upper Primary").length;
-  const jhsCount = initialClasses.filter((c) => c.division === "JHS").length;
+  // Server-side filter — the API handles division scoping.
+  const { data, isLoading, error } = useClasses({
+    division: divisionFilter === "All" ? undefined : divisionFilter,
+    size: 100,
+  });
+  const classes: ClassRead[] = data?.items ?? [];
+  const total = data?.total ?? 0;
 
-  const displayedClasses =
-    divisionFilter === "All"
-      ? initialClasses
-      : initialClasses.filter((c) => c.division === divisionFilter);
+  // Small aggregations for the stat cards, computed client-side from
+  // the same page's items — good enough for the "at a glance" panel.
+  const kgCount = classes.filter((c) => c.division === "KG").length;
+  const lowerPrimaryCount = classes.filter((c) => c.division === "Lower Primary").length;
+  const upperPrimaryCount = classes.filter((c) => c.division === "Upper Primary").length;
+  const jhsCount = classes.filter((c) => c.division === "JHS").length;
 
-  const columns: ColumnDef<SchoolClass>[] = [
+  const columns: ColumnDef<ClassRead>[] = [
     {
       id: "class",
       header: "Class",
       accessorFn: (row) => row.name,
-      cell: ({ row }) => {
-        const c = row.original;
-        return (
-          <div className="py-0.5">
-            <p className="text-sm font-medium">{c.name}</p>
-            <p className="text-xs text-muted-foreground">{c.academicYear}</p>
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <div className="py-0.5">
+          <p className="text-sm font-medium">{row.original.name}</p>
+          <p className="text-xs text-muted-foreground">{row.original.academicYear}</p>
+        </div>
+      ),
     },
     {
       accessorKey: "division",
       header: "Division",
-      cell: ({ row }) => {
-        const div = row.original.division;
-        return (
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-              DIVISION_PILL[div]
-            )}
-          >
-            {div}
-          </span>
-        );
-      },
+      cell: ({ row }) => (
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+            DIVISION_PILL[row.original.division as Division],
+          )}
+        >
+          {row.original.division}
+        </span>
+      ),
     },
     {
       id: "classTeacher",
       header: "Class Teacher",
-      accessorFn: (row) => primaryTeacherName(row) ?? "",
+      accessorFn: (row) => row.primaryTeacherName ?? "",
       cell: ({ row }) => {
-        const name = primaryTeacherName(row.original);
+        const name = row.original.primaryTeacherName;
         return name ? (
           <span className="text-sm">{name}</span>
         ) : (
@@ -99,31 +93,33 @@ export default function ClassesTable({
     {
       id: "students",
       header: "Students",
-      cell: ({ row }) => {
-        const count = studentCounts[row.original.id] ?? 0;
-        return <span className="text-sm">{count}</span>;
-      },
-    },
-    ...(!readonly ? [{
-      id: "actions",
-      header: "",
-      cell: ({ row }: { row: { original: SchoolClass } }) => (
-        <div className="flex items-center justify-end">
-          <Link
-            href={`${listHref}/${row.original.id}`}
-            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            title="View"
-          >
-            <Eye size={13} />
-          </Link>
-        </div>
+      cell: ({ row }) => (
+        <span className="text-sm">{row.original.studentCount ?? 0}</span>
       ),
-    }] as ColumnDef<SchoolClass>[] : []),
+    },
+    ...(!readonly
+      ? ([
+          {
+            id: "actions",
+            header: "",
+            cell: ({ row }: { row: { original: ClassRead } }) => (
+              <div className="flex items-center justify-end">
+                <Link
+                  href={`${listHref}/${row.original.id}`}
+                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="View"
+                >
+                  <Eye size={13} />
+                </Link>
+              </div>
+            ),
+          },
+        ] as ColumnDef<ClassRead>[])
+      : []),
   ];
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Classes</h1>
@@ -141,7 +137,6 @@ export default function ClassesTable({
         )}
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           label="Total"
@@ -169,9 +164,7 @@ export default function ClassesTable({
         />
       </div>
 
-      {/* Table card */}
       <div className="bg-card border border-border/60 rounded-xl p-4 space-y-3">
-        {/* Division filter pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {(["All", "KG", "Lower Primary", "Upper Primary", "JHS"] as const).map((d) => (
             <button
@@ -181,7 +174,7 @@ export default function ClassesTable({
                 "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer border",
                 divisionFilter === d
                   ? "bg-slate-800 text-white border-slate-800 dark:bg-slate-600 dark:border-slate-600"
-                  : "bg-transparent text-muted-foreground border-border/60 hover:border-border hover:text-foreground"
+                  : "bg-transparent text-muted-foreground border-border/60 hover:border-border hover:text-foreground",
               )}
             >
               {d === "All" ? "All divisions" : d}
@@ -189,12 +182,22 @@ export default function ClassesTable({
           ))}
         </div>
 
-        <DataTable
-          columns={columns}
-          data={displayedClasses}
-          searchKey="class"
-          searchPlaceholder="Search by class name…"
-        />
+        {error ? (
+          <div className="text-sm text-destructive">{error.message}</div>
+        ) : null}
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10 text-muted-foreground text-sm">
+            <Loader2 size={14} className="animate-spin mr-2" /> Loading classes…
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={classes}
+            searchKey="class"
+            searchPlaceholder="Search by class name…"
+          />
+        )}
       </div>
     </div>
   );

@@ -295,10 +295,496 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/subjects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Subjects */
+        get: operations["list_subjects_subjects_get"];
+        put?: never;
+        /** Create Subject */
+        post: operations["create_subject_subjects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subjects/{subject_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Subject */
+        get: operations["get_subject_subjects__subject_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Subject */
+        patch: operations["update_subject_subjects__subject_id__patch"];
+        trace?: never;
+    };
+    "/classes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Classes */
+        get: operations["list_classes_classes_get"];
+        put?: never;
+        /** Create Class */
+        post: operations["create_class_classes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/classes/{class_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Class */
+        get: operations["get_class_classes__class_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Class */
+        patch: operations["update_class_classes__class_id__patch"];
+        trace?: never;
+    };
+    "/classes/{class_id}/subjects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Class Subjects */
+        get: operations["list_class_subjects_classes__class_id__subjects_get"];
+        put?: never;
+        /** Assign Class Subject */
+        post: operations["assign_class_subject_classes__class_id__subjects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/classes/{class_id}/subjects/{subject_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Class Subject */
+        delete: operations["remove_class_subject_classes__class_id__subjects__subject_id__delete"];
+        options?: never;
+        head?: never;
+        /** Set Class Subject Teacher */
+        patch: operations["set_class_subject_teacher_classes__class_id__subjects__subject_id__patch"];
+        trace?: never;
+    };
+    "/classes/{class_id}/teachers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Class Teachers */
+        get: operations["list_class_teachers_classes__class_id__teachers_get"];
+        put?: never;
+        /** Assign Class Teacher */
+        post: operations["assign_class_teacher_classes__class_id__teachers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/classes/{class_id}/teachers/{staff_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Class Teacher */
+        delete: operations["remove_class_teacher_classes__class_id__teachers__staff_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enroll Student */
+        post: operations["enroll_student_enrollments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/enrollments/{enrollment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Enrollment */
+        get: operations["get_enrollment_enrollments__enrollment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Enrollment Status */
+        patch: operations["change_enrollment_status_enrollments__enrollment_id__patch"];
+        trace?: never;
+    };
+    "/students/{student_id}/enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Student Enrollments */
+        get: operations["list_student_enrollments_students__student_id__enrollments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/classes/{class_id}/enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Class Enrollments */
+        get: operations["list_class_enrollments_classes__class_id__enrollments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ClassCreate
+         * @description Client passes a canonical slug; service uppercases + validates uniqueness.
+         */
+        ClassCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Academicyear */
+            academicYear: string;
+            /** Slug */
+            slug: string;
+        };
+        /** ClassRead */
+        ClassRead: {
+            /** Name */
+            name: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Academicyear */
+            academicYear: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Studentcount
+             * @default 0
+             */
+            studentCount: number | null;
+            /** Primaryteachername */
+            primaryTeacherName?: string | null;
+        };
+        /**
+         * ClassSubjectAssignRequest
+         * @description `POST /classes/{class_id}/subjects` — assign a subject (opt. teacher).
+         */
+        ClassSubjectAssignRequest: {
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Teacherid */
+            teacherId?: string | null;
+        };
+        /**
+         * ClassSubjectRead
+         * @description A row of `class_subjects` — the joined subject + optional teacher name.
+         *
+         *     The frontend renders the class detail page from this shape; the
+         *     embedded `subjectName` / `teacherName` save it a second round trip.
+         */
+        ClassSubjectRead: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Subjectslug */
+            subjectSlug: string;
+            /** Subjectname */
+            subjectName: string;
+            /** Teacherid */
+            teacherId?: string | null;
+            /** Teacherfirstname */
+            teacherFirstName?: string | null;
+            /** Teacherlastname */
+            teacherLastName?: string | null;
+        };
+        /**
+         * ClassSubjectTeacherUpdate
+         * @description `PATCH /classes/{class_id}/subjects/{subject_id}` — set/unset teacher.
+         *
+         *     Pass `teacherId: null` to unassign; a missing key is treated as a
+         *     no-op (uses `exclude_unset`).
+         */
+        ClassSubjectTeacherUpdate: {
+            /** Teacherid */
+            teacherId?: string | null;
+        };
+        /**
+         * ClassSubjectsListResponse
+         * @description Non-paged wrapper — a class has at most ~10 subjects.
+         */
+        ClassSubjectsListResponse: {
+            /** Items */
+            items: components["schemas"]["ClassSubjectRead"][];
+        };
+        /** ClassTeacherAssignRequest */
+        ClassTeacherAssignRequest: {
+            /**
+             * Staffid
+             * Format: uuid
+             */
+            staffId: string;
+            /**
+             * Isprimary
+             * @default false
+             */
+            isPrimary: boolean;
+        };
+        /**
+         * ClassTeacherRead
+         * @description A row of `class_teachers` with embedded staff name.
+         */
+        ClassTeacherRead: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /**
+             * Staffid
+             * Format: uuid
+             */
+            staffId: string;
+            /** Stafffirstname */
+            staffFirstName: string;
+            /** Stafflastname */
+            staffLastName: string;
+            /** Isprimary */
+            isPrimary: boolean;
+        };
+        /**
+         * ClassTeachersListResponse
+         * @description Non-paged wrapper — small list.
+         */
+        ClassTeachersListResponse: {
+            /** Items */
+            items: components["schemas"]["ClassTeacherRead"][];
+        };
+        /** ClassUpdate */
+        ClassUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Division */
+            division?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+        };
+        /**
+         * ClassesListResponse
+         * @description Paged class list. See `app.core.pagination.Paginated`.
+         */
+        ClassesListResponse: {
+            /** Items */
+            items: components["schemas"]["ClassRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
+         * EnrollmentCreate
+         * @description `POST /enrollments` — enrol an existing student into a class.
+         *
+         *     Doesn't take `academicYear`; server reads it from the school's
+         *     current config (single source of truth for what "this year" means).
+         */
+        EnrollmentCreate: {
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+        };
+        /**
+         * EnrollmentRead
+         * @description Read shape — joined class + student fields for display.
+         *
+         *     The class name / student name / photo url come from LEFT JOINs in
+         *     the list query so the roster + student-history UIs render without
+         *     a second lookup per row.
+         */
+        EnrollmentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className?: string | null;
+            /** Division */
+            division?: string | null;
+            /** Academicyear */
+            academicYear: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "Active" | "Repeating" | "Withdrawn";
+            /**
+             * Enrollmentdate
+             * Format: date
+             */
+            enrollmentDate: string;
+            /** Studentslug */
+            studentSlug?: string | null;
+            /** Studentfirstname */
+            studentFirstName?: string | null;
+            /** Studentlastname */
+            studentLastName?: string | null;
+            /** Studentgender */
+            studentGender?: string | null;
+            /** Studentphotourl */
+            studentPhotoUrl?: string | null;
+            /** Studentisactive */
+            studentIsActive?: boolean | null;
+        };
+        /**
+         * EnrollmentStatusUpdate
+         * @description `PATCH /enrollments/{id}` — narrow endpoint just for status changes.
+         *
+         *     Uses `Field(...)` (required) — no partial-update semantics; the
+         *     caller states the target status explicitly. Promotion + transfer
+         *     flows drive this.
+         */
+        EnrollmentStatusUpdate: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "Active" | "Repeating" | "Withdrawn";
+        };
+        /**
+         * EnrollmentsListResponse
+         * @description Paged enrollments list. See `app.core.pagination.Paginated`.
+         */
+        EnrollmentsListResponse: {
+            /** Items */
+            items: components["schemas"]["EnrollmentRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
         /**
          * GradingBand
          * @description One row in the school's grading-band table.
@@ -864,6 +1350,73 @@ export interface components {
         StudentsListResponse: {
             /** Items */
             items: components["schemas"]["StudentRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
+         * SubjectCreate
+         * @description Client-supplied slug is the human-readable code (`MATH`, `ENG`).
+         *
+         *     Slug is uppercased server-side so the exposed identifier stays
+         *     canonical regardless of what the caller sent.
+         */
+        SubjectCreate: {
+            /** Name */
+            name: string;
+            /** Division */
+            division?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+            /**
+             * Category
+             * @default Core
+             */
+            category: ("Core" | "Elective" | "Optional") | null;
+            /** Slug */
+            slug: string;
+        };
+        /** SubjectRead */
+        SubjectRead: {
+            /** Name */
+            name: string;
+            /** Division */
+            division?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+            /**
+             * Category
+             * @default Core
+             */
+            category: ("Core" | "Elective" | "Optional") | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+        };
+        /** SubjectUpdate */
+        SubjectUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Division */
+            division?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+            /** Category */
+            category?: ("Core" | "Elective" | "Optional") | null;
+        };
+        /**
+         * SubjectsListResponse
+         * @description Paged subject list. See `app.core.pagination.Paginated`.
+         */
+        SubjectsListResponse: {
+            /** Items */
+            items: components["schemas"]["SubjectRead"][];
             /** Total */
             total: number;
             /** Page */
@@ -1734,6 +2287,709 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_subjects_subjects_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                division?: string | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_subject_subjects_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubjectCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_subject_subjects__subject_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                subject_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_subject_subjects__subject_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                subject_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubjectUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_classes_classes_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                division?: string | null;
+                academicYear?: string | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassesListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_class_classes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_class_classes__class_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_class_classes__class_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_class_subjects_classes__class_id__subjects_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassSubjectsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_class_subject_classes__class_id__subjects_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassSubjectAssignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassSubjectRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_class_subject_classes__class_id__subjects__subject_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+                subject_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_class_subject_teacher_classes__class_id__subjects__subject_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+                subject_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassSubjectTeacherUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassSubjectRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_class_teachers_classes__class_id__teachers_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassTeachersListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_class_teacher_classes__class_id__teachers_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassTeacherAssignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassTeacherRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_class_teacher_classes__class_id__teachers__staff_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enroll_student_enrollments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_enrollment_enrollments__enrollment_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                enrollment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_enrollment_status_enrollments__enrollment_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                enrollment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentStatusUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_student_enrollments_students__student_id__enrollments_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_class_enrollments_classes__class_id__enrollments_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentsListResponse"];
                 };
             };
             /** @description Validation Error */

@@ -22,9 +22,11 @@ from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.slug import insert_with_sequential_slug
 from app.features.audit.actions import STUDENT_EDIT
 from app.features.audit.service import write_audit_log
+from app.features.classes.model import Class
+from app.features.enrollments.constants import ACTIVE
+from app.features.enrollments.model import Enrollment
 from app.features.schools.repository import SchoolsRepository
-from app.features.students.constants import ACTIVE
-from app.features.students.model import Class, Enrollment, Student
+from app.features.students.model import Student
 from app.features.students.repository import StudentsRepository
 from app.features.students.schema import StudentCreate, StudentUpdate
 

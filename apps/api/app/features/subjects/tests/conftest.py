@@ -1,8 +1,4 @@
-"""Shared fixtures for the Students test suite.
-
-In addition to the standard school fixture, students need at least one
-Class row to enrol into — so this conftest also seeds a JHS class.
-"""
+"""Shared fixtures for the Subjects test suite."""
 
 from __future__ import annotations
 
@@ -18,14 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import engine, get_session
-from app.features.classes.model import Class
 from app.features.schools.model import School
 from app.main import app
 
-SCHOOL_UUID = UUID("55555555-5555-4555-8555-555555555501")
-OTHER_SCHOOL_UUID = UUID("55555555-5555-4555-8555-555555555502")
-CLASS_UUID = UUID("55555555-5555-4555-8555-555555555601")
-USER_UUID = UUID("00000000-0000-0000-0000-000000000051")
+SCHOOL_UUID = UUID("66666666-6666-4666-8666-666666666601")
+OTHER_SCHOOL_UUID = UUID("66666666-6666-4666-8666-666666666602")
+USER_UUID = UUID("00000000-0000-0000-0000-000000000061")
 
 
 @pytest_asyncio.fixture
@@ -44,8 +38,8 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 async def seed_school(db_session: AsyncSession) -> School:
     school = School(
         id=SCHOOL_UUID,
-        slug="test-school-for-students",
-        name="Test School (students suite)",
+        slug="test-school-for-subjects",
+        name="Test School (subjects suite)",
         academic_year="2025/2026",
         current_term=1,
         grading_scale="GES_STANDARD",
@@ -54,22 +48,6 @@ async def seed_school(db_session: AsyncSession) -> School:
     db_session.add(school)
     await db_session.flush()
     return school
-
-
-@pytest_asyncio.fixture
-async def seed_class(db_session: AsyncSession, seed_school: School) -> Class:
-    """Seed a single JHS class for enrollment tests to target."""
-    cls = Class(
-        id=CLASS_UUID,
-        slug="class-jhs1",
-        school_id=SCHOOL_UUID,
-        name="JHS 1",
-        division="JHS",
-        academic_year="2025/2026",
-    )
-    db_session.add(cls)
-    await db_session.flush()
-    return cls
 
 
 @pytest_asyncio.fixture

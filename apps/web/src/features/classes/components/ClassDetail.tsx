@@ -1,19 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Pencil, Loader2 } from "lucide-react";
+import { Pencil, Loader2, Trash2 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,14 +28,25 @@ import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { DataTable } from "@/components/ui/data-table";
 import {
-  addClassSubjectAction,
-  assignTeacherAction,
-  assignClassTeacherAction,
-} from "@/features/classes/actions";
-import type { Division, SchoolClass, Subject, ClassSubject } from "@/features/classes/types";
-import type { Student } from "@/features/students/types";
-import type { Staff } from "@/features/staff/types";
+  useClass,
+  useClassSubjects,
+  useClassTeachers,
+  useAssignClassSubject,
+  useAssignClassTeacher,
+  useRemoveClassSubject,
+  useRemoveClassTeacher,
+  useSetClassSubjectTeacher,
+} from "@/features/classes/hooks/use-classes";
+import { useSubjects } from "@/features/subjects/hooks/use-subjects";
+import { useStaffList } from "@/features/staff/hooks/use-staff";
+import { useClassRoster } from "@/features/classes/hooks/use-class-roster";
+import { ApiError } from "@/lib/api/browser";
+import type { components } from "@/types/api";
+import type { Division } from "@/features/classes/types";
 import { cn } from "@/lib/utils";
+
+type ClassSubjectRead = components["schemas"]["ClassSubjectRead"];
+type EnrollmentRead = components["schemas"]["EnrollmentRead"];
 
 const DIVISION_PILL: Record<Division, string> = {
   KG: "bg-purple-100 text-purple-700",
@@ -56,9 +62,10 @@ const DIVISION_AVATAR: Record<Division, string> = {
   JHS: "from-orange-400 to-accent-orange",
 };
 
-const CATEGORY_PILL: Record<"Core" | "Elective", string> = {
+const CATEGORY_PILL: Record<string, string> = {
   Core: "bg-blue-100 text-blue-700",
   Elective: "bg-orange-100 text-accent-orange",
+  Optional: "bg-slate-100 text-slate-700",
 };
 
 const selectSchema = z.object({
@@ -68,124 +75,154 @@ const selectSchema = z.object({
 type SelectFormValues = z.infer<typeof selectSchema>;
 
 interface ClassDetailProps {
-  schoolClass: SchoolClass;
-  classSubjects: ClassSubject[];
-  roster: Student[];
-  availableSubjects: Subject[];
-  availableTeachers: Staff[];
-  allSubjects?: Subject[];
+  classId: string;
 }
 
-export default function ClassDetail({
-  schoolClass,
-  classSubjects,
-  roster,
-  availableSubjects,
-  availableTeachers,
-  allSubjects = [],
-}: ClassDetailProps) {
-  const subjectCategoryMap = new Map<string, "Core" | "Elective">(
-    allSubjects.map((s) => [s.id, s.category])
-  );
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+export default function ClassDetail({ classId }: ClassDetailProps) {
+  // Detail — populates the header + drives the primary teacher assign dialog default.
+  const { data: schoolClass, isLoading: classLoading } = useClass(classId);
 
+  // Junctions + roster (all keyed under the class).
+  const { data: subjectsData } = useClassSubjects(classId);
+  // Memoise so downstream useMemo hooks don't churn when the fetch
+  // returns a fresh reference but the same items (React Query does that
+  // on background refetches).
+  const classSubjects: ClassSubjectRead[] = useMemo(
+    () => subjectsData?.items ?? [],
+    [subjectsData],
+  );
+
+  const { data: teachersData } = useClassTeachers(classId);
+  const classTeachers = teachersData?.items ?? [];
+
+  const { data: rosterData } = useClassRoster(classId);
+  const roster: EnrollmentRead[] = rosterData?.items ?? [];
+
+  // Pickers for the dialogs — same size as the API's list; upper-bound
+  // is high because a small school has ≤ 20 subjects / ≤ 30 staff.
+  const { data: allSubjectsData } = useSubjects({ size: 100 });
+  const availableSubjects = useMemo(() => {
+    const assigned = new Set(classSubjects.map((cs) => cs.subjectId));
+    return (allSubjectsData?.items ?? []).filter((s) => !assigned.has(s.id));
+  }, [classSubjects, allSubjectsData]);
+
+  const { data: staffData } = useStaffList({ activeOnly: true, size: 100 });
+  const availableTeachers = staffData?.items ?? [];
+
+  // Category lookup for the pill under each subject row.
+  const subjectCategoryMap = useMemo(() => {
+    const m = new Map<string, string>();
+    (allSubjectsData?.items ?? []).forEach((s) => {
+      if (s.category) m.set(s.id, s.category);
+    });
+    return m;
+  }, [allSubjectsData]);
+
+  // ── Dialog state ────────────────────────────────────────────────────────
   const [teacherOpen, setTeacherOpen] = useState(false);
   const [subjectOpen, setSubjectOpen] = useState(false);
-  const [assignTarget, setAssignTarget] = useState<ClassSubject | null>(null);
+  const [assignTarget, setAssignTarget] = useState<ClassSubjectRead | null>(null);
+
+  const primaryClassTeacher =
+    classTeachers.find((t) => t.isPrimary) ?? classTeachers[0];
 
   const teacherForm = useForm<SelectFormValues>({
     resolver: zodResolver(selectSchema),
-    defaultValues: {
-      value:
-        (schoolClass.classTeachers.find((t) => t.isPrimary) ?? schoolClass.classTeachers[0])
-          ?.staffId ?? "none",
-    },
+    defaultValues: { value: primaryClassTeacher?.staffId ?? "none" },
   });
-
   const subjectForm = useForm<SelectFormValues>({
     resolver: zodResolver(selectSchema),
     defaultValues: { value: "" },
   });
-
   const assignForm = useForm<SelectFormValues>({
     resolver: zodResolver(selectSchema),
     defaultValues: { value: assignTarget?.teacherId ?? "none" },
   });
 
-  function onTeacherSubmit(data: SelectFormValues) {
-    startTransition(async () => {
-      const result = await assignClassTeacherAction(schoolClass.id, {
-        teacherId: data.value === "none" ? null : data.value,
-      });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
+  // ── Mutations ────────────────────────────────────────────────────────────
+  const assignClassTeacher = useAssignClassTeacher(classId);
+  const removeClassTeacher = useRemoveClassTeacher(classId);
+  const assignSubject = useAssignClassSubject(classId);
+  const removeSubject = useRemoveClassSubject(classId);
+  const setSubjectTeacher = useSetClassSubjectTeacher(classId);
+
+  async function onTeacherSubmit(data: SelectFormValues) {
+    try {
+      // Sequential: remove the old primary if there is one, then assign
+      // the new one. Matches the legacy "one primary at a time" UX.
+      if (primaryClassTeacher && primaryClassTeacher.staffId !== data.value) {
+        await removeClassTeacher.mutateAsync(primaryClassTeacher.staffId);
+      }
+      if (data.value !== "none") {
+        await assignClassTeacher.mutateAsync({ staffId: data.value, isPrimary: true });
       }
       toast.success("Class teacher updated.");
       setTeacherOpen(false);
-      router.refresh();
-    });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update.");
+    }
   }
 
-  function onSubjectSubmit(data: SelectFormValues) {
-    startTransition(async () => {
-      const result = await addClassSubjectAction(schoolClass.id, {
-        subjectId: data.value,
-      });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+  async function onSubjectSubmit(data: SelectFormValues) {
+    try {
+      await assignSubject.mutateAsync({ subjectId: data.value });
       toast.success("Subject added.");
       subjectForm.reset({ value: "" });
       setSubjectOpen(false);
-      router.refresh();
-    });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to add subject.");
+    }
   }
 
-  function onAssignSubmit(data: SelectFormValues) {
+  async function onAssignSubmit(data: SelectFormValues) {
     if (!assignTarget) return;
-    startTransition(async () => {
-      const result = await assignTeacherAction(
-        schoolClass.id,
-        assignTarget.subjectId,
-        { teacherId: data.value === "none" ? null : data.value }
-      );
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+    try {
+      await setSubjectTeacher.mutateAsync({
+        subjectId: assignTarget.subjectId,
+        teacherId: data.value === "none" ? null : data.value,
+      });
       toast.success("Teacher assigned.");
       setAssignTarget(null);
-      router.refresh();
-    });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to assign teacher.");
+    }
   }
 
-  function openAssignDialog(subject: ClassSubject) {
+  async function onRemoveSubject(subjectId: string) {
+    try {
+      await removeSubject.mutateAsync(subjectId);
+      toast.success("Subject removed.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to remove subject.");
+    }
+  }
+
+  function openAssignDialog(subject: ClassSubjectRead) {
     assignForm.reset({ value: subject.teacherId ?? "none" });
     setAssignTarget(subject);
   }
 
-  const rosterColumns: ColumnDef<Student>[] = [
+  const rosterColumns: ColumnDef<EnrollmentRead>[] = [
     {
       id: "student",
       header: "Student",
-      accessorFn: (row) => `${row.firstName} ${row.lastName}`,
+      accessorFn: (row) =>
+        `${row.studentFirstName ?? ""} ${row.studentLastName ?? ""}`.trim(),
       cell: ({ row }) => {
         const s = row.original;
+        const div = (s.division ?? "KG") as Division;
         return (
           <div className="flex items-center gap-3 py-0.5">
             <UserAvatar
-              photoUrl={s.photoUrl}
-              firstName={s.firstName}
-              lastName={s.lastName}
+              photoUrl={s.studentPhotoUrl ?? null}
+              firstName={s.studentFirstName ?? ""}
+              lastName={s.studentLastName ?? ""}
               size="sm"
-              gradient={DIVISION_AVATAR[s.division]}
+              gradient={DIVISION_AVATAR[div]}
             />
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">
-                {s.firstName} {s.lastName}
+                {s.studentFirstName} {s.studentLastName}
               </p>
             </div>
           </div>
@@ -195,29 +232,29 @@ export default function ClassDetail({
     {
       id: "studentId",
       header: "Student ID",
-      accessorKey: "id",
+      accessorFn: (row) => row.studentSlug ?? row.studentId,
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground font-mono">{row.original.id}</span>
+        <span className="text-xs text-muted-foreground font-mono">
+          {row.original.studentSlug ?? row.original.studentId}
+        </span>
       ),
     },
     {
-      accessorKey: "gender",
+      id: "gender",
       header: "Gender",
-      cell: ({ row }) => (
-        <span className="text-sm">{row.original.gender}</span>
-      ),
+      cell: ({ row }) => <span className="text-sm">{row.original.studentGender}</span>,
     },
     {
-      accessorKey: "isActive",
+      id: "status",
       header: "Status",
       cell: ({ row }) => {
-        const active = row.original.isActive;
+        const active = row.original.studentIsActive ?? true;
         return (
           <div className="flex items-center gap-1.5">
             <span
               className={cn(
                 "h-1.5 w-1.5 rounded-full flex-shrink-0",
-                active ? "bg-green-500" : "bg-gray-400"
+                active ? "bg-green-500" : "bg-gray-400",
               )}
             />
             <span
@@ -225,7 +262,7 @@ export default function ClassDetail({
                 "text-xs",
                 active
                   ? "text-green-600 dark:text-green-400"
-                  : "text-muted-foreground"
+                  : "text-muted-foreground",
               )}
             >
               {active ? "Active" : "Inactive"}
@@ -236,6 +273,18 @@ export default function ClassDetail({
     },
   ];
 
+  if (classLoading || !schoolClass) {
+    return (
+      <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+        <Loader2 size={16} className="animate-spin mr-2" /> Loading class…
+      </div>
+    );
+  }
+
+  const division = schoolClass.division as Division;
+  const isTeacherOpMutating =
+    assignClassTeacher.isPending || removeClassTeacher.isPending;
+
   return (
     <div className="space-y-5">
       {/* Page header */}
@@ -245,7 +294,7 @@ export default function ClassDetail({
           <span
             className={cn(
               "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium mt-1",
-              DIVISION_PILL[schoolClass.division]
+              DIVISION_PILL[division],
             )}
           >
             {schoolClass.division}
@@ -258,9 +307,7 @@ export default function ClassDetail({
           variant="outline"
           size="sm"
           onClick={() => {
-            const current =
-              schoolClass.classTeachers.find((t) => t.isPrimary) ?? schoolClass.classTeachers[0];
-            teacherForm.reset({ value: current?.staffId ?? "none" });
+            teacherForm.reset({ value: primaryClassTeacher?.staffId ?? "none" });
             setTeacherOpen(true);
           }}
         >
@@ -300,46 +347,58 @@ export default function ClassDetail({
                   </tr>
                 </thead>
                 <tbody>
-                  {classSubjects.map((cs) => (
-                    <tr
-                      key={cs.subjectId}
-                      className="border-b border-border/40 last:border-0 hover:bg-muted/20"
-                    >
-                      <td className="px-4 py-3 font-medium">{cs.subjectName}</td>
-                      <td className="px-4 py-3">
-                        {(() => {
-                          const category = subjectCategoryMap.get(cs.subjectId);
-                          if (!category) return null;
-                          return (
+                  {classSubjects.map((cs) => {
+                    const category = subjectCategoryMap.get(cs.subjectId);
+                    const teacherName =
+                      cs.teacherFirstName || cs.teacherLastName
+                        ? `${cs.teacherFirstName ?? ""} ${cs.teacherLastName ?? ""}`.trim()
+                        : null;
+                    return (
+                      <tr
+                        key={cs.subjectId}
+                        className="border-b border-border/40 last:border-0 hover:bg-muted/20"
+                      >
+                        <td className="px-4 py-3 font-medium">{cs.subjectName}</td>
+                        <td className="px-4 py-3">
+                          {category ? (
                             <span
                               className={cn(
                                 "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-                                CATEGORY_PILL[category]
+                                CATEGORY_PILL[category],
                               )}
                             >
                               {category}
                             </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-4 py-3">
-                        {cs.teacherName ? (
-                          <span>{cs.teacherName}</span>
-                        ) : (
-                          <span className="italic text-muted-foreground">Unassigned</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => openAssignDialog(cs)}
-                          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                          title="Assign teacher"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3">
+                          {teacherName ? (
+                            <span>{teacherName}</span>
+                          ) : (
+                            <span className="italic text-muted-foreground">Unassigned</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              onClick={() => openAssignDialog(cs)}
+                              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                              title="Assign teacher"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              onClick={() => onRemoveSubject(cs.subjectId)}
+                              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                              title="Remove subject from class"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -368,12 +427,7 @@ export default function ClassDetail({
       </Card>
 
       {/* Dialog A — Change Class Teacher */}
-      <Dialog
-        open={teacherOpen}
-        onOpenChange={(open) => {
-          if (!open) setTeacherOpen(false);
-        }}
-      >
+      <Dialog open={teacherOpen} onOpenChange={(open) => { if (!open) setTeacherOpen(false); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Change Class Teacher</DialogTitle>
@@ -397,7 +451,8 @@ export default function ClassDetail({
                         <SelectItem value="none">Remove class teacher</SelectItem>
                         {availableTeachers.map((staff) => (
                           <SelectItem key={staff.id} value={staff.id}>
-                            {staff.firstName} {staff.lastName} ({staff.rank})
+                            {staff.firstName} {staff.lastName}
+                            {staff.rank ? ` (${staff.rank})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -408,15 +463,11 @@ export default function ClassDetail({
               </Field>
             </FieldGroup>
             <DialogFooter className="mt-4">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setTeacherOpen(false)}
-              >
+              <Button type="button" variant="ghost" onClick={() => setTeacherOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
+              <Button type="submit" disabled={isTeacherOpMutating}>
+                {isTeacherOpMutating && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 Save
               </Button>
             </DialogFooter>
@@ -425,12 +476,7 @@ export default function ClassDetail({
       </Dialog>
 
       {/* Dialog B — Add Subject */}
-      <Dialog
-        open={subjectOpen}
-        onOpenChange={(open) => {
-          if (!open) setSubjectOpen(false);
-        }}
-      >
+      <Dialog open={subjectOpen} onOpenChange={(open) => { if (!open) setSubjectOpen(false); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Add Subject</DialogTitle>
@@ -441,11 +487,7 @@ export default function ClassDetail({
                 All subjects have been assigned to this class.
               </p>
               <DialogFooter className="mt-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setSubjectOpen(false)}
-                >
+                <Button type="button" variant="ghost" onClick={() => setSubjectOpen(false)}>
                   Close
                 </Button>
               </DialogFooter>
@@ -480,15 +522,11 @@ export default function ClassDetail({
                 </Field>
               </FieldGroup>
               <DialogFooter className="mt-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setSubjectOpen(false)}
-                >
+                <Button type="button" variant="ghost" onClick={() => setSubjectOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isPending}>
-                  {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
+                <Button type="submit" disabled={assignSubject.isPending}>
+                  {assignSubject.isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                   Save
                 </Button>
               </DialogFooter>
@@ -500,9 +538,7 @@ export default function ClassDetail({
       {/* Dialog C — Assign Teacher to Subject */}
       <Dialog
         open={assignTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) setAssignTarget(null);
-        }}
+        onOpenChange={(open) => { if (!open) setAssignTarget(null); }}
       >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -529,7 +565,8 @@ export default function ClassDetail({
                         <SelectItem value="none">Unassigned</SelectItem>
                         {availableTeachers.map((staff) => (
                           <SelectItem key={staff.id} value={staff.id}>
-                            {staff.firstName} {staff.lastName} ({staff.rank})
+                            {staff.firstName} {staff.lastName}
+                            {staff.rank ? ` (${staff.rank})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -540,15 +577,13 @@ export default function ClassDetail({
               </Field>
             </FieldGroup>
             <DialogFooter className="mt-4">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setAssignTarget(null)}
-              >
+              <Button type="button" variant="ghost" onClick={() => setAssignTarget(null)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
+              <Button type="submit" disabled={setSubjectTeacher.isPending}>
+                {setSubjectTeacher.isPending && (
+                  <Loader2 size={14} className="animate-spin mr-1.5" />
+                )}
                 Save
               </Button>
             </DialogFooter>

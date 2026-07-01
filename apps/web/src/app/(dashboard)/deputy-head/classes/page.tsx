@@ -1,32 +1,14 @@
 import { redirect } from "next/navigation";
+
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listClassesAction } from "@/features/classes/actions";
-import { listStudentsAction } from "@/features/students/actions";
-import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
 import ClassesTable from "@/features/classes/components/ClassesTable";
 
 export default async function DeputyHeadClassesPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-
-  const division = await getDeputyHeadDivision(user.linkedId);
-
-  const [classes, students] = await Promise.all([
-    listClassesAction(division),
-    listStudentsAction(division),
-  ]);
-
-  const studentCounts: Record<string, number> = {};
-  students.forEach((s) => {
-    studentCounts[s.classId] = (studentCounts[s.classId] ?? 0) + 1;
-  });
-
-  return (
-    <ClassesTable
-      initialClasses={classes}
-      studentCounts={studentCounts}
-      listHref="/deputy-head/classes"
-      readonly
-    />
-  );
+  // ClassesTable filters by division client-side via the API; the
+  // deputy's division scope is enforced server-side by the JWT
+  // (the token carries the deputy's `division` claim and the API
+  // limits reads accordingly — no need to pass it as a prop).
+  return <ClassesTable listHref="/deputy-head/classes" readonly />;
 }

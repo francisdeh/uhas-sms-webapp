@@ -7,8 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.audit.model import AuditLog
+from app.features.classes.model import Class
 from app.features.schools.model import School
-from app.features.students.model import Class
 from app.features.students.tests.conftest import (
     CLASS_UUID,
     OTHER_SCHOOL_UUID,

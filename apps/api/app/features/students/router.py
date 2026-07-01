@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, RequireAdmin
-from app.features.students.model import Class, Student
+from app.features.classes.model import Class
+from app.features.students.model import Student
 from app.features.students.schema import (
     StudentCreate,
     StudentRead,

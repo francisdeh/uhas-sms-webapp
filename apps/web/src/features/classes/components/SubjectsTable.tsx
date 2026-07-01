@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { BookOpen, BookMarked, Sparkles, Loader2 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
+
 import { DataTable } from "@/components/ui/data-table";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
@@ -26,9 +27,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
-import { createSubjectAction } from "@/features/classes/actions";
-import type { Division, Subject } from "@/features/classes/types";
+import { useSubjects, useCreateSubject } from "@/features/subjects/hooks/use-subjects";
+import { ApiError } from "@/lib/api/browser";
+import type { components } from "@/types/api";
+import type { Division } from "@/features/classes/types";
 import { cn } from "@/lib/utils";
+
+type SubjectRead = components["schemas"]["SubjectRead"];
 
 const DIVISION_PILL: Record<Division, string> = {
   KG: "bg-purple-100 text-purple-700",
@@ -37,14 +42,22 @@ const DIVISION_PILL: Record<Division, string> = {
   JHS: "bg-orange-100 text-accent-orange",
 };
 
-const CATEGORY_PILL: Record<"Core" | "Elective", string> = {
+const CATEGORY_PILL: Record<string, string> = {
   Core: "bg-blue-100 text-blue-700",
   Elective: "bg-orange-100 text-accent-orange",
+  Optional: "bg-slate-100 text-slate-700",
 };
 
 type DivisionFilter = Division | "All" | "Cross";
 
 const createSchema = z.object({
+  slug: z
+    .string()
+    .min(2, { message: "Min 2 characters" })
+    .max(50, { message: "Max 50 characters" })
+    .regex(/^[A-Za-z0-9_-]+$/, {
+      message: "Letters, numbers, dashes and underscores only",
+    }),
   name: z.string().min(2, { message: "Min 2 characters" }),
   division: z.string().min(1, { message: "Select a division" }),
   category: z.enum(["Core", "Elective"], { message: "Select a category" }),
@@ -52,25 +65,34 @@ const createSchema = z.object({
 
 type CreateFormValues = z.infer<typeof createSchema>;
 
-interface SubjectsTableProps {
-  initialSubjects: Subject[];
-}
-
-export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
-  const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
+export default function SubjectsTable() {
   const [createOpen, setCreateOpen] = useState(false);
   const [divisionFilter, setDivisionFilter] = useState<DivisionFilter>("All");
-  const [isPending, startTransition] = useTransition();
 
-  const totalCount = subjects.length;
+  // Server-side filter — pass `division` to the API when the user picks
+  // a specific division. "All" and "Cross" (null division) both fall
+  // through and get filtered client-side below.
+  const apiDivision =
+    divisionFilter === "All" || divisionFilter === "Cross"
+      ? undefined
+      : divisionFilter;
+
+  const { data, isLoading, error } = useSubjects({
+    division: apiDivision,
+    size: 100,
+  });
+  const subjects: SubjectRead[] = data?.items ?? [];
+
+  const displayed = subjects.filter((s) => {
+    if (divisionFilter === "Cross") return s.division == null;
+    return true;
+  });
+
+  const totalCount = data?.total ?? 0;
   const coreCount = subjects.filter((s) => s.category === "Core").length;
   const electiveCount = subjects.filter((s) => s.category === "Elective").length;
 
-  const displayedSubjects = subjects.filter((s) => {
-    if (divisionFilter === "All") return true;
-    if (divisionFilter === "Cross") return s.division === null;
-    return s.division === divisionFilter;
-  });
+  const createSubject = useCreateSubject();
 
   const {
     register,
@@ -80,7 +102,7 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
     formState: { errors, isSubmitting },
   } = useForm<CreateFormValues>({
     resolver: zodResolver(createSchema),
-    defaultValues: { name: "", division: "", category: undefined },
+    defaultValues: { slug: "", name: "", division: "", category: undefined },
   });
 
   function closeDialog() {
@@ -88,43 +110,34 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
     reset();
   }
 
-  function onSubmit(values: CreateFormValues) {
+  async function onSubmit(values: CreateFormValues) {
     const division: Division | null =
       values.division === "all" ? null : (values.division as Division);
 
-    startTransition(async () => {
-      const result = await createSubjectAction({
+    try {
+      await createSubject.mutateAsync({
+        slug: values.slug,
         name: values.name,
         division,
         category: values.category,
       });
-
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-
-      const newSubject: Subject = {
-        id: result.id,
-        schoolId: "",
-        name: values.name,
-        division,
-        category: values.category,
-      };
-
-      setSubjects((prev) => [...prev, newSubject]);
       toast.success("Subject added.");
       closeDialog();
-    });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to add subject.");
+    }
   }
 
-  const columns: ColumnDef<Subject>[] = [
+  const columns: ColumnDef<SubjectRead>[] = [
     {
       id: "subject",
       header: "Subject",
       accessorFn: (row) => row.name,
       cell: ({ row }) => (
-        <span className="text-sm font-medium">{row.original.name}</span>
+        <div className="flex flex-col">
+          <span className="text-sm font-medium">{row.original.name}</span>
+          <span className="text-[11px] text-muted-foreground">{row.original.slug}</span>
+        </div>
       ),
     },
     {
@@ -141,7 +154,7 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
           <span
             className={cn(
               "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-              DIVISION_PILL[div]
+              DIVISION_PILL[div as Division],
             )}
           >
             {div}
@@ -153,12 +166,12 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
       accessorKey: "category",
       header: "Category",
       cell: ({ row }) => {
-        const cat = row.original.category;
+        const cat = row.original.category ?? "Core";
         return (
           <span
             className={cn(
               "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-              CATEGORY_PILL[cat]
+              CATEGORY_PILL[cat],
             )}
           >
             {cat}
@@ -170,7 +183,6 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Subjects</h1>
@@ -183,7 +195,6 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
         </Button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard
           label="Total Subjects"
@@ -205,35 +216,38 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
         />
       </div>
 
-      {/* Table card */}
       <div className="bg-card border border-border/60 rounded-xl p-4 space-y-3">
-        {/* Division filter pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {(["All", "KG", "Lower Primary", "Upper Primary", "JHS", "Cross"] as const).map((d) => (
-            <button
-              key={d}
-              onClick={() => setDivisionFilter(d)}
-              className={cn(
-                "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer border",
-                divisionFilter === d
-                  ? "bg-slate-800 text-white border-slate-800 dark:bg-slate-600 dark:border-slate-600"
-                  : "bg-transparent text-muted-foreground border-border/60 hover:border-border hover:text-foreground"
-              )}
-            >
-              {d === "All" ? "All" : d === "Cross" ? "Cross-division" : d}
-            </button>
-          ))}
+          {(["All", "KG", "Lower Primary", "Upper Primary", "JHS", "Cross"] as const).map(
+            (d) => (
+              <button
+                key={d}
+                onClick={() => setDivisionFilter(d)}
+                className={cn(
+                  "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer border",
+                  divisionFilter === d
+                    ? "bg-slate-800 text-white border-slate-800 dark:bg-slate-600 dark:border-slate-600"
+                    : "bg-transparent text-muted-foreground border-border/60 hover:border-border hover:text-foreground",
+                )}
+              >
+                {d === "All" ? "All" : d === "Cross" ? "Cross-division" : d}
+              </button>
+            ),
+          )}
         </div>
+
+        {error ? (
+          <div className="text-sm text-destructive">{error.message}</div>
+        ) : null}
 
         <DataTable
           columns={columns}
-          data={displayedSubjects}
+          data={isLoading ? [] : displayed}
           searchKey="subject"
           searchPlaceholder="Search subjects…"
         />
       </div>
 
-      {/* Create Subject Dialog */}
       <Dialog open={createOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
         <DialogContent>
           <DialogHeader>
@@ -242,6 +256,17 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
 
           <form onSubmit={handleSubmit(onSubmit)}>
             <FieldGroup className="gap-4">
+              <Field>
+                <FieldLabel htmlFor="subjectSlug">Slug / Code</FieldLabel>
+                <Input
+                  id="subjectSlug"
+                  type="text"
+                  placeholder="e.g. MATH"
+                  {...register("slug")}
+                />
+                <FieldError errors={[errors.slug]} />
+              </Field>
+
               <Field>
                 <FieldLabel htmlFor="subjectName">Name</FieldLabel>
                 <Input
@@ -310,13 +335,13 @@ export default function SubjectsTable({ initialSubjects }: SubjectsTableProps) {
             <DialogFooter className="mt-4">
               <Button
                 type="submit"
-                disabled={isPending || isSubmitting}
+                disabled={createSubject.isPending || isSubmitting}
                 variant="default"
               >
-                {(isPending || isSubmitting) && (
+                {(createSubject.isPending || isSubmitting) && (
                   <Loader2 size={15} className="animate-spin mr-2" />
                 )}
-                {isPending || isSubmitting ? "Adding…" : "Add Subject"}
+                {createSubject.isPending || isSubmitting ? "Adding…" : "Add Subject"}
               </Button>
             </DialogFooter>
           </form>

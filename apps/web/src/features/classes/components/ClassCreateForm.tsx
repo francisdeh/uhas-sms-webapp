@@ -6,14 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -22,21 +18,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
-import { createClassAction } from "@/features/classes/actions";
-import type { Division, SchoolClass } from "@/features/classes/types";
+import { useCreateClass } from "@/features/classes/hooks/use-classes";
+import { ApiError } from "@/lib/api/browser";
+import type { Division } from "@/features/classes/types";
 
-const CLASS_NAMES = [
-  { name: "KG 1", division: "KG" as Division },
-  { name: "KG 2", division: "KG" as Division },
-  { name: "Primary 1", division: "Lower Primary" as Division },
-  { name: "Primary 2", division: "Lower Primary" as Division },
-  { name: "Primary 3", division: "Lower Primary" as Division },
-  { name: "Primary 4", division: "Upper Primary" as Division },
-  { name: "Primary 5", division: "Upper Primary" as Division },
-  { name: "Primary 6", division: "Upper Primary" as Division },
-  { name: "JHS 1", division: "JHS" as Division },
-  { name: "JHS 2", division: "JHS" as Division },
-  { name: "JHS 3", division: "JHS" as Division },
+const CLASS_NAMES: Array<{ name: string; division: Division; slug: string }> = [
+  { name: "KG 1", division: "KG", slug: "class-kg1" },
+  { name: "KG 2", division: "KG", slug: "class-kg2" },
+  { name: "Primary 1", division: "Lower Primary", slug: "class-p1" },
+  { name: "Primary 2", division: "Lower Primary", slug: "class-p2" },
+  { name: "Primary 3", division: "Lower Primary", slug: "class-p3" },
+  { name: "Primary 4", division: "Upper Primary", slug: "class-p4" },
+  { name: "Primary 5", division: "Upper Primary", slug: "class-p5" },
+  { name: "Primary 6", division: "Upper Primary", slug: "class-p6" },
+  { name: "JHS 1", division: "JHS", slug: "class-jhs1" },
+  { name: "JHS 2", division: "JHS", slug: "class-jhs2" },
+  { name: "JHS 3", division: "JHS", slug: "class-jhs3" },
 ];
 
 const schema = z.object({
@@ -49,17 +46,30 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 interface ClassCreateFormProps {
-  existingClasses: SchoolClass[];
   listHref: string;
+  /** Current-year default for the form; comes from the school config. */
   currentYear: string;
 }
 
+/**
+ * The `slug` is derived from the selected class name + academic year
+ * (see [seed-data/classes.ts](../../../scripts/_seed-data/classes.ts)
+ * for the convention — `class-jhs1` for the base year, `class-jhs1-2027`
+ * for later years). Users don't type it directly; keeps the surface
+ * simple and matches the DB's per-school uniqueness constraint.
+ */
+function computeSlug(baseSlug: string, academicYear: string, defaultYear: string): string {
+  if (academicYear === defaultYear) return baseSlug;
+  const [, endYear] = academicYear.split("/");
+  return endYear ? `${baseSlug}-${endYear}` : baseSlug;
+}
+
 export default function ClassCreateForm({
-  existingClasses,
   listHref,
   currentYear,
 }: ClassCreateFormProps) {
   const router = useRouter();
+  const createClass = useCreateClass();
 
   const {
     register,
@@ -75,28 +85,24 @@ export default function ClassCreateForm({
   const selectedEntry = CLASS_NAMES.find((c) => c.name === selectedName);
 
   async function onSubmit(values: FormValues) {
-    const isDuplicate = existingClasses.some(
-      (c) => c.name === values.name && c.academicYear === values.academicYear
-    );
-    if (isDuplicate) {
-      toast.error("This class already exists for the selected academic year.");
-      return;
-    }
+    const entry = CLASS_NAMES.find((c) => c.name === values.name);
+    if (!entry) return;
 
-    const entry = CLASS_NAMES.find((c) => c.name === values.name)!;
-    const result = await createClassAction({
-      name: values.name,
-      division: entry.division,
-      academicYear: values.academicYear,
-    });
-
-    if (result.success) {
+    try {
+      await createClass.mutateAsync({
+        slug: computeSlug(entry.slug, values.academicYear, currentYear),
+        name: values.name,
+        division: entry.division,
+        academicYear: values.academicYear,
+      });
       toast.success("Class created.");
       router.push(listHref);
-    } else {
-      toast.error(result.error);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to create class.");
     }
   }
+
+  const isPending = createClass.isPending || isSubmitting;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -162,20 +168,14 @@ export default function ClassCreateForm({
               <div className="flex items-center gap-3 pt-2">
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isPending}
                   className="bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40"
                 >
-                  {isSubmitting && (
-                    <Loader2 size={15} className="animate-spin mr-2" />
-                  )}
-                  {isSubmitting ? "Adding…" : "Add Class"}
+                  {isPending && <Loader2 size={15} className="animate-spin mr-2" />}
+                  {isPending ? "Adding…" : "Add Class"}
                 </Button>
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => router.back()}
-                >
+                <Button type="button" variant="ghost" onClick={() => router.back()}>
                   Cancel
                 </Button>
               </div>
