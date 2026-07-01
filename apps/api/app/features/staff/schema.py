@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
+from app.core.roles import SystemRole
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
@@ -28,7 +29,6 @@ _CAMEL_CONFIG = ConfigDict(
     from_attributes=True,
 )
 
-SystemRole = Literal["Admin", "DeputyHead", "Teacher", "Accountant"]
 Division = Literal["KG", "Lower Primary", "Upper Primary", "JHS"]
 
 

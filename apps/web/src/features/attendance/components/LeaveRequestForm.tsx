@@ -3,7 +3,6 @@
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -16,14 +15,19 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { submitLeaveRequestAction } from "@/features/attendance/actions";
-import type { LeaveType } from "@/features/attendance/types";
+
+import { useCreateLeaveRequest } from "@/features/leave-requests/hooks/use-leave-requests";
+import type { components } from "@/types/api";
+
+// API leave-type union — inferred from the wire so we don't hardcode.
+type ApiLeaveType = components["schemas"]["LeaveRequestCreate"]["type"];
 
 const schema = z
   .object({
-    type: z.enum(["sick", "maternity", "personal", "other"], {
-      message: "Select a leave type",
-    }),
+    type: z.enum(
+      ["Sick", "Maternity", "Casual", "Paternity", "Study", "Compassionate", "Other"],
+      { message: "Select a leave type" }
+    ),
     startDate: z.string().min(1, { message: "Start date is required" }),
     endDate: z.string().min(1, { message: "End date is required" }),
     reason: z.string().optional(),
@@ -36,22 +40,25 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 interface LeaveRequestFormProps {
-  staffId: string;
-  staffName: string;
+  /** Kept for compatibility; the API now derives requester from the JWT. */
+  staffId?: string;
+  staffName?: string;
 }
 
 export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) {
+  const create = useCreateLeaveRequest();
+
   const {
     register,
     handleSubmit,
     setValue,
     control,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      type: "" as LeaveType,
+      type: undefined,
       startDate: "",
       endDate: "",
       reason: "",
@@ -59,15 +66,19 @@ export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) 
   });
 
   const leaveType = useWatch({ control, name: "type" });
+  // The API derives the requester from the JWT; these props exist for
+  // backwards compat with the current page renders.
+  void staffId;
+  void staffName;
 
   async function onSubmit(values: FormValues) {
-    const result = await submitLeaveRequestAction(staffId, staffName, values);
-    if (result.success) {
-      toast.success("Leave request submitted.");
-      reset();
-    } else {
-      toast.error(result.error);
-    }
+    await create.mutateAsync({
+      type: values.type as ApiLeaveType,
+      startDate: values.startDate,
+      endDate: values.endDate,
+      reason: values.reason || null,
+    });
+    reset();
   }
 
   return (
@@ -81,7 +92,7 @@ export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) 
             <Label>Leave Type</Label>
             <Select
               onValueChange={(v) =>
-                setValue("type", v as LeaveType, { shouldValidate: true })
+                setValue("type", v as FormValues["type"], { shouldValidate: true })
               }
               value={leaveType}
             >
@@ -89,10 +100,13 @@ export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) 
                 <SelectValue placeholder="Select leave type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="sick">Sick Leave</SelectItem>
-                <SelectItem value="maternity">Maternity Leave</SelectItem>
-                <SelectItem value="personal">Personal Leave</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="Sick">Sick Leave</SelectItem>
+                <SelectItem value="Maternity">Maternity Leave</SelectItem>
+                <SelectItem value="Paternity">Paternity Leave</SelectItem>
+                <SelectItem value="Casual">Casual Leave</SelectItem>
+                <SelectItem value="Study">Study Leave</SelectItem>
+                <SelectItem value="Compassionate">Compassionate Leave</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
             {errors.type && (
@@ -136,8 +150,8 @@ export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) 
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" className="w-full" disabled={create.isPending}>
+            {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Submit Leave Request
           </Button>
         </form>

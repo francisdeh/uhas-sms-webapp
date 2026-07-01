@@ -371,6 +371,97 @@ export function createApiClient(getAuthToken: TokenGetter) {
           { method: "PATCH", body: JSON.stringify(payload) },
         ),
     },
+    attendance: {
+      /** Batch save. Returns the full session with joined student names. */
+      upsertSession: (
+        payload: components["schemas"]["AttendanceSessionUpsertRequest"],
+      ) =>
+        apiFetch<components["schemas"]["AttendanceSessionRead"]>(
+          getAuthToken,
+          "/attendance/sessions",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      /** History — paginated summaries with per-status counts. */
+      listSessions: (
+        params: { classId?: string; term?: number; page?: number; size?: number } = {},
+      ) =>
+        apiFetch<components["schemas"]["AttendanceSessionsListResponse"]>(
+          getAuthToken,
+          `/attendance/sessions${buildQuery(params)}`,
+        ),
+      /** "Has today's roster already been saved?" — 404 → not yet. */
+      lookupSession: (params: { classId: string; date: string }) =>
+        apiFetch<components["schemas"]["AttendanceSessionRead"]>(
+          getAuthToken,
+          `/attendance/sessions/lookup${buildQuery(params)}`,
+        ),
+      getSession: (sessionId: string) =>
+        apiFetch<components["schemas"]["AttendanceSessionRead"]>(
+          getAuthToken,
+          `/attendance/sessions/${sessionId}`,
+        ),
+    },
+    staffAttendance: {
+      upsertSession: (
+        payload: components["schemas"]["StaffAttendanceSessionUpsertRequest"],
+      ) =>
+        apiFetch<components["schemas"]["StaffAttendanceSessionRead"]>(
+          getAuthToken,
+          "/staff-attendance/sessions",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      listSessions: (
+        params: { division?: string; term?: number; page?: number; size?: number } = {},
+      ) =>
+        apiFetch<components["schemas"]["StaffAttendanceSessionsListResponse"]>(
+          getAuthToken,
+          `/staff-attendance/sessions${buildQuery(params)}`,
+        ),
+      lookupSession: (params: { division: string; date: string }) =>
+        apiFetch<components["schemas"]["StaffAttendanceSessionRead"]>(
+          getAuthToken,
+          `/staff-attendance/sessions/lookup${buildQuery(params)}`,
+        ),
+      getSession: (sessionId: string) =>
+        apiFetch<components["schemas"]["StaffAttendanceSessionRead"]>(
+          getAuthToken,
+          `/staff-attendance/sessions/${sessionId}`,
+        ),
+    },
+    leaveRequests: {
+      list: (
+        params: {
+          staffId?: string;
+          status?: string;
+          page?: number;
+          size?: number;
+        } = {},
+      ) =>
+        apiFetch<components["schemas"]["LeaveRequestsListResponse"]>(
+          getAuthToken,
+          `/leave-requests${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["LeaveRequestRead"]>(
+          getAuthToken,
+          `/leave-requests/${id}`,
+        ),
+      create: (payload: components["schemas"]["LeaveRequestCreate"]) =>
+        apiFetch<components["schemas"]["LeaveRequestRead"]>(
+          getAuthToken,
+          "/leave-requests",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      updateStatus: (
+        id: string,
+        payload: components["schemas"]["LeaveStatusUpdate"],
+      ) =>
+        apiFetch<components["schemas"]["LeaveRequestRead"]>(
+          getAuthToken,
+          `/leave-requests/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+    },
   };
 }
 

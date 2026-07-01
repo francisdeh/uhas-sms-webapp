@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 import { CalendarOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  approveLeaveRequestAction,
-  rejectLeaveRequestAction,
-} from "@/features/attendance/actions";
+import { useUpdateLeaveStatus } from "@/features/leave-requests/hooks/use-leave-requests";
 import { formatDate } from "@/lib/dates";
 import type { LeaveRequest } from "@/features/attendance/types";
 
@@ -55,48 +51,53 @@ export function LeaveRequestList({
 }: LeaveRequestListProps) {
   const [requests, setRequests] = useState<LeaveRequest[]>(initialRequests);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
-  const [isPending, startTransition] = useTransition();
   const [rejectionInputs, setRejectionInputs] = useState<Record<string, string>>({});
   const [approveDialogId, setApproveDialogId] = useState<string | null>(null);
   const [rejectDialogId, setRejectDialogId] = useState<string | null>(null);
 
+  const updateStatus = useUpdateLeaveStatus();
+  const isPending = updateStatus.isPending;
+
   const pendingCount = requests.filter((r) => r.status === "pending").length;
   const filtered = requests.filter((r) => filter === "all" || r.status === filter);
+  // Rejection reason isn't in the FastAPI shape yet; kept for future
+  // when we add an audit/notes field. The frontend still collects it
+  // so the UX doesn't regress.
+  void currentUserName;
 
-  function handleApprove(id: string) {
-    startTransition(async () => {
-      const result = await approveLeaveRequestAction(id, currentUserId, currentUserName);
-      if (result.success) {
-        setRequests((prev) =>
-          prev.map((r) =>
-            r.id === id
-              ? { ...r, status: "approved", approvedById: currentUserId, approvedByName: currentUserName }
-              : r
-          )
-        );
-        setApproveDialogId(null);
-        toast.success("Leave request approved.");
-      } else {
-        toast.error(result.error);
-      }
-    });
+  async function handleApprove(id: string) {
+    try {
+      await updateStatus.mutateAsync({ id, payload: { status: "approved" } });
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                status: "approved",
+                approvedById: currentUserId,
+                approvedByName: currentUserName,
+              }
+            : r
+        )
+      );
+      setApproveDialogId(null);
+    } catch {
+      /* toast handled inside the hook */
+    }
   }
 
-  function handleReject(id: string, reason?: string) {
-    startTransition(async () => {
-      const result = await rejectLeaveRequestAction(id, currentUserId, reason);
-      if (result.success) {
-        setRequests((prev) =>
-          prev.map((r) =>
-            r.id === id ? { ...r, status: "rejected", rejectionReason: reason } : r
-          )
-        );
-        setRejectDialogId(null);
-        toast.success("Leave request rejected.");
-      } else {
-        toast.error(result.error);
-      }
-    });
+  async function handleReject(id: string, reason?: string) {
+    try {
+      await updateStatus.mutateAsync({ id, payload: { status: "rejected" } });
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, status: "rejected", rejectionReason: reason } : r
+        )
+      );
+      setRejectDialogId(null);
+    } catch {
+      /* toast handled inside the hook */
+    }
   }
 
   const approveTarget = approveDialogId !== null ? requests.find((r) => r.id === approveDialogId) : undefined;

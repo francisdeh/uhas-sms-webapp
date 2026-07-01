@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { CheckCheck, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,9 +13,22 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { formatDateLong } from "@/lib/dates";
 
-import { saveStaffSessionAction } from "@/features/attendance/actions";
-import type { StaffAttendanceStatus, StaffSessionWithRecords } from "@/features/attendance/types";
+import { useUpsertStaffAttendanceSession } from "@/features/attendance/hooks/use-staff-attendance";
+import type {
+  StaffAttendanceStatus,
+  StaffSessionWithRecords,
+} from "@/features/attendance/types";
 import type { Staff } from "@/features/staff/types";
+import type { components } from "@/types/api";
+
+/** UI-side status → API status. `on_leave` → `OnLeave`. */
+type ApiStatus =
+  components["schemas"]["StaffAttendanceRecordInput"]["status"];
+const UI_TO_API_STATUS: Record<StaffAttendanceStatus, ApiStatus> = {
+  present: "Present",
+  absent: "Absent",
+  on_leave: "OnLeave",
+};
 
 interface StaffAttendanceSheetProps {
   session: StaffSessionWithRecords | null;
@@ -85,10 +97,14 @@ export function StaffAttendanceSheet({
   editable,
 }: StaffAttendanceSheetProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const upsert = useUpsertStaffAttendanceSession();
+  const isPending = upsert.isPending;
   const [rows, setRows] = useState<Record<string, RowState>>(() =>
     buildInitialRows(staff, session, approvedLeaveStaffIds)
   );
+  // `submittedById` is now derived from the caller's JWT server-side.
+  // Kept in props to avoid churning every page that renders this sheet.
+  void submittedById;
 
   function setStatus(staffId: string, status: StaffAttendanceStatus) {
     setRows((prev) => ({
@@ -123,56 +139,28 @@ export function StaffAttendanceSheet({
     }
     setRows(next);
 
-    startTransition(async () => {
-      const records = staff.map((s) => ({
+    upsert.mutate({
+      division,
+      date,
+      term,
+      records: staff.map((s) => ({
         staffId: s.id,
-        status: next[s.id].status,
+        status: UI_TO_API_STATUS[next[s.id].status],
         note: next[s.id].note || undefined,
-      }));
-      const result = await saveStaffSessionAction({
-        division,
-        date,
-        term,
-        submittedById,
-        records,
-      });
-      if (result.success) {
-        const presentCount = records.filter((r) => r.status === "present").length;
-        const leaveCount = records.filter((r) => r.status === "on_leave").length;
-        toast.success(
-          leaveCount > 0
-            ? `${presentCount} marked present · ${leaveCount} kept on leave.`
-            : `All ${presentCount} staff marked present.`
-        );
-        router.refresh();
-      } else {
-        toast.error(result.error);
-      }
+      })),
     });
   }
 
   function handleSave() {
-    startTransition(async () => {
-      const records = staff.map((s) => ({
+    upsert.mutate({
+      division,
+      date,
+      term,
+      records: staff.map((s) => ({
         staffId: s.id,
-        status: rows[s.id].status,
+        status: UI_TO_API_STATUS[rows[s.id].status],
         note: rows[s.id].note || undefined,
-      }));
-
-      const result = await saveStaffSessionAction({
-        division,
-        date,
-        term,
-        submittedById,
-        records,
-      });
-
-      if (result.success) {
-        toast.success("Attendance saved.");
-        router.refresh();
-      } else {
-        toast.error(result.error);
-      }
+      })),
     });
   }
 
