@@ -1,13 +1,14 @@
-"""Shared fixtures for the Students test suite.
+"""Shared fixtures for the Enrollments test suite.
 
-In addition to the standard school fixture, students need at least one
-Class row to enrol into — so this conftest also seeds a JHS class.
+Seeds School + Class + Student so enrollment tests can post real
+(student_id, class_id) pairs without stubbing the repositories.
 """
 
 from __future__ import annotations
 
 import time
 from collections.abc import AsyncIterator
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -20,12 +21,15 @@ from app.core.config import settings
 from app.core.db import engine, get_session
 from app.features.classes.model import Class
 from app.features.schools.model import School
+from app.features.students.model import Student
 from app.main import app
 
-SCHOOL_UUID = UUID("55555555-5555-4555-8555-555555555501")
-OTHER_SCHOOL_UUID = UUID("55555555-5555-4555-8555-555555555502")
-CLASS_UUID = UUID("55555555-5555-4555-8555-555555555601")
-USER_UUID = UUID("00000000-0000-0000-0000-000000000051")
+SCHOOL_UUID = UUID("88888888-8888-4888-8888-888888888801")
+OTHER_SCHOOL_UUID = UUID("88888888-8888-4888-8888-888888888802")
+CLASS_UUID = UUID("88888888-8888-4888-8888-888888888901")
+NEXT_CLASS_UUID = UUID("88888888-8888-4888-8888-888888888902")
+STUDENT_UUID = UUID("88888888-8888-4888-8888-888888888a01")
+USER_UUID = UUID("00000000-0000-0000-0000-000000000081")
 
 
 @pytest_asyncio.fixture
@@ -44,8 +48,8 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 async def seed_school(db_session: AsyncSession) -> School:
     school = School(
         id=SCHOOL_UUID,
-        slug="test-school-for-students",
-        name="Test School (students suite)",
+        slug="test-school-for-enrollments",
+        name="Test School (enrollments suite)",
         academic_year="2025/2026",
         current_term=1,
         grading_scale="GES_STANDARD",
@@ -58,7 +62,6 @@ async def seed_school(db_session: AsyncSession) -> School:
 
 @pytest_asyncio.fixture
 async def seed_class(db_session: AsyncSession, seed_school: School) -> Class:
-    """Seed a single JHS class for enrollment tests to target."""
     cls = Class(
         id=CLASS_UUID,
         slug="class-jhs1",
@@ -70,6 +73,39 @@ async def seed_class(db_session: AsyncSession, seed_school: School) -> Class:
     db_session.add(cls)
     await db_session.flush()
     return cls
+
+
+@pytest_asyncio.fixture
+async def seed_next_class(db_session: AsyncSession, seed_school: School) -> Class:
+    """A JHS 2 class in the same year — used for transfer-shape tests."""
+    cls = Class(
+        id=NEXT_CLASS_UUID,
+        slug="class-jhs2",
+        school_id=SCHOOL_UUID,
+        name="JHS 2",
+        division="JHS",
+        academic_year="2025/2026",
+    )
+    db_session.add(cls)
+    await db_session.flush()
+    return cls
+
+
+@pytest_asyncio.fixture
+async def seed_student(db_session: AsyncSession, seed_school: School) -> Student:
+    student = Student(
+        id=STUDENT_UUID,
+        slug="UHAS-2025-0001",
+        school_id=SCHOOL_UUID,
+        first_name="Akua",
+        last_name="Mensah",
+        dob=date(2012, 4, 15),
+        gender="Female",
+        is_active=True,
+    )
+    db_session.add(student)
+    await db_session.flush()
+    return student
 
 
 @pytest_asyncio.fixture

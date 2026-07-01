@@ -224,6 +224,152 @@ export function createApiClient(getAuthToken: TokenGetter) {
           `/students/${id}/deactivate`,
           { method: "POST" },
         ),
+      /** Enrollment history for one student, most recent year first. */
+      enrollments: (
+        studentId: string,
+        params: { page?: number; size?: number } = {},
+      ) =>
+        apiFetch<components["schemas"]["EnrollmentsListResponse"]>(
+          getAuthToken,
+          `/students/${studentId}/enrollments${buildQuery(params)}`,
+        ),
+    },
+    subjects: {
+      list: (
+        params: { q?: string; division?: string; page?: number; size?: number } = {},
+      ) =>
+        apiFetch<components["schemas"]["SubjectsListResponse"]>(
+          getAuthToken,
+          `/subjects${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["SubjectRead"]>(getAuthToken, `/subjects/${id}`),
+      create: (payload: components["schemas"]["SubjectCreate"]) =>
+        apiFetch<components["schemas"]["SubjectRead"]>(getAuthToken, "/subjects", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      update: (id: string, payload: components["schemas"]["SubjectUpdate"]) =>
+        apiFetch<components["schemas"]["SubjectRead"]>(
+          getAuthToken,
+          `/subjects/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+    },
+    classes: {
+      list: (
+        params: {
+          q?: string;
+          division?: string;
+          academicYear?: string;
+          page?: number;
+          size?: number;
+        } = {},
+      ) =>
+        apiFetch<components["schemas"]["ClassesListResponse"]>(
+          getAuthToken,
+          `/classes${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["ClassRead"]>(getAuthToken, `/classes/${id}`),
+      create: (payload: components["schemas"]["ClassCreate"]) =>
+        apiFetch<components["schemas"]["ClassRead"]>(getAuthToken, "/classes", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      update: (id: string, payload: components["schemas"]["ClassUpdate"]) =>
+        apiFetch<components["schemas"]["ClassRead"]>(
+          getAuthToken,
+          `/classes/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      /** Roster — students currently enrolled in this class (with status filter). */
+      enrollments: (
+        classId: string,
+        params: { status?: string; page?: number; size?: number } = {},
+      ) =>
+        apiFetch<components["schemas"]["EnrollmentsListResponse"]>(
+          getAuthToken,
+          `/classes/${classId}/enrollments${buildQuery(params)}`,
+        ),
+      /** Subject-assignment sub-resource. */
+      subjects: {
+        list: (classId: string) =>
+          apiFetch<components["schemas"]["ClassSubjectsListResponse"]>(
+            getAuthToken,
+            `/classes/${classId}/subjects`,
+          ),
+        assign: (
+          classId: string,
+          payload: components["schemas"]["ClassSubjectAssignRequest"],
+        ) =>
+          apiFetch<components["schemas"]["ClassSubjectRead"]>(
+            getAuthToken,
+            `/classes/${classId}/subjects`,
+            { method: "POST", body: JSON.stringify(payload) },
+          ),
+        setTeacher: (
+          classId: string,
+          subjectId: string,
+          payload: components["schemas"]["ClassSubjectTeacherUpdate"],
+        ) =>
+          apiFetch<components["schemas"]["ClassSubjectRead"]>(
+            getAuthToken,
+            `/classes/${classId}/subjects/${subjectId}`,
+            { method: "PATCH", body: JSON.stringify(payload) },
+          ),
+        remove: (classId: string, subjectId: string) =>
+          apiFetch<void>(
+            getAuthToken,
+            `/classes/${classId}/subjects/${subjectId}`,
+            { method: "DELETE" },
+          ),
+      },
+      /** Class-teacher sub-resource. */
+      teachers: {
+        list: (classId: string) =>
+          apiFetch<components["schemas"]["ClassTeachersListResponse"]>(
+            getAuthToken,
+            `/classes/${classId}/teachers`,
+          ),
+        assign: (
+          classId: string,
+          payload: components["schemas"]["ClassTeacherAssignRequest"],
+        ) =>
+          apiFetch<components["schemas"]["ClassTeacherRead"]>(
+            getAuthToken,
+            `/classes/${classId}/teachers`,
+            { method: "POST", body: JSON.stringify(payload) },
+          ),
+        remove: (classId: string, staffId: string) =>
+          apiFetch<void>(
+            getAuthToken,
+            `/classes/${classId}/teachers/${staffId}`,
+            { method: "DELETE" },
+          ),
+      },
+    },
+    enrollments: {
+      create: (payload: components["schemas"]["EnrollmentCreate"]) =>
+        apiFetch<components["schemas"]["EnrollmentRead"]>(
+          getAuthToken,
+          "/enrollments",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["EnrollmentRead"]>(
+          getAuthToken,
+          `/enrollments/${id}`,
+        ),
+      changeStatus: (
+        id: string,
+        payload: components["schemas"]["EnrollmentStatusUpdate"],
+      ) =>
+        apiFetch<components["schemas"]["EnrollmentRead"]>(
+          getAuthToken,
+          `/enrollments/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
     },
   };
 }

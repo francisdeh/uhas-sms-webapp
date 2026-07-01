@@ -14,8 +14,10 @@ from uuid import UUID
 from sqlalchemy import and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.students.constants import ACTIVE
-from app.features.students.model import Class, Enrollment, Student
+from app.features.classes.model import Class
+from app.features.enrollments.constants import ACTIVE
+from app.features.enrollments.model import Enrollment
+from app.features.students.model import Student
 
 
 class StudentsRepository:
