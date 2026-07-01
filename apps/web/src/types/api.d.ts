@@ -473,6 +473,170 @@ export interface paths {
         patch: operations["change_enrollment_status_enrollments__enrollment_id__patch"];
         trace?: never;
     };
+    "/attendance/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sessions */
+        get: operations["list_sessions_attendance_sessions_get"];
+        put?: never;
+        /**
+         * Batch-save attendance for a class on a date
+         * @description Any authenticated staff (Teacher/DeputyHead/Admin) can save; the
+         *     role gate is soft on POST — teachers save their own classes.
+         */
+        post: operations["upsert_session_attendance_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/sessions/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find the session for (classId, date) — 404 if none yet
+         * @description Used by the roster UI to check whether a class has already saved
+         *     attendance for today — 404 means "not yet"; 200 means "load these
+         *     records into the form".
+         */
+        get: operations["lookup_session_attendance_sessions_lookup_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Session By Id */
+        get: operations["get_session_by_id_attendance_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff-attendance/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sessions */
+        get: operations["list_sessions_staff_attendance_sessions_get"];
+        put?: never;
+        /** Batch-save staff attendance for a division on a date */
+        post: operations["upsert_session_staff_attendance_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff-attendance/sessions/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lookup Session */
+        get: operations["lookup_session_staff_attendance_sessions_lookup_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff-attendance/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Session By Id */
+        get: operations["get_session_by_id_staff_attendance_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Leave Requests
+         * @description Teachers see only their own by default (`staffId` auto-filled
+         *     from `linked_id`); Admin/Deputy see everyone unless they narrow
+         *     with `?staffId=…`.
+         */
+        get: operations["list_leave_requests_leave_requests_get"];
+        put?: never;
+        /**
+         * Create Leave Request
+         * @description A staff member files leave for themselves; only Admin/Deputy can
+         *     file on behalf of another staff (identified by `payload.staffId`).
+         */
+        post: operations["create_leave_request_leave_requests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave-requests/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Leave Request
+         * @description Own requests are visible; only Admin/Deputy see everyone's.
+         *
+         *     Mirrors the list-endpoint gate so a teacher can't iterate UUIDs to
+         *     read another staff member's leave.
+         */
+        get: operations["get_leave_request_leave_requests__request_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Leave Status */
+        patch: operations["update_leave_status_leave_requests__request_id__patch"];
+        trace?: never;
+    };
     "/students/{student_id}/enrollments": {
         parameters: {
             query?: never;
@@ -511,6 +675,167 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AttendanceRecordInput
+         * @description One row in the batch payload — the client's picture of a student
+         *     on this date.
+         */
+        AttendanceRecordInput: {
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "Present" | "Absent" | "Late" | "Excused";
+            /** Latereason */
+            lateReason?: string | null;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * AttendanceRecordRead
+         * @description Record shape with the joined student display fields.
+         */
+        AttendanceRecordRead: {
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /** Studentfirstname */
+            studentFirstName: string;
+            /** Studentlastname */
+            studentLastName: string;
+            /** Studentslug */
+            studentSlug: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "Present" | "Absent" | "Late" | "Excused";
+            /** Latereason */
+            lateReason?: string | null;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * AttendanceSessionRead
+         * @description Session + records — the shape the roster page consumes.
+         */
+        AttendanceSessionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Term */
+            term: number;
+            /** Submittedbyid */
+            submittedById?: string | null;
+            /** Submittedbyname */
+            submittedByName?: string | null;
+            /** Submittedat */
+            submittedAt?: string | null;
+            /** Records */
+            records: components["schemas"]["AttendanceRecordRead"][];
+        };
+        /**
+         * AttendanceSessionSummary
+         * @description Cheap list shape without the record fan-out — used by history views.
+         */
+        AttendanceSessionSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Term */
+            term: number;
+            /** Presentcount */
+            presentCount: number;
+            /** Absentcount */
+            absentCount: number;
+            /** Latecount */
+            lateCount: number;
+            /** Excusedcount */
+            excusedCount: number;
+            /** Submittedbyname */
+            submittedByName?: string | null;
+            /** Submittedat */
+            submittedAt?: string | null;
+        };
+        /**
+         * AttendanceSessionUpsertRequest
+         * @description `POST /attendance/sessions` — creates (or updates) a session +
+         *     all records atomically. Idempotent under re-submission with the
+         *     same (classId, date).
+         */
+        AttendanceSessionUpsertRequest: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Term */
+            term: number;
+            /**
+             * Records
+             * @description One row per enrolled student in the class.
+             */
+            records: components["schemas"]["AttendanceRecordInput"][];
+        };
+        /**
+         * AttendanceSessionsListResponse
+         * @description Paged summaries. See `app.core.pagination.Paginated`.
+         */
+        AttendanceSessionsListResponse: {
+            /** Items */
+            items: components["schemas"]["AttendanceSessionSummary"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
         /**
          * ClassCreate
          * @description Client passes a canonical slug; service uppercases + validates uniqueness.
@@ -897,6 +1222,113 @@ export interface components {
             env: string;
         };
         /**
+         * LeaveRequestCreate
+         * @description Payload from the staff dashboard's `Request Leave` form.
+         *
+         *     `staffId` is optional: when the caller is a staff member requesting
+         *     for themselves the router fills it from `linked_id`. Admins can
+         *     file on behalf of staff by passing an explicit `staffId`.
+         */
+        LeaveRequestCreate: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "Casual" | "Sick" | "Maternity" | "Paternity" | "Study" | "Compassionate" | "Other";
+            /**
+             * Startdate
+             * Format: date
+             */
+            startDate: string;
+            /**
+             * Enddate
+             * Format: date
+             */
+            endDate: string;
+            /** Reason */
+            reason?: string | null;
+            /** Staffid */
+            staffId?: string | null;
+        };
+        /**
+         * LeaveRequestRead
+         * @description Read shape includes staff + approver display names for the UI.
+         */
+        LeaveRequestRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Staffid
+             * Format: uuid
+             */
+            staffId: string;
+            /** Stafffirstname */
+            staffFirstName: string;
+            /** Stafflastname */
+            staffLastName: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "Casual" | "Sick" | "Maternity" | "Paternity" | "Study" | "Compassionate" | "Other";
+            /**
+             * Startdate
+             * Format: date
+             */
+            startDate: string;
+            /**
+             * Enddate
+             * Format: date
+             */
+            endDate: string;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "rejected" | "cancelled";
+            /** Approvedbyid */
+            approvedById?: string | null;
+            /** Approvedbyname */
+            approvedByName?: string | null;
+            /** Createdat */
+            createdAt?: string | null;
+        };
+        /**
+         * LeaveRequestsListResponse
+         * @description Paged leave requests. See `app.core.pagination.Paginated`.
+         */
+        LeaveRequestsListResponse: {
+            /** Items */
+            items: components["schemas"]["LeaveRequestRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
+         * LeaveStatusUpdate
+         * @description Approve / reject / cancel — audit chain is via `approved_by_id`.
+         */
+        LeaveStatusUpdate: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "rejected" | "cancelled";
+        };
+        /**
          * NotificationDefaults
          * @description Which event categories trigger an in-app + email notification by default.
          */
@@ -1070,6 +1502,144 @@ export interface components {
             groupWork: number;
             /** Projectwork */
             projectWork: number;
+        };
+        /** StaffAttendanceRecordInput */
+        StaffAttendanceRecordInput: {
+            /**
+             * Staffid
+             * Format: uuid
+             */
+            staffId: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "Present" | "Absent" | "Late" | "OnLeave";
+            /** Note */
+            note?: string | null;
+        };
+        /** StaffAttendanceRecordRead */
+        StaffAttendanceRecordRead: {
+            /**
+             * Staffid
+             * Format: uuid
+             */
+            staffId: string;
+            /** Stafffirstname */
+            staffFirstName: string;
+            /** Stafflastname */
+            staffLastName: string;
+            /** Staffslug */
+            staffSlug: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "Present" | "Absent" | "Late" | "OnLeave";
+            /** Note */
+            note?: string | null;
+        };
+        /** StaffAttendanceSessionRead */
+        StaffAttendanceSessionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Term */
+            term: number;
+            /** Submittedbyid */
+            submittedById?: string | null;
+            /** Submittedbyname */
+            submittedByName?: string | null;
+            /** Submittedat */
+            submittedAt?: string | null;
+            /** Records */
+            records: components["schemas"]["StaffAttendanceRecordRead"][];
+        };
+        /** StaffAttendanceSessionSummary */
+        StaffAttendanceSessionSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Term */
+            term: number;
+            /** Presentcount */
+            presentCount: number;
+            /** Absentcount */
+            absentCount: number;
+            /** Latecount */
+            lateCount: number;
+            /** Onleavecount */
+            onLeaveCount: number;
+            /** Submittedbyname */
+            submittedByName?: string | null;
+            /** Submittedat */
+            submittedAt?: string | null;
+        };
+        /**
+         * StaffAttendanceSessionUpsertRequest
+         * @description Batch save — creates or updates the session for (division, date).
+         */
+        StaffAttendanceSessionUpsertRequest: {
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Term */
+            term: number;
+            /**
+             * Records
+             * @description One row per staff member in the division.
+             */
+            records: components["schemas"]["StaffAttendanceRecordInput"][];
+        };
+        /**
+         * StaffAttendanceSessionsListResponse
+         * @description Paged summaries. See `app.core.pagination.Paginated`.
+         */
+        StaffAttendanceSessionsListResponse: {
+            /** Items */
+            items: components["schemas"]["StaffAttendanceSessionSummary"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
         };
         /**
          * StaffCreate
@@ -2917,6 +3487,423 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnrollmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sessions_attendance_sessions_get: {
+        parameters: {
+            query?: {
+                classId?: string | null;
+                term?: number | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceSessionsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_session_attendance_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttendanceSessionUpsertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceSessionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lookup_session_attendance_sessions_lookup_get: {
+        parameters: {
+            query: {
+                classId: string;
+                date: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceSessionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_by_id_attendance_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceSessionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sessions_staff_attendance_sessions_get: {
+        parameters: {
+            query?: {
+                division?: string | null;
+                term?: number | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffAttendanceSessionsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_session_staff_attendance_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffAttendanceSessionUpsertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffAttendanceSessionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lookup_session_staff_attendance_sessions_lookup_get: {
+        parameters: {
+            query: {
+                division: string;
+                date: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffAttendanceSessionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_by_id_staff_attendance_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffAttendanceSessionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_leave_requests_leave_requests_get: {
+        parameters: {
+            query?: {
+                staffId?: string | null;
+                status?: string | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_leave_request_leave_requests_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaveRequestCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_leave_request_leave_requests__request_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_leave_status_leave_requests__request_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaveStatusUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestRead"];
                 };
             };
             /** @description Validation Error */

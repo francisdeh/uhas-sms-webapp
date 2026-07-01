@@ -18,6 +18,7 @@ from app.core.config import settings
 from app.core.db import engine
 from app.core.errors import AppError
 from app.core.observability import init_observability, instrument_app
+from app.features.attendance.router import router as attendance_router
 from app.features.classes.router import router as classes_router
 from app.features.enrollments.router import (
     classes_router as class_enrollments_router,
@@ -30,9 +31,11 @@ from app.features.enrollments.router import (
 )
 from app.features.guardians.router import router as guardians_router
 from app.features.health.router import router as health_router
+from app.features.leave_requests.router import router as leave_requests_router
 from app.features.school_terms.router import router as school_terms_router
 from app.features.schools.router import router as schools_router
 from app.features.staff.router import router as staff_router
+from app.features.staff_attendance.router import router as staff_attendance_router
 from app.features.students.router import router as students_router
 from app.features.subjects.router import router as subjects_router
 
@@ -94,6 +97,9 @@ def create_app() -> FastAPI:
     app.include_router(subjects_router)
     app.include_router(classes_router)
     app.include_router(enrollments_router)
+    app.include_router(attendance_router)
+    app.include_router(staff_attendance_router)
+    app.include_router(leave_requests_router)
     app.include_router(student_enrollments_router)
     app.include_router(class_enrollments_router)
 

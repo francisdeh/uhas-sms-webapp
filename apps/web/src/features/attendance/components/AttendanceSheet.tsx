@@ -1,7 +1,6 @@
 "use client";
 
-import { memo, useCallback, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { memo, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 
@@ -12,12 +11,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-import { saveSessionAction } from "@/features/attendance/actions";
+import { useUpsertAttendanceSession } from "@/features/attendance/hooks/use-attendance";
 import { formatDateLong } from "@/lib/dates";
-import type { AttendanceStatus, SessionWithRecords } from "@/features/attendance/types";
+import type {
+  AttendanceStatus,
+  SessionWithRecords,
+} from "@/features/attendance/types";
 import type { Student } from "@/features/students/types";
+import type { components } from "@/types/api";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { CheckCheck } from "lucide-react";
+
+/** API status inferred from the actual record shape — no separate
+ * Literal is emitted in OpenAPI, so we read it off the record. */
+type ApiStatus = components["schemas"]["AttendanceRecordInput"]["status"];
+const UI_TO_API_STATUS: Record<AttendanceStatus, ApiStatus> = {
+  present: "Present",
+  absent: "Absent",
+  late: "Late",
+};
 
 interface AttendanceSheetProps {
   classId: string;
@@ -79,8 +91,8 @@ export function AttendanceSheet({
   editable,
   submittedById,
 }: AttendanceSheetProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const upsert = useUpsertAttendanceSession();
+  const isPending = upsert.isPending;
   const [rows, setRows] = useState<Record<string, RowState>>(() =>
     buildInitialRows(students, existingSession)
   );
@@ -133,26 +145,20 @@ export function AttendanceSheet({
     }
     setRows(next);
 
-    startTransition(async () => {
-      const records = students.map((s) => ({
+    upsert.mutate({
+      classId,
+      date,
+      term,
+      records: students.map((s) => ({
         studentId: s.id,
-        status: "present" as const,
+        status: "Present" as ApiStatus,
         note: next[s.id].note || undefined,
-      }));
-      const result = await saveSessionAction({
-        classId,
-        date,
-        term,
-        submittedById,
-        records,
-      });
-      if (result.success) {
-        toast.success(`All ${students.length} students marked present.`);
-        router.refresh();
-      } else {
-        toast.error(result.error);
-      }
+      })),
     });
+    // `submittedById` is now derived server-side from the caller's JWT —
+    // the frontend no longer sends it. Kept in the prop signature to
+    // avoid churn in the pages that render this sheet.
+    void submittedById;
   }
 
   function handleSave() {
@@ -160,32 +166,23 @@ export function AttendanceSheet({
       (s) => rows[s.id].status === "late" && !rows[s.id].lateReason.trim()
     );
     if (missingReasons.length > 0) {
-      toast.error(`Add a reason for ${missingReasons.length} late student${missingReasons.length === 1 ? "" : "s"}.`);
+      toast.error(
+        `Add a reason for ${missingReasons.length} late student${missingReasons.length === 1 ? "" : "s"}.`
+      );
       return;
     }
 
-    startTransition(async () => {
-      const records = students.map((s) => ({
+    upsert.mutate({
+      classId,
+      date,
+      term,
+      records: students.map((s) => ({
         studentId: s.id,
-        status: rows[s.id].status,
-        lateReason: rows[s.id].status === "late" ? rows[s.id].lateReason : undefined,
+        status: UI_TO_API_STATUS[rows[s.id].status],
+        lateReason:
+          rows[s.id].status === "late" ? rows[s.id].lateReason : undefined,
         note: rows[s.id].note || undefined,
-      }));
-
-      const result = await saveSessionAction({
-        classId,
-        date,
-        term,
-        submittedById,
-        records,
-      });
-
-      if (result.success) {
-        toast.success("Attendance saved.");
-        router.refresh();
-      } else {
-        toast.error(result.error);
-      }
+      })),
     });
   }
 
