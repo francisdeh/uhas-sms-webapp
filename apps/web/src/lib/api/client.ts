@@ -677,6 +677,93 @@ export function createApiClient(getAuthToken: TokenGetter) {
           { method: "PATCH", body: JSON.stringify(payload) },
         ),
     },
+    promotions: {
+      /** Season header for the school's current academic year. Returns
+       *  `null` if no row exists yet. Any authenticated role. */
+      getSeason: () =>
+        apiFetch<components["schemas"]["SeasonRead"] | null>(
+          getAuthToken,
+          "/promotions/season",
+        ),
+      openSeason: (payload: components["schemas"]["SeasonOpenRequest"]) =>
+        apiFetch<components["schemas"]["SeasonOpenResponse"]>(
+          getAuthToken,
+          "/promotions/season/open",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      closeSeason: () =>
+        apiFetch<components["schemas"]["SeasonRead"]>(
+          getAuthToken,
+          "/promotions/season/close",
+          { method: "POST" },
+        ),
+      /** Admin overview — every class in the school. */
+      getOverview: () =>
+        apiFetch<components["schemas"]["OverviewResponse"]>(
+          getAuthToken,
+          "/promotions/overview",
+        ),
+      /** DH queue — automatically scoped to the caller's division. */
+      getDhQueue: () =>
+        apiFetch<components["schemas"]["DeputyHeadQueueResponse"]>(
+          getAuthToken,
+          "/promotions/dh-queue",
+        ),
+      /** Teacher's own classes with submission status. */
+      getTeacherClasses: () =>
+        apiFetch<components["schemas"]["TeacherClassesResponse"]>(
+          getAuthToken,
+          "/promotions/teacher-classes",
+        ),
+      ensureSubmission: (
+        payload: components["schemas"]["EnsureSubmissionRequest"],
+      ) =>
+        apiFetch<components["schemas"]["EnsureSubmissionResponse"]>(
+          getAuthToken,
+          "/promotions/submissions/ensure",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      getSubmission: (id: string) =>
+        apiFetch<components["schemas"]["SubmissionDetail"]>(
+          getAuthToken,
+          `/promotions/submissions/${id}`,
+        ),
+      getSubmissionByClass: (classId: string) =>
+        apiFetch<components["schemas"]["SubmissionDetail"] | null>(
+          getAuthToken,
+          `/promotions/submissions/by-class/${classId}`,
+        ),
+      saveDraft: (
+        id: string,
+        payload: components["schemas"]["SaveDraftRequest"],
+      ) =>
+        apiFetch<components["schemas"]["SubmissionRead"]>(
+          getAuthToken,
+          `/promotions/submissions/${id}/decisions`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      submit: (id: string, payload: components["schemas"]["SubmitListRequest"]) =>
+        apiFetch<components["schemas"]["SubmissionRead"]>(
+          getAuthToken,
+          `/promotions/submissions/${id}/submit`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      approve: (id: string) =>
+        apiFetch<components["schemas"]["SubmissionRead"]>(
+          getAuthToken,
+          `/promotions/submissions/${id}/approve`,
+          { method: "POST" },
+        ),
+      sendBack: (
+        id: string,
+        payload: components["schemas"]["SendBackRequest"],
+      ) =>
+        apiFetch<components["schemas"]["SubmissionRead"]>(
+          getAuthToken,
+          `/promotions/submissions/${id}/send-back`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+    },
   };
 }
 

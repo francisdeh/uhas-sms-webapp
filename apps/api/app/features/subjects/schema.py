@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -10,14 +9,13 @@ from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
 from app.core.school_structure import Division
+from app.features.subjects.constants import SubjectCategory
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
     populate_by_name=True,
     from_attributes=True,
 )
-
-SubjectCategory = Literal["Core", "Elective", "Optional"]
 
 
 class SubjectBase(BaseModel):

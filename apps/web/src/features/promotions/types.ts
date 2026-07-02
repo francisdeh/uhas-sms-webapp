@@ -1,12 +1,30 @@
-export type PromotionSeasonStatus = "open" | "closed";
+export const PROMOTION_SEASON_STATUS = {
+  OPEN: "open",
+  CLOSED: "closed",
+} as const;
+
+export type PromotionSeasonStatus =
+  (typeof PROMOTION_SEASON_STATUS)[keyof typeof PROMOTION_SEASON_STATUS];
+
+export const PROMOTION_SUBMISSION_STATUS = {
+  DRAFT: "draft",
+  SUBMITTED: "submitted",
+  APPROVED: "approved",
+  SENT_BACK: "sent_back",
+} as const;
 
 export type PromotionSubmissionStatus =
-  | "draft"
-  | "submitted"
-  | "approved"
-  | "sent_back";
+  (typeof PROMOTION_SUBMISSION_STATUS)[keyof typeof PROMOTION_SUBMISSION_STATUS];
 
-export type PromotionDecisionKind = "promote" | "repeat" | "withdraw" | "graduate";
+export const PROMOTION_DECISION_KIND = {
+  PROMOTE: "promote",
+  REPEAT: "repeat",
+  WITHDRAW: "withdraw",
+  GRADUATE: "graduate",
+} as const;
+
+export type PromotionDecisionKind =
+  (typeof PROMOTION_DECISION_KIND)[keyof typeof PROMOTION_DECISION_KIND];
 
 export type PromotionSeason = {
   id: string;

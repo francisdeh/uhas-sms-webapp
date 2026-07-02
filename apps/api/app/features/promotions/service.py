@@ -1,0 +1,627 @@
+"""Business logic for the Promotions domain.
+
+The service holds the three state machines and the transactional
+`approve` step. Ownership + role checks are shallow here — the router
+gates who calls what; the service enforces invariants once inside
+(e.g. can't submit while season is closed, can't approve a `draft`).
+
+Cross-domain writes happen inside `approve`:
+
+  1. Close current-year `Active` enrolments for every affected student.
+  2. Insert next-year enrolments for `promote` (Active) and `repeat`
+     (Repeating).
+  3. Flip `students.is_active=False` for `withdraw`.
+  4. Update the submission to `approved` + stamp reviewer identity.
+
+All four happen inside the same `session` (the router hands us a
+request-scoped `AsyncSession`); the outer FastAPI dependency commits on
+success and rolls back on exception, so the whole `approve` is atomic
+by default without an explicit `begin_nested()`. If the request handler
+ever changes to auto-commit-per-statement we'd need a savepoint here.
+
+An audit-log row is written on `approve` — same shape as the TS side,
+so historic queries still work.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from uuid import UUID
+
+from sqlalchemy import and_, literal, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from app.core.roles import ADMIN, DEPUTY_HEAD, TEACHER
+from app.features.audit.actions import PROMOTION_APPROVED
+from app.features.audit.service import write_audit_log
+from app.features.classes.model import Class, ClassTeacher
+from app.features.enrollments.model import Enrollment
+from app.features.promotions.academic_year import next_academic_year
+from app.features.promotions.constants import (
+    DEC_GRADUATE,
+    DEC_PROMOTE,
+    DEC_REPEAT,
+    DEC_WITHDRAW,
+    ENROLLMENT_ACTIVE,
+    ENROLLMENT_COMPLETED,
+    ENROLLMENT_REPEATING,
+    SEASON_CLOSED,
+    SEASON_OPEN,
+    SUB_APPROVED,
+    SUB_DRAFT,
+    SUB_SENT_BACK,
+    SUB_SUBMITTED,
+    DecisionKind,
+)
+from app.features.promotions.model import (
+    PromotionDecision,
+    PromotionSeason,
+    PromotionSubmission,
+)
+from app.features.promotions.next_class import (
+    JHS_3,
+    ClassLike,
+    auto_pick_target_class,
+    division_has_next_year_classes,
+)
+from app.features.promotions.repository import PromotionsRepository
+from app.features.promotions.schema import DecisionUpdate
+from app.features.promotions.suggestion import (
+    CoreSubject,
+    ScoreForSuggestion,
+    compute_suggestion,
+)
+from app.features.schools.service import SchoolsService
+from app.features.staff.repository import StaffRepository
+from app.features.students.model import Student
+
+
+def _now() -> datetime:
+    """DB DateTime columns are TIMESTAMP WITHOUT TIME ZONE — mirror the
+    convention used by the other domains (see lesson_plans.service).
+    Aware datetimes crash asyncpg on those columns."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+class PromotionsService:
+    # ─── Season ─────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def get_current_season(
+        session: AsyncSession, school_id: UUID | str
+    ) -> PromotionSeason | None:
+        school = await SchoolsService.get(session, school_id)
+        return await PromotionsRepository.find_season(session, school_id, school.academic_year)
+
+    @staticmethod
+    async def open_season(
+        session: AsyncSession,
+        school_id: UUID | str,
+        *,
+        opened_by_id: UUID | str,
+        override: bool,
+    ) -> tuple[PromotionSeason, bool]:
+        """Open (or re-open) the season for the school's current academic
+        year. Returns (season, opened_with_override).
+
+        Pre-flight rule: without a published Term-3 EndOfTerm exam the
+        caller must pass `override=True`, otherwise 400. `override=True`
+        with an already-published exam is allowed (`opened_with_override`
+        will just be `False` since the fallback isn't needed).
+        """
+        school = await SchoolsService.get(session, school_id)
+        year = school.academic_year
+
+        existing = await PromotionsRepository.find_season(session, school_id, year)
+        if existing and existing.status == SEASON_OPEN:
+            raise ConflictError("Promotion season is already open.")
+
+        exam_published = await PromotionsRepository.has_published_term3_end_of_term(
+            session, school_id, year
+        )
+        if not exam_published and not override:
+            raise ValidationError(
+                "Term 3 End-of-Term exam is not published yet. Open with override "
+                "to proceed without algorithmic suggestions."
+            )
+
+        opened_with_override = not exam_published
+        now = _now()
+        if existing:
+            existing.status = SEASON_OPEN
+            existing.opened_with_override = opened_with_override
+            existing.opened_by_id = _to_uuid(opened_by_id)
+            existing.opened_at = now
+            existing.closed_by_id = None
+            existing.closed_at = None
+            existing.updated_at = now
+            await session.flush()
+            return existing, opened_with_override
+
+        row = PromotionSeason(
+            school_id=school_id,
+            academic_year=year,
+            status=SEASON_OPEN,
+            opened_with_override=opened_with_override,
+            opened_by_id=_to_uuid(opened_by_id),
+            opened_at=now,
+        )
+        session.add(row)
+        await session.flush()
+        return row, opened_with_override
+
+    @staticmethod
+    async def close_season(
+        session: AsyncSession, school_id: UUID | str, *, closed_by_id: UUID | str
+    ) -> PromotionSeason:
+        school = await SchoolsService.get(session, school_id)
+        row = await PromotionsRepository.find_open_season(session, school_id, school.academic_year)
+        if not row:
+            raise NotFoundError("No open promotion season.")
+        now = _now()
+        row.status = SEASON_CLOSED
+        row.closed_by_id = _to_uuid(closed_by_id)
+        row.closed_at = now
+        row.updated_at = now
+        await session.flush()
+        return row
+
+    # ─── Submission lifecycle ──────────────────────────────────────────
+
+    @staticmethod
+    async def ensure_submission(
+        session: AsyncSession,
+        school_id: UUID | str,
+        *,
+        class_id: UUID | str,
+    ) -> PromotionSubmission:
+        """Idempotent: on first call for a class this year, creates the
+        submission row + one decision per active student with the
+        algorithmic suggestion pre-filled. On subsequent calls it just
+        top-ups any newly-enrolled students.
+
+        Season must be open.
+        """
+        school = await SchoolsService.get(session, school_id)
+        year = school.academic_year
+
+        open_season = await PromotionsRepository.find_open_season(session, school_id, year)
+        if not open_season:
+            raise ConflictError("Promotion season is closed.")
+
+        cls = await session.get(Class, class_id)
+        if not cls:
+            raise NotFoundError(f"Class {class_id!r} not found.")
+
+        submission = await PromotionsRepository.find_submission_by_class(
+            session, school_id, class_id, year
+        )
+        if not submission:
+            submission = PromotionSubmission(
+                school_id=school_id,
+                class_id=class_id,
+                academic_year=year,
+                status=SUB_DRAFT,
+            )
+            session.add(submission)
+            await session.flush()
+
+        await _ensure_decisions_for_roster(session, school_id, submission, cls, year)
+        return submission
+
+    @staticmethod
+    async def save_draft(
+        session: AsyncSession,
+        school_id: UUID | str,
+        submission_id: UUID | str,
+        *,
+        updates: list[DecisionUpdate],
+        actor_staff_id: UUID | str | None,
+        actor_role: str,
+    ) -> PromotionSubmission:
+        """Persist decision edits. If the submission is `sent_back` any
+        edit implicitly returns it to `draft` — mirrors the TS
+        behaviour."""
+        school = await SchoolsService.get(session, school_id)
+        await _assert_season_open(session, school_id, school.academic_year)
+
+        submission = await _load_submission(session, school_id, submission_id)
+        await _assert_teacher_can_edit(session, school_id, submission, actor_staff_id, actor_role)
+        if submission.status == SUB_APPROVED:
+            raise ConflictError("Already approved; cannot edit.")
+
+        await _apply_decision_updates(session, submission.id, updates)
+
+        if submission.status == SUB_SENT_BACK:
+            submission.status = SUB_DRAFT
+            submission.updated_at = _now()
+        await session.flush()
+        return submission
+
+    @staticmethod
+    async def submit_list(
+        session: AsyncSession,
+        school_id: UUID | str,
+        submission_id: UUID | str,
+        *,
+        updates: list[DecisionUpdate],
+        actor_staff_id: UUID | str,
+        actor_role: str,
+    ) -> PromotionSubmission:
+        """Apply any last edits, run the pre-flight (next-year classes
+        exist + every decision complete), then flip to `submitted`."""
+        school = await SchoolsService.get(session, school_id)
+        year = school.academic_year
+        await _assert_season_open(session, school_id, year)
+
+        submission = await _load_submission(session, school_id, submission_id)
+        await _assert_teacher_can_edit(session, school_id, submission, actor_staff_id, actor_role)
+        if submission.status == SUB_APPROVED:
+            raise ConflictError("Already approved.")
+        if submission.status == SUB_SUBMITTED:
+            raise ConflictError("Already submitted.")
+
+        cls = await session.get(Class, submission.class_id)
+        if not cls:
+            raise NotFoundError("Class not found.")
+
+        next_year = next_academic_year(cls.academic_year)
+        next_year_classes = await PromotionsRepository.next_year_classes_for_division(
+            session, school_id, next_year, cls.division
+        )
+        if not division_has_next_year_classes(
+            cls.division,
+            [ClassLike(id=c.id, name=c.name, division=c.division) for c in next_year_classes],
+        ):
+            raise ValidationError(
+                f"No {next_year} classes exist for {cls.division}. Ask Admin to set them up first."
+            )
+
+        await _apply_decision_updates(session, submission.id, updates)
+
+        # Roster-completeness pre-flight: every decision must be
+        # actionable. Promote needs a target class; repeat/withdraw need
+        # a reason (graduate is terminal and doesn't need either).
+        decisions = await PromotionsRepository.list_decisions_for_submission(session, submission.id)
+        for d in decisions:
+            if d.decision == DEC_PROMOTE and d.target_class_id is None:
+                raise ValidationError("Every promoted student needs a target class.")
+            if d.decision in {DEC_REPEAT, DEC_WITHDRAW} and not (d.reason or "").strip():
+                raise ValidationError(f"Every {d.decision} decision needs a reason.")
+
+        now = _now()
+        submission.status = SUB_SUBMITTED
+        submission.submitted_by_id = _to_uuid(actor_staff_id)
+        submission.submitted_at = now
+        submission.updated_at = now
+        await session.flush()
+        return submission
+
+    @staticmethod
+    async def send_back(
+        session: AsyncSession,
+        school_id: UUID | str,
+        submission_id: UUID | str,
+        *,
+        comment: str,
+        reviewer_staff_id: UUID | str,
+        actor_role: str,
+    ) -> PromotionSubmission:
+        school = await SchoolsService.get(session, school_id)
+        await _assert_season_open(session, school_id, school.academic_year)
+
+        submission = await _load_submission(session, school_id, submission_id)
+        cls = await session.get(Class, submission.class_id)
+        if not cls:
+            raise NotFoundError("Class not found.")
+        await _assert_reviewer_can_review(session, school_id, actor_role, reviewer_staff_id, cls)
+        if submission.status != SUB_SUBMITTED:
+            raise ConflictError("Only submitted lists can be sent back.")
+        if not comment.strip():
+            raise ValidationError("Please add a comment explaining what to revise.")
+
+        now = _now()
+        submission.status = SUB_SENT_BACK
+        submission.reviewer_comment = comment.strip()
+        submission.reviewed_by_id = _to_uuid(reviewer_staff_id)
+        submission.reviewed_at = now
+        submission.updated_at = now
+        await session.flush()
+        return submission
+
+    @staticmethod
+    async def approve(
+        session: AsyncSession,
+        school_id: UUID | str,
+        submission_id: UUID | str,
+        *,
+        reviewer_staff_id: UUID | str,
+        actor_user_id: UUID | str,
+        actor_role: str,
+    ) -> PromotionSubmission:
+        """Transactional approve — materialises next-year enrolments.
+
+        Steps (all inside one FastAPI request → one DB session → one
+        commit at handler return):
+
+          1. Close current-year Active enrolments for the affected
+             students.
+          2. Insert next-year enrolments for promote (Active) and
+             repeat (Repeating).
+          3. Flip students.is_active=False for withdraw.
+          4. Update the submission to approved + reviewer stamp.
+          5. Write an audit row.
+
+        If any step raises, the outer session rolls back everything —
+        so a bad target_class_id on one row cancels the whole class.
+        """
+        school = await SchoolsService.get(session, school_id)
+        await _assert_season_open(session, school_id, school.academic_year)
+
+        submission = await _load_submission(session, school_id, submission_id)
+        if submission.status != SUB_SUBMITTED:
+            raise ConflictError("Only submitted lists can be approved.")
+
+        cls = await session.get(Class, submission.class_id)
+        if not cls:
+            raise NotFoundError("Class not found.")
+        await _assert_reviewer_can_review(session, school_id, actor_role, reviewer_staff_id, cls)
+
+        decisions = await PromotionsRepository.list_decisions_for_submission(session, submission.id)
+        student_ids = [d.student_id for d in decisions]
+
+        # 1. Close current-year Active enrolments.
+        if student_ids:
+            await session.execute(
+                update(Enrollment)
+                .where(
+                    and_(
+                        Enrollment.student_id.in_(student_ids),
+                        Enrollment.academic_year == submission.academic_year,
+                        Enrollment.status == ENROLLMENT_ACTIVE,
+                    )
+                )
+                .values(status=ENROLLMENT_COMPLETED)
+            )
+
+        # 2. New enrolments for Promote (Active) + Repeat (Repeating).
+        target_year = next_academic_year(submission.academic_year)
+        new_enrollments: list[Enrollment] = []
+        for d in decisions:
+            if d.decision not in {DEC_PROMOTE, DEC_REPEAT}:
+                continue
+            if d.target_class_id is None:
+                # Should already be blocked by submit-time pre-flight,
+                # but guard here too so a manual DB tweak doesn't sneak
+                # a broken row through.
+                raise ValidationError("A promoted/repeating student has no target class.")
+            new_enrollments.append(
+                Enrollment(
+                    student_id=d.student_id,
+                    class_id=d.target_class_id,
+                    academic_year=target_year,
+                    status=ENROLLMENT_REPEATING if d.decision == DEC_REPEAT else ENROLLMENT_ACTIVE,
+                    enrollment_date=_now().date(),
+                )
+            )
+        if new_enrollments:
+            session.add_all(new_enrollments)
+
+        # 3. Withdraw → flip students.is_active=False.
+        withdraw_ids = [d.student_id for d in decisions if d.decision == DEC_WITHDRAW]
+        if withdraw_ids:
+            await session.execute(
+                update(Student).where(Student.id.in_(withdraw_ids)).values(is_active=False)
+            )
+
+        # 4. Submission status + stamp.
+        now = _now()
+        submission.status = SUB_APPROVED
+        submission.reviewed_by_id = _to_uuid(reviewer_staff_id)
+        submission.reviewed_at = now
+        submission.reviewer_comment = None
+        submission.updated_at = now
+
+        # 5. Audit log — kind of hot-path but writes are cheap and this
+        # is exactly the kind of event we want a record of.
+        counts = {
+            "decisionCount": len(decisions),
+            "promoted": sum(1 for d in decisions if d.decision == DEC_PROMOTE),
+            "repeating": sum(1 for d in decisions if d.decision == DEC_REPEAT),
+            "withdrawn": sum(1 for d in decisions if d.decision == DEC_WITHDRAW),
+            "graduated": sum(1 for d in decisions if d.decision == DEC_GRADUATE),
+        }
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=PROMOTION_APPROVED,
+            target_table="promotion_submissions",
+            target_id=submission.id,
+            after=counts,
+        )
+
+        await session.flush()
+        return submission
+
+
+# ─── Internal helpers ───────────────────────────────────────────────────────
+
+
+def _to_uuid(value: UUID | str) -> UUID:
+    """Router hands us `linked_id` as `str`; models want `UUID`. One
+    coercion here beats sprinkling it everywhere."""
+    return value if isinstance(value, UUID) else UUID(str(value))
+
+
+async def _load_submission(
+    session: AsyncSession,
+    school_id: UUID | str,
+    submission_id: UUID | str,
+) -> PromotionSubmission:
+    """Tenant-scoped load. Any request for a submission owned by another
+    school returns the same NotFoundError we'd raise for a bogus id, so
+    a cross-tenant caller can't enumerate valid ids."""
+    row = await PromotionsRepository.find_submission_by_id(session, school_id, submission_id)
+    if not row:
+        raise NotFoundError(f"Submission {submission_id!r} not found.")
+    return row
+
+
+async def _assert_season_open(
+    session: AsyncSession, school_id: UUID | str, academic_year: str
+) -> None:
+    row = await PromotionsRepository.find_open_season(session, school_id, academic_year)
+    if not row:
+        raise ConflictError("Promotion season is closed.")
+
+
+async def _assert_teacher_can_edit(
+    session: AsyncSession,
+    school_id: UUID | str,
+    submission: PromotionSubmission,
+    actor_staff_id: UUID | str | None,
+    actor_role: str,
+) -> None:
+    """Only Admin or a `class_teachers` row for that class can edit."""
+    if actor_role == ADMIN:
+        return
+    if actor_role != TEACHER or not actor_staff_id:
+        raise ForbiddenError("Only the class teacher or Admin can edit this list.")
+    stmt = (
+        select(literal(1))
+        .select_from(ClassTeacher)
+        .where(
+            and_(
+                ClassTeacher.class_id == submission.class_id,
+                ClassTeacher.staff_id == actor_staff_id,
+            )
+        )
+    )
+    row = (await session.execute(stmt)).first()
+    if row is None:
+        raise ForbiddenError("Only the class teacher or Admin can edit this list.")
+
+
+async def _assert_reviewer_can_review(
+    session: AsyncSession,
+    school_id: UUID | str,
+    actor_role: str,
+    reviewer_staff_id: UUID | str,
+    cls: Class,
+) -> None:
+    """Admin can review any submission; DeputyHead only in their division."""
+    if actor_role == ADMIN:
+        return
+    if actor_role != DEPUTY_HEAD:
+        raise ForbiddenError("Only Deputy Head or Admin can review promotions.")
+    # Compare the DH's division to the submission class's division.
+    staff = await StaffRepository.get_by_id(session, school_id, reviewer_staff_id)
+    if staff and staff.division == cls.division:
+        return
+    raise ForbiddenError("Deputy Head can only review promotions in their own division.")
+
+
+async def _apply_decision_updates(
+    session: AsyncSession,
+    submission_id: UUID | str,
+    updates: list[DecisionUpdate],
+) -> None:
+    """Per-row UPDATEs. One roundtrip per row is fine at class-size
+    volumes (~30-50). Larger batches could switch to an INSERT ...
+    ON CONFLICT UPDATE, but that's over-engineering for now."""
+    for u in updates:
+        reason = (u.reason or "").strip() or None
+        await session.execute(
+            update(PromotionDecision)
+            .where(
+                and_(
+                    PromotionDecision.submission_id == submission_id,
+                    PromotionDecision.student_id == u.student_id,
+                )
+            )
+            .values(
+                decision=u.decision,
+                target_class_id=u.target_class_id,
+                reason=reason,
+                updated_at=_now(),
+            )
+        )
+
+
+async def _ensure_decisions_for_roster(
+    session: AsyncSession,
+    school_id: UUID | str,
+    submission: PromotionSubmission,
+    cls: Class,
+    academic_year: str,
+) -> None:
+    """Insert one PromotionDecision per active student who doesn't
+    already have one, prefilling the algorithmic suggestion."""
+    term3_exam = await PromotionsRepository.get_term3_exam(session, school_id, academic_year)
+    exam_published = term3_exam is not None
+
+    core_subjects = await PromotionsRepository.core_subjects_for_division(
+        session, school_id, cls.division
+    )
+    next_year_classes = await PromotionsRepository.next_year_classes_for_division(
+        session, school_id, next_academic_year(cls.academic_year), cls.division
+    )
+    class_likes = [ClassLike(id=c.id, name=c.name, division=c.division) for c in next_year_classes]
+
+    roster = await PromotionsRepository.active_students_in_class(session, cls.id, academic_year)
+    existing = await PromotionsRepository.existing_student_ids_for_submission(
+        session, submission.id
+    )
+
+    new_rows: list[PromotionDecision] = []
+    for student in roster:
+        if str(student.id) in existing:
+            continue
+
+        scores = (
+            await PromotionsRepository.scores_for_student_in_exam(
+                session, term3_exam.id, student.id
+            )
+            if term3_exam
+            else []
+        )
+
+        suggestion = compute_suggestion(
+            class_name=cls.name,
+            division_core_subjects=[CoreSubject(id=s.id, name=s.name) for s in core_subjects],
+            scores_for_student=[
+                ScoreForSuggestion(subject_id=s.subject_id, total_score=s.total_score)
+                for s in scores
+            ],
+            exam_published=exam_published,
+        )
+        initial_decision: DecisionKind = (
+            suggestion.suggested_decision  # type: ignore[assignment]
+            if suggestion
+            else (DEC_GRADUATE if cls.name == JHS_3 else DEC_PROMOTE)
+        )
+        target_class_id = (
+            auto_pick_target_class(cls.name, class_likes, DEC_PROMOTE)
+            if initial_decision == DEC_PROMOTE
+            else auto_pick_target_class(cls.name, class_likes, DEC_REPEAT)
+            if initial_decision == DEC_REPEAT
+            else None
+        )
+
+        new_rows.append(
+            PromotionDecision(
+                submission_id=submission.id,
+                student_id=student.id,
+                decision=initial_decision,
+                target_class_id=(_to_uuid(target_class_id) if target_class_id else None),
+                reason=None,
+                suggested_decision=(suggestion.suggested_decision if suggestion else None),
+                suggested_reason=(suggestion.suggested_reason if suggestion else None),
+                failed_core_subjects=(suggestion.failed_core_subjects if suggestion else None),
+            )
+        )
+    if new_rows:
+        session.add_all(new_rows)
+        await session.flush()
