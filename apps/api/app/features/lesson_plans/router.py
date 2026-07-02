@@ -85,9 +85,7 @@ def _to_read(
         reviewer_comment=latest_comment,
         reviewed_by_id=latest_reviewer.id if latest_reviewer else None,
         reviewed_by_name=(
-            f"{latest_reviewer.first_name} {latest_reviewer.last_name}"
-            if latest_reviewer
-            else None
+            f"{latest_reviewer.first_name} {latest_reviewer.last_name}" if latest_reviewer else None
         ),
         reviewed_at=latest_reviewed_at,
         created_at=plan.created_at,
@@ -169,10 +167,8 @@ async def create_lesson_plan(
 ) -> LessonPlanRead:
     if not user.linked_id:
         raise ForbiddenError("Cannot create a lesson plan without a staff identity.")
-    plan, teacher, subject, cls, reviewer, comment, reviewed_at = (
-        await LessonPlansService.create(
-            session, school_id, payload, teacher_id=user.linked_id
-        )
+    plan, teacher, subject, cls, reviewer, comment, reviewed_at = await LessonPlansService.create(
+        session, school_id, payload, teacher_id=user.linked_id
     )
     return _to_read(plan, teacher, subject, cls, reviewer, comment, reviewed_at)
 
@@ -187,10 +183,8 @@ async def update_lesson_plan(
 ) -> LessonPlanRead:
     if not user.linked_id:
         raise ForbiddenError("Cannot edit a lesson plan without a staff identity.")
-    plan, teacher, subject, cls, reviewer, comment, reviewed_at = (
-        await LessonPlansService.update(
-            session, school_id, plan_id, payload, actor_staff_id=user.linked_id
-        )
+    plan, teacher, subject, cls, reviewer, comment, reviewed_at = await LessonPlansService.update(
+        session, school_id, plan_id, payload, actor_staff_id=user.linked_id
     )
     return _to_read(plan, teacher, subject, cls, reviewer, comment, reviewed_at)
 
@@ -208,10 +202,8 @@ async def submit_lesson_plan(
 ) -> LessonPlanRead:
     if not user.linked_id:
         raise ForbiddenError("Cannot submit a lesson plan without a staff identity.")
-    plan, teacher, subject, cls, reviewer, comment, reviewed_at = (
-        await LessonPlansService.submit(
-            session, school_id, plan_id, actor_staff_id=user.linked_id
-        )
+    plan, teacher, subject, cls, reviewer, comment, reviewed_at = await LessonPlansService.submit(
+        session, school_id, plan_id, actor_staff_id=user.linked_id
     )
     return _to_read(plan, teacher, subject, cls, reviewer, comment, reviewed_at)
 
@@ -229,15 +221,13 @@ async def review_lesson_plan(
     user: CurrentUserDep,
 ) -> LessonPlanRead:
     actor_role = user.role or ""
-    plan, teacher, subject, cls, reviewer, comment, reviewed_at = (
-        await LessonPlansService.review(
-            session,
-            school_id,
-            plan_id,
-            payload,
-            actor_staff_id=user.linked_id,
-            actor_role=actor_role,
-        )
+    plan, teacher, subject, cls, reviewer, comment, reviewed_at = await LessonPlansService.review(
+        session,
+        school_id,
+        plan_id,
+        payload,
+        actor_staff_id=user.linked_id,
+        actor_role=actor_role,
     )
     return _to_read(plan, teacher, subject, cls, reviewer, comment, reviewed_at)
 

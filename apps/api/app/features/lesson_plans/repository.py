@@ -124,9 +124,7 @@ class LessonPlansRepository:
         )
         rows = [
             (lp, tch, sub, cls, rev, comment, ts)
-            for lp, tch, sub, cls, rev, comment, ts in (
-                await session.execute(rows_stmt)
-            ).all()
+            for lp, tch, sub, cls, rev, comment, ts in (await session.execute(rows_stmt)).all()
         ]
         return rows, total
 
@@ -328,8 +326,6 @@ class LessonPlansRepository:
         )
         rows = [
             (lp, tch, sub, cls, rev, comment, ts)
-            for lp, tch, sub, cls, rev, comment, ts in (
-                await session.execute(rows_stmt)
-            ).all()
+            for lp, tch, sub, cls, rev, comment, ts in (await session.execute(rows_stmt)).all()
         ]
         return rows, total
