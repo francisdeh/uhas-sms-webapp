@@ -41,48 +41,41 @@ All seven items resolved in the same PR:
 | **B6** | ✅ Done | `write_audit_log`'s `target_id` accepts `UUID \| str` directly; the awkward `isinstance(staff_id, UUID) else UUID(str(staff_id))` coercion at the call site is gone. |
 | **B7** | ✅ Done | [`app/features/audit/actions.py`](../apps/api/app/features/audit/actions.py) constants + `AuditAction` Literal. `write_audit_log`'s `action` param now requires one of the closed set. Every service uses the constants. |
 
-## C. Deferred notification triggers — Phase 2 #9
+## C. Deferred notification triggers — ✅ RESOLVED in Phase 2 #9
 
-The following state transitions used to fire notifications (in-app + sometimes email) on the TS side. When the Notifications domain is ported (Phase 2 item #9 in [v2/UHAS_Migration_Execution_Plan.md](../v2/UHAS_Migration_Execution_Plan.md)), wire these into the corresponding service methods. All the transition points are already isolated in `service.py` files, so the changes are additive.
+All in-app triggers listed here were wired into their producer services
+when the Notifications domain landed. Each service imports
+`NotificationsService.notify_audience(...)` / `.notify_user(...)` and
+fires inside the same transaction as the state change, so a producer
+that rolls back leaves no orphan notifications. See the audience
+resolver in [`apps/api/app/features/notifications/audience.py`](../apps/api/app/features/notifications/audience.py)
+for the discriminated union of audience shapes.
 
-### `lesson_plans/service.py` — [`LessonPlansService.submit`](../apps/api/app/features/lesson_plans/service.py) + [`.review`](../apps/api/app/features/lesson_plans/service.py)
+**Retrofits shipped:**
 
-| Trigger | Audience | In-app | Email (respects setting) |
-|---|---|---|---|
-| Teacher submits | all Unit Heads with `unit_head_of == class.division` | ✅ | — |
-| Unit Head approves (`submitted → unit_head_approved`) | all Deputy Heads with `division == class.division` | ✅ | — |
-| Any reviewer approves (`* → approved`) or rejects (`* → rejected`) | the teacher (`plan.teacher_id`) | ✅ | ✅ on rejection, gated by `school.notification_defaults.on_lesson_plan_rejected` |
+| Domain | Trigger points | Kinds emitted |
+|---|---|---|
+| lesson_plans | `.submit`, `.review` | `lesson_plan_submitted`, `lesson_plan_advanced`, `lesson_plan_reviewed` |
+| schemes | `.submit`, `.acknowledge` | `scheme_submitted`, `scheme_acknowledged` |
+| assignments | `.publish` | `assignment_created` |
+| promotions | `.open_season`, `.send_back` | `promotion_season_opened`, `promotion_sent_back` |
+| announcements | `.create` (gated by `school.notification_defaults.on_announcement_posted`) | `announcement_posted` |
 
-### `schemes/service.py` — [`SchemesService.submit`](../apps/api/app/features/schemes/service.py) + [`.acknowledge`](../apps/api/app/features/schemes/service.py)
+**Email delivery — deferred to Phase 3 (Storage/Jobs/SMS):**
 
-| Trigger | Audience | In-app | Email |
-|---|---|---|---|
-| Teacher submits | all Unit Heads with `unit_head_of == class.division` | ✅ | — |
-| Reviewer acknowledges | the teacher (`scheme.teacher_id`) | ✅ | — |
+The TS side had exactly one email trigger — lesson-plan rejection,
+gated by `school.notification_defaults.on_lesson_plan_rejected`. Not
+ported yet because Phase 3 stands up the Inngest job runner (per
+[v2/UHAS_Migration_Execution_Plan.md](../v2/UHAS_Migration_Execution_Plan.md)),
+which is the right home for out-of-band delivery. Building an inline
+Python email path now would just be thrown away when Phase 3 lands.
+Until Phase 3:
 
-### `assignments/service.py` — [`AssignmentsService.publish`](../apps/api/app/features/assignments/service.py)
-
-| Trigger | Audience | In-app | Email |
-|---|---|---|---|
-| Teacher publishes an assignment | all parents whose children are actively enrolled in `assignment.class_id` (via `student_guardians` → `students` → `enrollments`) | ✅ | — |
-
-### `promotions/service.py` — [`PromotionsService.open_season`](../apps/api/app/features/promotions/service.py) + [`.send_back`](../apps/api/app/features/promotions/service.py)
-
-| Trigger | Audience | In-app | Email |
-|---|---|---|---|
-| Admin opens the season | all teachers (`system_role=Teacher`) in the school | ✅ | — |
-| Deputy sends a list back | the teacher who submitted (`submission.submitted_by_id`) | ✅ | — |
-
-Approve doesn't fire a teacher notification — the audit log + status
-flip is the record; matches TS behaviour.
-
-Kinds to use (mirror the TS values):
-- `lesson_plan_submitted`, `lesson_plan_reviewed`, `lesson_plan_advanced`
-- `scheme_submitted`, `scheme_acknowledged`
-- `assignment_created`
-- `promotion_season_opened`, `promotion_sent_back`
-
-The audience resolver on the TS side lives at [`apps/web/src/features/notifications/lib/audience.ts`](../apps/web/src/features/notifications/lib/audience.ts) and understands `{type: "unitHeadOfDivision", division}` / `{type: "deputyHeadsOfDivision", division}` / `{type: "staff", staffId}`. Port these signatures for parity.
+  * Teachers still get the in-app notification on rejection.
+  * The `notification_defaults.on_lesson_plan_rejected` setting is
+    honoured by the TS side while it's still live.
+  * Once we deprecate the TS layer we lose the email until Phase 3.
+    Documented risk, low-impact.
 
 ## D. Post-port UX backlog — enriched review history for lesson plans
 

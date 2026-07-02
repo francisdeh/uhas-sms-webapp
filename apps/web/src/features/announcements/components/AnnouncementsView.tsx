@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -39,9 +39,9 @@ import {
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
-  createAnnouncementAction,
-  deleteAnnouncementAction,
-} from "@/features/announcements/actions";
+  useCreateAnnouncement,
+  useDeleteAnnouncement,
+} from "@/features/announcements/hooks/use-announcements";
 import type { Announcement, AnnouncementAudience } from "@/features/announcements/types";
 import { audienceLabel } from "@/features/announcements/types";
 
@@ -82,50 +82,46 @@ export function AnnouncementsView({
   classes,
 }: AnnouncementsViewProps) {
   const router = useRouter();
+  const createMut = useCreateAnnouncement();
+  const deleteMut = useDeleteAnnouncement();
+  const isPending = createMut.isPending || deleteMut.isPending;
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);
-  const [isPending, startTransition] = useTransition();
+  // Author identity is derived from the JWT server-side now.
+  void authorId;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { audience: defaultAudience, isCritical: false, title: "", body: "" },
   });
 
-  function onCreate(data: FormValues) {
-    startTransition(async () => {
-      const result = await createAnnouncementAction({
-        authorId,
-        data: {
-          title: data.title,
-          body: data.body,
-          audience: data.audience,
-          isCritical: data.isCritical,
-        },
+  async function onCreate(data: FormValues) {
+    try {
+      await createMut.mutateAsync({
+        title: data.title,
+        body: data.body,
+        audience: data.audience,
+        isCritical: data.isCritical,
       });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Announcement posted.");
       setCreateOpen(false);
       form.reset({ audience: defaultAudience, isCritical: false, title: "", body: "" });
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deleteTarget) return;
-    startTransition(async () => {
-      const result = await deleteAnnouncementAction({ id: deleteTarget.id, authorId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Announcement deleted.");
+    try {
+      await deleteMut.mutateAsync(deleteTarget.id);
       setDeleteTarget(null);
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
+  void toast; // silence unused-import if all toasts are hook-driven
 
   return (
     <div className="space-y-5">

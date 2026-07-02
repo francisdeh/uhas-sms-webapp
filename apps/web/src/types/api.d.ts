@@ -1234,10 +1234,186 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Announcements
+         * @description Role-filtered list. See `AnnouncementsService.list_visible_to`
+         *     for the per-role visibility matrix.
+         */
+        get: operations["list_announcements_announcements_get"];
+        put?: never;
+        /** Create Announcement */
+        post: operations["create_announcement_announcements_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements/{announcement_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Announcement
+         * @description Any authenticated caller in the school can fetch by id — the
+         *     per-role visibility filter is a list-level convenience, not a
+         *     hard access control. Detail reads are trivial and don't leak
+         *     anything the list wouldn't already show to Admins.
+         */
+        get: operations["get_announcement_announcements__announcement_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Announcement */
+        delete: operations["delete_announcement_announcements__announcement_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/bell": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Bell
+         * @description Compound endpoint the FE polls every 60s — one round trip for
+         *     both the badge count and the top-10 dropdown items.
+         */
+        get: operations["get_bell_notifications_bell_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/mark-all-read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark All Read
+         * @description Idempotent. Called on dropdown open — the chosen UX is
+         *     "open = saw it".
+         */
+        post: operations["mark_all_read_notifications_mark_all_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/mark-read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Read
+         * @description Marks specific rows read. IDs that don't belong to the caller
+         *     are silently dropped — no error, no leak of another user's rows.
+         */
+        post: operations["mark_read_notifications_mark_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnnouncementCreate
+         * @description Create request. `audience` is a raw string in the format the
+         *     audience parser accepts (`all`, `division:<name>`, `class:<uuid>`).
+         *     Role-based validation happens in the service.
+         */
+        AnnouncementCreate: {
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Audience */
+            audience: string;
+            /**
+             * Iscritical
+             * @default false
+             */
+            isCritical: boolean;
+        };
+        /**
+         * AnnouncementRead
+         * @description Read shape includes the author's display name (joined from
+         *     staff) so a list caller doesn't need a second fetch.
+         */
+        AnnouncementRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Audience */
+            audience: string;
+            /** Iscritical */
+            isCritical: boolean;
+            /**
+             * Createdbyid
+             * Format: uuid
+             */
+            createdById: string;
+            /** Createdbyname */
+            createdByName: string;
+            /** Createdat */
+            createdAt?: string | null;
+        };
+        /**
+         * AnnouncementsListResponse
+         * @description Paged list.
+         */
+        AnnouncementsListResponse: {
+            /** Items */
+            items: components["schemas"]["AnnouncementRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
         /**
          * AssignmentCreate
          * @description Teacher creates; status starts as `draft`. Teacher ID comes from
@@ -1528,6 +1704,18 @@ export interface components {
             page: number;
             /** Size */
             size: number;
+        };
+        /**
+         * BellData
+         * @description Compound response for the bell poll — list + unread count in one
+         *     round trip. The dropdown shows at most 10; the badge shows the full
+         *     unread count so a user with 25 unread sees `25` and the top 10.
+         */
+        BellData: {
+            /** Unreadcount */
+            unreadCount: number;
+            /** Items */
+            items: components["schemas"]["NotificationRead"][];
         };
         /**
          * ClassCreate
@@ -2380,6 +2568,19 @@ export interface components {
             /** Size */
             size: number;
         };
+        /**
+         * MarkReadRequest
+         * @description POST /notifications/mark-read — marks specific rows read.
+         */
+        MarkReadRequest: {
+            /** Ids */
+            ids?: string[];
+        };
+        /** MarkReadResponse */
+        MarkReadResponse: {
+            /** Marked */
+            marked: number;
+        };
         /** NextYearClassOption */
         NextYearClassOption: {
             /**
@@ -2401,6 +2602,35 @@ export interface components {
             onAnnouncementPosted: boolean;
             /** Onresultspublished */
             onResultsPublished: boolean;
+        };
+        /**
+         * NotificationRead
+         * @description One row from the recipient's own list — used by the bell dropdown.
+         */
+        NotificationRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_sent_back" | "assignment_created";
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Link */
+            link?: string | null;
+            /** Readat */
+            readAt?: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
         };
         /**
          * OverviewResponse
@@ -6982,6 +7212,236 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubmissionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_announcements_announcements_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_announcement_announcements_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_announcement_announcements__announcement_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                announcement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_announcement_announcements__announcement_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                announcement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bell_notifications_bell_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BellData"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_all_read_notifications_mark_all_read_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkReadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_read_notifications_mark_read_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkReadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkReadResponse"];
                 };
             };
             /** @description Validation Error */

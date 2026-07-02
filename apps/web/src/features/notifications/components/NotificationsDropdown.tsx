@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff, CheckCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,30 +15,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  getBellDataAction,
-  markAllAsReadAction,
-  type BellData,
-} from "@/features/notifications/actions";
+  useBellData,
+  useMarkAllNotificationsRead,
+} from "@/features/notifications/hooks/use-notifications";
 
-const POLL_INTERVAL_MS = 60_000;
 const MAX_BADGE = 9;
 
 export function NotificationsDropdown() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
-  const { data, isPending } = useQuery<BellData | null>({
-    queryKey: ["bell-data"],
-    queryFn: () => getBellDataAction(),
-    refetchInterval: POLL_INTERVAL_MS,
-    refetchOnWindowFocus: true,
-  });
+  const { data, isPending } = useBellData();
 
-  const markAll = useMutation({
-    mutationFn: markAllAsReadAction,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bell-data"] }),
-  });
+  const markAll = useMarkAllNotificationsRead();
 
   const unreadCount = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
@@ -112,7 +100,7 @@ export function NotificationsDropdown() {
               <DropdownMenuGroup key={n.id}>
                 <DropdownMenuItem
                   className="flex-col items-start gap-0.5 py-3 cursor-pointer px-3"
-                  onClick={() => onItemClick(n.link)}
+                  onClick={() => onItemClick(n.link ?? null)}
                 >
                   <div className="flex items-center gap-2 w-full">
                     {isUnread && (

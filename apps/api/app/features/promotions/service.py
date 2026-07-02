@@ -37,6 +37,12 @@ from app.features.audit.actions import PROMOTION_APPROVED
 from app.features.audit.service import write_audit_log
 from app.features.classes.model import Class, ClassTeacher
 from app.features.enrollments.model import Enrollment
+from app.features.notifications.audience import AllTeachersAudience
+from app.features.notifications.constants import (
+    PROMOTION_SEASON_OPENED,
+    PROMOTION_SENT_BACK,
+)
+from app.features.notifications.service import NotificationsService, NotifyPayload
 from app.features.promotions.academic_year import next_academic_year
 from app.features.promotions.constants import (
     DEC_GRADUATE,
@@ -137,19 +143,32 @@ class PromotionsService:
             existing.closed_at = None
             existing.updated_at = now
             await session.flush()
-            return existing, opened_with_override
+            season_row: PromotionSeason = existing
+        else:
+            season_row = PromotionSeason(
+                school_id=school_id,
+                academic_year=year,
+                status=SEASON_OPEN,
+                opened_with_override=opened_with_override,
+                opened_by_id=_to_uuid(opened_by_id),
+                opened_at=now,
+            )
+            session.add(season_row)
+            await session.flush()
 
-        row = PromotionSeason(
-            school_id=school_id,
-            academic_year=year,
-            status=SEASON_OPEN,
-            opened_with_override=opened_with_override,
-            opened_by_id=_to_uuid(opened_by_id),
-            opened_at=now,
+        # Notify every Teacher in the school. Empty audience → no-op.
+        await NotificationsService.notify_audience(
+            session,
+            school_id,
+            AllTeachersAudience(),
+            NotifyPayload(
+                kind=PROMOTION_SEASON_OPENED,
+                title="Promotion season opened",
+                body=f"Submit promotion decisions for your students in {year}.",
+                link="/teacher/promotions",
+            ),
         )
-        session.add(row)
-        await session.flush()
-        return row, opened_with_override
+        return season_row, opened_with_override
 
     @staticmethod
     async def close_season(
@@ -328,6 +347,27 @@ class PromotionsService:
         submission.reviewed_at = now
         submission.updated_at = now
         await session.flush()
+
+        # Notify the teacher who submitted the list. Skip if there's no
+        # `submitted_by_id` — shouldn't happen in practice (submit sets
+        # it) but be defensive: `send_back` can run on rows written by
+        # tests or migrations that skip the submit step.
+        if submission.submitted_by_id is not None:
+            teacher_user = await NotificationsService.find_user_for_linked(
+                session, school_id, submission.submitted_by_id
+            )
+            if teacher_user is not None:
+                await NotificationsService.notify_user(
+                    session,
+                    school_id,
+                    user_id=teacher_user.id,
+                    payload=NotifyPayload(
+                        kind=PROMOTION_SENT_BACK,
+                        title="Promotion list sent back",
+                        body=f"{cls.name}: {comment.strip()}",
+                        link=f"/teacher/promotions/{submission.class_id}",
+                    ),
+                )
         return submission
 
     @staticmethod

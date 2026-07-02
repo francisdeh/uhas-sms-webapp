@@ -27,6 +27,9 @@ from app.features.assignments.repository import AssignmentsRepository
 from app.features.assignments.schema import AssignmentCreate, AssignmentUpdate
 from app.features.classes.model import Class
 from app.features.classes.repository import ClassesRepository
+from app.features.notifications.audience import ParentsOfClassAudience
+from app.features.notifications.constants import ASSIGNMENT_CREATED
+from app.features.notifications.service import NotificationsService, NotifyPayload
 from app.features.staff.model import Staff
 from app.features.subjects.model import Subject
 from app.features.subjects.repository import SubjectsRepository
@@ -152,7 +155,7 @@ class AssignmentsService:
         *,
         actor_staff_id: UUID | str,
     ) -> tuple[Assignment, Staff, Subject, Class]:
-        row, _t, _s, _c = await AssignmentsService.get(session, school_id, assignment_id)
+        row, _t, _s, cls = await AssignmentsService.get(session, school_id, assignment_id)
         if str(row.teacher_id) != str(actor_staff_id):
             raise ForbiddenError("You can only publish your own assignments.")
         if row.status == PUBLISHED:
@@ -162,8 +165,22 @@ class AssignmentsService:
         row.published_at = now
         row.updated_at = now
         await session.flush()
-        # NOTE: on publish the TS side notifies parents-of-class. Deferred
-        # to Phase 2 #9 (Notifications). See docs/MIGRATION-CLEANUP.md §C.
+
+        # Notify parents of every currently-active student in the class.
+        # Empty audience is a silent no-op — the assignment is still
+        # published; parents just don't get a push.
+        due_note = f" Due {row.due_date:%d %b}." if row.due_date else ""
+        await NotificationsService.notify_audience(
+            session,
+            school_id,
+            ParentsOfClassAudience(class_id=row.class_id),
+            NotifyPayload(
+                kind=ASSIGNMENT_CREATED,
+                title="New assignment",
+                body=f"{row.title} ({cls.name}).{due_note}",
+                link="/parent/assignments",
+            ),
+        )
         return await AssignmentsService.get(session, school_id, assignment_id)
 
     @staticmethod
