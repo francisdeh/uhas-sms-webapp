@@ -40,6 +40,16 @@ from app.features.lesson_plans.schema import (
     LessonPlanReviewRequest,
     LessonPlanUpdate,
 )
+from app.features.notifications.audience import (
+    StaffByDivisionAudience,
+    UnitHeadOfDivisionAudience,
+)
+from app.features.notifications.constants import (
+    LESSON_PLAN_ADVANCED,
+    LESSON_PLAN_REVIEWED,
+    LESSON_PLAN_SUBMITTED,
+)
+from app.features.notifications.service import NotificationsService, NotifyPayload
 from app.features.staff.model import Staff
 from app.features.staff.repository import StaffRepository
 from app.features.subjects.model import Subject
@@ -218,7 +228,9 @@ class LessonPlansService:
         str | None,
         object | None,
     ]:
-        row, _t, _s, _c, _r, _cm, _ts = await LessonPlansService.get(session, school_id, plan_id)
+        row, teacher, _s, cls, _r, _cm, _ts = await LessonPlansService.get(
+            session, school_id, plan_id
+        )
         if str(row.teacher_id) != str(actor_staff_id):
             raise ForbiddenError("Only the owning teacher can submit this lesson plan.")
         if SUBMITTED not in _ALLOWED_TRANSITIONS.get(row.status, set()):
@@ -226,6 +238,24 @@ class LessonPlansService:
         row.status = SUBMITTED
         row.updated_at = _now()
         await session.flush()
+
+        # Notify every Unit Head whose `unit_head_of` matches the class's
+        # division. Empty audience → no-op (a division without an assigned
+        # Unit Head still lets the plan reach the Deputy).
+        await NotificationsService.notify_audience(
+            session,
+            school_id,
+            UnitHeadOfDivisionAudience(division=cls.division),
+            NotifyPayload(
+                kind=LESSON_PLAN_SUBMITTED,
+                title="Lesson plan submitted",
+                body=(
+                    f"{teacher.first_name} {teacher.last_name} submitted a plan "
+                    f"for {cls.name} for your review."
+                ),
+                link="/teacher/lesson-plans",
+            ),
+        )
         return await LessonPlansService.get(session, school_id, plan_id)
 
     @staticmethod
@@ -249,7 +279,7 @@ class LessonPlansService:
         """Approve or reject. Reviewer auth is inferred from the *plan's*
         current status + the caller's role + (for Unit Heads) the class's
         division."""
-        row, _teacher, _sub, cls, _rev, _cm, _ts = await LessonPlansService.get(
+        row, teacher, _sub, cls, _rev, _cm, _ts = await LessonPlansService.get(
             session, school_id, plan_id
         )
         decision = payload.decision
@@ -284,10 +314,22 @@ class LessonPlansService:
         row.status = decision
         row.updated_at = _now()
         await session.flush()
-        # NOTE: notification triggers fire here in the TS side —
-        # teacher on approve/reject, next-tier reviewer on advance.
-        # Deferred to Phase 2 #9 (Notifications port). See
-        # docs/MIGRATION-CLEANUP.md for the exact triggers.
+
+        # Fan out notifications. Three triggers based on `decision`:
+        #   * `unit_head_approved` — advances to Deputy review; notify
+        #     Deputy Heads of the division so they see it in their queue.
+        #   * `approved` — terminal; notify the teacher.
+        #   * `rejected` — notify the teacher (email trigger deferred to
+        #     Phase 3 alongside SMS; see MIGRATION-CLEANUP.md).
+        await _fan_out_review_notification(
+            session,
+            school_id,
+            plan=row,
+            teacher=teacher,
+            cls=cls,
+            decision=decision,
+            comment=payload.comment,
+        )
         return await LessonPlansService.get(session, school_id, plan_id)
 
     @staticmethod
@@ -353,3 +395,57 @@ async def _assert_can_review(
         raise ForbiddenError("Deputy Head can only review plans in their own division.")
 
     raise ForbiddenError("Only Deputy Head or Admin can complete the second review.")
+
+
+async def _fan_out_review_notification(
+    session: AsyncSession,
+    school_id: UUID | str,
+    *,
+    plan: LessonPlan,
+    teacher: Staff,
+    cls: Class,
+    decision: str,
+    comment: str | None,
+) -> None:
+    """One trigger, three shapes depending on the review outcome. See the
+    review() docstring for the rules — this helper is just the payload
+    plumbing."""
+    if decision == UNIT_HEAD_APPROVED:
+        # Advance: notify Deputy Heads of the class's division.
+        await NotificationsService.notify_audience(
+            session,
+            school_id,
+            StaffByDivisionAudience(division=cls.division, roles=[DEPUTY_HEAD]),
+            NotifyPayload(
+                kind=LESSON_PLAN_ADVANCED,
+                title="Lesson plan awaiting your approval",
+                body=(
+                    f"{teacher.first_name} {teacher.last_name} • {cls.name} "
+                    f"• Term {plan.term}, Week {plan.week}"
+                ),
+                link="/deputy-head/lesson-plans",
+            ),
+        )
+        return
+
+    # Terminal decisions (approved / rejected) — notify the teacher.
+    teacher_user = await NotificationsService.find_user_for_linked(
+        session, school_id, plan.teacher_id
+    )
+    if teacher_user is None:
+        # No app user linked to this staff row yet (fresh onboarding).
+        # A missing user is not an error — the plan still transitions.
+        return
+    title = "Lesson plan approved" if decision == APPROVED else "Lesson plan rejected"
+    body = comment or (f"Your plan for {cls.name} • Term {plan.term}, Week {plan.week}")
+    await NotificationsService.notify_user(
+        session,
+        school_id,
+        user_id=teacher_user.id,
+        payload=NotifyPayload(
+            kind=LESSON_PLAN_REVIEWED,
+            title=title,
+            body=body,
+            link="/teacher/lesson-plans",
+        ),
+    )

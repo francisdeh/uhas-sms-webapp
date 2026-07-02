@@ -19,6 +19,12 @@ from app.core.errors import ConflictError, ForbiddenError, NotFoundError, Valida
 from app.core.roles import ADMIN, DEPUTY_HEAD, TEACHER
 from app.features.classes.model import Class
 from app.features.classes.repository import ClassesRepository
+from app.features.notifications.audience import UnitHeadOfDivisionAudience
+from app.features.notifications.constants import (
+    SCHEME_ACKNOWLEDGED,
+    SCHEME_SUBMITTED,
+)
+from app.features.notifications.service import NotificationsService, NotifyPayload
 from app.features.schemes.constants import ACKNOWLEDGED, DRAFT, SUBMITTED
 from app.features.schemes.model import Scheme
 from app.features.schemes.repository import SchemesRepository
@@ -133,7 +139,7 @@ class SchemesService:
         *,
         actor_staff_id: UUID | str,
     ) -> tuple[Scheme, Staff, Subject, Class, Staff | None]:
-        row, _t, _s, _c, _r = await SchemesService.get(session, school_id, scheme_id)
+        row, teacher, _s, cls, _r = await SchemesService.get(session, school_id, scheme_id)
         if str(row.teacher_id) != str(actor_staff_id):
             raise ForbiddenError("Only the owning teacher can submit this scheme.")
         if row.status != DRAFT:
@@ -142,6 +148,22 @@ class SchemesService:
         row.submitted_at = _now()
         row.updated_at = _now()
         await session.flush()
+
+        # Notify Unit Heads of the class's division.
+        await NotificationsService.notify_audience(
+            session,
+            school_id,
+            UnitHeadOfDivisionAudience(division=cls.division),
+            NotifyPayload(
+                kind=SCHEME_SUBMITTED,
+                title="Scheme submitted",
+                body=(
+                    f"{teacher.first_name} {teacher.last_name} submitted "
+                    f"{row.title} for {cls.name}."
+                ),
+                link="/teacher/schemes",
+            ),
+        )
         return await SchemesService.get(session, school_id, scheme_id)
 
     @staticmethod
@@ -154,7 +176,7 @@ class SchemesService:
         actor_staff_id: UUID | str | None,
         actor_role: str,
     ) -> tuple[Scheme, Staff, Subject, Class, Staff | None]:
-        row, _teacher, _sub, cls, _rev = await SchemesService.get(session, school_id, scheme_id)
+        row, teacher, _sub, cls, _rev = await SchemesService.get(session, school_id, scheme_id)
         if row.status != SUBMITTED:
             raise ValidationError(f"Cannot acknowledge a scheme in {row.status!r} state.")
 
@@ -172,6 +194,27 @@ class SchemesService:
         row.reviewed_at = _now()
         row.updated_at = _now()
         await session.flush()
+
+        # Notify the submitting teacher.
+        teacher_user = await NotificationsService.find_user_for_linked(
+            session, school_id, row.teacher_id
+        )
+        if teacher_user is not None:
+            await NotificationsService.notify_user(
+                session,
+                school_id,
+                user_id=teacher_user.id,
+                payload=NotifyPayload(
+                    kind=SCHEME_ACKNOWLEDGED,
+                    title="Scheme acknowledged",
+                    body=(
+                        f"{row.title} for {cls.name} was acknowledged"
+                        + (f": {payload.comment}" if payload.comment else ".")
+                    ),
+                    link="/teacher/schemes",
+                ),
+            )
+            _ = teacher  # Referenced above for the display fields
         return await SchemesService.get(session, school_id, scheme_id)
 
     @staticmethod

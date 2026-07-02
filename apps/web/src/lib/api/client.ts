@@ -764,6 +764,55 @@ export function createApiClient(getAuthToken: TokenGetter) {
           { method: "POST", body: JSON.stringify(payload) },
         ),
     },
+    notifications: {
+      /** Compound bell response — top-10 items + unread count. Poll
+       *  target for the bell dropdown. */
+      getBell: () =>
+        apiFetch<components["schemas"]["BellData"]>(
+          getAuthToken,
+          "/notifications/bell",
+        ),
+      /** Marks every unread notification for the caller as read.
+       *  Idempotent; used when the bell dropdown opens. */
+      markAllRead: () =>
+        apiFetch<components["schemas"]["MarkReadResponse"]>(
+          getAuthToken,
+          "/notifications/mark-all-read",
+          { method: "POST" },
+        ),
+      /** Marks specific ids read; foreign ids are silently dropped
+       *  server-side. */
+      markRead: (payload: components["schemas"]["MarkReadRequest"]) =>
+        apiFetch<components["schemas"]["MarkReadResponse"]>(
+          getAuthToken,
+          "/notifications/mark-read",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+    },
+    announcements: {
+      /** Role-filtered list. Server infers scope from the JWT — the
+       *  client doesn't get to pass a role. */
+      list: (params: { page?: number; size?: number } = {}) =>
+        apiFetch<components["schemas"]["AnnouncementsListResponse"]>(
+          getAuthToken,
+          `/announcements${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["AnnouncementRead"]>(
+          getAuthToken,
+          `/announcements/${id}`,
+        ),
+      create: (payload: components["schemas"]["AnnouncementCreate"]) =>
+        apiFetch<components["schemas"]["AnnouncementRead"]>(
+          getAuthToken,
+          "/announcements",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      delete: (id: string) =>
+        apiFetch<void>(getAuthToken, `/announcements/${id}`, {
+          method: "DELETE",
+        }),
+    },
   };
 }
 

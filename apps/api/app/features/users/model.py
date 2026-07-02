@@ -1,0 +1,36 @@
+"""SQLAlchemy model for the app-level `users` table.
+
+The `id` matches the Supabase auth user UUID; the `linked_id` points at
+the staff/guardian row that owns the person's business identity. `role`
+is the app role (Admin/DeputyHead/Teacher/Parent/Accountant) — separate
+from `staff.system_role` because a Parent has no staff row and a Teacher
+with `is_unit_head=True` doesn't get a different role.
+
+This table is the audience-resolution anchor for notifications: they
+write to `user_id`, and the resolver joins staff/guardian FKs → this
+table so a business-identity change (division moved) is reflected
+without re-issuing IDs.
+
+Table was created in the Drizzle baseline; no columns change here.
+"""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from sqlalchemy import Boolean, ForeignKey, String, Uuid
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.core.db import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    school_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("schools.id"), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(50), nullable=False)
+    linked_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
+    is_active: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)
+    must_change_password: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)
