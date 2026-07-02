@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { getSchemeAction } from "@/features/schemes/actions";
 import { listTeacherAssignmentsAction } from "@/features/exams/actions";
 import { SchemeForm } from "@/features/schemes/components/SchemeForm";
@@ -18,7 +19,10 @@ export default async function EditSchemePage({ params }: PageProps) {
   const scheme = await getSchemeAction(id);
   if (!scheme || scheme.teacherId !== user.linkedId) notFound();
 
-  const assignments = await listTeacherAssignmentsAction(user.linkedId);
+  const [assignments, currentAcademicYear] = await Promise.all([
+    listTeacherAssignmentsAction(user.linkedId),
+    getCurrentAcademicYear(),
+  ]);
   const flat = assignments.flatMap((c) =>
     c.subjects.map((s) => ({
       classId: c.classId,
@@ -50,6 +54,7 @@ export default async function EditSchemePage({ params }: PageProps) {
         existing={scheme}
         assignments={flat}
         backHref="/teacher/schemes"
+        currentAcademicYear={currentAcademicYear}
       />
     </div>
   );

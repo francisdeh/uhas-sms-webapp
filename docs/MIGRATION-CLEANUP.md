@@ -40,3 +40,42 @@ All seven items resolved in the same PR:
 | **B5** | ✅ Done | `_to_read` in [students/router.py](../apps/api/app/features/students/router.py) uses `model_copy(update=…)` — one Pydantic pass instead of validate/dump/validate. |
 | **B6** | ✅ Done | `write_audit_log`'s `target_id` accepts `UUID \| str` directly; the awkward `isinstance(staff_id, UUID) else UUID(str(staff_id))` coercion at the call site is gone. |
 | **B7** | ✅ Done | [`app/features/audit/actions.py`](../apps/api/app/features/audit/actions.py) constants + `AuditAction` Literal. `write_audit_log`'s `action` param now requires one of the closed set. Every service uses the constants. |
+
+## C. Deferred notification triggers — Phase 2 #9
+
+The following state transitions used to fire notifications (in-app + sometimes email) on the TS side. When the Notifications domain is ported (Phase 2 item #9 in [v2/UHAS_Migration_Execution_Plan.md](../v2/UHAS_Migration_Execution_Plan.md)), wire these into the corresponding service methods. All the transition points are already isolated in `service.py` files, so the changes are additive.
+
+### `lesson_plans/service.py` — [`LessonPlansService.submit`](../apps/api/app/features/lesson_plans/service.py) + [`.review`](../apps/api/app/features/lesson_plans/service.py)
+
+| Trigger | Audience | In-app | Email (respects setting) |
+|---|---|---|---|
+| Teacher submits | all Unit Heads with `unit_head_of == class.division` | ✅ | — |
+| Unit Head approves (`submitted → unit_head_approved`) | all Deputy Heads with `division == class.division` | ✅ | — |
+| Any reviewer approves (`* → approved`) or rejects (`* → rejected`) | the teacher (`plan.teacher_id`) | ✅ | ✅ on rejection, gated by `school.notification_defaults.on_lesson_plan_rejected` |
+
+### `schemes/service.py` — [`SchemesService.submit`](../apps/api/app/features/schemes/service.py) + [`.acknowledge`](../apps/api/app/features/schemes/service.py)
+
+| Trigger | Audience | In-app | Email |
+|---|---|---|---|
+| Teacher submits | all Unit Heads with `unit_head_of == class.division` | ✅ | — |
+| Reviewer acknowledges | the teacher (`scheme.teacher_id`) | ✅ | — |
+
+Kinds to use (mirror the TS values):
+- `lesson_plan_submitted`, `lesson_plan_reviewed`, `lesson_plan_advanced`
+- `scheme_submitted`, `scheme_acknowledged`
+
+The audience resolver on the TS side lives at [`apps/web/src/features/notifications/lib/audience.ts`](../apps/web/src/features/notifications/lib/audience.ts) and understands `{type: "unitHeadOfDivision", division}` / `{type: "deputyHeadsOfDivision", division}` / `{type: "staff", staffId}`. Port these signatures for parity.
+
+## D. Post-port UX backlog — enriched review history for lesson plans
+
+**Status:** deferred until every Phase 2 feature is ported.
+
+**Background.** The `lesson_plans` row used to carry a single-review snapshot (`reviewed_by_id`/`reviewer_comment`/`reviewed_at`) that got overwritten on each review event — a Deputy Head approval wiped out the Unit Head's approval identity. The Phase 2 lesson-plans port introduced a dedicated [`lesson_plan_reviews`](../apps/api/app/features/lesson_plans/model.py) child table (one row per review event) with a "latest review" subquery join, so today the full history is preserved server-side but the API response still exposes only the latest reviewer for backwards compatibility with the existing UI.
+
+**Backlog task.** Once the full port is done, surface the complete history in the UI:
+
+- Add an endpoint (`GET /lesson-plans/{plan_id}/reviews`) returning the ordered review timeline: reviewer name + role + decision + comment + timestamp for each event.
+- On the [`LessonPlanForm`](../apps/web/src/features/lesson-plans/components/LessonPlanForm.tsx) and the review-detail pane, render a timeline: "Submitted by *Teacher X* → Unit Head *Y* approved (comment) → Deputy Head *Z* approved (comment)".
+- Keep the flat `reviewerComment`/`reviewedById`/`reviewedAt` fields on `LessonPlanRead` for the top-of-form badge, but source them from a dedicated `latestReview` object in the response so the shape is explicit.
+
+This is UX polish, not a correctness fix — history is already recorded; we're just exposing it.

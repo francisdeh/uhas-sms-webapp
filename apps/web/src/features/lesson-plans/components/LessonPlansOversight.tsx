@@ -8,27 +8,25 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { LessonPlan, LessonPlanStatus } from "@/features/lesson-plans/types";
-import type { Division } from "@/features/auth/types";
+import {
+  LESSON_PLAN_STATUS,
+  type LessonPlan,
+  type LessonPlanStatus,
+} from "@/features/lesson-plans/types";
+import { DIVISIONS, type Division } from "@/features/auth/types";
 import { StatusPill, LESSON_PLAN_STATUS_LABELS } from "./StatusPill";
 import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS: ("all" | LessonPlanStatus)[] = [
   "all",
-  "draft",
-  "submitted",
-  "unit_head_approved",
-  "approved",
-  "rejected",
+  LESSON_PLAN_STATUS.DRAFT,
+  LESSON_PLAN_STATUS.SUBMITTED,
+  LESSON_PLAN_STATUS.UNIT_HEAD_APPROVED,
+  LESSON_PLAN_STATUS.APPROVED,
+  LESSON_PLAN_STATUS.REJECTED,
 ];
 
-const DIVISION_FILTERS: ("all" | Division)[] = [
-  "all",
-  "KG",
-  "Lower Primary",
-  "Upper Primary",
-  "JHS",
-];
+const DIVISION_FILTERS: ("all" | Division)[] = ["all", ...DIVISIONS];
 
 interface LessonPlansOversightProps {
   plans: LessonPlan[];

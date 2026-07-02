@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Check, X, Inbox, History } from "lucide-react";
 import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
@@ -21,74 +20,80 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useReviewLessonPlan } from "@/features/lesson-plans/hooks/use-lesson-plans";
 import {
-  unitHeadReviewAction,
-  deputyHeadReviewAction,
-} from "@/features/lesson-plans/actions";
-import type { LessonPlan } from "@/features/lesson-plans/types";
+  LESSON_PLAN_REVIEWER_ROLE,
+  LESSON_PLAN_STATUS,
+  type LessonPlan,
+  type LessonPlanReviewerRole,
+  type LessonPlanStatus,
+} from "@/features/lesson-plans/types";
 import { StatusPill } from "./StatusPill";
 
 interface ReviewQueueProps {
   reviewerId: string;
-  reviewerRole: "UnitHead" | "DeputyHead";
+  reviewerRole: LessonPlanReviewerRole;
   pending: LessonPlan[];
   recent: LessonPlan[];
 }
 
 export function ReviewQueue({ reviewerId, reviewerRole, pending, recent }: ReviewQueueProps) {
-  const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [rejectTarget, setRejectTarget] = useState<LessonPlan | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const review = useReviewLessonPlan();
+  const isPending = review.isPending;
+  // Reviewer identity is derived from the JWT server-side now; kept in
+  // props for backward-compat with the Server Component that renders
+  // this queue.
+  void reviewerId;
 
-  function reviewerFn(input: { id: string; reviewerId: string; decision: { decision: "approve" | "reject"; comment?: string } }) {
-    return reviewerRole === "UnitHead"
-      ? unitHeadReviewAction(input)
-      : deputyHeadReviewAction(input);
-  }
-
-  function handleApprove(plan: LessonPlan) {
+  async function handleApprove(plan: LessonPlan) {
     setActingId(plan.id);
-    startTransition(async () => {
-      const result = await reviewerFn({
+    // Unit Head advances "submitted → unit_head_approved"; Deputy Head
+    // finalises "unit_head_approved → approved" (or "submitted →
+    // approved" if they're skipping the Unit Head step). The service
+    // infers which from the plan's current status + caller role.
+    const decision: LessonPlanStatus =
+      reviewerRole === LESSON_PLAN_REVIEWER_ROLE.UNIT_HEAD &&
+      plan.status === LESSON_PLAN_STATUS.SUBMITTED
+        ? LESSON_PLAN_STATUS.UNIT_HEAD_APPROVED
+        : LESSON_PLAN_STATUS.APPROVED;
+    try {
+      await review.mutateAsync({
         id: plan.id,
-        reviewerId,
-        decision: { decision: "approve", comment: comments[plan.id] },
+        payload: {
+          decision,
+          comment: comments[plan.id] || null,
+        },
       });
-      setActingId(null);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Approved.");
-      router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
+    setActingId(null);
   }
 
-  function handleReject() {
+  async function handleReject() {
     if (!rejectTarget) return;
     if (!comments[rejectTarget.id]?.trim()) {
       toast.error("Add a reason for rejection.");
       return;
     }
     setActingId(rejectTarget.id);
-    startTransition(async () => {
-      const result = await reviewerFn({
+    try {
+      await review.mutateAsync({
         id: rejectTarget.id,
-        reviewerId,
-        decision: { decision: "reject", comment: comments[rejectTarget.id] },
+        payload: {
+          decision: LESSON_PLAN_STATUS.REJECTED,
+          comment: comments[rejectTarget.id],
+        },
       });
-      setActingId(null);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Rejected.");
       setRejectTarget(null);
-      router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
+    setActingId(null);
   }
 
   function toggle(id: string) {
@@ -99,10 +104,10 @@ export function ReviewQueue({ reviewerId, reviewerRole, pending, recent }: Revie
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold">
-          {reviewerRole === "UnitHead" ? "Unit Head Reviews" : "Lesson Plan Approvals"}
+          {reviewerRole === LESSON_PLAN_REVIEWER_ROLE.UNIT_HEAD ? "Unit Head Reviews" : "Lesson Plan Approvals"}
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {reviewerRole === "UnitHead"
+          {reviewerRole === LESSON_PLAN_REVIEWER_ROLE.UNIT_HEAD
             ? "Plans submitted by teachers in your unit awaiting your review."
             : "Plans approved by Unit Heads awaiting your final sign-off."}
         </p>
@@ -116,7 +121,7 @@ export function ReviewQueue({ reviewerId, reviewerRole, pending, recent }: Revie
             icon={Inbox}
             title="No plans pending your review"
             description={
-              reviewerRole === "UnitHead"
+              reviewerRole === LESSON_PLAN_REVIEWER_ROLE.UNIT_HEAD
                 ? "New submissions from teachers in your unit will appear here."
                 : "Plans that Unit Heads have approved will appear here for your sign-off."
             }

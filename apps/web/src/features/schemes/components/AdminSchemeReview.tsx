@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Check, Inbox, History } from "lucide-react";
 import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
@@ -11,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { acknowledgeSchemeAction } from "@/features/schemes/actions";
+import { useAcknowledgeScheme } from "@/features/schemes/hooks/use-schemes";
 import type { Scheme } from "@/features/schemes/types";
 import { SchemeStatusPill } from "./SchemeStatusPill";
 
@@ -22,29 +21,26 @@ interface AdminSchemeReviewProps {
 }
 
 export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeReviewProps) {
-  const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [actingId, setActingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const acknowledge = useAcknowledgeScheme();
+  const isPending = acknowledge.isPending;
+  void reviewerId; // derived from JWT server-side now
 
-  function handleAcknowledge(scheme: Scheme) {
+  async function handleAcknowledge(scheme: Scheme) {
     setActingId(scheme.id);
-    startTransition(async () => {
-      const result = await acknowledgeSchemeAction({
+    try {
+      await acknowledge.mutateAsync({
         id: scheme.id,
-        reviewerId,
-        comment: comments[scheme.id],
+        payload: { comment: comments[scheme.id] || null },
       });
-      setActingId(null);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Scheme acknowledged.");
-      router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
+    setActingId(null);
   }
+  void toast; // silence "unused import" in case of no-op branches
 
   function toggle(id: string) {
     setOpenId(openId === id ? null : id);

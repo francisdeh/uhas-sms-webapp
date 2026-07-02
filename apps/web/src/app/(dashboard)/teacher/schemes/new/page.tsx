@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { listTeacherAssignmentsAction } from "@/features/exams/actions";
 import { SchemeForm } from "@/features/schemes/components/SchemeForm";
 
@@ -9,7 +10,10 @@ export default async function NewSchemePage() {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
 
-  const assignments = await listTeacherAssignmentsAction(user.linkedId);
+  const [assignments, currentAcademicYear] = await Promise.all([
+    listTeacherAssignmentsAction(user.linkedId),
+    getCurrentAcademicYear(),
+  ]);
   const flat = assignments.flatMap((c) =>
     c.subjects.map((s) => ({
       classId: c.classId,
@@ -32,6 +36,7 @@ export default async function NewSchemePage() {
         existing={null}
         assignments={flat}
         backHref="/teacher/schemes"
+        currentAcademicYear={currentAcademicYear}
       />
     </div>
   );
