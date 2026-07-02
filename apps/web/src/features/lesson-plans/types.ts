@@ -1,11 +1,22 @@
 import type { Division } from "@/features/auth/types";
 
-export type LessonPlanStatus =
-  | "draft"
-  | "submitted"
-  | "unit_head_approved"
-  | "approved"
-  | "rejected";
+export const LESSON_PLAN_STATUS = {
+  DRAFT: "draft",
+  SUBMITTED: "submitted",
+  UNIT_HEAD_APPROVED: "unit_head_approved",
+  APPROVED: "approved",
+  REJECTED: "rejected",
+} as const;
+
+export type LessonPlanStatus = (typeof LESSON_PLAN_STATUS)[keyof typeof LESSON_PLAN_STATUS];
+
+export const LESSON_PLAN_REVIEWER_ROLE = {
+  UNIT_HEAD: "UnitHead",
+  DEPUTY_HEAD: "DeputyHead",
+} as const;
+
+export type LessonPlanReviewerRole =
+  (typeof LESSON_PLAN_REVIEWER_ROLE)[keyof typeof LESSON_PLAN_REVIEWER_ROLE];
 
 export type LessonPlan = {
   id: string;

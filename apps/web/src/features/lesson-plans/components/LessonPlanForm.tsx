@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,12 +32,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import {
-  createLessonPlanAction,
-  updateLessonPlanAction,
-  submitLessonPlanAction,
-  deleteLessonPlanAction,
-} from "@/features/lesson-plans/actions";
-import type { LessonPlan } from "@/features/lesson-plans/types";
+  useCreateLessonPlan,
+  useDeleteLessonPlan,
+  useSubmitLessonPlan,
+  useUpdateLessonPlan,
+} from "@/features/lesson-plans/hooks/use-lesson-plans";
+import { LESSON_PLAN_STATUS, type LessonPlan } from "@/features/lesson-plans/types";
 import { StatusPill } from "./StatusPill";
 
 const schema = z.object({
@@ -64,11 +64,24 @@ interface LessonPlanFormProps {
 
 export function LessonPlanForm({ teacherId, existing, assignments, backHref }: LessonPlanFormProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const createPlan = useCreateLessonPlan();
+  const updatePlan = useUpdateLessonPlan();
+  const submitPlan = useSubmitLessonPlan();
+  const deletePlan = useDeleteLessonPlan();
+  const isPending =
+    createPlan.isPending ||
+    updatePlan.isPending ||
+    submitPlan.isPending ||
+    deletePlan.isPending;
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // Teacher ID is now derived server-side from the JWT; kept in props
+  // so parent Server Components don't have to change yet.
+  void teacherId;
   const [tempId] = useState(() => existing?.id ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
 
-  const locked = existing?.status === "approved" || existing?.status === "unit_head_approved";
+  const locked =
+    existing?.status === LESSON_PLAN_STATUS.APPROVED ||
+    existing?.status === LESSON_PLAN_STATUS.UNIT_HEAD_APPROVED;
 
   const uniqueClasses = Array.from(
     new Map(assignments.map((a) => [a.classId, a.className])).entries()
@@ -93,63 +106,61 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
   const selectedClassId = useWatch({ control: form.control, name: "classId" });
   const subjectsForSelectedClass = assignments.filter((a) => a.classId === selectedClassId);
 
-  function onSave(values: FormValues) {
-    startTransition(async () => {
-      const cleaned = { ...values, fileUrl: values.fileUrl || undefined };
+  async function onSave(values: FormValues) {
+    const cleaned = { ...values, fileUrl: values.fileUrl || null };
+    try {
       if (existing) {
-        const result = await updateLessonPlanAction({
+        await updatePlan.mutateAsync({
           id: existing.id,
-          teacherId,
-          data: cleaned,
+          payload: {
+            topic: cleaned.topic,
+            learningObjectives: cleaned.learningObjectives,
+            teachingMethods: cleaned.teachingMethods,
+            resources: cleaned.resources,
+            assessmentPlan: cleaned.assessmentPlan,
+            fileUrl: cleaned.fileUrl,
+          },
         });
-        if (!result.success) {
-          toast.error(result.error);
-          return;
-        }
-        toast.success("Saved.");
-        router.refresh();
       } else {
-        const result = await createLessonPlanAction({
-          teacherId,
-          data: cleaned,
+        await createPlan.mutateAsync({
+          subjectId: cleaned.subjectId,
+          classId: cleaned.classId,
+          term: cleaned.term,
+          week: cleaned.week,
+          topic: cleaned.topic,
+          learningObjectives: cleaned.learningObjectives,
+          teachingMethods: cleaned.teachingMethods,
+          resources: cleaned.resources,
+          assessmentPlan: cleaned.assessmentPlan,
+          fileUrl: cleaned.fileUrl,
         });
-        if (!result.success) {
-          toast.error(result.error);
-          return;
-        }
-        toast.success("Lesson plan created.");
         router.push(backHref);
       }
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function onSubmitForReview() {
+  async function onSubmitForReview() {
     if (!existing) {
       toast.error("Save the plan first.");
       return;
     }
-    startTransition(async () => {
-      const result = await submitLessonPlanAction({ id: existing.id, teacherId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Submitted for review.");
-      router.refresh();
-    });
+    try {
+      await submitPlan.mutateAsync(existing.id);
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function onDelete() {
+  async function onDelete() {
     if (!existing) return;
-    startTransition(async () => {
-      const result = await deleteLessonPlanAction({ id: existing.id, teacherId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Lesson plan deleted.");
+    try {
+      await deletePlan.mutateAsync(existing.id);
       router.push(backHref);
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
   return (
@@ -170,7 +181,7 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
         </div>
       </div>
 
-      {existing?.status === "rejected" && existing.reviewerComment && (
+      {existing?.status === LESSON_PLAN_STATUS.REJECTED && existing.reviewerComment && (
         <Alert className="border-red-200 bg-red-50 text-red-800">
           <AlertDescription>
             <strong>Rejected by {existing.reviewedByName}:</strong> {existing.reviewerComment}
@@ -180,7 +191,7 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
         </Alert>
       )}
 
-      {existing && existing.reviewerComment && existing.status !== "rejected" && (
+      {existing && existing.reviewerComment && existing.status !== LESSON_PLAN_STATUS.REJECTED && (
         <Alert>
           <AlertDescription>
             <strong>Reviewer note ({existing.reviewedByName}):</strong> {existing.reviewerComment}
@@ -370,7 +381,9 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
             </FieldGroup>
 
             <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              {existing && (existing.status === "draft" || existing.status === "rejected") && (
+              {existing &&
+                (existing.status === LESSON_PLAN_STATUS.DRAFT ||
+                  existing.status === LESSON_PLAN_STATUS.REJECTED) && (
                 <Button
                   type="button"
                   variant="outline"
@@ -388,7 +401,9 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
                     Save draft
                   </Button>
                 )}
-                {existing && (existing.status === "draft" || existing.status === "rejected") && (
+                {existing &&
+                (existing.status === LESSON_PLAN_STATUS.DRAFT ||
+                  existing.status === LESSON_PLAN_STATUS.REJECTED) && (
                   <Button type="button" onClick={onSubmitForReview} disabled={isPending}>
                     <Send size={14} className="mr-1.5" /> Submit for review
                   </Button>

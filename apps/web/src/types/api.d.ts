@@ -759,6 +759,158 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lesson-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Lesson Plans
+         * @description Non-Admin/Deputy default to own plans only. Reviewers see everyone
+         *     unless they narrow with `?teacherId=`.
+         */
+        get: operations["list_lesson_plans_lesson_plans_get"];
+        put?: never;
+        /** Create Lesson Plan */
+        post: operations["create_lesson_plan_lesson_plans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lesson-plans/{plan_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Lesson Plan
+         * @description Owning teachers + approvers can read. Anyone else 403s.
+         *
+         *     Same IDOR guard we applied to leave requests — a Parent iterating
+         *     UUIDs can't peek at teacher lesson plans.
+         */
+        get: operations["get_lesson_plan_lesson_plans__plan_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Lesson Plan */
+        delete: operations["delete_lesson_plan_lesson_plans__plan_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Lesson Plan */
+        patch: operations["update_lesson_plan_lesson_plans__plan_id__patch"];
+        trace?: never;
+    };
+    "/lesson-plans/{plan_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Lesson Plan */
+        post: operations["submit_lesson_plan_lesson_plans__plan_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lesson-plans/{plan_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Lesson Plan */
+        post: operations["review_lesson_plan_lesson_plans__plan_id__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schemes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Schemes */
+        get: operations["list_schemes_schemes_get"];
+        put?: never;
+        /** Create Scheme */
+        post: operations["create_scheme_schemes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schemes/{scheme_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Scheme */
+        get: operations["get_scheme_schemes__scheme_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Scheme */
+        delete: operations["delete_scheme_schemes__scheme_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Scheme */
+        patch: operations["update_scheme_schemes__scheme_id__patch"];
+        trace?: never;
+    };
+    "/schemes/{scheme_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Scheme */
+        post: operations["submit_scheme_schemes__scheme_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schemes/{scheme_id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Acknowledge Scheme */
+        post: operations["acknowledge_scheme_schemes__scheme_id__acknowledge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1490,6 +1642,169 @@ export interface components {
             status: "pending" | "approved" | "rejected" | "cancelled";
         };
         /**
+         * LessonPlanCreate
+         * @description A teacher creates a plan; status starts as `draft`. Teacher ID
+         *     comes from the caller's JWT `linked_id` — not accepted in payload
+         *     (per the security fix we applied on leave requests).
+         */
+        LessonPlanCreate: {
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Term */
+            term: number;
+            /** Week */
+            week: number;
+            /** Topic */
+            topic?: string | null;
+            /** Learningobjectives */
+            learningObjectives?: string | null;
+            /** Teachingmethods */
+            teachingMethods?: string | null;
+            /** Resources */
+            resources?: string | null;
+            /** Assessmentplan */
+            assessmentPlan?: string | null;
+            /** Fileurl */
+            fileUrl?: string | null;
+        };
+        /**
+         * LessonPlanRead
+         * @description Read shape includes joined display fields — teacher / subject /
+         *     class / reviewer names — so the review-queue and teacher-list UIs
+         *     don't need a second round trip.
+         */
+        LessonPlanRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Teacherid
+             * Format: uuid
+             */
+            teacherId: string;
+            /** Teacherfirstname */
+            teacherFirstName: string;
+            /** Teacherlastname */
+            teacherLastName: string;
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Subjectslug */
+            subjectSlug: string;
+            /** Subjectname */
+            subjectName: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Term */
+            term: number;
+            /** Week */
+            week: number;
+            /** Topic */
+            topic?: string | null;
+            /** Learningobjectives */
+            learningObjectives?: string | null;
+            /** Teachingmethods */
+            teachingMethods?: string | null;
+            /** Resources */
+            resources?: string | null;
+            /** Assessmentplan */
+            assessmentPlan?: string | null;
+            /** Fileurl */
+            fileUrl?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "submitted" | "unit_head_approved" | "approved" | "rejected";
+            /** Reviewercomment */
+            reviewerComment?: string | null;
+            /** Reviewedbyid */
+            reviewedById?: string | null;
+            /** Reviewedbyname */
+            reviewedByName?: string | null;
+            /** Reviewedat */
+            reviewedAt?: string | null;
+            /** Createdat */
+            createdAt?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
+        };
+        /**
+         * LessonPlanReviewRequest
+         * @description Payload for `POST /lesson-plans/{id}/review` — the reviewer
+         *     decides `approve` or `reject`. The service infers the resulting
+         *     status from the reviewer's role + plan's current status.
+         */
+        LessonPlanReviewRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "draft" | "submitted" | "unit_head_approved" | "approved" | "rejected";
+            /** Comment */
+            comment?: string | null;
+        };
+        /**
+         * LessonPlanUpdate
+         * @description Teacher edits while status ∈ {draft, rejected}. Every field
+         *     optional so a quick-save re-submit doesn't require the full body.
+         */
+        LessonPlanUpdate: {
+            /** Topic */
+            topic?: string | null;
+            /** Learningobjectives */
+            learningObjectives?: string | null;
+            /** Teachingmethods */
+            teachingMethods?: string | null;
+            /** Resources */
+            resources?: string | null;
+            /** Assessmentplan */
+            assessmentPlan?: string | null;
+            /** Fileurl */
+            fileUrl?: string | null;
+        };
+        /**
+         * LessonPlansListResponse
+         * @description Paged list. See `app.core.pagination.Paginated`.
+         */
+        LessonPlansListResponse: {
+            /** Items */
+            items: components["schemas"]["LessonPlanRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
          * NotificationDefaults
          * @description Which event categories trigger an in-app + email notification by default.
          */
@@ -1500,6 +1815,152 @@ export interface components {
             onAnnouncementPosted: boolean;
             /** Onresultspublished */
             onResultsPublished: boolean;
+        };
+        /**
+         * SchemeAcknowledgeRequest
+         * @description `POST /schemes/{id}/acknowledge` — reviewer confirms.
+         */
+        SchemeAcknowledgeRequest: {
+            /** Comment */
+            comment?: string | null;
+        };
+        /**
+         * SchemeCreate
+         * @description Teacher creates; status starts as `draft`. Teacher ID comes from
+         *     the caller's JWT `linked_id`.
+         */
+        SchemeCreate: {
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "work" | "learning";
+            /** Term */
+            term: number;
+            /** Academicyear */
+            academicYear: string;
+            /** Title */
+            title: string;
+            /** Fileurl */
+            fileUrl?: string | null;
+            /** Content */
+            content?: string | null;
+        };
+        /**
+         * SchemeRead
+         * @description Read shape includes joined display fields.
+         */
+        SchemeRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Teacherid
+             * Format: uuid
+             */
+            teacherId: string;
+            /** Teacherfirstname */
+            teacherFirstName: string;
+            /** Teacherlastname */
+            teacherLastName: string;
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Subjectslug */
+            subjectSlug: string;
+            /** Subjectname */
+            subjectName: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "work" | "learning";
+            /** Term */
+            term: number;
+            /** Academicyear */
+            academicYear: string;
+            /** Title */
+            title: string;
+            /** Fileurl */
+            fileUrl?: string | null;
+            /** Content */
+            content?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "submitted" | "acknowledged";
+            /** Reviewercomment */
+            reviewerComment?: string | null;
+            /** Reviewedbyid */
+            reviewedById?: string | null;
+            /** Reviewedbyname */
+            reviewedByName?: string | null;
+            /** Reviewedat */
+            reviewedAt?: string | null;
+            /** Submittedat */
+            submittedAt?: string | null;
+            /** Createdat */
+            createdAt?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
+        };
+        /**
+         * SchemeUpdate
+         * @description Teacher edits while `draft`. Once submitted, no more edits.
+         */
+        SchemeUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Fileurl */
+            fileUrl?: string | null;
+            /** Content */
+            content?: string | null;
+        };
+        /**
+         * SchemesListResponse
+         * @description Paged list.
+         */
+        SchemesListResponse: {
+            /** Items */
+            items: components["schemas"]["SchemeRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
         };
         /**
          * SchoolRead
@@ -4548,6 +5009,496 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScoresGridResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_lesson_plans_lesson_plans_get: {
+        parameters: {
+            query?: {
+                teacherId?: string | null;
+                status?: ("draft" | "submitted" | "unit_head_approved" | "approved" | "rejected") | null;
+                division?: string | null;
+                classId?: string | null;
+                term?: number | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonPlansListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_lesson_plan_lesson_plans_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LessonPlanCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonPlanRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_lesson_plan_lesson_plans__plan_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonPlanRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_lesson_plan_lesson_plans__plan_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_lesson_plan_lesson_plans__plan_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LessonPlanUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonPlanRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_lesson_plan_lesson_plans__plan_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonPlanRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_lesson_plan_lesson_plans__plan_id__review_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LessonPlanReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonPlanRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_schemes_schemes_get: {
+        parameters: {
+            query?: {
+                teacherId?: string | null;
+                status?: ("draft" | "submitted" | "acknowledged") | null;
+                division?: string | null;
+                term?: number | null;
+                academicYear?: string | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemesListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_scheme_schemes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchemeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_scheme_schemes__scheme_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                scheme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_scheme_schemes__scheme_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                scheme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_scheme_schemes__scheme_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                scheme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchemeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_scheme_schemes__scheme_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                scheme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    acknowledge_scheme_schemes__scheme_id__acknowledge_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                scheme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchemeAcknowledgeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeRead"];
                 };
             };
             /** @description Validation Error */

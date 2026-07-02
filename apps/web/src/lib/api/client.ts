@@ -487,6 +487,109 @@ export function createApiClient(getAuthToken: TokenGetter) {
           ),
       },
     },
+    lessonPlans: {
+      list: (
+        params: {
+          teacherId?: string;
+          status?: string;
+          division?: string;
+          classId?: string;
+          term?: number;
+          page?: number;
+          size?: number;
+        } = {},
+      ) =>
+        apiFetch<components["schemas"]["LessonPlansListResponse"]>(
+          getAuthToken,
+          `/lesson-plans${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["LessonPlanRead"]>(
+          getAuthToken,
+          `/lesson-plans/${id}`,
+        ),
+      create: (payload: components["schemas"]["LessonPlanCreate"]) =>
+        apiFetch<components["schemas"]["LessonPlanRead"]>(
+          getAuthToken,
+          "/lesson-plans",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      update: (id: string, payload: components["schemas"]["LessonPlanUpdate"]) =>
+        apiFetch<components["schemas"]["LessonPlanRead"]>(
+          getAuthToken,
+          `/lesson-plans/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      submit: (id: string) =>
+        apiFetch<components["schemas"]["LessonPlanRead"]>(
+          getAuthToken,
+          `/lesson-plans/${id}/submit`,
+          { method: "POST" },
+        ),
+      review: (
+        id: string,
+        payload: components["schemas"]["LessonPlanReviewRequest"],
+      ) =>
+        apiFetch<components["schemas"]["LessonPlanRead"]>(
+          getAuthToken,
+          `/lesson-plans/${id}/review`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      delete: (id: string) =>
+        apiFetch<void>(getAuthToken, `/lesson-plans/${id}`, {
+          method: "DELETE",
+        }),
+    },
+    schemes: {
+      list: (
+        params: {
+          teacherId?: string;
+          status?: string;
+          division?: string;
+          term?: number;
+          academicYear?: string;
+          page?: number;
+          size?: number;
+        } = {},
+      ) =>
+        apiFetch<components["schemas"]["SchemesListResponse"]>(
+          getAuthToken,
+          `/schemes${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["SchemeRead"]>(
+          getAuthToken,
+          `/schemes/${id}`,
+        ),
+      create: (payload: components["schemas"]["SchemeCreate"]) =>
+        apiFetch<components["schemas"]["SchemeRead"]>(getAuthToken, "/schemes", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      update: (id: string, payload: components["schemas"]["SchemeUpdate"]) =>
+        apiFetch<components["schemas"]["SchemeRead"]>(
+          getAuthToken,
+          `/schemes/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      submit: (id: string) =>
+        apiFetch<components["schemas"]["SchemeRead"]>(
+          getAuthToken,
+          `/schemes/${id}/submit`,
+          { method: "POST" },
+        ),
+      acknowledge: (
+        id: string,
+        payload: components["schemas"]["SchemeAcknowledgeRequest"],
+      ) =>
+        apiFetch<components["schemas"]["SchemeRead"]>(
+          getAuthToken,
+          `/schemes/${id}/acknowledge`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      delete: (id: string) =>
+        apiFetch<void>(getAuthToken, `/schemes/${id}`, { method: "DELETE" }),
+    },
     leaveRequests: {
       list: (
         params: {

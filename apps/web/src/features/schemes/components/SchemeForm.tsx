@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,11 +33,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import {
-  createSchemeAction,
-  updateSchemeAction,
-  submitSchemeAction,
-  deleteSchemeAction,
-} from "@/features/schemes/actions";
+  useCreateScheme,
+  useDeleteScheme,
+  useSubmitScheme,
+  useUpdateScheme,
+} from "@/features/schemes/hooks/use-schemes";
 import type { Scheme } from "@/features/schemes/types";
 import { SchemeStatusPill } from "./SchemeStatusPill";
 
@@ -63,13 +63,32 @@ interface SchemeFormProps {
   existing: Scheme | null;
   assignments: { classId: string; className: string; subjectId: string; subjectName: string }[];
   backHref: string;
+  /** The school's currently-active academic year, passed by the Server Component
+   * that renders this form — the FastAPI create endpoint requires it. */
+  currentAcademicYear: string;
 }
 
-export function SchemeForm({ teacherId, existing, assignments, backHref }: SchemeFormProps) {
+export function SchemeForm({
+  teacherId,
+  existing,
+  assignments,
+  backHref,
+  currentAcademicYear,
+}: SchemeFormProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const createScheme = useCreateScheme();
+  const updateScheme = useUpdateScheme();
+  const submitScheme = useSubmitScheme();
+  const deleteScheme = useDeleteScheme();
+  const isPending =
+    createScheme.isPending ||
+    updateScheme.isPending ||
+    submitScheme.isPending ||
+    deleteScheme.isPending;
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [tempId] = useState(() => existing?.id ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  // Teacher identity is now derived from the JWT server-side.
+  void teacherId;
 
   const locked = existing?.status === "acknowledged";
 
@@ -93,56 +112,60 @@ export function SchemeForm({ teacherId, existing, assignments, backHref }: Schem
   const selectedClassId = useWatch({ control: form.control, name: "classId" });
   const subjectsForClass = assignments.filter((a) => a.classId === selectedClassId);
 
-  function onSave(values: FormValues) {
-    startTransition(async () => {
-      const cleaned = { ...values, fileUrl: values.fileUrl || undefined, content: values.content || undefined };
+  async function onSave(values: FormValues) {
+    const cleaned = {
+      ...values,
+      fileUrl: values.fileUrl || null,
+      content: values.content || null,
+    };
+    try {
       if (existing) {
-        const result = await updateSchemeAction({ id: existing.id, teacherId, data: cleaned });
-        if (!result.success) {
-          toast.error(result.error);
-          return;
-        }
-        toast.success("Saved.");
-        router.refresh();
+        await updateScheme.mutateAsync({
+          id: existing.id,
+          payload: {
+            title: cleaned.title,
+            fileUrl: cleaned.fileUrl,
+            content: cleaned.content,
+          },
+        });
       } else {
-        const result = await createSchemeAction({ teacherId, data: cleaned });
-        if (!result.success) {
-          toast.error(result.error);
-          return;
-        }
-        toast.success("Scheme created.");
+        await createScheme.mutateAsync({
+          subjectId: cleaned.subjectId,
+          classId: cleaned.classId,
+          type: cleaned.type,
+          term: cleaned.term,
+          academicYear: currentAcademicYear,
+          title: cleaned.title,
+          fileUrl: cleaned.fileUrl,
+          content: cleaned.content,
+        });
         router.push(backHref);
       }
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function onSubmitForReview() {
+  async function onSubmitForReview() {
     if (!existing) {
       toast.error("Save the scheme first.");
       return;
     }
-    startTransition(async () => {
-      const result = await submitSchemeAction({ id: existing.id, teacherId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Submitted to Head of School.");
-      router.refresh();
-    });
+    try {
+      await submitScheme.mutateAsync(existing.id);
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function onDelete() {
+  async function onDelete() {
     if (!existing) return;
-    startTransition(async () => {
-      const result = await deleteSchemeAction({ id: existing.id, teacherId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Scheme deleted.");
+    try {
+      await deleteScheme.mutateAsync(existing.id);
       router.push(backHref);
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
   return (
