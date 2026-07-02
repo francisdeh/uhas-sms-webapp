@@ -132,6 +132,7 @@ export default async function TeacherPromotionClassPage({
         <PromotionDecisionTable
           mode={finalMode}
           classId={classId}
+          submissionId={detail.submission.id}
           className={detail.className}
           nextAcademicYear={detail.nextAcademicYear}
           nextYearClasses={detail.nextYearClasses}

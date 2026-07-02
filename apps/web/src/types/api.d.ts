@@ -994,6 +994,246 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/promotions/season": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Season
+         * @description Any authenticated role in the school can read the current season
+         *     header. Returns `null` if no season exists yet for this year.
+         */
+        get: operations["get_season_promotions_season_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/season/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open Season */
+        post: operations["open_season_promotions_season_open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/season/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close Season */
+        post: operations["close_season_promotions_season_close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Overview
+         * @description Admin overview across every class this academic year.
+         */
+        get: operations["get_overview_promotions_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/dh-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dh Queue
+         * @description Deputy Head queue for the caller's own division. Admin is served
+         *     by /overview instead — this endpoint is scoped strictly to a
+         *     DeputyHead's division.
+         */
+        get: operations["get_dh_queue_promotions_dh_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/teacher-classes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Teacher Classes
+         * @description Classes the caller is assigned to via `class_teachers` for the
+         *     current academic year, with the current submission (if any).
+         */
+        get: operations["get_teacher_classes_promotions_teacher_classes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/submissions/ensure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ensure Submission
+         * @description Admin or the class's own teacher may kick this off.
+         */
+        post: operations["ensure_submission_promotions_submissions_ensure_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/submissions/{submission_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Submission */
+        get: operations["get_submission_promotions_submissions__submission_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/submissions/by-class/{class_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Submission By Class */
+        get: operations["get_submission_by_class_promotions_submissions_by_class__class_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/submissions/{submission_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Save Draft */
+        patch: operations["save_draft_promotions_submissions__submission_id__decisions_patch"];
+        trace?: never;
+    };
+    "/promotions/submissions/{submission_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit List */
+        post: operations["submit_list_promotions_submissions__submission_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/submissions/{submission_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Submission */
+        post: operations["approve_submission_promotions_submissions__submission_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/submissions/{submission_id}/send-back": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Back */
+        post: operations["send_back_promotions_submissions__submission_id__send_back_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1433,6 +1673,18 @@ export interface components {
             /** Isprimary */
             isPrimary: boolean;
         };
+        /** ClassTeacherView */
+        ClassTeacherView: {
+            /**
+             * Staffid
+             * Format: uuid
+             */
+            staffId: string;
+            /** Staffname */
+            staffName: string;
+            /** Isprimary */
+            isPrimary: boolean;
+        };
         /**
          * ClassTeachersListResponse
          * @description Non-paged wrapper — small list.
@@ -1461,6 +1713,98 @@ export interface components {
             page: number;
             /** Size */
             size: number;
+        };
+        /**
+         * DecisionRead
+         * @description One row in the decisions table + the joined student's display
+         *     fields (fetched via the repository's join).
+         */
+        DecisionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Submissionid
+             * Format: uuid
+             */
+            submissionId: string;
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /** Studentname */
+            studentName: string;
+            /** Studentphotourl */
+            studentPhotoUrl?: string | null;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "promote" | "repeat" | "withdraw" | "graduate";
+            /** Targetclassid */
+            targetClassId?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Suggesteddecision */
+            suggestedDecision?: ("promote" | "repeat" | "withdraw" | "graduate") | null;
+            /** Suggestedreason */
+            suggestedReason?: string | null;
+            /** Failedcoresubjects */
+            failedCoreSubjects?: number | null;
+        };
+        /**
+         * DecisionUpdate
+         * @description Client-side payload for one row in a save/submit request. Sent as
+         *     `updates: [...]` on the parent request; the service PATCHes matching
+         *     (submission_id, student_id) pairs.
+         */
+        DecisionUpdate: {
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "promote" | "repeat" | "withdraw" | "graduate";
+            /** Targetclassid */
+            targetClassId?: string | null;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** DeputyHeadQueueResponse */
+        DeputyHeadQueueResponse: {
+            /** Items */
+            items: components["schemas"]["DeputyHeadQueueRow"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /** DeputyHeadQueueRow */
+        DeputyHeadQueueRow: {
+            submission: components["schemas"]["SubmissionRead"];
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Classteachernames */
+            classTeacherNames: string[];
         };
         /**
          * EnrollmentCreate
@@ -1562,6 +1906,25 @@ export interface components {
             page: number;
             /** Size */
             size: number;
+        };
+        /**
+         * EnsureSubmissionRequest
+         * @description POST /promotions/submissions/ensure.
+         */
+        EnsureSubmissionRequest: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+        };
+        /** EnsureSubmissionResponse */
+        EnsureSubmissionResponse: {
+            /**
+             * Submissionid
+             * Format: uuid
+             */
+            submissionId: string;
         };
         /** ExamCreate */
         ExamCreate: {
@@ -2017,6 +2380,16 @@ export interface components {
             /** Size */
             size: number;
         };
+        /** NextYearClassOption */
+        NextYearClassOption: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /**
          * NotificationDefaults
          * @description Which event categories trigger an in-app + email notification by default.
@@ -2028,6 +2401,55 @@ export interface components {
             onAnnouncementPosted: boolean;
             /** Onresultspublished */
             onResultsPublished: boolean;
+        };
+        /**
+         * OverviewResponse
+         * @description Paginated wrapper — even though every list currently fits on one
+         *     page, staying paginated matches the rest of the API.
+         */
+        OverviewResponse: {
+            /** Items */
+            items: components["schemas"]["OverviewRow"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
+         * OverviewRow
+         * @description One row on the Admin overview — one per current-year class in the
+         *     school.
+         */
+        OverviewRow: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Classteachers */
+            classTeachers: components["schemas"]["ClassTeacherView"][];
+            /** Totalstudents */
+            totalStudents: number;
+            /** Decidedcount */
+            decidedCount: number;
+            submission?: components["schemas"]["SubmissionRead"] | null;
+        };
+        /**
+         * SaveDraftRequest
+         * @description PATCH /promotions/submissions/{id}/decisions.
+         */
+        SaveDraftRequest: {
+            /** Updates */
+            updates?: components["schemas"]["DecisionUpdate"][];
         };
         /**
          * SchemeAcknowledgeRequest
@@ -2464,6 +2886,73 @@ export interface components {
             subjectId: string;
             /** Records */
             records: components["schemas"]["ScoreInput"][];
+        };
+        /**
+         * SeasonOpenRequest
+         * @description POST /promotions/season/open.
+         */
+        SeasonOpenRequest: {
+            /**
+             * Override
+             * @default false
+             */
+            override: boolean;
+        };
+        /**
+         * SeasonOpenResponse
+         * @description Success payload — includes the resulting season row.
+         */
+        SeasonOpenResponse: {
+            /** Openedwithoverride */
+            openedWithOverride: boolean;
+            season: components["schemas"]["SeasonRead"];
+        };
+        /**
+         * SeasonRead
+         * @description Current-year season row. `openedWithOverride=True` means Admin
+         *     opened the season before the Term-3 EndOfTerm exam was published;
+         *     UI hides algorithmic suggestions for that case.
+         */
+        SeasonRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /** Academicyear */
+            academicYear: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "closed";
+            /** Openedwithoverride */
+            openedWithOverride?: boolean | null;
+            /** Openedbyid */
+            openedById?: string | null;
+            /** Openedbyname */
+            openedByName?: string | null;
+            /** Openedat */
+            openedAt?: string | null;
+            /** Closedbyid */
+            closedById?: string | null;
+            /** Closedbyname */
+            closedByName?: string | null;
+            /** Closedat */
+            closedAt?: string | null;
+        };
+        /**
+         * SendBackRequest
+         * @description POST /promotions/submissions/{id}/send-back.
+         */
+        SendBackRequest: {
+            /** Comment */
+            comment: string;
         };
         /** StaffAttendanceRecordInput */
         StaffAttendanceRecordInput: {
@@ -2949,6 +3438,112 @@ export interface components {
         SubjectsListResponse: {
             /** Items */
             items: components["schemas"]["SubjectRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
+         * SubmissionDetail
+         * @description Full submission page — header + decisions + next-year classes
+         *     for the class's division. Used by both teacher edit and DH review
+         *     screens.
+         */
+        SubmissionDetail: {
+            submission: components["schemas"]["SubmissionRead"];
+            /** Classname */
+            className: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Nextacademicyear */
+            nextAcademicYear: string;
+            /** Nextyearclasses */
+            nextYearClasses: components["schemas"]["NextYearClassOption"][];
+            /** Decisions */
+            decisions: components["schemas"]["DecisionRead"][];
+            /** Classteachers */
+            classTeachers: components["schemas"]["ClassTeacherView"][];
+        };
+        /**
+         * SubmissionRead
+         * @description Submission header used by list endpoints (overview / teacher /
+         *     DH queue).
+         */
+        SubmissionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Academicyear */
+            academicYear: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "submitted" | "approved" | "sent_back";
+            /** Submittedbyid */
+            submittedById?: string | null;
+            /** Submittedbyname */
+            submittedByName?: string | null;
+            /** Submittedat */
+            submittedAt?: string | null;
+            /** Reviewercomment */
+            reviewerComment?: string | null;
+            /** Reviewedbyid */
+            reviewedById?: string | null;
+            /** Reviewedbyname */
+            reviewedByName?: string | null;
+            /** Reviewedat */
+            reviewedAt?: string | null;
+        };
+        /**
+         * SubmitListRequest
+         * @description POST /promotions/submissions/{id}/submit.
+         */
+        SubmitListRequest: {
+            /** Updates */
+            updates?: components["schemas"]["DecisionUpdate"][];
+        };
+        /** TeacherClassRow */
+        TeacherClassRow: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Isprimary */
+            isPrimary: boolean;
+            /** Totalstudents */
+            totalStudents: number;
+            submission?: components["schemas"]["SubmissionRead"] | null;
+        };
+        /** TeacherClassesResponse */
+        TeacherClassesResponse: {
+            /** Items */
+            items: components["schemas"]["TeacherClassRow"][];
             /** Total */
             total: number;
             /** Page */
@@ -5952,6 +6547,441 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssignmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_season_promotions_season_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonRead"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_season_promotions_season_open_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeasonOpenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonOpenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_season_promotions_season_close_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_overview_promotions_overview_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dh_queue_promotions_dh_queue_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeputyHeadQueueResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_teacher_classes_promotions_teacher_classes_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeacherClassesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ensure_submission_promotions_submissions_ensure_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnsureSubmissionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnsureSubmissionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_submission_promotions_submissions__submission_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_submission_by_class_promotions_submissions_by_class__class_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetail"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_draft_promotions_submissions__submission_id__decisions_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_list_promotions_submissions__submission_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitListRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_submission_promotions_submissions__submission_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_back_promotions_submissions__submission_id__send_back_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendBackRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionRead"];
                 };
             };
             /** @description Validation Error */

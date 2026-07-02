@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Check, Undo2 } from "lucide-react";
@@ -18,9 +18,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  approveSubmissionAction,
-  sendBackSubmissionAction,
-} from "@/features/promotions/actions";
+  useApprovePromotionSubmission,
+  useSendBackPromotionSubmission,
+} from "@/features/promotions/hooks/use-promotions";
 
 type Props = {
   submissionId: string;
@@ -32,44 +32,35 @@ export function ReviewFooter({ submissionId, reviewedById, redirectTo }: Props) 
   const router = useRouter();
   const [comment, setComment] = useState("");
   const [approveOpen, setApproveOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const approveMut = useApprovePromotionSubmission();
+  const sendBackMut = useSendBackPromotionSubmission();
+  const isPending = approveMut.isPending || sendBackMut.isPending;
+  // Reviewer identity is derived from the JWT server-side now.
+  void reviewedById;
 
-  function handleSendBack() {
+  async function handleSendBack() {
     if (!comment.trim()) {
       toast.error("Add a comment explaining what to revise.");
       return;
     }
-    startTransition(async () => {
-      const result = await sendBackSubmissionAction({
-        submissionId,
-        reviewedById,
-        comment,
-      });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Sent back to class teacher.");
+    try {
+      await sendBackMut.mutateAsync({ id: submissionId, payload: { comment } });
       router.push(redirectTo);
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function handleApprove() {
-    startTransition(async () => {
-      const result = await approveSubmissionAction({
-        submissionId,
-        reviewedById,
-      });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+  async function handleApprove() {
+    try {
+      await approveMut.mutateAsync(submissionId);
       setApproveOpen(false);
-      toast.success("Approved. Next-year enrollments recorded.");
       router.push(redirectTo);
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
   return (

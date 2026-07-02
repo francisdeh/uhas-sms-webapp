@@ -14,6 +14,9 @@ from __future__ import annotations
 
 from typing import Any, Final, Literal
 
+MID_TERM: Final = "MidTerm"
+END_OF_TERM: Final = "EndOfTerm"
+
 ExamType = Literal["MidTerm", "EndOfTerm"]
 
 

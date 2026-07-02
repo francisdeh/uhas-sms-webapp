@@ -45,6 +45,7 @@ export default async function AdminPromotionDetailPage({
       <PromotionDecisionTable
         mode="readonly"
         classId={detail.submission.classId}
+        submissionId={detail.submission.id}
         className={detail.className}
         nextAcademicYear={detail.nextAcademicYear}
         nextYearClasses={detail.nextYearClasses}

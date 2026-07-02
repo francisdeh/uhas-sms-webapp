@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Save, Send, GraduationCap, Sparkles, XCircle, RotateCcw, Users } from "lucide-react";
@@ -27,10 +27,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { saveDraftAction, submitListAction } from "@/features/promotions/actions";
-import type {
-  DecisionRowView,
-  PromotionDecisionKind,
+import {
+  useSavePromotionDraft,
+  useSubmitPromotionList,
+  useEnsurePromotionSubmission,
+} from "@/features/promotions/hooks/use-promotions";
+import {
+  PROMOTION_DECISION_KIND,
+  type DecisionRowView,
+  type PromotionDecisionKind,
 } from "@/features/promotions/types";
 
 type Mode = "edit" | "readonly";
@@ -38,6 +43,9 @@ type Mode = "edit" | "readonly";
 type Props = {
   mode: Mode;
   classId: string;
+  /** Present when a submission already exists for this class this year.
+   *  When absent, saves/submits create one first via `ensureSubmission`. */
+  submissionId?: string | null;
   className: string;
   nextAcademicYear: string;
   nextYearClasses: { id: string; name: string }[];
@@ -105,6 +113,7 @@ function decisionIcon(decision: PromotionDecisionKind) {
 export function PromotionDecisionTable({
   mode,
   classId,
+  submissionId: initialSubmissionId,
   className,
   nextAcademicYear,
   nextYearClasses,
@@ -113,6 +122,21 @@ export function PromotionDecisionTable({
   overrideMode,
 }: Props) {
   const router = useRouter();
+  const [submissionId, setSubmissionId] = useState<string | null>(
+    initialSubmissionId ?? null,
+  );
+  const ensureMut = useEnsurePromotionSubmission();
+  const saveMut = useSavePromotionDraft();
+  const submitMut = useSubmitPromotionList();
+  // Teacher identity comes from the JWT now.
+  void submittedById;
+
+  async function resolveSubmissionId(): Promise<string> {
+    if (submissionId) return submissionId;
+    const res = await ensureMut.mutateAsync({ classId });
+    setSubmissionId(res.submissionId);
+    return res.submissionId;
+  }
   const [rows, setRows] = useState<RowState[]>(() =>
     initial.map((r) => ({
       studentId: r.decision.studentId,
@@ -126,7 +150,8 @@ export function PromotionDecisionTable({
     }))
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const isPending =
+    ensureMut.isPending || saveMut.isPending || submitMut.isPending;
 
   const jhs3 = isJhs3(className);
   const options = jhs3 ? DECISION_OPTIONS.jhs3 : DECISION_OPTIONS.primary;
@@ -142,57 +167,61 @@ export function PromotionDecisionTable({
     return rows.map((r) => ({
       studentId: r.studentId,
       decision: r.decision,
-      targetClassId: r.decision === "promote" ? r.targetClassId : null,
+      targetClassId:
+        r.decision === PROMOTION_DECISION_KIND.PROMOTE
+          ? r.targetClassId
+          : null,
       reason:
-        r.decision === "repeat" || r.decision === "withdraw"
+        r.decision === PROMOTION_DECISION_KIND.REPEAT ||
+        r.decision === PROMOTION_DECISION_KIND.WITHDRAW
           ? r.reason.trim() || null
           : null,
     }));
   }
 
-  function handleSaveDraft() {
-    startTransition(async () => {
-      const result = await saveDraftAction({ classId, updates: buildUpdates() });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Draft saved.");
+  async function handleSaveDraft() {
+    try {
+      const id = await resolveSubmissionId();
+      await saveMut.mutateAsync({
+        id,
+        payload: { updates: buildUpdates() },
+      });
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function handleSubmit() {
-    if (!submittedById) {
-      toast.error("Cannot submit without a session.");
-      return;
-    }
-
+  async function handleSubmit() {
     for (const r of rows) {
-      if (r.decision === "promote" && !r.targetClassId) {
+      if (
+        r.decision === PROMOTION_DECISION_KIND.PROMOTE &&
+        !r.targetClassId
+      ) {
         toast.error(`${r.studentName}: pick a target class for the promotion.`);
         return;
       }
-      if ((r.decision === "repeat" || r.decision === "withdraw") && !r.reason.trim()) {
+      if (
+        (r.decision === PROMOTION_DECISION_KIND.REPEAT ||
+          r.decision === PROMOTION_DECISION_KIND.WITHDRAW) &&
+        !r.reason.trim()
+      ) {
         toast.error(`${r.studentName}: add a reason for ${r.decision}.`);
         return;
       }
     }
 
-    startTransition(async () => {
-      const result = await submitListAction({
-        classId,
-        submittedById,
-        updates: buildUpdates(),
+    try {
+      const id = await resolveSubmissionId();
+      await submitMut.mutateAsync({
+        id,
+        payload: { updates: buildUpdates() },
       });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Submitted to Deputy Head.");
       setConfirmOpen(false);
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
   if (rows.length === 0) {

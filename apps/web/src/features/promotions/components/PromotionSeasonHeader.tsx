@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { Loader2, Play, Pause, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,11 +16,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ApiError } from "@/lib/api/browser";
 import {
-  openPromotionSeasonAction,
-  closePromotionSeasonAction,
-} from "@/features/promotions/actions";
-import type { PromotionSeason } from "@/features/promotions/types";
+  useOpenPromotionSeason,
+  useClosePromotionSeason,
+} from "@/features/promotions/hooks/use-promotions";
+import {
+  PROMOTION_SEASON_STATUS,
+  type PromotionSeason,
+} from "@/features/promotions/types";
 
 type Props = {
   season: PromotionSeason | null;
@@ -37,51 +40,47 @@ export function PromotionSeasonHeader({
   term3EndOfTermPublished,
 }: Props) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const openMut = useOpenPromotionSeason();
+  const closeMut = useClosePromotionSeason();
+  const isPending = openMut.isPending || closeMut.isPending;
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
+  // Staff identity is derived from the JWT server-side now.
+  void staffId;
 
-  const isOpen = season?.status === "open";
+  const isOpen = season?.status === PROMOTION_SEASON_STATUS.OPEN;
 
-  function performOpen(override: boolean) {
-    startTransition(async () => {
-      const result = await openPromotionSeasonAction({
-        openedById: staffId,
-        override,
-      });
-      if (!result.success) {
-        if (result.requiresOverride) {
-          setOverrideOpen(true);
-          return;
-        }
-        toast.error(result.error);
-        return;
-      }
+  async function performOpen(override: boolean) {
+    try {
+      await openMut.mutateAsync({ override });
       setOverrideOpen(false);
-      toast.success(
-        result.openedWithOverride
-          ? "Season opened in override mode."
-          : "Promotion season opened."
-      );
       router.refresh();
-    });
+    } catch (err) {
+      // The service returns 400 with a specific message when the
+      // Term-3 exam isn't published and `override=false`. Pop the
+      // confirmation dialog so the Admin can retry with override.
+      if (
+        err instanceof ApiError &&
+        err.status === 400 &&
+        err.message.includes("Term 3 End-of-Term")
+      ) {
+        setOverrideOpen(true);
+      }
+    }
   }
 
   function handleOpenClick() {
-    performOpen(false);
+    void performOpen(false);
   }
 
-  function handleClose() {
-    startTransition(async () => {
-      const result = await closePromotionSeasonAction({ closedById: staffId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+  async function handleClose() {
+    try {
+      await closeMut.mutateAsync();
       setCloseOpen(false);
-      toast.success("Promotion season closed.");
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
   return (
@@ -145,7 +144,7 @@ export function PromotionSeasonHeader({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => performOpen(true)} disabled={isPending}>
+            <AlertDialogAction onClick={() => void performOpen(true)} disabled={isPending}>
               {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
               Open with override
             </AlertDialogAction>

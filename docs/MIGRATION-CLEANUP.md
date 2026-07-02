@@ -66,10 +66,21 @@ The following state transitions used to fire notifications (in-app + sometimes e
 |---|---|---|---|
 | Teacher publishes an assignment | all parents whose children are actively enrolled in `assignment.class_id` (via `student_guardians` → `students` → `enrollments`) | ✅ | — |
 
+### `promotions/service.py` — [`PromotionsService.open_season`](../apps/api/app/features/promotions/service.py) + [`.send_back`](../apps/api/app/features/promotions/service.py)
+
+| Trigger | Audience | In-app | Email |
+|---|---|---|---|
+| Admin opens the season | all teachers (`system_role=Teacher`) in the school | ✅ | — |
+| Deputy sends a list back | the teacher who submitted (`submission.submitted_by_id`) | ✅ | — |
+
+Approve doesn't fire a teacher notification — the audit log + status
+flip is the record; matches TS behaviour.
+
 Kinds to use (mirror the TS values):
 - `lesson_plan_submitted`, `lesson_plan_reviewed`, `lesson_plan_advanced`
 - `scheme_submitted`, `scheme_acknowledged`
 - `assignment_created`
+- `promotion_season_opened`, `promotion_sent_back`
 
 The audience resolver on the TS side lives at [`apps/web/src/features/notifications/lib/audience.ts`](../apps/web/src/features/notifications/lib/audience.ts) and understands `{type: "unitHeadOfDivision", division}` / `{type: "deputyHeadsOfDivision", division}` / `{type: "staff", staffId}`. Port these signatures for parity.
 
