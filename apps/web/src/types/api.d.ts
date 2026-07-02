@@ -911,10 +911,223 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Assignments
+         * @description Read semantics:
+         *     * Parent → `for_student_ids` required, ownership verified,
+         *       `list_published_for_students` used.
+         *     * Non-approver staff → forced to own `teacher_id`.
+         *     * Approver → whatever they ask for.
+         */
+        get: operations["list_assignments_assignments_get"];
+        put?: never;
+        /** Create Assignment */
+        post: operations["create_assignment_assignments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assignments/{assignment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Assignment
+         * @description Owning teachers + Admin/Deputy can read directly. Parents fetch
+         *     via the list endpoint (with ownership verification); we don't
+         *     expose per-id reads for parents to avoid an IDOR footgun.
+         */
+        get: operations["get_assignment_assignments__assignment_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Assignment */
+        delete: operations["delete_assignment_assignments__assignment_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Assignment */
+        patch: operations["update_assignment_assignments__assignment_id__patch"];
+        trace?: never;
+    };
+    "/assignments/{assignment_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Assignment */
+        post: operations["publish_assignment_assignments__assignment_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assignments/{assignment_id}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unpublish Assignment */
+        post: operations["unpublish_assignment_assignments__assignment_id__unpublish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AssignmentCreate
+         * @description Teacher creates; status starts as `draft`. Teacher ID comes from
+         *     the caller's JWT `linked_id`.
+         */
+        AssignmentCreate: {
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description?: string | null;
+            /** Fileurl */
+            fileUrl?: string | null;
+            /**
+             * Duedate
+             * Format: date
+             */
+            dueDate: string;
+        };
+        /**
+         * AssignmentRead
+         * @description Read shape includes joined display fields.
+         */
+        AssignmentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Teacherid
+             * Format: uuid
+             */
+            teacherId: string;
+            /** Teacherfirstname */
+            teacherFirstName: string;
+            /** Teacherlastname */
+            teacherLastName: string;
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Subjectslug */
+            subjectSlug: string;
+            /** Subjectname */
+            subjectName: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Title */
+            title: string;
+            /** Description */
+            description?: string | null;
+            /** Fileurl */
+            fileUrl?: string | null;
+            /**
+             * Duedate
+             * Format: date
+             */
+            dueDate: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "published";
+            /** Publishedat */
+            publishedAt?: string | null;
+            /** Createdat */
+            createdAt?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
+        };
+        /**
+         * AssignmentUpdate
+         * @description Teacher edits. Draft can be freely edited; a published assignment
+         *     can still be edited (mirrors current TS behaviour) — the state
+         *     machine only guards ownership + publish/unpublish transitions.
+         */
+        AssignmentUpdate: {
+            /** Subjectid */
+            subjectId?: string | null;
+            /** Classid */
+            classId?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Fileurl */
+            fileUrl?: string | null;
+            /** Duedate */
+            dueDate?: string | null;
+        };
+        /**
+         * AssignmentsListResponse
+         * @description Paged list.
+         */
+        AssignmentsListResponse: {
+            /** Items */
+            items: components["schemas"]["AssignmentRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
         /**
          * AttendanceRecordInput
          * @description One row in the batch payload — the client's picture of a student
@@ -5499,6 +5712,246 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SchemeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_assignments_assignments_get: {
+        parameters: {
+            query?: {
+                teacherId?: string | null;
+                status?: ("draft" | "published") | null;
+                classId?: string | null;
+                forStudentIds?: string[] | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_assignment_assignments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_assignment_assignments__assignment_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_assignment_assignments__assignment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_assignment_assignments__assignment_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignmentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_assignment_assignments__assignment_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unpublish_assignment_assignments__assignment_id__unpublish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"];
                 };
             };
             /** @description Validation Error */

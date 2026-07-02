@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateWithWeekday as formatDate } from "@/lib/dates";
-import type { Assignment } from "@/features/assignments/types";
+import { ASSIGNMENT_STATUS, type Assignment } from "@/features/assignments/types";
 
 interface AssignmentsListProps {
   assignments: Assignment[];
@@ -51,7 +51,7 @@ export function AssignmentsList({ assignments, baseHref }: AssignmentsListProps)
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium">{a.title}</p>
-                      {a.status === "published" ? (
+                      {a.status === ASSIGNMENT_STATUS.PUBLISHED ? (
                         <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px]">
                           Published
                         </Badge>

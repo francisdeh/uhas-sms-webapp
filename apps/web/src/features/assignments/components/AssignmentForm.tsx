@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,13 +32,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import {
-  createAssignmentAction,
-  updateAssignmentAction,
-  publishAssignmentAction,
-  unpublishAssignmentAction,
-  deleteAssignmentAction,
-} from "@/features/assignments/actions";
-import type { Assignment } from "@/features/assignments/types";
+  useCreateAssignment,
+  useUpdateAssignment,
+  usePublishAssignment,
+  useUnpublishAssignment,
+  useDeleteAssignment,
+} from "@/features/assignments/hooks/use-assignments";
+import { ASSIGNMENT_STATUS, type Assignment } from "@/features/assignments/types";
 
 const schema = z.object({
   classId: z.string().min(1, { message: "Select a class" }),
@@ -60,11 +60,25 @@ interface AssignmentFormProps {
 
 export function AssignmentForm({ teacherId, existing, assignments, backHref }: AssignmentFormProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const createMut = useCreateAssignment();
+  const updateMut = useUpdateAssignment();
+  const publishMut = usePublishAssignment();
+  const unpublishMut = useUnpublishAssignment();
+  const deleteMut = useDeleteAssignment();
+  const isPending =
+    createMut.isPending ||
+    updateMut.isPending ||
+    publishMut.isPending ||
+    unpublishMut.isPending ||
+    deleteMut.isPending;
+
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [tempId] = useState(() => existing?.id ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  // Teacher identity is derived from the JWT server-side now; kept in
+  // props so parent Server Components don't have to change yet.
+  void teacherId;
 
-  const published = existing?.status === "published";
+  const published = existing?.status === ASSIGNMENT_STATUS.PUBLISHED;
 
   const uniqueClasses = Array.from(
     new Map(assignments.map((a) => [a.classId, a.className])).entries()
@@ -85,69 +99,67 @@ export function AssignmentForm({ teacherId, existing, assignments, backHref }: A
   const selectedClassId = useWatch({ control: form.control, name: "classId" });
   const subjectsForClass = assignments.filter((a) => a.classId === selectedClassId);
 
-  function onSave(values: FormValues) {
-    startTransition(async () => {
-      const cleaned = { ...values, fileUrl: values.fileUrl || undefined, description: values.description || undefined };
+  async function onSave(values: FormValues) {
+    const description = values.description || null;
+    const fileUrl = values.fileUrl || null;
+    try {
       if (existing) {
-        const result = await updateAssignmentAction({ id: existing.id, teacherId, data: cleaned });
-        if (!result.success) {
-          toast.error(result.error);
-          return;
-        }
-        toast.success("Saved.");
-        router.refresh();
+        await updateMut.mutateAsync({
+          id: existing.id,
+          payload: {
+            classId: values.classId,
+            subjectId: values.subjectId,
+            title: values.title,
+            description,
+            fileUrl,
+            dueDate: values.dueDate,
+          },
+        });
       } else {
-        const result = await createAssignmentAction({ teacherId, data: cleaned });
-        if (!result.success) {
-          toast.error(result.error);
-          return;
-        }
-        toast.success("Assignment created.");
+        await createMut.mutateAsync({
+          classId: values.classId,
+          subjectId: values.subjectId,
+          title: values.title,
+          description,
+          fileUrl,
+          dueDate: values.dueDate,
+        });
         router.push(backHref);
       }
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function onPublish() {
+  async function onPublish() {
     if (!existing) {
       toast.error("Save the assignment first.");
       return;
     }
-    startTransition(async () => {
-      const result = await publishAssignmentAction({ id: existing.id, teacherId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Published to parents.");
-      router.refresh();
-    });
+    try {
+      await publishMut.mutateAsync(existing.id);
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function onUnpublish() {
+  async function onUnpublish() {
     if (!existing) return;
-    startTransition(async () => {
-      const result = await unpublishAssignmentAction({ id: existing.id, teacherId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Unpublished.");
-      router.refresh();
-    });
+    try {
+      await unpublishMut.mutateAsync(existing.id);
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function onDelete() {
+  async function onDelete() {
     if (!existing) return;
-    startTransition(async () => {
-      const result = await deleteAssignmentAction({ id: existing.id, teacherId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Assignment deleted.");
+    try {
+      await deleteMut.mutateAsync(existing.id);
       router.push(backHref);
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
   return (
