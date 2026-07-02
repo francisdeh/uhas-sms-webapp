@@ -18,6 +18,7 @@ from app.core.config import settings
 from app.core.db import engine
 from app.core.errors import AppError
 from app.core.observability import init_observability, instrument_app
+from app.features.assignments.router import router as assignments_router
 from app.features.attendance.router import router as attendance_router
 from app.features.classes.router import router as classes_router
 from app.features.enrollments.router import (
@@ -108,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(exams_router)
     app.include_router(lesson_plans_router)
     app.include_router(schemes_router)
+    app.include_router(assignments_router)
 
     # Logfire instrumentation attaches after routers register so it sees
     # every endpoint. No-op when LOGFIRE_TOKEN is unset.

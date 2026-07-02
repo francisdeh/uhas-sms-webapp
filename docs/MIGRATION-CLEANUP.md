@@ -60,9 +60,16 @@ The following state transitions used to fire notifications (in-app + sometimes e
 | Teacher submits | all Unit Heads with `unit_head_of == class.division` | ✅ | — |
 | Reviewer acknowledges | the teacher (`scheme.teacher_id`) | ✅ | — |
 
+### `assignments/service.py` — [`AssignmentsService.publish`](../apps/api/app/features/assignments/service.py)
+
+| Trigger | Audience | In-app | Email |
+|---|---|---|---|
+| Teacher publishes an assignment | all parents whose children are actively enrolled in `assignment.class_id` (via `student_guardians` → `students` → `enrollments`) | ✅ | — |
+
 Kinds to use (mirror the TS values):
 - `lesson_plan_submitted`, `lesson_plan_reviewed`, `lesson_plan_advanced`
 - `scheme_submitted`, `scheme_acknowledged`
+- `assignment_created`
 
 The audience resolver on the TS side lives at [`apps/web/src/features/notifications/lib/audience.ts`](../apps/web/src/features/notifications/lib/audience.ts) and understands `{type: "unitHeadOfDivision", division}` / `{type: "deputyHeadsOfDivision", division}` / `{type: "staff", staffId}`. Port these signatures for parity.
 

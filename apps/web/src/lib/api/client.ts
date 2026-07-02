@@ -590,6 +590,59 @@ export function createApiClient(getAuthToken: TokenGetter) {
       delete: (id: string) =>
         apiFetch<void>(getAuthToken, `/schemes/${id}`, { method: "DELETE" }),
     },
+    assignments: {
+      /** Paginated list. Parents MUST pass `forStudentIds` — ownership
+       *  verified server-side; results are always published-only for
+       *  parents. Staff scope: teacher defaults to own, Admin/Deputy
+       *  can pass `teacherId` to narrow. */
+      list: (
+        params: {
+          teacherId?: string;
+          status?: string;
+          classId?: string;
+          forStudentIds?: string[];
+          page?: number;
+          size?: number;
+        } = {},
+      ) =>
+        apiFetch<components["schemas"]["AssignmentsListResponse"]>(
+          getAuthToken,
+          `/assignments${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["AssignmentRead"]>(
+          getAuthToken,
+          `/assignments/${id}`,
+        ),
+      create: (payload: components["schemas"]["AssignmentCreate"]) =>
+        apiFetch<components["schemas"]["AssignmentRead"]>(
+          getAuthToken,
+          "/assignments",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      update: (id: string, payload: components["schemas"]["AssignmentUpdate"]) =>
+        apiFetch<components["schemas"]["AssignmentRead"]>(
+          getAuthToken,
+          `/assignments/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      publish: (id: string) =>
+        apiFetch<components["schemas"]["AssignmentRead"]>(
+          getAuthToken,
+          `/assignments/${id}/publish`,
+          { method: "POST" },
+        ),
+      unpublish: (id: string) =>
+        apiFetch<components["schemas"]["AssignmentRead"]>(
+          getAuthToken,
+          `/assignments/${id}/unpublish`,
+          { method: "POST" },
+        ),
+      delete: (id: string) =>
+        apiFetch<void>(getAuthToken, `/assignments/${id}`, {
+          method: "DELETE",
+        }),
+    },
     leaveRequests: {
       list: (
         params: {
@@ -638,6 +691,15 @@ function buildQuery(params: Record<string, unknown>): string {
   const pairs: string[] = [];
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === "") continue;
+    // Arrays repeat the key: `?tag=a&tag=b`. FastAPI's `Query(list[str])`
+    // parses this shape; a comma-joined string would arrive as one value.
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        if (v === undefined || v === null || v === "") continue;
+        pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(v))}`);
+      }
+      continue;
+    }
     pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
   }
   return pairs.length ? `?${pairs.join("&")}` : "";

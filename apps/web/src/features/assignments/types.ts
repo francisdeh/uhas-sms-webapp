@@ -1,4 +1,10 @@
-export type AssignmentStatus = "draft" | "published";
+export const ASSIGNMENT_STATUS = {
+  DRAFT: "draft",
+  PUBLISHED: "published",
+} as const;
+
+export type AssignmentStatus =
+  (typeof ASSIGNMENT_STATUS)[keyof typeof ASSIGNMENT_STATUS];
 
 export type Assignment = {
   id: string;
