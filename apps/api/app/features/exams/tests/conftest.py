@@ -1,13 +1,8 @@
-"""Shared fixtures for the Attendance test suite.
+"""Fixtures for the Exams test suite.
 
-Seeds:
-  - one school (AY 2025/2026)
-  - one class (JHS 1)
-  - two students actively enrolled in that class
-  - one staff member (the submitter)
-
-Distinct UUID range (`99…`) to avoid collision if a future suite-wide
-fixture ever seeds multiple domains together.
+Seeds: school, class (JHS 1, AY 2025/2026), subject (Math), three
+students actively enrolled in the class. Distinct UUID range (`cc…`)
+to avoid collisions with other suites.
 """
 
 from __future__ import annotations
@@ -28,17 +23,17 @@ from app.core.db import engine, get_session
 from app.features.classes.model import Class
 from app.features.enrollments.model import Enrollment
 from app.features.schools.model import School
-from app.features.staff.model import Staff
 from app.features.students.model import Student
+from app.features.subjects.model import Subject
 from app.main import app
 
-SCHOOL_UUID = UUID("99999999-9999-4999-8999-999999999001")
-OTHER_SCHOOL_UUID = UUID("99999999-9999-4999-8999-999999999002")
-CLASS_UUID = UUID("99999999-9999-4999-8999-999999999101")
-STUDENT_A_UUID = UUID("99999999-9999-4999-8999-999999999201")
-STUDENT_B_UUID = UUID("99999999-9999-4999-8999-999999999202")
-STAFF_UUID = UUID("99999999-9999-4999-8999-999999999301")
-USER_UUID = UUID("00000000-0000-0000-0000-000000000091")
+SCHOOL_UUID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccc0001")
+CLASS_UUID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccc0101")
+SUBJECT_UUID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccc0201")
+STUDENT_A_UUID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccc0301")
+STUDENT_B_UUID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccc0302")
+STUDENT_C_UUID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccc0303")
+USER_UUID = UUID("00000000-0000-0000-0000-0000000000cc")
 
 
 @pytest_asyncio.fixture
@@ -57,10 +52,10 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 async def seed_school(db_session: AsyncSession) -> School:
     school = School(
         id=SCHOOL_UUID,
-        slug="test-school-attendance",
-        name="Test School (attendance suite)",
+        slug="test-school-exams",
+        name="Test School (exams)",
         academic_year="2025/2026",
-        current_term=1,
+        current_term=2,
         grading_scale="GES_STANDARD",
         is_active=True,
     )
@@ -85,17 +80,31 @@ async def seed_class(db_session: AsyncSession, seed_school: School) -> Class:
 
 
 @pytest_asyncio.fixture
+async def seed_subject(db_session: AsyncSession, seed_school: School) -> Subject:
+    subj = Subject(
+        id=SUBJECT_UUID,
+        slug="MATH",
+        school_id=SCHOOL_UUID,
+        name="Mathematics",
+        division="JHS",
+        category="Core",
+    )
+    db_session.add(subj)
+    await db_session.flush()
+    return subj
+
+
+@pytest_asyncio.fixture
 async def seed_students(
     db_session: AsyncSession, seed_school: School, seed_class: Class
-) -> tuple[Student, Student]:
-    """Two students, both Active in `seed_class` for the school's current year."""
+) -> tuple[Student, Student, Student]:
     a = Student(
         id=STUDENT_A_UUID,
         slug="UHAS-2025-0001",
         school_id=SCHOOL_UUID,
-        first_name="Akua",
-        last_name="Mensah",
-        dob=date(2012, 4, 15),
+        first_name="Ama",
+        last_name="Adjei",
+        dob=date(2012, 1, 1),
         gender="Female",
         is_active=True,
     )
@@ -105,24 +114,40 @@ async def seed_students(
         school_id=SCHOOL_UUID,
         first_name="Kojo",
         last_name="Boateng",
-        dob=date(2012, 8, 3),
+        dob=date(2012, 2, 2),
         gender="Male",
         is_active=True,
     )
-    db_session.add_all([a, b])
+    c = Student(
+        id=STUDENT_C_UUID,
+        slug="UHAS-2025-0003",
+        school_id=SCHOOL_UUID,
+        first_name="Yaa",
+        last_name="Mensah",
+        dob=date(2012, 3, 3),
+        gender="Female",
+        is_active=True,
+    )
+    db_session.add_all([a, b, c])
     await db_session.flush()
-
     db_session.add_all(
         [
             Enrollment(
-                student_id=a.id,
+                student_id=STUDENT_A_UUID,
                 class_id=CLASS_UUID,
                 academic_year="2025/2026",
                 status="Active",
                 enrollment_date=date(2025, 9, 8),
             ),
             Enrollment(
-                student_id=b.id,
+                student_id=STUDENT_B_UUID,
+                class_id=CLASS_UUID,
+                academic_year="2025/2026",
+                status="Active",
+                enrollment_date=date(2025, 9, 8),
+            ),
+            Enrollment(
+                student_id=STUDENT_C_UUID,
                 class_id=CLASS_UUID,
                 academic_year="2025/2026",
                 status="Active",
@@ -131,26 +156,7 @@ async def seed_students(
         ]
     )
     await db_session.flush()
-    return a, b
-
-
-@pytest_asyncio.fixture
-async def seed_staff(db_session: AsyncSession, seed_school: School) -> Staff:
-    staff = Staff(
-        id=STAFF_UUID,
-        slug="STAFF-001",
-        school_id=SCHOOL_UUID,
-        first_name="Ama",
-        last_name="Owusu",
-        rank="Teacher",
-        system_role="Teacher",
-        division="JHS",
-        email="ama@uhas.edu.gh",
-        is_active=True,
-    )
-    db_session.add(staff)
-    await db_session.flush()
-    return staff
+    return a, b, c
 
 
 @pytest_asyncio.fixture
@@ -169,10 +175,10 @@ async def client(db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
 
 def mint_jwt(
     *,
-    role: str = "Teacher",
+    role: str = "Admin",
     school_id: UUID | str | None = SCHOOL_UUID,
     user_id: UUID | str = USER_UUID,
-    linked_id: UUID | str | None = STAFF_UUID,
+    linked_id: UUID | str | None = None,
     expires_in: int = 3600,
 ) -> str:
     now = int(time.time())

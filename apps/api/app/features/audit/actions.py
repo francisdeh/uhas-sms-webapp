@@ -17,6 +17,8 @@ from typing import Final, Literal
 # Each constant's value is the literal string written to the column.
 # String content must NOT change — historical rows reference these
 # names and downstream queries filter on them.
+EXAM_PUBLISH: Final = "EXAM_PUBLISH"
+EXAM_UNPUBLISH: Final = "EXAM_UNPUBLISH"
 SCORE_OVERRIDE: Final = "SCORE_OVERRIDE"
 STUDENT_EDIT: Final = "STUDENT_EDIT"
 ROLE_CHANGE: Final = "ROLE_CHANGE"
@@ -25,6 +27,8 @@ SCHOOL_SETTINGS_UPDATE: Final = "SCHOOL_SETTINGS_UPDATE"
 SCHOOL_TERMS_UPSERT: Final = "SCHOOL_TERMS_UPSERT"
 
 AuditAction = Literal[
+    "EXAM_PUBLISH",
+    "EXAM_UNPUBLISH",
     "SCORE_OVERRIDE",
     "STUDENT_EDIT",
     "ROLE_CHANGE",

@@ -428,6 +428,65 @@ export function createApiClient(getAuthToken: TokenGetter) {
           `/staff-attendance/sessions/${sessionId}`,
         ),
     },
+    exams: {
+      list: (
+        params: {
+          q?: string;
+          academicYear?: string;
+          term?: number;
+          type?: "MidTerm" | "EndOfTerm";
+          published?: boolean;
+          page?: number;
+          size?: number;
+        } = {},
+      ) =>
+        apiFetch<components["schemas"]["ExamsListResponse"]>(
+          getAuthToken,
+          `/exams${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["ExamRead"]>(getAuthToken, `/exams/${id}`),
+      create: (payload: components["schemas"]["ExamCreate"]) =>
+        apiFetch<components["schemas"]["ExamRead"]>(getAuthToken, "/exams", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      update: (id: string, payload: components["schemas"]["ExamUpdate"]) =>
+        apiFetch<components["schemas"]["ExamRead"]>(
+          getAuthToken,
+          `/exams/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      publish: (id: string) =>
+        apiFetch<components["schemas"]["ExamRead"]>(
+          getAuthToken,
+          `/exams/${id}/publish`,
+          { method: "POST" },
+        ),
+      unpublish: (id: string) =>
+        apiFetch<components["schemas"]["ExamRead"]>(
+          getAuthToken,
+          `/exams/${id}/unpublish`,
+          { method: "POST" },
+        ),
+      /** Nested sub-resource: score grid for (exam, class, subject). */
+      scores: {
+        get: (examId: string, params: { classId: string; subjectId: string }) =>
+          apiFetch<components["schemas"]["ScoresGridResponse"]>(
+            getAuthToken,
+            `/exams/${examId}/scores${buildQuery(params)}`,
+          ),
+        upsert: (
+          examId: string,
+          payload: components["schemas"]["ScoresUpsertRequest"],
+        ) =>
+          apiFetch<components["schemas"]["ScoresGridResponse"]>(
+            getAuthToken,
+            `/exams/${examId}/scores`,
+            { method: "PUT", body: JSON.stringify(payload) },
+          ),
+      },
+    },
     leaveRequests: {
       list: (
         params: {

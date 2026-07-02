@@ -56,7 +56,7 @@ import {
   deactivateStaffAction,
   reactivateStaffAction,
 } from "@/features/staff/actions";
-import type { Staff } from "@/features/staff/types";
+import { TEACHER_RANKS, type Staff } from "@/features/staff/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
 import { STAFF_SYSTEM_ROLES } from "@/features/auth/types";
@@ -85,7 +85,7 @@ const ROLE_LABEL: Record<Staff["systemRole"], string> = {
 const editSchema = z.object({
   firstName: z.string().min(2, { message: "Min 2 characters" }),
   lastName: z.string().min(2, { message: "Min 2 characters" }),
-  rank: z.string().min(2, { message: "Min 2 characters" }),
+  rank: z.enum(TEACHER_RANKS).nullish(),
   phone: z.string().min(7, { message: "Min 7 characters" }),
   email: z.string().email({ message: "Enter a valid email" }),
   photoUrl: z.string().optional(),
@@ -333,7 +333,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
                     <InfoRow label="First Name" value={staff.firstName} />
                     <InfoRow label="Last Name" value={staff.lastName} />
-                    <InfoRow label="Rank" value={staff.rank} />
+                    <InfoRow label="Rank" value={staff.rank ?? "—"} />
                     <InfoRow label="Phone" value={staff.phone} />
                     <InfoRow label="Email" value={staff.email} />
                     <InfoRow label="Enrolled" value={formatStudentDate(staff.createdAt)} />
@@ -424,7 +424,27 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
 
               <Field>
                 <FieldLabel htmlFor="edit-rank">Rank</FieldLabel>
-                <Input id="edit-rank" {...editForm.register("rank")} />
+                <Controller
+                  control={editForm.control}
+                  name="rank"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ?? ""}
+                      onValueChange={(v) => field.onChange(v || null)}
+                    >
+                      <SelectTrigger id="edit-rank">
+                        <SelectValue placeholder="Select a rank (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEACHER_RANKS.map((rank) => (
+                          <SelectItem key={rank} value={rank}>
+                            {rank}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 <FieldError errors={[editForm.formState.errors.rank]} />
               </Field>
 

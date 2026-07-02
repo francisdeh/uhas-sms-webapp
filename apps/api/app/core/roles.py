@@ -32,6 +32,13 @@ SystemRole = Literal["Admin", "DeputyHead", "Teacher", "Accountant"]
 `Role` minus `Parent` (parents aren't staff). Kept as its own union so
 `staff.system_role = "Parent"` is a type error, not a runtime error."""
 
+TeacherRank = Literal["Teacher", "Senior Teacher", "Principal Teacher"]
+"""GES teacher-track ranks. Applied to `staff.rank`; the DB column is
+`varchar(100)` (permissive) but every code-path validates against this
+closed set. Management-track ranks (Principal Superintendent, Assistant
+Director, Deputy Director, Director) aren't included — those staff
+oversee multiple schools rather than sitting in one."""
+
 ALL_ROLES: Final[tuple[Role, ...]] = (
     "Admin",
     "DeputyHead",

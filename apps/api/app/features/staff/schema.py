@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
-from app.core.roles import SystemRole
+from app.core.roles import SystemRole, TeacherRank
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
@@ -39,7 +39,7 @@ class StaffBase(BaseModel):
 
     first_name: str = Field(..., min_length=1, max_length=255)
     last_name: str = Field(..., min_length=1, max_length=255)
-    rank: str | None = Field(None, max_length=100)
+    rank: TeacherRank | None = None
     system_role: SystemRole | None = None
     division: Division | None = None
     is_unit_head: bool | None = False
@@ -72,7 +72,7 @@ class StaffUpdate(BaseModel):
 
     first_name: str | None = Field(None, min_length=1, max_length=255)
     last_name: str | None = Field(None, min_length=1, max_length=255)
-    rank: str | None = Field(None, max_length=100)
+    rank: TeacherRank | None = None
     uhas_id: str | None = Field(None, max_length=50)
     phone: str | None = Field(None, max_length=50)
     email: EmailStr | None = None
