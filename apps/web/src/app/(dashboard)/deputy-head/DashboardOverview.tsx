@@ -17,9 +17,10 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { cn } from "@/lib/utils";
 import type { Staff } from "@/features/staff/types";
+import type { Division } from "@/features/auth/types";
 
 interface Props {
-  division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+  division: Division;
   displayName: string;
   currentYear: string;
   currentTerm: number;

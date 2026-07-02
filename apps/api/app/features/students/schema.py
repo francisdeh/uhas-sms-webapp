@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
+from app.core.school_structure import Division
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
@@ -29,7 +30,6 @@ _CAMEL_CONFIG = ConfigDict(
 )
 
 Gender = Literal["Male", "Female"]
-Division = Literal["KG", "Lower Primary", "Upper Primary", "JHS"]
 
 
 class StudentBase(BaseModel):
