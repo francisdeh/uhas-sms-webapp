@@ -19,6 +19,7 @@ import type {
   StaffSessionWithRecords,
 } from "@/features/attendance/types";
 import type { Staff } from "@/features/staff/types";
+import type { Division } from "@/features/auth/types";
 import type { components } from "@/types/api";
 
 /** UI-side status → API status. `on_leave` → `OnLeave`. */
@@ -32,7 +33,7 @@ const UI_TO_API_STATUS: Record<StaffAttendanceStatus, ApiStatus> = {
 
 interface StaffAttendanceSheetProps {
   session: StaffSessionWithRecords | null;
-  division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+  division: Division;
   date: string;
   term: number;
   staff: Staff[];

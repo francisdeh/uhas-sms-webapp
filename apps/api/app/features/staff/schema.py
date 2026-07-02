@@ -14,7 +14,6 @@ defaults that omit the alias.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -22,14 +21,13 @@ from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
 from app.core.roles import SystemRole, TeacherRank
+from app.core.school_structure import Division
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
     populate_by_name=True,
     from_attributes=True,
 )
-
-Division = Literal["KG", "Lower Primary", "Upper Primary", "JHS"]
 
 
 class StaffBase(BaseModel):

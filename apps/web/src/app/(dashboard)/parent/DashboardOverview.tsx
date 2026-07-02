@@ -16,13 +16,14 @@ import { Badge } from "@/components/ui/badge";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { cn } from "@/lib/utils";
 import type { Announcement as MockAnnouncement } from "@/features/announcements/types";
+import type { Division } from "@/features/auth/types";
 
 interface ChildInfo {
   id: string;
   name: string;
   classId: string;
   className: string;
-  division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+  division: Division;
 }
 
 interface Props {

@@ -34,9 +34,8 @@ import {
   type StudentRow,
   type StudentsListResponse,
 } from "@/features/students/hooks/use-students";
+import type { Division } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
-
-type Division = "KG" | "Lower Primary" | "Upper Primary" | "JHS";
 
 const DIVISION_AVATAR: Record<Division, string> = {
   KG: "from-purple-400 to-purple-600",

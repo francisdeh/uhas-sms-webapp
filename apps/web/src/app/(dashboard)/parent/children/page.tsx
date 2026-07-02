@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
+import type { Division } from "@/features/auth/types";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { formatDate } from "@/lib/dates";
 import { db } from "@/db";
@@ -63,7 +64,7 @@ export default async function ParentChildrenPage() {
         lastName: s.lastName,
         gender: s.gender ?? "Male",
         dob: s.dob ?? "",
-        division: (enr?.division ?? "KG") as "KG" | "Lower Primary" | "Upper Primary" | "JHS",
+        division: (enr?.division ?? "KG") as Division,
         isActive: s.isActive ?? true,
         nationality: s.nationality,
         religion: s.religion,

@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
+from app.core.school_structure import Division
 from app.features.staff_attendance.constants import StaffAttendanceStatus
 
 _CAMEL_CONFIG = ConfigDict(
@@ -17,8 +17,6 @@ _CAMEL_CONFIG = ConfigDict(
     populate_by_name=True,
     from_attributes=True,
 )
-
-Division = Literal["KG", "Lower Primary", "Upper Primary", "JHS"]
 
 
 class StaffAttendanceRecordInput(BaseModel):
