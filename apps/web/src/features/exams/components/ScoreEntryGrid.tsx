@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Loader2, Save, Lock } from "lucide-react";
 import {
@@ -17,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { saveScoresAction } from "@/features/exams/actions";
+import { useUpsertScores } from "@/features/exams/hooks/use-exams";
 import {
   computeTotalScore,
   computeGrade,
@@ -73,9 +72,9 @@ export function ScoreEntryGrid({
   subjectName,
   initialRows,
 }: ScoreEntryGridProps) {
-  const router = useRouter();
   const [rows, setRows] = useState<Row[]>(() => initialRows.map(toRow));
-  const [isPending, startTransition] = useTransition();
+  const upsertScores = useUpsertScores();
+  const isPending = upsertScores.isPending;
 
   const isMidTerm = exam.type === "MidTerm";
   const locked = exam.isPublished;
@@ -130,29 +129,18 @@ export function ScoreEntryGrid({
       return;
     }
 
-    startTransition(async () => {
-      const payload = rows.map((r) => ({
-        studentId: r.studentId,
-        cat1: isMidTerm ? null : parseScore(r.cat1),
-        cat2: isMidTerm ? null : parseScore(r.cat2),
-        projectWork: isMidTerm ? null : parseScore(r.projectWork),
-        groupWork: isMidTerm ? null : parseScore(r.groupWork),
-        examScore: parseScore(r.examScore),
-      }));
+    const records = rows.map((r) => ({
+      studentId: r.studentId,
+      cat1: isMidTerm ? null : parseScore(r.cat1),
+      cat2: isMidTerm ? null : parseScore(r.cat2),
+      projectWork: isMidTerm ? null : parseScore(r.projectWork),
+      groupWork: isMidTerm ? null : parseScore(r.groupWork),
+      examScore: parseScore(r.examScore),
+    }));
 
-      const result = await saveScoresAction({
-        examId: exam.id,
-        subjectId,
-        classId,
-        rows: payload,
-      });
-
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Scores saved.");
-      router.refresh();
+    upsertScores.mutate({
+      examId: exam.id,
+      payload: { classId, subjectId, records },
     });
   }
 

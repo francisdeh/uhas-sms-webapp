@@ -37,6 +37,7 @@ import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field
 import { ApiError } from "@/lib/api/browser";
 import { useStaffMutations } from "@/features/staff/hooks/use-staff";
 import { STAFF_SYSTEM_ROLES } from "@/features/auth/types";
+import { TEACHER_RANKS } from "@/features/staff/types";
 
 const schema = z
   .object({
@@ -47,7 +48,7 @@ const schema = z
       .or(z.literal("")),
     firstName: z.string().min(2, { message: "Must be at least 2 characters" }),
     lastName: z.string().min(2, { message: "Must be at least 2 characters" }),
-    rank: z.string().min(2, { message: "Must be at least 2 characters" }),
+    rank: z.enum(TEACHER_RANKS).nullish(),
     systemRole: z.enum(STAFF_SYSTEM_ROLES, {
       message: "Select a role",
     }),
@@ -216,10 +217,26 @@ export default function StaffRegistrationForm({
 
               <Field>
                 <FieldLabel htmlFor="rank">Rank</FieldLabel>
-                <Input
-                  id="rank"
-                  placeholder="e.g. Class Teacher"
-                  {...register("rank")}
+                <Controller
+                  control={control}
+                  name="rank"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ?? ""}
+                      onValueChange={(v) => field.onChange(v || null)}
+                    >
+                      <SelectTrigger id="rank">
+                        <SelectValue placeholder="Select a rank (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEACHER_RANKS.map((rank) => (
+                          <SelectItem key={rank} value={rank}>
+                            {rank}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
                 <FieldError errors={[errors.rank]} />
               </Field>

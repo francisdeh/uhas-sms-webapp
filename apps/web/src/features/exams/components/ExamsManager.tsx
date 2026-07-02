@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -46,10 +45,10 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import {
-  createExamAction,
-  publishExamAction,
-  unpublishExamAction,
-} from "@/features/exams/actions";
+  useCreateExam,
+  usePublishExam,
+  useUnpublishExam,
+} from "@/features/exams/hooks/use-exams";
 import type { Exam } from "@/features/exams/types";
 
 const createSchema = z.object({
@@ -70,57 +69,49 @@ export function ExamsManager({
   initialExams: Exam[];
   currentYear: string;
 }) {
-  const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [publishTarget, setPublishTarget] = useState<Exam | null>(null);
   const [unpublishTarget, setUnpublishTarget] = useState<Exam | null>(null);
-  const [isPending, startTransition] = useTransition();
+
+  const createExam = useCreateExam();
+  const publishExam = usePublishExam();
+  const unpublishExam = useUnpublishExam();
+  const isPending =
+    createExam.isPending || publishExam.isPending || unpublishExam.isPending;
 
   const form = useForm<CreateFormValues>({
     resolver: zodResolver(createSchema),
     defaultValues: { term: 1, academicYear: currentYear },
   });
 
-  function onCreate(data: CreateFormValues) {
-    startTransition(async () => {
-      const result = await createExamAction(data);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Exam created.");
+  async function onCreate(data: CreateFormValues) {
+    try {
+      await createExam.mutateAsync(data);
       setCreateOpen(false);
       form.reset({ term: 1, academicYear: currentYear });
-      router.refresh();
-    });
+    } catch {
+      /* toast already fired inside the hook */
+    }
   }
 
-  function handlePublish() {
+  async function handlePublish() {
     if (!publishTarget) return;
-    startTransition(async () => {
-      const result = await publishExamAction(publishTarget.id);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Exam published.");
+    try {
+      await publishExam.mutateAsync(publishTarget.id);
       setPublishTarget(null);
-      router.refresh();
-    });
+    } catch {
+      /* toast already fired */
+    }
   }
 
-  function handleUnpublish() {
+  async function handleUnpublish() {
     if (!unpublishTarget) return;
-    startTransition(async () => {
-      const result = await unpublishExamAction(unpublishTarget.id);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Exam unpublished.");
+    try {
+      await unpublishExam.mutateAsync(unpublishTarget.id);
       setUnpublishTarget(null);
-      router.refresh();
-    });
+    } catch {
+      /* toast already fired */
+    }
   }
 
   return (

@@ -671,6 +671,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/exams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Exams */
+        get: operations["list_exams_exams_get"];
+        put?: never;
+        /** Create Exam */
+        post: operations["create_exam_exams_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exams/{exam_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Exam */
+        get: operations["get_exam_exams__exam_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Exam */
+        patch: operations["update_exam_exams__exam_id__patch"];
+        trace?: never;
+    };
+    "/exams/{exam_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Exam */
+        post: operations["publish_exam_exams__exam_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exams/{exam_id}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unpublish Exam */
+        post: operations["unpublish_exam_exams__exam_id__unpublish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exams/{exam_id}/scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Scores Grid */
+        get: operations["get_scores_grid_exams__exam_id__scores_get"];
+        /** Batch-save scores for a (classId, subjectId) */
+        put: operations["upsert_scores_exams__exam_id__scores_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1110,6 +1198,79 @@ export interface components {
             /** Size */
             size: number;
         };
+        /** ExamCreate */
+        ExamCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "MidTerm" | "EndOfTerm";
+            /** Term */
+            term: number;
+            /** Academicyear */
+            academicYear: string;
+        };
+        /** ExamRead */
+        ExamRead: {
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "MidTerm" | "EndOfTerm";
+            /** Term */
+            term: number;
+            /** Academicyear */
+            academicYear: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /** Ispublished */
+            isPublished: boolean;
+            /** Publishedat */
+            publishedAt?: string | null;
+            /** Createdat */
+            createdAt?: string | null;
+        };
+        /**
+         * ExamUpdate
+         * @description Partial update for an unpublished exam. Publish/unpublish is a
+         *     separate action endpoint — this only touches metadata.
+         */
+        ExamUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Type */
+            type?: ("MidTerm" | "EndOfTerm") | null;
+            /** Term */
+            term?: number | null;
+            /** Academicyear */
+            academicYear?: string | null;
+        };
+        /**
+         * ExamsListResponse
+         * @description Paged exam list. See `app.core.pagination.Paginated`.
+         */
+        ExamsListResponse: {
+            /** Items */
+            items: components["schemas"]["ExamRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
         /**
          * GradingBand
          * @description One row in the school's grading-band table.
@@ -1488,6 +1649,84 @@ export interface components {
             sidebarAccentHex?: string | null;
         };
         /**
+         * ScoreInput
+         * @description One row of the batch payload — teacher's picture of one student's
+         *     scores for a subject. All components nullable (partial saves during
+         *     grading are the norm).
+         */
+        ScoreInput: {
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /** Cat1 */
+            cat1?: number | null;
+            /** Cat2 */
+            cat2?: number | null;
+            /** Projectwork */
+            projectWork?: number | null;
+            /** Groupwork */
+            groupWork?: number | null;
+            /** Examscore */
+            examScore?: number | null;
+        };
+        /**
+         * ScoreRead
+         * @description Read shape — includes joined student + subject display fields so
+         *     the grid can render names, not just IDs.
+         */
+        ScoreRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Examid
+             * Format: uuid
+             */
+            examId: string;
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /** Studentfirstname */
+            studentFirstName: string;
+            /** Studentlastname */
+            studentLastName: string;
+            /** Studentslug */
+            studentSlug: string;
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Subjectslug */
+            subjectSlug: string;
+            /** Subjectname */
+            subjectName: string;
+            /** Cat1 */
+            cat1?: number | null;
+            /** Cat2 */
+            cat2?: number | null;
+            /** Projectwork */
+            projectWork?: number | null;
+            /** Groupwork */
+            groupWork?: number | null;
+            /** Examscore */
+            examScore?: number | null;
+            /** Totalscore */
+            totalScore?: number | null;
+            /** Grade */
+            grade?: string | null;
+            /** Interpretation */
+            interpretation?: string | null;
+            /** Subjectposition */
+            subjectPosition?: number | null;
+        };
+        /**
          * ScoreWeights
          * @description Mid-term + end-of-term score weighting. Must sum to 100.
          */
@@ -1502,6 +1741,55 @@ export interface components {
             groupWork: number;
             /** Projectwork */
             projectWork: number;
+        };
+        /**
+         * ScoresGridResponse
+         * @description `GET /exams/{id}/scores?classId=&subjectId=` — one grid.
+         *
+         *     Always returns one row per student in the class (whether or not
+         *     they have scores saved), so the frontend can render blank rows for
+         *     students not yet graded.
+         */
+        ScoresGridResponse: {
+            /**
+             * Examid
+             * Format: uuid
+             */
+            examId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Items */
+            items: components["schemas"]["ScoreRead"][];
+        };
+        /**
+         * ScoresUpsertRequest
+         * @description `PUT /exams/{id}/scores` — one subject's grid for one class.
+         *
+         *     The service loads the class + subject + exam, upserts each row,
+         *     recomputes totals/grades, and reranks positions in the same
+         *     transaction.
+         */
+        ScoresUpsertRequest: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Records */
+            records: components["schemas"]["ScoreInput"][];
         };
         /** StaffAttendanceRecordInput */
         StaffAttendanceRecordInput: {
@@ -1655,7 +1943,7 @@ export interface components {
             /** Lastname */
             lastName: string;
             /** Rank */
-            rank?: string | null;
+            rank?: ("Teacher" | "Senior Teacher" | "Principal Teacher") | null;
             /**
              * Systemrole
              * @enum {string}
@@ -1706,7 +1994,7 @@ export interface components {
             /** Lastname */
             lastName: string;
             /** Rank */
-            rank?: string | null;
+            rank?: ("Teacher" | "Senior Teacher" | "Principal Teacher") | null;
             /** Systemrole */
             systemRole?: ("Admin" | "DeputyHead" | "Teacher" | "Accountant") | null;
             /** Division */
@@ -1784,7 +2072,7 @@ export interface components {
             /** Lastname */
             lastName?: string | null;
             /** Rank */
-            rank?: string | null;
+            rank?: ("Teacher" | "Senior Teacher" | "Principal Teacher") | null;
             /** Uhasid */
             uhasId?: string | null;
             /** Phone */
@@ -3977,6 +4265,289 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnrollmentsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_exams_exams_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                academicYear?: string | null;
+                term?: number | null;
+                type?: string | null;
+                published?: boolean | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_exam_exams_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExamCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_exam_exams__exam_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_exam_exams__exam_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExamUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_exam_exams__exam_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unpublish_exam_exams__exam_id__unpublish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_scores_grid_exams__exam_id__scores_get: {
+        parameters: {
+            query: {
+                classId: string;
+                subjectId: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoresGridResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_scores_exams__exam_id__scores_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScoresUpsertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoresGridResponse"];
                 };
             };
             /** @description Validation Error */

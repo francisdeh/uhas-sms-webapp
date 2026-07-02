@@ -29,6 +29,7 @@ from app.features.enrollments.router import (
 from app.features.enrollments.router import (
     students_router as student_enrollments_router,
 )
+from app.features.exams.router import router as exams_router
 from app.features.guardians.router import router as guardians_router
 from app.features.health.router import router as health_router
 from app.features.leave_requests.router import router as leave_requests_router
@@ -102,6 +103,7 @@ def create_app() -> FastAPI:
     app.include_router(leave_requests_router)
     app.include_router(student_enrollments_router)
     app.include_router(class_enrollments_router)
+    app.include_router(exams_router)
 
     # Logfire instrumentation attaches after routers register so it sees
     # every endpoint. No-op when LOGFIRE_TOKEN is unset.
