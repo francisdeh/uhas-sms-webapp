@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -39,9 +39,9 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import {
-  createCalendarEventAction,
-  deleteCalendarEventAction,
-} from "@/features/reports/actions/calendar";
+  useCreateCalendarEvent,
+  useDeleteCalendarEvent,
+} from "@/features/reports/hooks/use-calendar";
 import type { CalendarEvent, CalendarEventType } from "@/features/reports/types";
 
 const TYPE_LABELS: Record<CalendarEventType, string> = {
@@ -83,51 +83,46 @@ interface CalendarViewProps {
 
 export function CalendarView({ events, authorId, canManage }: CalendarViewProps) {
   const router = useRouter();
+  const createMut = useCreateCalendarEvent();
+  const deleteMut = useDeleteCalendarEvent();
+  const isPending = createMut.isPending || deleteMut.isPending;
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null);
-  const [isPending, startTransition] = useTransition();
+  // Author identity is derived from the JWT server-side now.
+  void authorId;
+  void toast;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { type: "event", title: "", description: "", startDate: "", endDate: "" },
   });
 
-  function onCreate(data: FormValues) {
-    if (!authorId) return;
-    startTransition(async () => {
-      const result = await createCalendarEventAction({
-        authorId,
-        data: {
-          title: data.title,
-          description: data.description || undefined,
-          startDate: data.startDate,
-          endDate: data.endDate || undefined,
-          type: data.type,
-        },
+  async function onCreate(data: FormValues) {
+    try {
+      await createMut.mutateAsync({
+        title: data.title,
+        description: data.description || null,
+        startDate: data.startDate,
+        endDate: data.endDate || null,
+        type: data.type,
       });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Event added.");
       setCreateOpen(false);
       form.reset({ type: "event", title: "", description: "", startDate: "", endDate: "" });
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function handleDelete() {
-    if (!deleteTarget || !authorId) return;
-    startTransition(async () => {
-      const result = await deleteCalendarEventAction({ id: deleteTarget.id, authorId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Event removed.");
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    try {
+      await deleteMut.mutateAsync(deleteTarget.id);
       setDeleteTarget(null);
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
   const today = new Date().toISOString().slice(0, 10);

@@ -1343,6 +1343,132 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Calendar */
+        get: operations["list_calendar_calendar_get"];
+        put?: never;
+        /** Create Calendar Event */
+        post: operations["create_calendar_event_calendar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calendar/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Calendar Event */
+        delete: operations["delete_calendar_event_calendar__event_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Appointments */
+        get: operations["list_appointments_appointments_get"];
+        put?: never;
+        /** Create Appointment */
+        post: operations["create_appointment_appointments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/teachers-for-student": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Teachers For Student */
+        get: operations["teachers_for_student_appointments_teachers_for_student_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/{appointment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Appointment
+         * @description The caller must be a party to the appointment. Admin can always
+         *     read; a Parent can only read their own; a Teacher can only read
+         *     ones addressed to them.
+         */
+        get: operations["get_appointment_appointments__appointment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/{appointment_id}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Respond To Appointment */
+        post: operations["respond_to_appointment_appointments__appointment_id__respond_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/{appointment_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Appointment */
+        post: operations["cancel_appointment_appointments__appointment_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1407,6 +1533,127 @@ export interface components {
         AnnouncementsListResponse: {
             /** Items */
             items: components["schemas"]["AnnouncementRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
+         * AppointmentCreate
+         * @description Parent-side create. The guardian id comes from the JWT — the
+         *     parent doesn't get to pretend to be another guardian.
+         */
+        AppointmentCreate: {
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /**
+             * Teacherid
+             * Format: uuid
+             */
+            teacherId: string;
+            /**
+             * Preferreddate
+             * Format: date
+             */
+            preferredDate: string;
+            /**
+             * Preferredslot
+             * @enum {string}
+             */
+            preferredSlot: "morning" | "afternoon" | "after_school";
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
+         * AppointmentRead
+         * @description Full read — joined display fields for the guardian, student,
+         *     and teacher so a list caller doesn't need three follow-up fetches.
+         */
+        AppointmentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Guardianid
+             * Format: uuid
+             */
+            guardianId: string;
+            /** Guardianname */
+            guardianName: string;
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /** Studentname */
+            studentName: string;
+            /**
+             * Teacherid
+             * Format: uuid
+             */
+            teacherId: string;
+            /** Teachername */
+            teacherName: string;
+            /**
+             * Preferreddate
+             * Format: date
+             */
+            preferredDate: string;
+            /**
+             * Preferredslot
+             * @enum {string}
+             */
+            preferredSlot: "morning" | "afternoon" | "after_school";
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "confirmed" | "declined" | "cancelled";
+            /** Teacherresponse */
+            teacherResponse?: string | null;
+            /** Respondedat */
+            respondedAt?: string | null;
+            /** Createdat */
+            createdAt?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
+        };
+        /**
+         * AppointmentRespond
+         * @description Teacher-side response. `response` is optional on confirm but
+         *     required on decline — the service enforces that; here we just
+         *     accept the raw shape.
+         */
+        AppointmentRespond: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirm" | "decline";
+            /** Response */
+            response?: string | null;
+        };
+        /**
+         * AppointmentsListResponse
+         * @description Paged list — pending first, then most-recent.
+         */
+        AppointmentsListResponse: {
+            /** Items */
+            items: components["schemas"]["AppointmentRead"][];
             /** Total */
             total: number;
             /** Page */
@@ -1716,6 +1963,79 @@ export interface components {
             unreadCount: number;
             /** Items */
             items: components["schemas"]["NotificationRead"][];
+        };
+        /**
+         * CalendarEventCreate
+         * @description Create request. Admin only — see `CalendarService.create` for
+         *     the role gate.
+         */
+        CalendarEventCreate: {
+            /** Title */
+            title: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Startdate
+             * Format: date
+             */
+            startDate: string;
+            /** Enddate */
+            endDate?: string | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "term_start" | "term_end" | "exam" | "holiday" | "event";
+        };
+        /** CalendarEventRead */
+        CalendarEventRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Startdate
+             * Format: date
+             */
+            startDate: string;
+            /** Enddate */
+            endDate?: string | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "term_start" | "term_end" | "exam" | "holiday" | "event";
+            /**
+             * Createdbyid
+             * Format: uuid
+             */
+            createdById: string;
+            /** Createdat */
+            createdAt?: string | null;
+        };
+        /**
+         * CalendarEventsListResponse
+         * @description Chronological list — oldest event first (matches the TS `asc` ordering).
+         */
+        CalendarEventsListResponse: {
+            /** Items */
+            items: components["schemas"]["CalendarEventRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
         };
         /**
          * ClassCreate
@@ -2617,7 +2937,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_sent_back" | "assignment_created";
+            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_sent_back" | "assignment_created" | "appointment_requested" | "appointment_decided";
             /** Title */
             title: string;
             /** Body */
@@ -3780,6 +4100,32 @@ export interface components {
             page: number;
             /** Size */
             size: number;
+        };
+        /**
+         * TeacherOption
+         * @description One row in the `available teachers for this student` picker.
+         *     `subjects` is the list of subjects the teacher teaches this student
+         *     (or the sentinel `Class Teacher` when they're the form teacher).
+         */
+        TeacherOption: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Subjects */
+            subjects: string[];
+        };
+        /**
+         * TeacherOptionsResponse
+         * @description Wrapper — plain array on the wire so it stays consistent with
+         *     the rest of the API's collection responses.
+         */
+        TeacherOptionsResponse: {
+            /** Items */
+            items: components["schemas"]["TeacherOption"][];
         };
         /**
          * TermInput
@@ -7443,6 +7789,309 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MarkReadResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_calendar_calendar_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarEventsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_calendar_event_calendar_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarEventCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarEventRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_calendar_event_calendar__event_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_appointments_appointments_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_appointment_appointments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppointmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    teachers_for_student_appointments_teachers_for_student_get: {
+        parameters: {
+            query: {
+                studentId: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeacherOptionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_appointment_appointments__appointment_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    respond_to_appointment_appointments__appointment_id__respond_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppointmentRespond"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_appointment_appointments__appointment_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
