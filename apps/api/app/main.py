@@ -10,6 +10,7 @@ Run locally:
 
 from typing import Any
 
+import inngest.fast_api
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,6 +18,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.db import engine
 from app.core.errors import AppError
+from app.core.inngest import inngest_client
 from app.core.observability import init_observability, instrument_app
 from app.features.announcements.router import router as announcements_router
 from app.features.appointments.router import router as appointments_router
@@ -51,18 +53,23 @@ from app.features.exams.router import (
     students_router as student_exams_router,
 )
 from app.features.guardians.router import router as guardians_router
+from app.features.health.jobs import HEALTH_JOBS
 from app.features.health.router import router as health_router
 from app.features.leave_requests.router import router as leave_requests_router
+from app.features.lesson_plans.jobs import LESSON_PLANS_JOBS
 from app.features.lesson_plans.router import router as lesson_plans_router
 from app.features.me.router import router as me_router
 from app.features.notifications.router import router as notifications_router
 from app.features.promotions.router import router as promotions_router
+from app.features.reports.jobs import REPORTS_JOBS
 from app.features.reports.router import router as reports_router
 from app.features.schemes.router import router as schemes_router
 from app.features.school_terms.router import router as school_terms_router
 from app.features.schools.router import router as schools_router
 from app.features.search.router import router as search_router
 from app.features.shell.router import router as shell_router
+from app.features.sms.jobs import SMS_JOBS
+from app.features.sms.router import router as sms_router
 from app.features.staff.router import router as staff_router
 from app.features.staff_attendance.router import router as staff_attendance_router
 from app.features.students.router import router as students_router
@@ -150,6 +157,19 @@ def create_app() -> FastAPI:
     app.include_router(reports_router)
     app.include_router(search_router)
     app.include_router(users_router)
+    app.include_router(sms_router)
+
+    # ── Background jobs (Inngest) ────────────────────────────────────────
+    # Each feature's `jobs/__init__.py` exports its own list; collect them
+    # flat here and hand the lot to `serve(...)`, which mounts the
+    # `/api/inngest` webhook route Inngest calls to drive step execution.
+    # New feature domains: add `<domain>_JOBS` here when they grow a
+    # `jobs/` folder.
+    inngest.fast_api.serve(
+        app,
+        inngest_client,
+        [*HEALTH_JOBS, *SMS_JOBS, *LESSON_PLANS_JOBS, *REPORTS_JOBS],
+    )
 
     # Logfire instrumentation attaches after routers register so it sees
     # every endpoint. No-op when LOGFIRE_TOKEN is unset.

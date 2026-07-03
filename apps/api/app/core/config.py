@@ -102,6 +102,48 @@ class Settings(BaseSettings):
         description="Server-side admin key. Required by the seed script + RLS-bypass ops.",
     )
 
+    # ── Background jobs (Inngest) ─────────────────────────────────────────
+    # `INNGEST_DEV=true` is read directly from the process env by the SDK
+    # itself (not through this Settings class) — it switches the client
+    # into dev mode, which talks to a local `inngest dev` server instead
+    # of Inngest Cloud and needs no event/signing keys. Set it in `.env`
+    # for local dev and CI; leave unset in production.
+    inngest_event_key: str | None = Field(
+        default=None,
+        description="Inngest Cloud event key. Unused in dev mode.",
+    )
+    inngest_signing_key: str | None = Field(
+        default=None,
+        description="Inngest Cloud signing key. Verifies inbound calls. Unused in dev mode.",
+    )
+
+    # ── Outbound email ────────────────────────────────────────────────────
+    # Provider-agnostic — today this is plain SMTP (Gmail App Password in
+    # dev), matching the pre-migration Next-side `lib/email.ts`. Swapping
+    # to a transactional provider (Resend/SendGrid/Postmark) later is a
+    # one-file change in `app/integrations/email/`; no caller changes.
+    # Missing SMTP config isn't an error — `get_email_provider()` returns
+    # a provider that logs + returns `skipped=True` so every environment
+    # (dev, CI, tests) runs the same code path without exploding.
+    smtp_host: str | None = Field(default=None, description="e.g. smtp.gmail.com")
+    smtp_port: int = Field(default=465, description="465 → implicit TLS.")
+    smtp_user: str | None = Field(default=None)
+    smtp_password: str | None = Field(
+        default=None, description="Gmail App Password, not the account password."
+    )
+    email_from: str | None = Field(
+        default=None,
+        description='e.g. "UHAS SMS <noreply@uhas.edu.gh>". Falls back to smtp_user.',
+    )
+    email_dev_redirect: str | None = Field(
+        default=None,
+        description="Outside production, every email goes here instead of the real recipient.",
+    )
+    app_url: str = Field(
+        default="http://localhost:3000",
+        description="Base URL for links embedded in outbound email (the Next.js app).",
+    )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

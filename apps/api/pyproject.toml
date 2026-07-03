@@ -37,6 +37,7 @@ dependencies = [
     # supabase-py used by the seed script (Phase 1 PR #9) to create the
     # 8 role accounts via the admin API. Server-side only.
     "supabase>=2.10",
+    "inngest>=0.5.19",
 ]
 
 [dependency-groups]

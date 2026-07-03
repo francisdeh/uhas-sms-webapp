@@ -17,12 +17,16 @@ Reviewer authorisation:
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
+import inngest
+import sentry_sdk
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from app.core.inngest import inngest_client
 from app.core.roles import ADMIN, DEPUTY_HEAD, TEACHER
 from app.features.classes.model import Class
 from app.features.classes.repository import ClassesRepository
@@ -50,10 +54,13 @@ from app.features.notifications.constants import (
     LESSON_PLAN_SUBMITTED,
 )
 from app.features.notifications.service import NotificationsService, NotifyPayload
+from app.features.schools.repository import SchoolsRepository
 from app.features.staff.model import Staff
 from app.features.staff.repository import StaffRepository
 from app.features.subjects.model import Subject
 from app.features.subjects.repository import SubjectsRepository
+
+logger = logging.getLogger(__name__)
 
 _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     DRAFT: {SUBMITTED},
@@ -319,8 +326,8 @@ class LessonPlansService:
         #   * `unit_head_approved` — advances to Deputy review; notify
         #     Deputy Heads of the division so they see it in their queue.
         #   * `approved` — terminal; notify the teacher.
-        #   * `rejected` — notify the teacher (email trigger deferred to
-        #     Phase 3 alongside SMS; see MIGRATION-CLEANUP.md).
+        #   * `rejected` — notify the teacher in-app, and email them if
+        #     the school has that notification default on.
         await _fan_out_review_notification(
             session,
             school_id,
@@ -329,6 +336,7 @@ class LessonPlansService:
             cls=cls,
             decision=decision,
             comment=payload.comment,
+            reviewer_staff_id=actor_staff_id,
         )
         return await LessonPlansService.get(session, school_id, plan_id)
 
@@ -406,6 +414,7 @@ async def _fan_out_review_notification(
     cls: Class,
     decision: str,
     comment: str | None,
+    reviewer_staff_id: UUID | str | None,
 ) -> None:
     """One trigger, three shapes depending on the review outcome. See the
     review() docstring for the rules — this helper is just the payload
@@ -449,3 +458,62 @@ async def _fan_out_review_notification(
             link="/teacher/lesson-plans",
         ),
     )
+
+    if decision == REJECTED:
+        await _emit_rejection_email(
+            session,
+            school_id,
+            plan=plan,
+            teacher_email=teacher_user.email,
+            comment=comment,
+            reviewer_staff_id=reviewer_staff_id,
+        )
+
+
+async def _emit_rejection_email(
+    session: AsyncSession,
+    school_id: UUID | str,
+    *,
+    plan: LessonPlan,
+    teacher_email: str,
+    comment: str | None,
+    reviewer_staff_id: UUID | str | None,
+) -> None:
+    """Emits `email/lesson-plan-rejected.requested` — picked up by
+    `features/lesson_plans/jobs/rejection_email.py`. Gated on the
+    school's `notification_defaults.on_lesson_plan_rejected` toggle
+    (Admin Settings → Communication), same as the TS-side behaviour it
+    replaces."""
+    school = await SchoolsRepository.get_by_id(session, school_id)
+    defaults = (school.notification_defaults if school else None) or {}
+    if not defaults.get("on_lesson_plan_rejected", True):
+        return
+
+    reviewer = (
+        await StaffRepository.get_by_id(session, school_id, reviewer_staff_id)
+        if reviewer_staff_id
+        else None
+    )
+    reviewer_name = f"{reviewer.first_name} {reviewer.last_name}" if reviewer else "your reviewer"
+    plan_topic = plan.topic or "(untitled)"
+
+    # Best-effort: a broken event bus (Inngest dev server not running,
+    # Cloud outage) must never fail the review itself — the reviewer's
+    # decision has already been committed by this point. Log + report
+    # to Sentry so the gap is visible without blocking the request.
+    try:
+        await inngest_client.send(
+            inngest.Event(
+                name="email/lesson-plan-rejected.requested",
+                data={
+                    "teacher_email": teacher_email,
+                    "plan_topic": plan_topic,
+                    "reviewer_name": reviewer_name,
+                    "comment": comment,
+                    "link": f"/teacher/lesson-plans/{plan.id}",
+                },
+            )
+        )
+    except Exception:
+        logger.exception("Failed to emit lesson-plan-rejected email event for plan %s", plan.id)
+        sentry_sdk.capture_exception()
