@@ -7,6 +7,11 @@ import { ApiError } from "@/lib/api/browser";
 import { TeacherReports } from "@/features/reports/components/TeacherReports";
 import type { ClassStats } from "@/features/reports/types";
 
+// Rendered per-request — depends on the caller's session; opts out of
+// Next's static analysis (which would fail on the Supabase env-var
+// check during `next build`).
+export const dynamic = "force-dynamic";
+
 export default async function TeacherReportsPage() {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
