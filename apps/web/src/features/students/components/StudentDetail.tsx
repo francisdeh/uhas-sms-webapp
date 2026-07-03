@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,7 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
-import { updateStudentAction, transferStudentAction } from "@/features/students/actions";
+import { api, ApiError } from "@/lib/api/browser";
 import type { Student, ClassRecord, GuardianProfile } from "@/features/students/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { StudentIdCard } from "./StudentIdCard";
@@ -108,8 +109,6 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [confirmTransfer, setConfirmTransfer] = useState(false);
-  const [editIsPending, startEditTransition] = useTransition();
-  const [transferIsPending, startTransferTransition] = useTransition();
 
   const editForm = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
@@ -131,14 +130,55 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
     defaultValues: { classId: student.classId },
   });
 
-  function onEditSubmit(data: EditFormValues) {
-    startEditTransition(async () => {
-      const result = await updateStudentAction(student.id, data);
-      if (!result.success) { toast.error(result.error); return; }
+  const editMutation = useMutation({
+    mutationFn: (data: EditFormValues) =>
+      api.students.update(student.id, {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        dob: data.dob,
+        gender: data.gender,
+        phone: data.phone || null,
+        address: data.address || null,
+        nationality: data.nationality || null,
+        religion: data.religion || null,
+        photoUrl: data.photoUrl || null,
+      }),
+    onSuccess: () => {
       setEditOpen(false);
       router.refresh();
       toast.success("Student updated");
-    });
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update student.");
+    },
+  });
+
+  const transferMutation = useMutation({
+    mutationFn: async ({ classId }: { classId: string }) => {
+      // Find the active enrollment for this student to close it out first.
+      const list = await api.students.enrollments(student.id);
+      const active = list.items.find((e) => e.status === "Active");
+      if (active) {
+        await api.enrollments.changeStatus(active.id, { status: "Withdrawn" });
+      }
+      return api.enrollments.create({ studentId: student.id, classId });
+    },
+    onSuccess: () => {
+      setConfirmTransfer(false);
+      setTransferOpen(false);
+      router.refresh();
+      toast.success("Class transferred");
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to transfer class.");
+    },
+  });
+
+  const editIsPending = editMutation.isPending;
+  const transferIsPending = transferMutation.isPending;
+
+  function onEditSubmit(data: EditFormValues) {
+    editMutation.mutate(data);
   }
 
   function onTransferSubmit() {
@@ -146,16 +186,7 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
   }
 
   function handleConfirmTransfer() {
-    startTransferTransition(async () => {
-      const result = await transferStudentAction(student.id, {
-        classId: transferForm.getValues("classId"),
-      });
-      if (!result.success) { toast.error(result.error); return; }
-      setConfirmTransfer(false);
-      setTransferOpen(false);
-      router.refresh();
-      toast.success("Class transferred");
-    });
+    transferMutation.mutate({ classId: transferForm.getValues("classId") });
   }
 
   return (

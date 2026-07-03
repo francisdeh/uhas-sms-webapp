@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listCalendarEventsAction } from "@/features/reports/actions/calendar";
+import { getApi } from "@/lib/api/server";
 import { CalendarView } from "@/features/reports/components/CalendarView";
+import type { CalendarEvent } from "@/features/reports/types";
 
 export default async function DeputyHeadCalendarPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const events = await listCalendarEventsAction();
+  const api = await getApi();
+  const events = (await api.calendar.list()).items as unknown as CalendarEvent[];
   return <CalendarView events={events} />;
 }

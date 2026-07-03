@@ -1,17 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { and, eq, inArray } from "drizzle-orm";
 import { FileText, ChevronRight, Lock, Users } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { getCurrentAcademicYear } from "@/lib/academic-year-server";
-import { db } from "@/db";
-import {
-  classes,
-  enrollments,
-  studentGuardians,
-  students as studentsTable,
-} from "@/db/schema";
-import { listExamsAction } from "@/features/exams/actions";
+import { getApi } from "@/lib/api/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -20,46 +11,18 @@ export default async function ParentResultsPage() {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
 
-  const year = await getCurrentAcademicYear();
-
-  const links = await db.query.studentGuardians.findMany({
-    where: eq(studentGuardians.guardianId, user.linkedId),
-  });
-  const childIds = links.map((l) => l.studentId);
-
-  const childRows = childIds.length === 0
-    ? []
-    : await db.query.students.findMany({ where: inArray(studentsTable.id, childIds) });
-
-  const enrRows = childIds.length === 0
-    ? []
-    : await db
-        .select({
-          studentId: enrollments.studentId,
-          className: classes.name,
-          division: classes.division,
-        })
-        .from(enrollments)
-        .innerJoin(classes, eq(classes.id, enrollments.classId))
-        .where(
-          and(
-            inArray(enrollments.studentId, childIds),
-            eq(enrollments.academicYear, year),
-            eq(enrollments.status, "Active")
-          )
-        );
-  const enrByStudent = new Map(enrRows.map((e) => [e.studentId, e]));
+  const api = await getApi();
+  const { items: childRows } = await api.guardians.children(user.linkedId);
 
   const children = childRows.map((s) => ({
     id: s.id,
     firstName: s.firstName,
     middleName: s.middleName,
     lastName: s.lastName,
-    className: enrByStudent.get(s.id)?.className ?? "",
-    division: enrByStudent.get(s.id)?.division ?? "",
+    className: s.className ?? "",
+    division: s.division ?? "",
   }));
-
-  const publishedExams = await listExamsAction({ isPublished: true });
+  const publishedExams = (await api.exams.list({ published: true })).items;
 
   return (
     <div className="space-y-6">

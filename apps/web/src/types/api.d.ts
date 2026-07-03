@@ -249,6 +249,27 @@ export interface paths {
         patch: operations["update_guardian_guardians__guardian_id__patch"];
         trace?: never;
     };
+    "/guardians/{guardian_id}/children": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the students linked to a guardian
+         * @description A Parent may only look up their own linked guardian row — every
+         *     other role can look up any guardian, matching `/guardians/{id}`.
+         */
+        get: operations["list_guardian_children_guardians__guardian_id__children_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/students": {
         parameters: {
             query?: never;
@@ -283,6 +304,23 @@ export interface paths {
         head?: never;
         /** Update Student */
         patch: operations["update_student_students__student_id__patch"];
+        trace?: never;
+    };
+    "/students/{student_id}/guardian": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** First linked guardian for a student, or null */
+        get: operations["get_student_guardian_students__student_id__guardian_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/students/{student_id}/activate": {
@@ -3215,6 +3253,15 @@ export interface components {
             /** Interpretation */
             interpretation: string;
         };
+        /**
+         * GuardianChildrenResponse
+         * @description Plain array on the wire — a guardian's child count is always small,
+         *     unpaginated matches the rest of the API's small fixed-set responses.
+         */
+        GuardianChildrenResponse: {
+            /** Items */
+            items: components["schemas"]["StudentRead"][];
+        };
         /** GuardianCreate */
         GuardianCreate: {
             /** Firstname */
@@ -4908,6 +4955,26 @@ export interface components {
             classId: string;
         };
         /**
+         * StudentGuardianRead
+         * @description One linked guardian, as seen from the student side — includes the
+         *     `relation` field that lives on the `student_guardians` join row.
+         */
+        StudentGuardianRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Relationship */
+            relationship: string;
+            /** Phone */
+            phone?: string | null;
+            /** Email */
+            email?: string | null;
+        };
+        /**
          * StudentHit
          * @description One student result. `class_name` is the label of the student's
          *     current-year Active enrollment; `None` when the student has no
@@ -6071,6 +6138,39 @@ export interface operations {
             };
         };
     };
+    list_guardian_children_guardians__guardian_id__children_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                guardian_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardianChildrenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_students_students_get: {
         parameters: {
             query?: {
@@ -6200,6 +6300,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_student_guardian_students__student_id__guardian_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentGuardianRead"] | null;
                 };
             };
             /** @description Validation Error */

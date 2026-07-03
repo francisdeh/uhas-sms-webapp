@@ -14,11 +14,14 @@ Two non-trivial flows:
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from app.core.roles import PARENT
+from app.core.security import CurrentUser
 from app.core.slug import insert_with_sequential_slug
 from app.features.audit.actions import STUDENT_EDIT
 from app.features.audit.service import write_audit_log
@@ -76,6 +79,24 @@ class StudentsService:
         )
 
     @staticmethod
+    async def list_for_guardian(
+        session: AsyncSession,
+        school_id: UUID | str,
+        guardian_id: UUID | str,
+        *,
+        user: CurrentUser,
+    ) -> list[tuple[Student, Class | None]]:
+        """Every child linked to `guardian_id`. A Parent may only look up
+        their own linked guardian row — every other role can look up any
+        guardian, matching the existing open-read posture on `/guardians`."""
+        if user.role == PARENT and str(guardian_id) != str(user.linked_id):
+            raise ForbiddenError("You may only view your own children.")
+        year = await _academic_year(session, school_id)
+        return await StudentsRepository.list_for_guardian(
+            session, school_id, guardian_id, academic_year=year
+        )
+
+    @staticmethod
     async def get(
         session: AsyncSession, school_id: UUID | str, student_id: UUID | str
     ) -> tuple[Student, Class | None]:
@@ -84,6 +105,15 @@ class StudentsService:
         if not row:
             raise NotFoundError(f"Student {student_id!r} not found.")
         return row
+
+    @staticmethod
+    async def get_primary_guardian(
+        session: AsyncSession, school_id: UUID | str, student_id: UUID | str
+    ) -> tuple[Any, str | None] | None:
+        """First linked guardian for a student, or `None`. Read-open to any
+        authenticated user in the school — matches `/students/{id}` and
+        `/guardians/{id}`, which carry the same posture."""
+        return await StudentsRepository.get_primary_guardian(session, school_id, student_id)
 
     @staticmethod
     async def create(

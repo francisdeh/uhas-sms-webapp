@@ -1,10 +1,8 @@
 import { redirect, notFound } from "next/navigation";
-import { and, eq } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { db } from "@/db";
-import { studentGuardians } from "@/db/schema";
-import { getReportCardData } from "@/features/exams/queries/get-report-card";
+import { getApi, ApiError } from "@/lib/api/server";
 import { ReportCardPage } from "@/features/exams/components/ReportCardPage";
+import type { ReportCardData } from "@/features/exams/types";
 
 interface PageProps {
   params: Promise<{ studentId: string; examId: string }>;
@@ -15,17 +13,18 @@ export default async function ParentReportCardRoute({ params }: PageProps) {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
 
-  const link = await db.query.studentGuardians.findFirst({
-    where: and(
-      eq(studentGuardians.guardianId, user.linkedId),
-      eq(studentGuardians.studentId, studentId)
-    ),
-  });
-  if (!link) notFound();
+  const api = await getApi();
+  let data: ReportCardData;
+  try {
+    const raw = await api.studentViews.reportCard(studentId, examId);
+    data = raw as unknown as ReportCardData;
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 404 || err.status === 403)) {
+      notFound();
+    }
+    throw err;
+  }
 
-  const data = await getReportCardData(studentId, examId);
-  if (!data) notFound();
   if (!data.exam.isPublished) notFound();
-
   return <ReportCardPage data={data} backHref="/parent/results" />;
 }

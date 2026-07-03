@@ -3,25 +3,24 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
-import { listTeacherAssignmentsAction } from "@/features/exams/actions";
+import { getApi } from "@/lib/api/server";
 import { SchemeForm } from "@/features/schemes/components/SchemeForm";
 
 export default async function NewSchemePage() {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
 
-  const [assignments, currentAcademicYear] = await Promise.all([
-    listTeacherAssignmentsAction(user.linkedId),
+  const api = await getApi();
+  const [{ rows }, currentAcademicYear] = await Promise.all([
+    api.classSubjects.listByTeacher(user.linkedId),
     getCurrentAcademicYear(),
   ]);
-  const flat = assignments.flatMap((c) =>
-    c.subjects.map((s) => ({
-      classId: c.classId,
-      className: c.className,
-      subjectId: s.subjectId,
-      subjectName: s.subjectName,
-    }))
-  );
+  const flat = rows.map((r) => ({
+    classId: r.classId,
+    className: r.className,
+    subjectId: r.subjectId,
+    subjectName: r.subjectName,
+  }));
 
   return (
     <div className="space-y-4">

@@ -1,8 +1,44 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listLessonPlansForReviewAction } from "@/features/lesson-plans/actions";
+import { getApi } from "@/lib/api/server";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { ReviewQueue } from "@/features/lesson-plans/components/ReviewQueue";
 import { Card, CardContent } from "@/components/ui/card";
+import type { LessonPlan } from "@/features/lesson-plans/types";
+import type { components } from "@/types/api";
+
+function toLessonPlan(
+  p: components["schemas"]["LessonPlanRead"],
+  academicYear: string,
+): LessonPlan {
+  return {
+    id: p.id,
+    schoolId: p.schoolId,
+    teacherId: p.teacherId,
+    teacherName: `${p.teacherFirstName} ${p.teacherLastName}`.trim(),
+    subjectId: p.subjectId,
+    subjectName: p.subjectName,
+    classId: p.classId,
+    className: p.className,
+    division: p.division,
+    term: p.term,
+    week: p.week,
+    academicYear,
+    topic: p.topic ?? null,
+    learningObjectives: p.learningObjectives ?? null,
+    teachingMethods: p.teachingMethods ?? null,
+    resources: p.resources ?? null,
+    assessmentPlan: p.assessmentPlan ?? null,
+    fileUrl: p.fileUrl ?? null,
+    status: p.status,
+    reviewerComment: p.reviewerComment ?? null,
+    reviewedById: p.reviewedById ?? null,
+    reviewedByName: p.reviewedByName ?? null,
+    reviewedAt: p.reviewedAt ?? null,
+    createdAt: p.createdAt ?? new Date().toISOString(),
+    updatedAt: p.updatedAt ?? new Date().toISOString(),
+  };
+}
 
 export default async function TeacherReviewsPage() {
   const user = await getSessionUser();
@@ -21,16 +57,26 @@ export default async function TeacherReviewsPage() {
     );
   }
 
-  const [pending, recent] = await Promise.all([
-    listLessonPlansForReviewAction({
-      division: user.unitHeadOf,
-      status: "submitted",
-    }),
-    listLessonPlansForReviewAction({
-      division: user.unitHeadOf,
-      status: ["unit_head_approved", "rejected", "approved"],
-    }),
-  ]);
+  const api = await getApi();
+  const [currentYear, pendingPage, unitHeadApprovedPage, rejectedPage, approvedPage] =
+    await Promise.all([
+      getCurrentAcademicYear(),
+      api.lessonPlans.list({ division: user.unitHeadOf, status: "submitted", size: 200 }),
+      api.lessonPlans.list({
+        division: user.unitHeadOf,
+        status: "unit_head_approved",
+        size: 200,
+      }),
+      api.lessonPlans.list({ division: user.unitHeadOf, status: "rejected", size: 200 }),
+      api.lessonPlans.list({ division: user.unitHeadOf, status: "approved", size: 200 }),
+    ]);
+
+  const pending = pendingPage.items.map((p) => toLessonPlan(p, currentYear));
+  const recent = [
+    ...unitHeadApprovedPage.items,
+    ...rejectedPage.items,
+    ...approvedPage.items,
+  ].map((p) => toLessonPlan(p, currentYear));
 
   // Limit recent to most recently reviewed by this user
   const recentMine = recent

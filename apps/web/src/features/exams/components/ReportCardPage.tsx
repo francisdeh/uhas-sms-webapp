@@ -6,7 +6,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ReportCard } from "./ReportCard";
-import type { ReportCardData } from "@/features/exams/queries/get-report-card";
+import type { ReportCardData } from "@/features/exams/types";
 
 interface ReportCardPageProps {
   data: ReportCardData;

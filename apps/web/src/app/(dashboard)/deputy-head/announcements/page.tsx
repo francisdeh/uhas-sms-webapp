@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listAnnouncementsForDeputyAction } from "@/features/announcements/actions";
-import { listClassesAction } from "@/features/classes/actions";
+import { getApi } from "@/lib/api/server";
 import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
 import {
   AnnouncementsView,
   type AudienceOption,
 } from "@/features/announcements/components/AnnouncementsView";
 import { Card, CardContent } from "@/components/ui/card";
+import type { Announcement } from "@/features/announcements/types";
 
 export default async function DeputyHeadAnnouncementsPage() {
   const user = await getSessionUser();
@@ -27,10 +27,12 @@ export default async function DeputyHeadAnnouncementsPage() {
     );
   }
 
-  const [announcements, classes] = await Promise.all([
-    listAnnouncementsForDeputyAction(user.linkedId),
-    listClassesAction(division),
+  const api = await getApi();
+  const [announcementsPage, classesPage] = await Promise.all([
+    api.announcements.list(),
+    api.classes.list({ division }),
   ]);
+  const announcements = announcementsPage.items as unknown as Announcement[];
 
   const audienceOptions: AudienceOption[] = [
     { value: `division:${division}`, label: `Division — ${division}` },
@@ -42,7 +44,7 @@ export default async function DeputyHeadAnnouncementsPage() {
       announcements={announcements}
       audienceOptions={audienceOptions}
       defaultAudience={`division:${division}`}
-      classes={classes.map((c) => ({ id: c.id, name: c.name }))}
+      classes={classesPage.items.map((c) => ({ id: c.id, name: c.name }))}
     />
   );
 }

@@ -95,3 +95,25 @@ class StudentRead(StudentBase):
 
 class StudentsListResponse(Paginated[StudentRead]):
     """Paged student list. See `app.core.pagination.Paginated`."""
+
+
+class GuardianChildrenResponse(BaseModel):
+    """Plain array on the wire — a guardian's child count is always small,
+    unpaginated matches the rest of the API's small fixed-set responses."""
+
+    model_config = _CAMEL_CONFIG
+
+    items: list[StudentRead]
+
+
+class StudentGuardianRead(BaseModel):
+    """One linked guardian, as seen from the student side — includes the
+    `relation` field that lives on the `student_guardians` join row."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    name: str
+    relationship: str
+    phone: str | None = None
+    email: str | None = None

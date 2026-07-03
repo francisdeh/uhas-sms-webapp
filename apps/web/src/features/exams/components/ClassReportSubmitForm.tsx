@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Save, Send, Lock, Users } from "lucide-react";
@@ -20,10 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  saveClassReportDraftAction,
-  submitClassReportAction,
-} from "@/features/exams/actions";
+import { api, ApiError } from "@/lib/api/browser";
 import type { Exam, ClassReportSubmission } from "@/features/exams/types";
 
 interface ClassReportSubmitFormProps {
@@ -44,17 +42,55 @@ export function ClassReportSubmitForm({
   exam,
   classId,
   className,
-  submittedById,
   submission,
   initialRows,
 }: ClassReportSubmitFormProps) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
 
   const locked = exam.isPublished;
   const submitted = submission?.status === "submitted";
+
+  function buildRemarksPayload() {
+    return rows.map((r) => ({
+      studentId: r.studentId,
+      text: r.classTeacherRemark,
+    }));
+  }
+
+  const saveDraftMutation = useMutation({
+    mutationFn: () =>
+      api.classReports.saveDraft(exam.id, classId, {
+        remarks: buildRemarksPayload(),
+      }),
+    onSuccess: () => {
+      toast.success("Draft saved.");
+      router.refresh();
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to save draft.");
+    },
+  });
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      await api.classReports.saveDraft(exam.id, classId, {
+        remarks: buildRemarksPayload(),
+      });
+      return api.classReports.submit(exam.id, classId);
+    },
+    onSuccess: () => {
+      toast.success("Class report submitted to Head of School.");
+      setConfirmOpen(false);
+      router.refresh();
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to submit report.");
+    },
+  });
+
+  const isPending = saveDraftMutation.isPending || submitMutation.isPending;
 
   function updateRemark(studentId: string, value: string) {
     setRows((prev) =>
@@ -64,22 +100,7 @@ export function ClassReportSubmitForm({
 
   function handleSaveDraft() {
     if (locked) return;
-    startTransition(async () => {
-      const result = await saveClassReportDraftAction({
-        examId: exam.id,
-        classId,
-        remarks: rows.map((r) => ({
-          studentId: r.studentId,
-          classTeacherRemark: r.classTeacherRemark,
-        })),
-      });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Draft saved.");
-      router.refresh();
-    });
+    saveDraftMutation.mutate();
   }
 
   function handleSubmit() {
@@ -91,24 +112,7 @@ export function ClassReportSubmitForm({
       return;
     }
 
-    startTransition(async () => {
-      const result = await submitClassReportAction({
-        examId: exam.id,
-        classId,
-        submittedById,
-        remarks: rows.map((r) => ({
-          studentId: r.studentId,
-          classTeacherRemark: r.classTeacherRemark,
-        })),
-      });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Class report submitted to Head of School.");
-      setConfirmOpen(false);
-      router.refresh();
-    });
+    submitMutation.mutate();
   }
 
   return (

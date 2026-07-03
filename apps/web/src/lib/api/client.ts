@@ -181,6 +181,13 @@ export function createApiClient(getAuthToken: TokenGetter) {
           `/guardians/${id}`,
           { method: "PATCH", body: JSON.stringify(payload) },
         ),
+      /** Every student linked to this guardian. Parent callers can only
+       *  pass their OWN linked guardian id — server 403s otherwise. */
+      children: (id: string) =>
+        apiFetch<components["schemas"]["GuardianChildrenResponse"]>(
+          getAuthToken,
+          `/guardians/${id}/children`,
+        ),
     },
     students: {
       list: (
@@ -232,6 +239,12 @@ export function createApiClient(getAuthToken: TokenGetter) {
         apiFetch<components["schemas"]["EnrollmentsListResponse"]>(
           getAuthToken,
           `/students/${studentId}/enrollments${buildQuery(params)}`,
+        ),
+      /** First linked guardian, or null if none. */
+      guardian: (studentId: string) =>
+        apiFetch<components["schemas"]["StudentGuardianRead"] | null>(
+          getAuthToken,
+          `/students/${studentId}/guardian`,
         ),
     },
     subjects: {

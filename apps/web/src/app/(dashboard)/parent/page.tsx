@@ -1,77 +1,47 @@
 import { redirect } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
-import { getCurrentSchoolId } from "@/lib/school";
-import { db } from "@/db";
-import {
-  classes,
-  enrollments,
-  schools,
-  studentGuardians,
-  students,
-} from "@/db/schema";
-import { listAnnouncementsForGuardianAction } from "@/features/announcements/actions";
-import { getStudentAttendanceCalendarAction } from "@/features/attendance/actions";
+import { getApi } from "@/lib/api/server";
+import type { Announcement } from "@/features/announcements/types";
 import type { Division } from "@/features/auth/types";
 import ParentDashboardOverview from "./DashboardOverview";
+
+function academicYearRange(year: string): { start: string; end: string } {
+  const [startYear, endYear] = year.split("/");
+  return { start: `${startYear}-09-01`, end: `${endYear}-08-31` };
+}
 
 export default async function ParentPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const schoolId = await getCurrentSchoolId();
   const currentYear = await getCurrentAcademicYear();
-  const school = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
+  const api = await getApi();
+  const school = await api.school.get();
 
-  const links = await db.query.studentGuardians.findMany({
-    where: eq(studentGuardians.guardianId, user.linkedId),
-  });
-  const childIds = links.map((l) => l.studentId);
+  const { items: childRows } = user.linkedId
+    ? await api.guardians.children(user.linkedId)
+    : { items: [] };
 
-  const childRows = childIds.length === 0
-    ? []
-    : await db.query.students.findMany({ where: inArray(students.id, childIds) });
+  const linkedChildren = childRows.map((s) => ({
+    id: s.id,
+    name: `${s.firstName} ${s.lastName}`,
+    classId: s.classId ?? "",
+    className: s.className ?? "",
+    division: (s.division as Division) ?? "KG",
+  }));
 
-  const enrollmentRows = childIds.length === 0
-    ? []
-    : await db
-        .select({
-          studentId: enrollments.studentId,
-          classId: classes.id,
-          className: classes.name,
-          division: classes.division,
-        })
-        .from(enrollments)
-        .innerJoin(classes, eq(classes.id, enrollments.classId))
-        .where(
-          and(
-            inArray(enrollments.studentId, childIds),
-            eq(enrollments.academicYear, currentYear),
-            eq(enrollments.status, "Active")
-          )
-        );
-  const enrollmentByStudent = new Map(
-    enrollmentRows.map((e) => [e.studentId, e])
-  );
-
-  const linkedChildren = childRows.map((s) => {
-    const enr = enrollmentByStudent.get(s.id);
-    return {
-      id: s.id,
-      name: `${s.firstName} ${s.lastName}`,
-      classId: enr?.classId ?? "",
-      className: enr?.className ?? "",
-      division: (enr?.division as Division) ?? "KG",
-    };
-  });
-
-  const announcements = (await listAnnouncementsForGuardianAction(user.linkedId)).slice(0, 4);
+  const announcementsPage = await api.announcements.list({ size: 4 });
+  const announcements = announcementsPage.items.slice(0, 4) as unknown as Announcement[];
 
   const firstChild = linkedChildren[0];
   let attendancePct: number | null = null;
   if (firstChild && firstChild.classId) {
-    const records = await getStudentAttendanceCalendarAction(firstChild.id, firstChild.classId);
+    const { start, end } = academicYearRange(currentYear);
+    const records = await api.studentViews.attendanceCalendar(firstChild.id, {
+      termStart: start,
+      termEnd: end,
+    });
     const total = records.length;
     const present = records.filter((r) => r.status === "present").length;
     if (total > 0) attendancePct = Math.round((present / total) * 100);

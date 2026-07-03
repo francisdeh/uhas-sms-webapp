@@ -1,4 +1,9 @@
-import type { AuditAction } from "@/lib/audit-log";
+export type AuditAction =
+  | "SCORE_OVERRIDE"
+  | "STUDENT_EDIT"
+  | "ROLE_CHANGE"
+  | "PROMOTION_APPROVED"
+  | "SCHOOL_SETTINGS_UPDATE";
 
 export type AuditEventView = {
   id: string;

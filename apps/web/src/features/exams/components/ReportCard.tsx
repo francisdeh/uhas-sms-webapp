@@ -1,5 +1,5 @@
 import { GES_GRADES } from "@/features/exams/utils";
-import type { ReportCardData, ReportCardSubjectRow } from "@/features/exams/queries/get-report-card";
+import type { ReportCardData, ReportCardSubjectRow } from "@/features/exams/types";
 
 interface ReportCardProps {
   data: ReportCardData;

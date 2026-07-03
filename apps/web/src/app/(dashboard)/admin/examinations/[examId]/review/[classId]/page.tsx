@@ -1,18 +1,10 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { and, asc, eq, inArray } from "drizzle-orm";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { db } from "@/db";
-import { enrollments, scores, students as studentsTable } from "@/db/schema";
-import {
-  getExamAction,
-  getClassReportSubmissionAction,
-  listRemarksForExamClassAction,
-} from "@/features/exams/actions";
-import { listClassesAction } from "@/features/classes/actions";
-import { computeAggregate } from "@/features/exams/utils";
+import { getApi, ApiError } from "@/lib/api/server";
 import { HeadOfSchoolReviewForm } from "@/features/exams/components/HeadOfSchoolReviewForm";
+import type { Exam, ClassReportSubmission } from "@/features/exams/types";
 
 interface PageProps {
   params: Promise<{ examId: string; classId: string }>;
@@ -23,59 +15,69 @@ export default async function AdminReviewClassPage({ params }: PageProps) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const [exam, classes, submission, remarks] = await Promise.all([
-    getExamAction(examId),
-    listClassesAction(),
-    getClassReportSubmissionAction(examId, classId),
-    listRemarksForExamClassAction(examId, classId),
-  ]);
-
-  if (!exam) notFound();
-  const schoolClass = classes.find((c) => c.id === classId);
-  if (!schoolClass) notFound();
-
-  const roster = await db
-    .select({
-      id: studentsTable.id,
-      firstName: studentsTable.firstName,
-      lastName: studentsTable.lastName,
-    })
-    .from(enrollments)
-    .innerJoin(studentsTable, eq(studentsTable.id, enrollments.studentId))
-    .where(
-      and(
-        eq(enrollments.classId, classId),
-        eq(enrollments.academicYear, exam.academicYear),
-        eq(enrollments.status, "Active"),
-        eq(studentsTable.isActive, true)
-      )
-    )
-    .orderBy(asc(studentsTable.lastName));
-  const studentIds = roster.map((s) => s.id);
-
-  const scoreRows = studentIds.length === 0
-    ? []
-    : await db.query.scores.findMany({
-        where: and(eq(scores.examId, examId), inArray(scores.studentId, studentIds)),
-      });
-  const scoresByStudent = new Map<string, typeof scoreRows>();
-  for (const sc of scoreRows) {
-    const list = scoresByStudent.get(sc.studentId) ?? [];
-    list.push(sc);
-    scoresByStudent.set(sc.studentId, list);
+  const api = await getApi();
+  let examRead;
+  try {
+    examRead = await api.exams.get(examId);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
   }
 
-  const initialRows = roster.map((s) => {
-    const remark = remarks.find((r) => r.studentId === s.id);
-    const studentScores = scoresByStudent.get(s.id) ?? [];
-    return {
-      studentId: s.id,
-      studentName: `${s.firstName} ${s.lastName}`,
-      aggregate: computeAggregate(studentScores),
-      classTeacherRemark: remark?.classTeacherRemark ?? "",
-      headOfSchoolComment: remark?.headOfSchoolComment ?? "",
-    };
-  });
+  let classRead;
+  try {
+    classRead = await api.classes.get(classId);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
+
+  let classReport;
+  try {
+    classReport = await api.classReports.get(examId, classId);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      classReport = null;
+    } else {
+      throw err;
+    }
+  }
+
+  const exam: Exam = {
+    id: examRead.id,
+    schoolId: examRead.schoolId,
+    name: examRead.name,
+    type: examRead.type,
+    term: examRead.term,
+    academicYear: examRead.academicYear,
+    isPublished: examRead.isPublished,
+    publishedAt: examRead.publishedAt ?? null,
+    createdAt: examRead.createdAt ?? new Date().toISOString(),
+  };
+
+  const submission: ClassReportSubmission | null = classReport?.id
+    ? {
+        id: classReport.id,
+        examId: classReport.examId,
+        classId: classReport.classId,
+        status: classReport.status,
+        submittedById: classReport.submittedById ?? null,
+        submittedAt: classReport.submittedAt ?? null,
+      }
+    : null;
+
+  // Aggregate computation used to happen server-side over per-student
+  // scores. The class-report endpoint doesn't expose scores yet, so
+  // per-student aggregates are unknown here — the reviewer form only
+  // needs student names + existing remarks. See "gaps" in the parent
+  // agent's rewire notes.
+  const initialRows = (classReport?.remarks ?? []).map((r) => ({
+    studentId: r.studentId,
+    studentName: `${r.studentFirstName} ${r.studentLastName}`,
+    aggregate: null,
+    classTeacherRemark: r.text ?? "",
+    headOfSchoolComment: classReport?.hosComment ?? "",
+  }));
 
   return (
     <div className="space-y-4">
@@ -87,7 +89,7 @@ export default async function AdminReviewClassPage({ params }: PageProps) {
       </Link>
       <HeadOfSchoolReviewForm
         exam={exam}
-        className={schoolClass.name}
+        className={classRead.name}
         submission={submission}
         initialRows={initialRows}
       />

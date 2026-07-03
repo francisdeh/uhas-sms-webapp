@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, ClipboardList, Users, Check, AlertTriangle, Lock } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { getCurrentSeason } from "@/features/promotions/queries/get-season";
-import { getTeacherPromotionClasses } from "@/features/promotions/queries/get-teacher-classes";
+import { getApi } from "@/lib/api/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -41,12 +40,14 @@ export default async function TeacherPromotionsPage() {
   const user = await getSessionUser();
   if (!user || user.role !== "Teacher" || !user.linkedId) redirect("/login");
 
-  const [season, classes] = await Promise.all([
-    getCurrentSeason(),
-    getTeacherPromotionClasses(user.linkedId),
+  const api = await getApi();
+  const [season, classesRes] = await Promise.all([
+    api.promotions.getSeason(),
+    api.promotions.getTeacherClasses(),
   ]);
+  const classes = classesRes.items;
 
-  if (!season.isOpen) {
+  if (season?.status !== "open") {
     return (
       <div className="space-y-6">
         <div>
@@ -88,7 +89,7 @@ export default async function TeacherPromotionsPage() {
         </p>
       </div>
 
-      {season.season?.openedWithOverride && (
+      {season.openedWithOverride && (
         <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/20">
           <AlertTriangle size={14} />
           <AlertDescription>

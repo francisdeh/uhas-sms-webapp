@@ -3,10 +3,24 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listStudentsAction } from "@/features/students/actions";
-import { getClassById } from "@/features/classes/queries/get-class-by-id";
-import { getSessionForClassDateAction } from "@/features/attendance/actions";
+import { getApi, ApiError } from "@/lib/api/server";
 import { AttendanceSheet } from "@/features/attendance/components/AttendanceSheet";
+import type { Student } from "@/features/students/types";
+import type {
+  AttendanceStatus,
+  SessionWithRecords,
+} from "@/features/attendance/types";
+import type { Division } from "@/features/auth/types";
+
+const API_TO_UI_STATUS: Record<
+  "Present" | "Absent" | "Late" | "Excused",
+  AttendanceStatus
+> = {
+  Present: "present",
+  Absent: "absent",
+  Late: "late",
+  Excused: "absent",
+};
 
 export default async function AdminAttendanceClassPage({
   params,
@@ -24,15 +38,58 @@ export default async function AdminAttendanceClassPage({
   const today = new Date().toISOString().split("T")[0];
   const date = dateParam ?? today;
 
-  const schoolClass = await getClassById(classId);
-  if (!schoolClass) notFound();
+  const api = await getApi();
+  let schoolClass;
+  try {
+    schoolClass = await api.classes.get(classId);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
 
-  const allStudents = await listStudentsAction();
-  const students = allStudents.filter(
-    (s) => s.classId === classId && s.isActive
-  );
+  const rosterResp = await api.classes.enrollments(classId, {
+    status: "Active",
+    size: 200,
+  });
+  const students: Student[] = rosterResp.items
+    .filter((e) => e.studentIsActive ?? true)
+    .map((e) => ({
+      id: e.studentId,
+      schoolId: schoolClass.schoolId,
+      firstName: e.studentFirstName ?? "",
+      lastName: e.studentLastName ?? "",
+      dob: "",
+      gender: (e.studentGender as "Male" | "Female") ?? "Male",
+      classId: e.classId,
+      className: e.className ?? schoolClass.name,
+      division: (e.division as Division) ?? schoolClass.division,
+      photoUrl: e.studentPhotoUrl ?? undefined,
+      isActive: e.studentIsActive ?? true,
+      createdAt: new Date().toISOString(),
+    }));
 
-  const existingSession = await getSessionForClassDateAction(classId, date);
+  let existingSession: SessionWithRecords | null = null;
+  try {
+    const sess = await api.attendance.lookupSession({ classId, date });
+    existingSession = {
+      id: sess.id,
+      schoolId: sess.schoolId,
+      classId: sess.classId,
+      date: sess.date,
+      term: sess.term,
+      submittedById: sess.submittedById ?? "",
+      submittedAt: sess.submittedAt ?? new Date().toISOString(),
+      records: sess.records.map((r) => ({
+        sessionId: sess.id,
+        studentId: r.studentId,
+        status: API_TO_UI_STATUS[r.status],
+        lateReason: r.lateReason ?? undefined,
+        note: r.note ?? undefined,
+      })),
+    };
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 404) throw err;
+  }
 
   return (
     <div className="space-y-4">

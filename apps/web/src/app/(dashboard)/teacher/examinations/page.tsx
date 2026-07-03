@@ -2,21 +2,49 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { FileText, ChevronRight, Lock } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import {
-  listExamsAction,
-  listTeacherAssignmentsAction,
-} from "@/features/exams/actions";
+import { getApi } from "@/lib/api/server";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import type { Exam } from "@/features/exams/types";
 
 export default async function TeacherExaminationsPage() {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
 
-  const [exams, assignments] = await Promise.all([
-    listExamsAction(),
-    listTeacherAssignmentsAction(user.linkedId),
+  const api = await getApi();
+  const currentYear = await getCurrentAcademicYear();
+  const [examsResp, subjectRowsResp] = await Promise.all([
+    api.exams.list({ academicYear: currentYear, size: 100 }),
+    api.classSubjects.listByTeacher(user.linkedId),
   ]);
+
+  const exams: Exam[] = examsResp.items.map((e) => ({
+    id: e.id,
+    schoolId: e.schoolId,
+    name: e.name,
+    type: e.type,
+    term: e.term,
+    academicYear: e.academicYear,
+    isPublished: e.isPublished,
+    publishedAt: e.publishedAt ?? null,
+    createdAt: e.createdAt ?? new Date().toISOString(),
+  }));
+
+  const byClass = new Map<
+    string,
+    { classId: string; className: string; subjects: { subjectId: string; subjectName: string }[] }
+  >();
+  for (const r of subjectRowsResp.rows) {
+    const entry = byClass.get(r.classId) ?? {
+      classId: r.classId,
+      className: r.className,
+      subjects: [],
+    };
+    entry.subjects.push({ subjectId: r.subjectId, subjectName: r.subjectName });
+    byClass.set(r.classId, entry);
+  }
+  const assignments = [...byClass.values()];
 
   if (assignments.length === 0) {
     return (
@@ -54,46 +82,46 @@ export default async function TeacherExaminationsPage() {
         </Card>
       ) : (
         exams.map((exam) => (
-          <Card key={exam.id}>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <CardTitle className="text-base">{exam.name}</CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Term {exam.term} · {exam.academicYear} ·{" "}
-                  {exam.type === "MidTerm" ? "Mid-Term (raw 100)" : "End of Term (composite)"}
-                </p>
-              </div>
-              {exam.isPublished ? (
-                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                  <Lock size={11} className="mr-1" /> Published
-                </Badge>
-              ) : (
-                <Badge variant="secondary">Open for entry</Badge>
-              )}
-            </CardHeader>
-            <CardContent className="pt-0 space-y-1">
-              {assignments.flatMap((cls) =>
-                cls.subjects.map((subj) => (
-                  <Link
-                    key={`${exam.id}-${cls.classId}-${subj.subjectId}`}
-                    href={`/teacher/examinations/${exam.id}/${cls.classId}/${subj.subjectId}`}
-                    className="flex items-center justify-between py-2.5 px-2 -mx-2 rounded-md hover:bg-muted/50 transition-colors group"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {cls.className} <span className="text-muted-foreground">·</span> {subj.subjectName}
-                      </p>
-                    </div>
-                    <ChevronRight
-                      size={14}
-                      className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                    />
-                  </Link>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        ))
+            <Card key={exam.id}>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <div>
+                  <CardTitle className="text-base">{exam.name}</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Term {exam.term} · {exam.academicYear} ·{" "}
+                    {exam.type === "MidTerm" ? "Mid-Term (raw 100)" : "End of Term (composite)"}
+                  </p>
+                </div>
+                {exam.isPublished ? (
+                  <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                    <Lock size={11} className="mr-1" /> Published
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">Open for entry</Badge>
+                )}
+              </CardHeader>
+              <CardContent className="pt-0 space-y-1">
+                {assignments.flatMap((cls) =>
+                  cls.subjects.map((subj) => (
+                    <Link
+                      key={`${exam.id}-${cls.classId}-${subj.subjectId}`}
+                      href={`/teacher/examinations/${exam.id}/${cls.classId}/${subj.subjectId}`}
+                      className="flex items-center justify-between py-2.5 px-2 -mx-2 rounded-md hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {cls.className} <span className="text-muted-foreground">·</span> {subj.subjectName}
+                        </p>
+                      </div>
+                      <ChevronRight
+                        size={14}
+                        className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                      />
+                    </Link>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          ))
       )}
     </div>
   );

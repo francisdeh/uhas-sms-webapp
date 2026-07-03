@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { AuditAction } from "@/lib/audit-log";
+import type { AuditAction } from "@/features/audit-log/types";
 import { AUDIT_ACTION_LABELS, type AuditFilters } from "@/features/audit-log/types";
 
 type Props = {

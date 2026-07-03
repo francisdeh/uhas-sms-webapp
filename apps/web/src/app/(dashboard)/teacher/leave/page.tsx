@@ -1,14 +1,17 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listLeaveRequestsAction } from "@/features/attendance/actions";
+import { getApi } from "@/lib/api/server";
 import { LeaveRequestForm } from "@/features/attendance/components/LeaveRequestForm";
 import { MyLeaveRequests } from "@/features/attendance/components/MyLeaveRequests";
+import type { LeaveRequest } from "@/features/attendance/types";
 
 export default async function TeacherLeavePage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const requests = await listLeaveRequestsAction({ staffId: user.linkedId });
+  const api = await getApi();
+  const requests = (await api.leaveRequests.list({ staffId: user.linkedId, size: 100 }))
+    .items as unknown as LeaveRequest[];
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-6">

@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/command";
 import { GraduationCap, Users, School, Bell, LayoutDashboard } from "lucide-react";
 import { getShellConfig } from "@/features/shell/role-config";
-import { globalSearchAction, type GlobalSearchResults } from "@/features/shell/actions/global-search";
+import { api } from "@/lib/api/browser";
+import type { GlobalSearchResults } from "@/features/shell/types";
 import type { SessionUser } from "@/features/auth/types";
 
 const RECENT_KEY = "uhas_recent_searches";
@@ -56,8 +57,17 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
         setResults({ students: [], staff: [], classes: [], announcements: [] });
         return;
       }
-      const r = await globalSearchAction(q);
-      setResults(r);
+      try {
+        const r = await api.search.global(q);
+        setResults({
+          students: r.students.map((s) => ({ id: s.id, name: s.name })),
+          staff: r.staff.map((s) => ({ id: s.id, name: s.name, email: "" })),
+          classes: r.classes.map((c) => ({ id: c.id, name: c.name })),
+          announcements: [],
+        });
+      } catch {
+        setResults({ students: [], staff: [], classes: [], announcements: [] });
+      }
     }, 180);
     return () => clearTimeout(handle);
   }, [query]);

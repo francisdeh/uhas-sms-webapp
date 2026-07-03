@@ -2,11 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ClipboardList, ChevronRight, Lock, Check } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import {
-  listExamsAction,
-  listClassTeacherClassesAction,
-  getClassReportSubmissionAction,
-} from "@/features/exams/actions";
+import { getApi } from "@/lib/api/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -14,10 +10,27 @@ export default async function TeacherClassReportsPage() {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
 
-  const [exams, classes] = await Promise.all([
-    listExamsAction(),
-    listClassTeacherClassesAction(user.linkedId),
+  const api = await getApi();
+  const [examsPage, allClassesPage] = await Promise.all([
+    api.exams.list({ size: 100 }),
+    api.classes.list({ size: 500 }),
   ]);
+
+  // Find classes where the user is a class teacher (GAP: no direct API).
+  const perClass = await Promise.all(
+    allClassesPage.items.map(async (c) => ({
+      class: c,
+      teachers: (await api.classes.teachers.list(c.id)).items,
+    })),
+  );
+  const classes = perClass
+    .filter((entry) => entry.teachers.some((t) => t.staffId === user.linkedId))
+    .map((entry) => ({
+      classId: entry.class.id,
+      className: entry.class.name,
+    }));
+
+  const exams = examsPage.items;
 
   if (classes.length === 0) {
     return (
@@ -38,17 +51,21 @@ export default async function TeacherClassReportsPage() {
     );
   }
 
-  // For each (exam, class) build the submission status
+  // For each exam, fetch its class-report list (server-scoped to caller).
   const matrix = await Promise.all(
-    exams.map(async (exam) => ({
-      exam,
-      classes: await Promise.all(
-        classes.map(async (cls) => ({
+    exams.map(async (exam) => {
+      const submissionsPage = await api.classReports.list(exam.id);
+      const submissionByClass = new Map(
+        submissionsPage.items.map((s) => [s.classId, s]),
+      );
+      return {
+        exam,
+        classes: classes.map((cls) => ({
           ...cls,
-          submission: await getClassReportSubmissionAction(exam.id, cls.classId),
-        }))
-      ),
-    }))
+          submission: submissionByClass.get(cls.classId) ?? null,
+        })),
+      };
+    }),
   );
 
   return (

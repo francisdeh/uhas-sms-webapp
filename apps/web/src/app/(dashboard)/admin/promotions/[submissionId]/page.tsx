@@ -2,9 +2,13 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { getSubmissionById } from "@/features/promotions/queries/get-submission";
+import { getApi, ApiError } from "@/lib/api/server";
 import { PromotionDecisionTable } from "@/features/promotions/components/PromotionDecisionTable";
 import { Badge } from "@/components/ui/badge";
+import type {
+  DecisionRowView,
+  PromotionSubmission,
+} from "@/features/promotions/types";
 
 export default async function AdminPromotionDetailPage({
   params,
@@ -15,8 +19,59 @@ export default async function AdminPromotionDetailPage({
   if (!user || user.role !== "Admin") redirect("/login");
 
   const { submissionId } = await params;
-  const detail = await getSubmissionById(submissionId);
-  if (!detail) notFound();
+  const api = await getApi();
+  let raw;
+  try {
+    raw = await api.promotions.getSubmission(submissionId);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
+
+  const submission: PromotionSubmission = {
+    id: raw.submission.id,
+    schoolId: raw.submission.schoolId,
+    classId: raw.submission.classId,
+    academicYear: raw.submission.academicYear,
+    status: raw.submission.status,
+    submittedById: raw.submission.submittedById ?? null,
+    submittedByName: raw.submission.submittedByName ?? null,
+    submittedAt: raw.submission.submittedAt ?? null,
+    reviewerComment: raw.submission.reviewerComment ?? null,
+    reviewedById: raw.submission.reviewedById ?? null,
+    reviewedByName: raw.submission.reviewedByName ?? null,
+    reviewedAt: raw.submission.reviewedAt ?? null,
+  };
+
+  const decisions: DecisionRowView[] = raw.decisions.map((d) => ({
+    decision: {
+      id: d.id,
+      submissionId: d.submissionId,
+      studentId: d.studentId,
+      decision: d.decision,
+      targetClassId: d.targetClassId ?? null,
+      reason: d.reason ?? null,
+      suggestedDecision: d.suggestedDecision ?? null,
+      suggestedReason: d.suggestedReason ?? null,
+      failedCoreSubjects: d.failedCoreSubjects ?? null,
+    },
+    studentName: d.studentName,
+    studentPhotoUrl: d.studentPhotoUrl ?? null,
+  }));
+
+  const detail = {
+    submission,
+    className: raw.className,
+    division: raw.division,
+    nextAcademicYear: raw.nextAcademicYear,
+    nextYearClasses: raw.nextYearClasses.map((c) => ({ id: c.id, name: c.name })),
+    decisions,
+    classTeachers: raw.classTeachers.map((t) => ({
+      staffId: t.staffId,
+      staffName: t.staffName,
+      isPrimary: t.isPrimary,
+    })),
+  };
 
   return (
     <div className="space-y-4">

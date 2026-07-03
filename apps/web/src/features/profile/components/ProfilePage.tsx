@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
-import { updateMyPhotoAction } from "@/features/profile/actions/update-my-photo";
+import { api, ApiError } from "@/lib/api/browser";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -132,13 +132,17 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
 
   async function onPhotoChange(next: string | null) {
     setPhotoUrl(next);
-    const result = await updateMyPhotoAction(next);
-    if (!result.success) {
-      toast.error(result.error);
+    if (!user.linkedId) {
+      toast.error("No linked staff record.");
       return;
     }
-    toast.success(next ? "Photo updated." : "Photo removed.");
-    router.refresh();
+    try {
+      await api.staff.update(user.linkedId, { photoUrl: next });
+      toast.success(next ? "Photo updated." : "Photo removed.");
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update photo.");
+    }
   }
 
   const {

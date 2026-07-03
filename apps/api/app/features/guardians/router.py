@@ -13,7 +13,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.deps import CurrentSchoolIdDep, RequireAdmin
+from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
+from app.features.classes.model import Class
 from app.features.guardians.schema import (
     GuardianCreate,
     GuardianRead,
@@ -21,8 +22,20 @@ from app.features.guardians.schema import (
     GuardianUpdate,
 )
 from app.features.guardians.service import GuardiansService
+from app.features.students.model import Student
+from app.features.students.schema import GuardianChildrenResponse, StudentRead
+from app.features.students.service import StudentsService
 
 router = APIRouter(prefix="/guardians", tags=["guardians"])
+
+
+def _to_student_read(student: Student, cls: Class | None) -> StudentRead:
+    read = StudentRead.model_validate(student)
+    if cls:
+        return read.model_copy(
+            update={"class_id": cls.id, "class_name": cls.name, "division": cls.division}
+        )
+    return read
 
 
 @router.get("", response_model=GuardiansListResponse, response_model_by_alias=True)
@@ -52,6 +65,24 @@ async def get_guardian(
 ) -> GuardianRead:
     row = await GuardiansService.get(session, school_id, guardian_id)
     return GuardianRead.model_validate(row)
+
+
+@router.get(
+    "/{guardian_id}/children",
+    response_model=GuardianChildrenResponse,
+    response_model_by_alias=True,
+    summary="List the students linked to a guardian",
+)
+async def list_guardian_children(
+    guardian_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> GuardianChildrenResponse:
+    """A Parent may only look up their own linked guardian row — every
+    other role can look up any guardian, matching `/guardians/{id}`."""
+    rows = await StudentsService.list_for_guardian(session, school_id, guardian_id, user=user)
+    return GuardianChildrenResponse(items=[_to_student_read(s, c) for (s, c) in rows])
 
 
 @router.post(

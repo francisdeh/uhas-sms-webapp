@@ -1,15 +1,13 @@
 import { redirect, notFound } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listClassesAction } from "@/features/classes/actions";
-import { listStudentsAction } from "@/features/students/actions";
-import { getClassById } from "@/features/classes/queries/get-class-by-id";
-import {
-  getSessionForClassDateAction,
-  listSessionsForClassAction,
-  listAllSessionsAction,
-} from "@/features/attendance/actions";
+import { getApi, ApiError } from "@/lib/api/server";
 import { AttendanceSheet } from "@/features/attendance/components/AttendanceSheet";
 import { SessionHistory } from "@/features/attendance/components/SessionHistory";
+import type {
+  AttendanceSession,
+  SessionWithRecords,
+} from "@/features/attendance/types";
+import type { Student } from "@/features/students/types";
 
 export default async function TeacherAttendanceClassPage({
   params,
@@ -28,18 +26,40 @@ export default async function TeacherAttendanceClassPage({
   const date = dateParam ?? today;
   const editable = date === today;
 
-  const schoolClass = await getClassById(classId);
-  if (!schoolClass) notFound();
+  const api = await getApi();
+  let schoolClass;
+  try {
+    schoolClass = await api.classes.get(classId);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
 
-  const allStudents = await listStudentsAction();
-  const students = allStudents.filter(
-    (s) => s.classId === classId && s.isActive
-  );
-
-  const [existingSession, allSessions] = await Promise.all([
-    getSessionForClassDateAction(classId, date),
-    listSessionsForClassAction(classId),
+  const [rosterPage, existingSession, allSessionsPage] = await Promise.all([
+    api.classes.enrollments(classId, { status: "Active", size: 500 }),
+    api.attendance
+      .lookupSession({ classId, date })
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }),
+    api.attendance.listSessions({ classId, size: 200 }),
   ]);
+
+  const students: Student[] = rosterPage.items.map((e) => ({
+    id: e.studentId,
+    schoolId: "",
+    firstName: e.studentFirstName ?? "",
+    lastName: e.studentLastName ?? "",
+    dob: "",
+    gender: (e.studentGender ?? "Male") as "Male" | "Female",
+    classId: e.classId,
+    className: e.className ?? "",
+    division: (e.division ?? "KG") as Student["division"],
+    photoUrl: e.studentPhotoUrl ?? undefined,
+    isActive: e.studentIsActive ?? true,
+    createdAt: new Date().toISOString(),
+  }));
 
   return (
     <div className="space-y-6">
@@ -49,12 +69,12 @@ export default async function TeacherAttendanceClassPage({
         date={date}
         term={1}
         students={students}
-        existingSession={existingSession}
+        existingSession={existingSession as unknown as SessionWithRecords | null}
         editable={editable}
         submittedById={user.linkedId}
       />
       <SessionHistory
-        sessions={allSessions}
+        sessions={allSessionsPage.items as unknown as AttendanceSession[]}
         basePath={`/teacher/attendance/${classId}`}
       />
     </div>

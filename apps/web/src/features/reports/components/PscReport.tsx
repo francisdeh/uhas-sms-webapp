@@ -1,5 +1,5 @@
 import { formatDate as fmtDate } from "@/lib/dates";
-import type { PscReportData } from "@/features/reports/queries/get-psc-report";
+import type { PscReportData } from "@/features/reports/types";
 
 // PSC uses long month names ("5 January 2026") rather than the shared
 // default ("5 Jan 2026") because the report is a printed document.
