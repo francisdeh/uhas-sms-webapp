@@ -1486,6 +1486,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/school": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get School Report */
+        get: operations["get_school_report_reports_school_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/division/{division}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Division Report */
+        get: operations["get_division_report_reports_division__division__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/class/{class_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Class Report */
+        get: operations["get_class_report_reports_class__class_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/psc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Psc Report */
+        get: operations["get_psc_report_reports_psc_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1807,6 +1875,23 @@ export interface components {
             page: number;
             /** Size */
             size: number;
+        };
+        /**
+         * AttendanceDay
+         * @description One day of the last-7 attendance strip. `total` is the number of
+         *     records on that day; `present` counts `present` and `late` (both
+         *     treated as "at school" for the dashboard tile).
+         */
+        AttendanceDay: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Present */
+            present: number;
+            /** Total */
+            total: number;
         };
         /**
          * AttendanceRecordInput
@@ -2158,6 +2243,22 @@ export interface components {
             /** Primaryteachername */
             primaryTeacherName?: string | null;
         };
+        /** ClassStats */
+        ClassStats: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /** Students */
+            students: number;
+            /** Attendancelast7 */
+            attendanceLast7: components["schemas"]["AttendanceDay"][];
+            /** Subjectaverages */
+            subjectAverages: components["schemas"]["SubjectAverage"][];
+        };
         /**
          * ClassSubjectAssignRequest
          * @description `POST /classes/{class_id}/subjects` — assign a subject (opt. teacher).
@@ -2388,6 +2489,63 @@ export interface components {
             classTeacherNames: string[];
         };
         /**
+         * DivisionLessonPlanCounts
+         * @description Deputy view collapses `unit_head_approved` into `approved` — a
+         *     plan that's cleared the Unit Head step is on its way to Deputy
+         *     review, and the Deputy sees the two together.
+         */
+        DivisionLessonPlanCounts: {
+            /** Draft */
+            draft: number;
+            /** Submitted */
+            submitted: number;
+            /** Approved */
+            approved: number;
+            /** Rejected */
+            rejected: number;
+        };
+        /** DivisionStats */
+        DivisionStats: {
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Students */
+            students: number;
+            /** Male */
+            male: number;
+            /** Female */
+            female: number;
+            /** Classes */
+            classes: number;
+            /** Staff */
+            staff: number;
+            /** Attendancelast7 */
+            attendanceLast7: components["schemas"]["AttendanceDay"][];
+            lessonPlans: components["schemas"]["DivisionLessonPlanCounts"];
+            /** Topclasses */
+            topClasses: components["schemas"]["TopClass"][];
+        };
+        /** DivisionTotals */
+        DivisionTotals: {
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Students */
+            students: number;
+            /** Male */
+            male: number;
+            /** Female */
+            female: number;
+            /** Classes */
+            classes: number;
+            /** Staff */
+            staff: number;
+        };
+        /**
          * EnrollmentCreate
          * @description `POST /enrollments` — enrol an existing student into a class.
          *
@@ -2507,6 +2665,13 @@ export interface components {
              */
             submissionId: string;
         };
+        /** ExamCounts */
+        ExamCounts: {
+            /** Total */
+            total: number;
+            /** Published */
+            published: number;
+        };
         /** ExamCreate */
         ExamCreate: {
             /** Name */
@@ -2579,6 +2744,13 @@ export interface components {
             page: number;
             /** Size */
             size: number;
+        };
+        /** GenderBreakdown */
+        GenderBreakdown: {
+            /** Male */
+            male: number;
+            /** Female */
+            female: number;
         };
         /**
          * GradingBand
@@ -2797,6 +2969,19 @@ export interface components {
              * @enum {string}
              */
             status: "pending" | "approved" | "rejected" | "cancelled";
+        };
+        /** LessonPlanCounts */
+        LessonPlanCounts: {
+            /** Draft */
+            draft: number;
+            /** Submitted */
+            submitted: number;
+            /** Unitheadapproved */
+            unitHeadApproved: number;
+            /** Approved */
+            approved: number;
+            /** Rejected */
+            rejected: number;
         };
         /**
          * LessonPlanCreate
@@ -3066,6 +3251,83 @@ export interface components {
             decidedCount: number;
             submission?: components["schemas"]["SubmissionRead"] | null;
         };
+        /** PscClassRow */
+        PscClassRow: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /** Boys */
+            boys: number;
+            /** Girls */
+            girls: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * PscDivisionStaff
+         * @description PSC report groups staff by division. `division` is one of the
+         *     four real divisions or the sentinel `Cross` for un-scoped staff
+         *     (e.g. Admin / Accountant with no `staff.division`).
+         */
+        PscDivisionStaff: {
+            /** Division */
+            division: string;
+            /** Staff */
+            staff: components["schemas"]["PscStaffEntry"][];
+        };
+        /** PscReportData */
+        PscReportData: {
+            /** Schoolname */
+            schoolName: string;
+            /**
+             * Asof
+             * Format: date
+             */
+            asOf: string;
+            totals: components["schemas"]["PscTotals"];
+            /** Classrows */
+            classRows: components["schemas"]["PscClassRow"][];
+            /** Staffbydivision */
+            staffByDivision: components["schemas"]["PscDivisionStaff"][];
+        };
+        /** PscStaffEntry */
+        PscStaffEntry: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Rank */
+            rank: string;
+            /** Isunithead */
+            isUnitHead: boolean;
+        };
+        /** PscTotals */
+        PscTotals: {
+            /** Students */
+            students: number;
+            /** Boys */
+            boys: number;
+            /** Girls */
+            girls: number;
+            /** Leavers */
+            leavers: number;
+            /** Teachers */
+            teachers: number;
+            /** Admins */
+            admins: number;
+        };
         /**
          * SaveDraftRequest
          * @description PATCH /promotions/submissions/{id}/decisions.
@@ -3310,6 +3572,35 @@ export interface components {
             isActive: boolean;
             /** Createdat */
             createdAt?: string | null;
+        };
+        /** SchoolStats */
+        SchoolStats: {
+            totals: components["schemas"]["SchoolTotals"];
+            gender: components["schemas"]["GenderBreakdown"];
+            /** Divisions */
+            divisions: components["schemas"]["DivisionTotals"][];
+            lessonPlans: components["schemas"]["LessonPlanCounts"];
+            exams: components["schemas"]["ExamCounts"];
+            todayAttendance: components["schemas"]["TodayAttendance"];
+        };
+        /** SchoolTotals */
+        SchoolTotals: {
+            /** Students */
+            students: number;
+            /** Activestudents */
+            activeStudents: number;
+            /** Inactivestudents */
+            inactiveStudents: number;
+            /** Staff */
+            staff: number;
+            /** Activestaff */
+            activeStaff: number;
+            /** Classes */
+            classes: number;
+            /** Subjects */
+            subjects: number;
+            /** Parents */
+            parents: number;
         };
         /**
          * SchoolUpdate
@@ -4002,6 +4293,24 @@ export interface components {
             size: number;
         };
         /**
+         * SubjectAverage
+         * @description One subject's average score for the class. `samples` is the
+         *     number of scores that went into the mean.
+         */
+        SubjectAverage: {
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Subjectname */
+            subjectName: string;
+            /** Avg */
+            avg: number;
+            /** Samples */
+            samples: number;
+        };
+        /**
          * SubjectCreate
          * @description Client-supplied slug is the human-readable code (`MATH`, `ENG`).
          *
@@ -4269,6 +4578,36 @@ export interface components {
             academicYear: string;
             /** Terms */
             terms: components["schemas"]["TermInput"][];
+        };
+        /**
+         * TodayAttendance
+         * @description `sessions_recorded` counts today's attendance sessions; `classes`
+         *     is the number of classes in the current year (so a partial-day view
+         *     surfaces the "recorded / total" ratio the FE renders).
+         */
+        TodayAttendance: {
+            /** Sessionsrecorded */
+            sessionsRecorded: number;
+            /** Classes */
+            classes: number;
+        };
+        /**
+         * TopClass
+         * @description One row of the "top classes" table on the Deputy dashboard —
+         *     aggregate is the mean BECE-style aggregate across the class's
+         *     active students; lower is better; `None` when no scores exist for
+         *     the class.
+         */
+        TopClass: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /** Aggregateavg */
+            aggregateAvg?: number | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -8203,6 +8542,134 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditEventsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_school_report_reports_school_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolStats"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_division_report_reports_division__division__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DivisionStats"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_class_report_reports_class__class_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassStats"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_psc_report_reports_psc_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PscReportData"];
                 };
             };
             /** @description Validation Error */

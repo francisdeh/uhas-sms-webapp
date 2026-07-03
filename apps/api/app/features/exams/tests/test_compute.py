@@ -7,6 +7,7 @@ from uuid import uuid4
 from app.features.exams.compute import (
     ComponentScores,
     assign_positions,
+    compute_aggregate,
     compute_grade,
     compute_total,
 )
@@ -103,3 +104,26 @@ def test_positions_all_tied() -> None:
     rows: list[tuple[object, int | None]] = [(a, 80), (b, 80), (c, 80)]
     positions = assign_positions(rows)
     assert positions == {a: 1, b: 1, c: 1}
+
+
+# ─── compute_aggregate ──────────────────────────────────────────────────────
+
+
+def test_aggregate_sums_grade_numbers() -> None:
+    """BECE style — sum of grade values. Grades 1,2,3 → aggregate 6."""
+    assert compute_aggregate(["1", "2", "3"]) == 6
+
+
+def test_aggregate_ignores_none() -> None:
+    """None entries (missing/pending scores) are dropped from the sum."""
+    assert compute_aggregate(["4", None, "5"]) == 9
+
+
+def test_aggregate_returns_none_when_all_missing() -> None:
+    """Empty list or all-None → None (FE renders as "—")."""
+    assert compute_aggregate([]) is None
+    assert compute_aggregate([None, None]) is None
+
+
+def test_aggregate_single_grade() -> None:
+    assert compute_aggregate(["7"]) == 7

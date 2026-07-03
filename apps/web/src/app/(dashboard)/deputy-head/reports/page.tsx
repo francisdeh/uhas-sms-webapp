@@ -1,9 +1,15 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
-import { getDivisionStats } from "@/features/reports/queries/get-stats";
+import { getApi } from "@/lib/api/server";
 import { DivisionReports } from "@/features/reports/components/DivisionReports";
 import { Card, CardContent } from "@/components/ui/card";
+import type { DivisionStats } from "@/features/reports/types";
+
+// Rendered per-request — depends on the caller's session; opts out of
+// Next's static analysis (which would fail on the Supabase env-var
+// check during `next build`).
+export const dynamic = "force-dynamic";
 
 export default async function DeputyHeadReportsPage() {
   const user = await getSessionUser();
@@ -23,6 +29,7 @@ export default async function DeputyHeadReportsPage() {
     );
   }
 
-  const stats = await getDivisionStats(division);
+  const api = await getApi();
+  const stats = (await api.reports.getDivisionStats(division)) as DivisionStats;
   return <DivisionReports stats={stats} />;
 }

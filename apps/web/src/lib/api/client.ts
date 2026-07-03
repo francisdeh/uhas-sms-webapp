@@ -828,6 +828,35 @@ export function createApiClient(getAuthToken: TokenGetter) {
       delete: (id: string) =>
         apiFetch<void>(getAuthToken, `/calendar/${id}`, { method: "DELETE" }),
     },
+    reports: {
+      /** Admin overview — every counter on the school dashboard. */
+      getSchoolStats: () =>
+        apiFetch<components["schemas"]["SchoolStats"]>(
+          getAuthToken,
+          "/reports/school",
+        ),
+      /** Deputy dashboard for the given division. Admin can also call.
+       *  A Deputy asking for a division other than their own gets 403. */
+      getDivisionStats: (division: string) =>
+        apiFetch<components["schemas"]["DivisionStats"]>(
+          getAuthToken,
+          `/reports/division/${division}`,
+        ),
+      /** Teacher dashboard — subject averages + last-7 attendance for the
+       *  given class. Admin, division Deputy, and class/subject teachers
+       *  can call; anyone else gets 403. */
+      getClassStats: (classId: string) =>
+        apiFetch<components["schemas"]["ClassStats"]>(
+          getAuthToken,
+          `/reports/class/${classId}`,
+        ),
+      /** PSC census-style school report. Admin only. */
+      getPscReport: () =>
+        apiFetch<components["schemas"]["PscReportData"]>(
+          getAuthToken,
+          "/reports/psc",
+        ),
+    },
     auditLog: {
       /** Read-only, Admin only. Filters are all optional; `action`
        *  matches the closed set of `AuditAction` values. */
