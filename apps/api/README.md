@@ -24,6 +24,9 @@ Not yet wired:
 - ❌ Real report-card PDF rendering — the Inngest jobs exist and write to Storage, but the body is a placeholder (nothing in the repo turns exam data into PDF bytes yet)
 - ❌ Local demo-data seed script — the Drizzle-based one was removed with Drizzle; nothing replaced it (tracked separately)
 - ❌ Pre-commit hooks (`ruff`, `mypy`) at repo root — still TODO (lefthook or husky-mono)
+- ❌ Rate limiting — no throttling middleware anywhere yet; needs an audit of auth-adjacent + SMS-triggering routes before real users hit them
+- ❌ Sentry/Logfire *activation* — the instrumentation is wired (see above) but stays a no-op until real project credentials are provisioned and set via env vars
+- ❌ HTML email templates — `EmailMessage.html` is supported by the provider but unused; every current sender builds a plain-text body
 
 ## Quick start
 
