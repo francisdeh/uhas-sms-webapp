@@ -65,9 +65,7 @@ async def patch_school(
     """Apply a partial update; writes an audit_log row with the diff.
 
     Only `Admin` can modify settings. The audit row records who, when,
-    and the field-level before/after — same shape as the legacy
-    `SCHOOL_SETTINGS_UPDATE` rows produced by the Next-side Server
-    Action, so historical entries remain queryable.
+    and the field-level before/after (`SCHOOL_SETTINGS_UPDATE` action).
     """
     # `user.user_id` is the Supabase Auth UUID (from `sub`) — that's what
     # we record in the audit row.

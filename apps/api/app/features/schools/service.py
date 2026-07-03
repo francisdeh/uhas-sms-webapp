@@ -1,7 +1,5 @@
 """SchoolsService — business logic for the Schools/Settings domain.
 
-Mirrors `apps/web/src/features/settings/actions/_helpers.ts` —
-specifically the field-level diff logic in `applySchoolSettingsPatch`.
 On every PATCH we:
 
   1. Load the current row.

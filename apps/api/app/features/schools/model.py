@@ -1,9 +1,8 @@
 """SQLAlchemy model for the `schools` table.
 
 Schools is the multi-tenant anchor — every other domain has a
-`school_id` FK that points here. The table already exists from the
-Alembic baseline (`fb2f367656c5_drizzle_baseline_port`); this module
-gives us the typed ORM handle.
+`school_id` FK that points here. Typed ORM handle over the
+Alembic-managed schema.
 
 Per the convention in
 [docs/ENGINEERING-CONVENTIONS.md §3a](../../../../../docs/ENGINEERING-CONVENTIONS.md):

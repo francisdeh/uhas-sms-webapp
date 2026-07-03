@@ -35,7 +35,6 @@ _CAMEL_CONFIG = ConfigDict(
 
 
 # ─── JSON sub-types ──────────────────────────────────────────────────────────
-# These mirror the structures the Drizzle / Next-side already use.
 # Declared as separate models so the OpenAPI schema (and the regenerated
 # `apps/web/src/types/api.d.ts`) carries them as named types, not inline
 # anonymous objects. Each gets its own model_config because Pydantic

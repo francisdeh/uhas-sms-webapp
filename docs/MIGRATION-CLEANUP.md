@@ -1,24 +1,23 @@
 # Migration cleanup checklist
 
-When the Drizzle / Next-side Server Action layer is fully decommissioned (Phase 2 complete + the legacy `apps/web/src/features/*/actions/index.ts` files are deleted), do this sweep.
+Phase 2 is complete — the Drizzle / Next-side Server Action layer was fully decommissioned in PR #32 (`chore/phase-2-cleanup`). This sweep is done.
 
-## A. Pure-comment cleanup
+## A. Pure-comment cleanup — ✅ RESOLVED
 
-These are docstrings / inline comments that reference "Drizzle", "legacy Server Action", or "mirrors X" — once X is gone, the reference is stale and should be edited or deleted.
+These were docstrings / inline comments that referenced "Drizzle", "legacy Server Action", or "mirrors X" — now stale and edited or removed.
 
-| File | Line | What to do |
-|---|---|---|
-| [apps/api/app/features/staff/model.py:3](../apps/api/app/features/staff/model.py#L3) | docstring | Drop "Mirrors the Drizzle definition in `apps/web/src/db/schema.ts`" → describe the table directly |
-| [apps/api/app/features/staff/service.py:7-8](../apps/api/app/features/staff/service.py#L7) | docstring | Drop "mirrors the legacy `ROLE_CHANGE` action so historical entries stay queryable" |
-| [apps/api/app/features/staff/service.py:133](../apps/api/app/features/staff/service.py#L133) | docstring | Same — drop "Mirrors the legacy ROLE_CHANGE action" |
-| [apps/api/app/features/guardians/model.py:3](../apps/api/app/features/guardians/model.py#L3) | docstring | Drop "Mirrors the Drizzle definition" |
-| [apps/api/app/features/students/service.py](../apps/api/app/features/students/service.py) | docstring | ✅ resolved in B1 |
-| [apps/api/app/features/schools/model.py:5](../apps/api/app/features/schools/model.py#L5) | docstring | Drop reference to "Alembic baseline (`fb2f367656c5_drizzle_baseline_port`)" |
-| [apps/api/app/features/schools/schema.py:38](../apps/api/app/features/schools/schema.py#L38) | comment | Drop "These mirror the structures the Drizzle / Next-side already use" |
-| [apps/api/app/features/schools/service.py:3](../apps/api/app/features/schools/service.py#L3) | docstring | Drop "Mirrors `apps/web/src/features/settings/actions/_helpers.ts`" |
-| [apps/api/app/features/schools/router.py:68](../apps/api/app/features/schools/router.py#L68) | docstring | Drop "same shape as the legacy `SCHOOL_SETTINGS_UPDATE` rows" |
-| [apps/api/app/features/school_terms/schema.py:29](../apps/api/app/features/school_terms/schema.py#L29) | comment | Drop "mirrors the Drizzle CHECK pattern" |
-| [apps/api/app/features/audit/service.py](../apps/api/app/features/audit/service.py) | docstring | ✅ resolved in B3 (rewrote when columns went JSONB) |
+| File | What was done |
+|---|---|
+| [apps/api/app/features/staff/model.py](../apps/api/app/features/staff/model.py) | ✅ Dropped the Drizzle-definition reference |
+| [apps/api/app/features/staff/service.py](../apps/api/app/features/staff/service.py) | ✅ Dropped both "mirrors the legacy ROLE_CHANGE action" references |
+| [apps/api/app/features/guardians/model.py](../apps/api/app/features/guardians/model.py) | ✅ Dropped the Drizzle-definition reference |
+| [apps/api/app/features/students/service.py](../apps/api/app/features/students/service.py) | ✅ resolved in B1 |
+| [apps/api/app/features/schools/model.py](../apps/api/app/features/schools/model.py) | ✅ Dropped the Alembic-baseline migration-hash reference |
+| [apps/api/app/features/schools/schema.py](../apps/api/app/features/schools/schema.py) | ✅ Dropped "mirror the Drizzle / Next-side structures" |
+| [apps/api/app/features/schools/service.py](../apps/api/app/features/schools/service.py) | ✅ Dropped the `settings/actions/_helpers.ts` reference |
+| [apps/api/app/features/schools/router.py](../apps/api/app/features/schools/router.py) | ✅ Dropped "legacy Next-side Server Action" reference |
+| [apps/api/app/features/school_terms/schema.py](../apps/api/app/features/school_terms/schema.py) | ✅ Dropped "mirrors the Drizzle CHECK pattern" |
+| [apps/api/app/features/audit/service.py](../apps/api/app/features/audit/service.py) | ✅ resolved in B3 (rewrote when columns went JSONB) |
 
 ### Keep — not actually "legacy" references
 

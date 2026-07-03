@@ -4,8 +4,7 @@ Encapsulates:
   - slug generation (`STAFF-001` per-school sequence)
   - the "non-Admin roles must declare a division" invariant
   - the "Unit Heads must be Teachers" invariant
-  - audit-log writes for role changes (mirrors the legacy
-    `ROLE_CHANGE` action so historical entries stay queryable)
+  - audit-log writes for role changes (`ROLE_CHANGE` action)
 
 Routes never reach into the repository directly — they call services
 and let services compose the invariants.
@@ -149,11 +148,7 @@ class StaffService:
         *,
         actor_user_id: UUID | str,
     ) -> Staff:
-        """Apply a role change + clear unit-head flags + audit log.
-
-        Mirrors the legacy `ROLE_CHANGE` action so historical entries
-        stay queryable.
-        """
+        """Apply a role change + clear unit-head flags + audit log."""
         row = await StaffService.get(session, school_id, staff_id)
         if payload.system_role != ADMIN and not payload.division:
             raise ValidationError("Division is required for this role.")

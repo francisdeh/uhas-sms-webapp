@@ -1,7 +1,6 @@
 """SQLAlchemy model for the `staff` table.
 
-Mirrors the Drizzle definition in `apps/web/src/db/schema.ts` and the
-Alembic baseline — no schema changes here, just a typed ORM handle.
+Typed ORM handle over the Alembic-managed schema.
 
 Per [docs/ENGINEERING-CONVENTIONS.md §3a]: PK is `uuid`
 (DB-generated via `gen_random_uuid()`), and a separate `slug`

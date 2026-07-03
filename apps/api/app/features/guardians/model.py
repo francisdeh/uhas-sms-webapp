@@ -1,8 +1,8 @@
 """SQLAlchemy model for the `guardians` table.
 
-Mirrors the Drizzle definition. Per the dual-identifier rule
-(Phase 1 PR #7), at least one of `email` / `phone` is required —
-enforced by a CHECK constraint in the existing migration, not here.
+Per the dual-identifier rule (Phase 1 PR #7), at least one of
+`email` / `phone` is required — enforced by a CHECK constraint in the
+existing migration, not here.
 """
 
 from __future__ import annotations
