@@ -1,34 +1,19 @@
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: uhas_sms_db
+  inngest:
+    image: inngest/inngest:latest
+    container_name: uhas_sms_inngest
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: uhas
-      POSTGRES_PASSWORD: uhas_dev_secret
-      POSTGRES_DB: uhas_sms
+    command:
+      - inngest
+      - dev
+      - --host=0.0.0.0
+      - --sdk-url=http://host.docker.internal:8000/api/inngest
     ports:
-      - "5436:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U uhas -d uhas_sms"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  adminer:
-    image: adminer:latest
-    container_name: uhas_sms_adminer
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - "8080:8080"
-    environment:
-      ADMINER_DEFAULT_SERVER: db
-      ADMINER_DESIGN: pepa-linha-dark
-
-volumes:
-  postgres_data:
+      - "8288:8288"
+    extra_hosts:
+      # `host.docker.internal` resolves out of the box on Docker Desktop
+      # (Mac/Windows). On Linux this mapping is required for the same
+      # hostname to reach the FastAPI dev server running on the host —
+      # `uv run uvicorn ...` isn't containerized, so the API lives outside
+      # this compose network.
+      - "host.docker.internal:host-gateway"

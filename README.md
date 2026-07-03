@@ -8,12 +8,13 @@ A web-based School Management System for UHAS Basic School, Ghana. Covers studen
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 16 (App Router) + TypeScript |
-| Styling | Tailwind CSS + shadcn/ui + lucide-react |
-| Database | PostgreSQL 16 (Neon in production, Docker locally) |
-| ORM | Drizzle ORM |
-| Auth | Firebase Authentication |
-| File Storage | Firebase Cloud Storage |
+| Frontend | Next.js 16 (App Router) + TypeScript, reads/writes only through the FastAPI client |
+| Backend | FastAPI + SQLAlchemy 2.0 (async) + Alembic — [`apps/api/`](apps/api/) |
+| Database | PostgreSQL — Supabase-managed in production, Supabase CLI locally |
+| Auth | Supabase Auth (email/password for staff, phone OTP for parents) |
+| File Storage | Supabase Storage (`photos` public bucket, `documents` private + signed URLs) |
+| Background jobs | Inngest (SMS fan-out, report generation, lesson-plan-rejection email) |
+| SMS | Hubtel — interface built, stubbed pending account/sender-ID registration |
 | Client Data | TanStack Query v5 |
 | Notifications | Sonner (toasts) |
 | Hosting | Railway |
@@ -23,70 +24,84 @@ A web-based School Management System for UHAS Basic School, Ghana. Covers studen
 ## Prerequisites
 
 - Node.js 22+ (pnpm 11 requires ≥22.13)
-- [pnpm](https://pnpm.io) 11+ (`npm install -g pnpm` if you don't have it)
-- Docker Desktop (for local database)
-- Firebase CLI (`pnpm add -g firebase-tools`)
+- [pnpm](https://pnpm.io) 11.9+ (`npm install -g pnpm` if you don't have it)
+- Python 3.14 + [uv](https://docs.astral.sh/uv/) (`apps/api/.python-version` pins the version; `uv` installs it automatically)
+- [Supabase CLI](https://supabase.com/docs/guides/cli) 2.x (`brew install supabase/tap/supabase` or see their docs) — runs the local Postgres/Auth/Storage stack
+- Docker Desktop (Supabase CLI's local stack runs in Docker; also used for the local Inngest dev server)
 
 ---
 
 ## Getting Started
 
-> **Monorepo note.** The Next.js app lives in [`apps/web/`](apps/web/). The pnpm workspace lockfile is at the repo root; `pnpm install` runs there once and hoists `node_modules` for every package. App-scoped scripts (`pnpm dev`, `pnpm test`, etc.) run from inside `apps/web/`. `docker compose` and `git` commands run from the repo root. The FastAPI backend in [`apps/api/`](apps/api/) is uv-managed Python — see [apps/api/README.md](apps/api/README.md).
+> **Monorepo note.** The Next.js app lives in [`apps/web/`](apps/web/); the FastAPI backend lives in [`apps/api/`](apps/api/) and is uv-managed Python (see [apps/api/README.md](apps/api/README.md)). The pnpm workspace lockfile is at the repo root; `pnpm install` runs there once and hoists `node_modules` for every package. App-scoped scripts (`pnpm dev`, `pnpm test`, etc.) run from inside `apps/web/`. `docker compose`, `git`, and `supabase` CLI commands run from the repo root.
 
 ### 1. Install dependencies
 
 From the repo root:
 
 ```bash
-pnpm install
+pnpm install                       # Next.js workspace
+cd apps/api && uv sync && cd ../..  # FastAPI — installs into apps/api/.venv
 ```
 
-The remaining web-scoped commands run from `apps/web/`:
+### 2. Start the local Supabase stack
+
+From the repo root (needs the `supabase/` config dir):
+
+```bash
+supabase start
+```
+
+First run pulls Docker images and takes a minute or two. This brings up local Postgres (`54322`), Auth (`54321`), Storage, and Studio (`54323`). Copy the `anon key` / `service_role key` it prints — you need them in the next step.
+
+### 3. Set up environment variables
+
+```bash
+# FastAPI
+cp apps/api/.env.example apps/api/.env
+# Defaults already point at the local Supabase stack — no edits needed
+# unless you're pointing at a real project.
+
+# Next.js
+cp apps/web/.env.local.example apps/web/.env.local
+# Paste the anon key from `supabase start` into NEXT_PUBLIC_SUPABASE_ANON_KEY,
+# and the service_role key into SUPABASE_SERVICE_ROLE_KEY.
+```
+
+### 4. Apply database migrations
+
+```bash
+cd apps/api
+uv run alembic upgrade head
+cd ../..
+```
+
+### 5. Seed demo data
+
+⚠️ **No working seed script exists yet.** The old Drizzle-based `seed-db.ts` was removed when Drizzle was decommissioned (Phase 2); nothing on the FastAPI side replaced it. `apps/web/scripts/seed-supabase-users.ts` still creates Supabase Auth users, but their `app_metadata.linked_id`/`school_id` claims point at `staff`/`schools` rows that don't exist without it — logging in with those accounts will hit 403s/404s once past auth. Tracked as a gap; for now, create at least one `schools` row + a linked `staff` row manually (via `psql` against `54322`, or Supabase Studio at `54323`) before testing anything role-gated.
+
+### 6. Start the background job runner (Inngest)
+
+```bash
+docker compose up -d      # from the repo root — brings up the Inngest dev server
+# equivalent: cd apps/web && pnpm docker:up
+```
+
+Or run it directly instead: `cd apps/api && uv run inngest-cli dev -u http://localhost:8000/api/inngest`. Either way, the dev UI is at `http://localhost:8288`. Jobs only fire in response to events triggered elsewhere in the app (SMS sends, lesson-plan rejections) — nothing breaks if you skip this for pure frontend work.
+
+### 7. Start the backend
+
+```bash
+cd apps/api
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+API runs at `http://localhost:8000` — Swagger UI at `/docs`, OpenAPI schema at `/openapi.json`.
+
+### 8. Start the frontend
 
 ```bash
 cd apps/web
-```
-
-### 2. Set up environment variables
-
-```bash
-cp .env.local.example .env.local
-```
-
-The defaults work out of the box for local development (Firebase emulator + Docker DB on `localhost:5436`).
-
-### 3. Start the local database
-
-```bash
-pnpm docker:up
-```
-
-This starts PostgreSQL 16 on port `5436` and Adminer (DB browser UI) on port `8080`.
-
-### 4. Apply migrations + seed demo data
-
-```bash
-pnpm db:migrate
-pnpm db:seed
-```
-
-`db:migrate` applies the Drizzle baseline. `db:seed` is idempotent and ports every fixture from `scripts/_seed-data/` into the DB so the demo flows work end-to-end. Use `pnpm db:seed:reset` to truncate and re-seed.
-
-### 5. Start the Firebase Auth Emulator
-
-```bash
-firebase emulators:start
-```
-
-Then seed it with test users (one per row in the `users` table):
-
-```bash
-pnpm seed:emulator
-```
-
-### 6. Start the dev server
-
-```bash
 pnpm dev
 ```
 
@@ -94,45 +109,43 @@ App runs at `http://localhost:3000`.
 
 ---
 
-## Test Accounts (Emulator)
+## Test Accounts (Supabase Auth)
 
-| Role | Email | Password |
-|---|---|---|
-| Admin | admin@uhas.edu.gh | Admin@1234 |
-| Deputy Head (JHS) | dh.jhs@uhas.edu.gh | Deputy@1234 |
-| Deputy Head (Lower Primary) | dh.lower-primary@uhas.edu.gh | Deputy@1234 |
-| Deputy Head (Upper Primary) | dh.upper-primary@uhas.edu.gh | Deputy@1234 |
-| Deputy Head (KG) | dh.kg@uhas.edu.gh | Deputy@1234 |
-| Teacher (Unit Head — JHS) | unit-head.jhs@uhas.edu.gh | UnitHead@1234 |
-| Teacher | teacher@uhas.edu.gh | Teacher@1234 |
-| Parent | parent@uhas.edu.gh | Parent@1234 |
+Defined in [`apps/web/scripts/_seed-data/users.ts`](apps/web/scripts/_seed-data/users.ts), created by `pnpm seed:supabase` (repo root: `cd apps/web && pnpm seed:supabase`). ⚠️ Auth-only until the [seed-data gap](#getting-started) is closed — these accounts can log in, but most role-gated pages will 403/404 because their linked `staff`/`guardians` rows don't exist yet.
+
+| Role | Email | Password | Notes |
+|---|---|---|---|
+| Admin | admin@uhas.edu.gh | Admin@1234 | |
+| Deputy Head (JHS) | dh.jhs@uhas.edu.gh | Deputy@1234 | |
+| Deputy Head (Lower Primary) | dh.lower-primary@uhas.edu.gh | Deputy@1234 | |
+| Deputy Head (Upper Primary) | dh.upper-primary@uhas.edu.gh | Deputy@1234 | |
+| Deputy Head (KG) | dh.kg@uhas.edu.gh | Deputy@1234 | |
+| Teacher (Unit Head — JHS) | unit-head.jhs@uhas.edu.gh | UnitHead@1234 | |
+| Teacher | teacher@uhas.edu.gh | Teacher@1234 | |
+| Parent | parent@uhas.edu.gh | Parent@1234 | Also `+233200000001` + OTP `123456` (local `test_otp`, no real SMS) |
+| Accountant | accountant@uhas.edu.gh | Accountant@1234 | |
 
 ---
 
 ## Available Scripts
 
+All run from `apps/web/` unless noted. FastAPI-side commands are covered in [apps/api/README.md](apps/api/README.md#commands).
+
 | Script | Description |
 |---|---|
 | `pnpm dev` | Start dev server (webpack) |
 | `pnpm build` | Production build |
+| `pnpm start` | Serve a production build |
 | `pnpm lint` | ESLint |
-| `pnpm docker:up` | Start PostgreSQL + Adminer |
-| `pnpm docker:down` | Stop containers |
-| `pnpm docker:reset` | Wipe DB volume and restart |
-| `pnpm db:generate` | Generate a new Drizzle migration from schema changes — review the SQL in `drizzle/` then commit it |
-| `pnpm db:migrate` | Apply pending Drizzle migrations (the only way to change schema — `db:push` is intentionally not used) |
-| `pnpm db:studio` | Open Drizzle Studio (DB GUI) |
-| `pnpm db:seed` | Seed demo data (idempotent — safe to re-run) |
-| `pnpm db:seed:reset` | Truncate all tables and re-seed |
-| `pnpm db:seed:prod` | Seed school + Firebase-backed users only (production minimum) |
-| `pnpm seed:emulator` | Seed Firebase Auth Emulator with users from the DB |
-| `pnpm seed:firebase` | Seed real Firebase project with production users + custom claims (requires `.env.seed`) |
-| `pnpm db:test:setup` | Create `uhas_sms_test` Postgres + apply migrations (one-shot, before first `pnpm test`) |
-| `pnpm test` | Run the full Vitest suite (`.env.test`) |
+| `pnpm generate:api-types` | Regenerate `src/types/api.d.ts` from the running FastAPI's `/openapi.json` — run after any backend schema/route change |
+| `pnpm seed:supabase` | Create the Supabase Auth test accounts (see [Test Accounts](#test-accounts-supabase-auth)) — auth only, doesn't seed business data |
+| `docker compose up -d` (repo root) / `pnpm docker:up` | Start the local Inngest dev server (background jobs) |
+| `pnpm docker:down` | Stop the Inngest container |
+| `pnpm docker:reset` | Recreate the Inngest container from a clean state |
+| `pnpm test` | Run the Vitest suite (`.env.test`) |
 | `pnpm test:watch` | Vitest watch mode |
-| `pnpm db:e2e:setup` | Create `uhas_sms_e2e` Postgres + apply migrations (one-shot, before first `pnpm e2e`) |
 | `pnpm e2e:build` | Production build for Playwright (run after schema/UI changes) |
-| `pnpm e2e` | Run the Playwright E2E suite (`.env.e2e`) — boots `next start` on port 3100 |
+| `pnpm e2e` | Run the Playwright E2E suite (`.env.e2e`) |
 | `pnpm e2e:ui` | Playwright UI mode |
 | `pnpm e2e:headed` | Playwright in headed Chromium |
 
@@ -143,63 +156,64 @@ App runs at `http://localhost:3000`.
 ```
 uhas-sms/
 ├── apps/
-│   ├── web/                            # Next.js frontend (everything that exists today)
+│   ├── web/                            # Next.js frontend — UI + API client only,
+│   │   │                                # no DB access, no Server Action mutations
 │   │   ├── src/
 │   │   │   ├── app/                    # App Router — (auth) + (dashboard)/<role>/
 │   │   │   ├── components/ui/          # shadcn primitives
-│   │   │   ├── db/                     # Drizzle schema + client
-│   │   │   ├── features/<domain>/      # actions/, queries/, components/, types.ts
-│   │   │   ├── lib/                    # Cross-cutting (firebase, email, dates, …)
-│   │   │   └── proxy.ts                # Role-based routing
-│   │   ├── tests/                      # Vitest + Playwright
-│   │   ├── drizzle/                    # Committed migrations
-│   │   ├── scripts/                    # Seed + setup scripts
+│   │   │   ├── features/<domain>/      # components/, actions/ (thin wrappers calling
+│   │   │   │                            # the FastAPI client), types.ts
+│   │   │   ├── lib/                    # Cross-cutting: api/ (typed FastAPI client),
+│   │   │   │                            # supabase/ (client, server, middleware), dates, …
+│   │   │   ├── types/api.d.ts          # Generated from FastAPI's OpenAPI schema
+│   │   │   └── proxy.ts                # Role-based routing (Next.js 16 middleware)
+│   │   ├── tests/                      # Vitest (unit) + Playwright (e2e/)
+│   │   ├── scripts/                    # seed-supabase-users.ts (Auth accounts only)
 │   │   └── package.json
 │   │
-│   └── api/                            # FastAPI backend (Phase 0 PR #2)
+│   └── api/                            # FastAPI backend — Phase 3 complete, owns all
+│                                        # data access + mutations; see apps/api/README.md
 │
-├── supabase/                           # Supabase CLI + Alembic baseline (Phase 0 PR #3)
+├── supabase/                           # Supabase CLI project (Auth/Storage/Postgres config)
+│                                        # — schema itself lives in apps/api/alembic/
 ├── docs/                               # Persistent reference docs
 ├── v2/                                 # Migration plan set (Strategy A target)
-├── docker-compose.yml                  # Local Postgres for both apps
-├── railway.toml                        # Multi-service deploy config
-└── .github/workflows/                  # CI (lint + tsc + tests + build + E2E)
+├── docker-compose.yml                  # Local Inngest dev server
+├── railway.toml                        # Multi-service deploy config (web + api)
+└── .github/workflows/ci.yml            # Lint + tsc + Vitest (web), ruff + mypy + pytest (api)
 ```
 
 ---
 
 ## Environment Variables
 
+Two separate env files — Next.js reads only from `apps/web/`, FastAPI reads only from `apps/api/`.
+
+**`apps/web/.env.local`** (copy from [`.env.local.example`](apps/web/.env.local.example)):
+
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `DB_DRIVER` | Optional. `pg` (Docker / Railway) or `neon-http` (Neon prod). Auto-detected from `*.neon.tech` host. |
-| `NEXT_PUBLIC_USE_FIREBASE_EMULATOR` | `true` connects Auth to localhost:9099 |
-| `NEXT_PUBLIC_FIREBASE_*` | Firebase client SDK config (API key, project ID, etc.) |
-| `FIREBASE_PROJECT_ID` | Firebase project ID (Admin SDK — server-side only) |
-| `FIREBASE_CLIENT_EMAIL` | Service account client email (Admin SDK) |
-| `FIREBASE_PRIVATE_KEY` | Service account private key (Admin SDK, use `\n` for newlines in `.env`) |
+| `NEXT_PUBLIC_API_URL` | FastAPI base URL — `http://localhost:8000` locally |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase API gateway — `http://127.0.0.1:54321` locally |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same well-known value for every local Supabase CLI install; a real project's anon key in prod |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side only. Needed for `pnpm seed:supabase`; from `supabase status` locally |
+| `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_*` | Optional — Sentry is a silent no-op when unset |
 
-### Seeding a real Firebase project
-
-To create users in a real Firebase project (production or staging), create a `.env.seed` file (gitignored) with the Admin SDK credentials and run:
-
-```bash
-pnpm exec dotenv -e .env.seed -- pnpm exec tsx scripts/seed-firebase-users.ts
-```
-
-This creates one Firebase Auth account per role with the correct custom claims (`{ role, linkedId }`) that map to the mock data IDs. Delete `.env.seed` after seeding.
+**`apps/api/.env`** (copy from `.env.example`): every field has a working default for local Supabase, so a fresh checkout boots with zero `.env` file. Covers `DATABASE_URL`, `SUPABASE_*`, `INNGEST_*`, `SMTP_*`/`EMAIL_*`, `SENTRY_*`/`LOGFIRE_TOKEN`. See [apps/api/README.md](apps/api/README.md#configuration) and `app/core/config.py` (every field has a `description`) for the canonical list.
 
 ---
 
 ## Local Services
 
-| Service | URL | Credentials |
+| Service | URL | Notes |
 |---|---|---|
-| App | http://localhost:3000 | — |
-| Firebase Emulator UI | http://localhost:4000 | — |
-| Adminer (DB browser) | http://localhost:8080 | server: `db` / user: `uhas` / pass: `uhas_dev_secret` / db: `uhas_sms` (Docker port `5436` externally) |
-| Drizzle Studio | http://localhost:4983 | run `pnpm db:studio` |
+| Next.js app | http://localhost:3000 | `cd apps/web && pnpm dev` |
+| FastAPI | http://localhost:8000 | `cd apps/api && uv run uvicorn app.main:app --reload --port 8000` — Swagger at `/docs` |
+| Supabase API gateway | http://127.0.0.1:54321 | Auth, REST, Storage, Realtime — `supabase start` |
+| Supabase Postgres | postgresql://postgres:postgres@127.0.0.1:54322/postgres | Direct DB access |
+| Supabase Studio | http://127.0.0.1:54323 | Web UI for the local Postgres/Auth/Storage stack |
+| Mailpit / Inbucket | http://127.0.0.1:54324 | Catches outbound Supabase Auth emails locally |
+| Inngest Dev Server UI | http://localhost:8288 | `docker compose up -d` (repo root) or `uv run inngest-cli dev` |
 
 ---
 
@@ -243,14 +257,15 @@ Classes: KG 1–2 · Primary 1–6 · JHS 1–3
 | 7b — PSC Report | ✅ Done | Admin `/admin/reports/psc` renders the printable Population & Staff Census: school totals, per-class boy/girl breakdown with division subtotals, school total, teachers grouped per division with Unit Head flag. Reuses the report-card print mode at A4. |
 | 7c — Academic Calendar | ✅ Done | New `calendar_events` table + actions. Admin `/admin/calendar` adds/deletes events (term start/end, exam, holiday, event). Deputy Head, Teacher, Parent all see a read-only `/<role>/calendar` view with Upcoming and Past sections. |
 | 5.7 — Student Promotion | ✅ Done | Year-end promotion workflow. After DB cutover, approval materialises real `enrollments` rows (Active for Promote, Repeating for Repeat), flips `students.isActive=false` for Withdraw, and writes one `PROMOTION_APPROVED` audit log row in a single transaction. |
-| DB Cutover | ✅ Done | Removed `USE_MOCK_DATA` and the entire `src/lib/mock/` directory. Every action and query now goes through Drizzle. `DB_DRIVER` env var picks `pg` for Docker/Railway or `neon-http` for Neon prod (auto-detects from `*.neon.tech` host). Generated baseline migration; `npm run db:migrate && npm run db:seed` brings up a fresh Postgres with the same demo data as before. Audit log wired for the four sensitive admin mutations. See `docs/superpowers/specs/2026-05-19-db-cutover-design.md`. |
+| DB Cutover (mock → Drizzle) | ✅ Done, later superseded | Removed `USE_MOCK_DATA` and the entire `src/lib/mock/` directory. Every action and query went through Drizzle at this point — Drizzle itself was later removed in the Strategy A migration (see below); FastAPI + SQLAlchemy is the current data-access layer. `DB_DRIVER` env var picks `pg` for Docker/Railway or `neon-http` for Neon prod (auto-detects from `*.neon.tech` host). Generated baseline migration; `npm run db:migrate && npm run db:seed` brings up a fresh Postgres with the same demo data as before. Audit log wired for the four sensitive admin mutations. See `docs/superpowers/specs/2026-05-19-db-cutover-design.md`. |
 | Audit log viewer | ✅ Done | Admin-only `/admin/audit-log`. Filters by action + date range (default last 30 days), pagination 50/page. Expandable rows show side-by-side before/after JSON with changed-key highlighting. |
-| File uploads (Firebase Storage) | ✅ Done | Firebase Storage emulator wired (port 9199). `storage.rules` allows public read for `photos/**` and signed-URL-only for `documents/**`. Reusable `ImageUploadField` / `FileUploadField` / `DocumentDownloadLink` / `UserAvatar`. Photo uploads on student + staff + own profile. File uploads on lesson plans, schemes, assignments. Every avatar in the app prefers the real photo when present. |
+| File uploads (originally Firebase Storage) | ✅ Done, backend later swapped | Reusable `ImageUploadField` / `FileUploadField` / `DocumentDownloadLink` / `UserAvatar` on student + staff + own-profile photos and lesson-plan/scheme/assignment attachments. Originally backed by the Firebase Storage emulator (`storage.rules`, port 9199); the storage backend itself moved to Supabase Storage (`photos` public, `documents` signed URLs) in Phase 3 — `apps/web/firebase.json` and `storage.rules` are now unused leftovers, not yet deleted. |
 | Theme default + UX polish | ✅ Done | UHAS brand palette is now the default — root `<html data-color-scheme="uhas">` so it applies on first paint with no flash. `useTheme().setColorScheme("default")` still removes it. "Mark all present" is now a one-click action on both student and staff attendance sheets — stages everyone as present (keeping approved-leave staff on leave) and immediately saves. |
 | 8 — Testing (layers 1 + 2) | ✅ Done | Vitest set up with a separate `uhas_sms_test` Postgres. 128 tests across 10 files (~12 s end-to-end). **Layer 1 (unit, no DB)** covers `computeGrade` / `computeTotalScore` / `assignSubjectPositions` / `computeAggregate`, `computePromotionSuggestion`, `autoPickTargetClass`, `nextAcademicYear`. **Layer 2 (integration, real DB)** covers auth (login, role redirect, mustChangePassword, change-password), students (create + transfer + audit), scores (save + compute + rerank + `SCORE_OVERRIDE` audit), promotions (full transaction: close + Active/Repeating/Withdraw + `PROMOTION_APPROVED` audit), attendance (save + leave-request lifecycle), audit-log helper + viewer queries. Tests caught one real bug: `saveScoresAction` looked up existing rows by a constructed ID that never matched the seed's IDs — now fixed. Scripts: `npm run db:test:setup` (one-shot, creates DB + migrates), `npm test`, `npm run test:watch`. |
-| CI workflow | ✅ Done | `.github/workflows/ci.yml` runs on pushes + PRs to `main`/`develop`. Spins up Postgres 16 as a service container, sets up the test DB, then runs lint → tsc → tests → build. No real Firebase secrets needed — dummy placeholders in the workflow env are enough because Next bundles the values at build time and real values only matter at runtime in production. |
-| 8 — Testing (layer 3) | ✅ Done | Playwright E2E (chromium only, `next start` against `uhas_sms_e2e`). 7 tests across 5 specs covering the cross-role golden paths: admin registers a student → list shows them; teacher marks an entire roster present in one click; Unit Head approves a submitted lesson plan + Deputy Head approves a unit-head-approved one; admin opens the promotion season + teacher sees their classes; parent opens a published Mid-Term report card. One Playwright `globalSetup` resets the DB, seeds the Firebase Auth Emulator, then logs in each role via the real UI and saves `storageState` so specs start authenticated. Two real production bugs surfaced during E2E and were fixed: Base UI `SelectTrigger` was missing `type="button"`, so clicking a Select inside any form silently fired a form submit; shadcn's `Input` wrapped `@base-ui/react/input` (Field.Control) without a Base UI `<Field>` parent, causing the input to remount on every render and wipe its value. CI runs E2E only on push to `main` (heavy job with the Auth Emulator + a prod build). Scripts: `npm run db:e2e:setup`, `npm run e2e:build`, `npm run e2e`. |
-| Outbound email | ✅ Minimum | Provider-agnostic `src/lib/email.ts` (nodemailer). Gmail SMTP for now; swap to Resend/SendGrid later by changing the transport in one place. Wired into lesson-plan rejection (Unit Head + DH). If SMTP vars are unset, emails are logged instead of sent — safe for dev/CI. Reset-password emails are not in this path; Firebase Auth handles those. |
+| CI workflow | ✅ Done (superseded — see below) | Original `apps/web`-only CI: Postgres 16 service container, lint → tsc → tests → build, dummy Firebase env placeholders. Superseded by the two-job (`web` + `api`) workflow described in the Strategy A Migration row below. |
+| 8 — Testing (layer 3) | ⚠️ Disabled since Strategy A migration | Playwright E2E (7 tests, 5 specs) targeted the pre-migration Firebase-auth + Server-Action surface and fails against the current Supabase + FastAPI stack. The CI job is wired but skipped (`if: false` in `.github/workflows/ci.yml`) rather than deleted. Re-porting the suite to the new auth flow + API client is tracked but not scheduled. |
+| Outbound email | ✅ Done — moved to Python | Was `src/lib/email.ts` (nodemailer); ported 1:1 to `apps/api/app/integrations/email/` in Phase 3 and wired into the lesson-plan-rejection Inngest job. The old `apps/web/src/lib/email.ts` file is unused dead code now (nothing imports it) — not yet deleted. |
+| Strategy A Migration (Phases 0–3) | ✅ Done | Replaced this table's entire Next.js-only architecture: FastAPI + SQLAlchemy/Alembic backend (`apps/api/`) is now the sole data-access + mutation path — Drizzle and Next.js Server Action mutations are fully decommissioned. Supabase replaced Firebase for both Auth and Storage. Phase 0: FastAPI skeleton + Supabase CLI/Alembic baseline. Phase 1: Supabase Auth (JWT `app_metadata` roles, `proxy.ts` routing). Phase 2: full DB cutover — every feature ported from Drizzle/Server Actions to FastAPI routers + SQLAlchemy. Phase 3: Inngest background jobs, Supabase Storage, SMS domain (Hubtel stubbed), email ported to Python. See [`v2/UHAS_Migration_Execution_Plan.md`](v2/UHAS_Migration_Execution_Plan.md) for phase-by-phase detail and [apps/api/README.md](apps/api/README.md) for current backend status. |
 | Profile page completion | ⏭ Next | Shared `Profile & Settings` page mocks most of its surface (Save Changes, 2FA, Active Sessions, Notifications, Deactivate are all UI-only). Photo upload + password change are real. Pick this up next and wire every tab end-to-end. Full punch list + suggested PR order in [docs/implementation-spec.md](docs/implementation-spec.md#next-up--profile-page-completion). |
 | Admin Settings page | ⏭ Next | New `/admin/settings` route to configure school identity, academic calendar, grading bands + score weights, communication defaults, security policy (session timeout, password rules), and branding. Surfaces what's currently hardcoded (`DEFAULT_SCHOOL_ID`, `DEFAULT_ACADEMIC_YEAR`, GES grade bands, 8-h session, placeholder weighting) into the `schools` row. ~11 h across 5 PRs. Details in [docs/implementation-spec.md](docs/implementation-spec.md#next-up--admin-settings-page). |
 | Drop JHS class streams | ✅ Done | School runs one class per level — no streams. Renamed `class-jhs1a/2a/3a` → `class-jhs1/2/3` and `"JHS 1A/2A/3A"` → `"JHS 1/2/3"` across seed + tests + UI. Deleted the now-dead `stripSuffix`/`streamSuffix` helpers and the three stream-specific tests; tightened the JHS-3-graduates check from `startsWith("JHS 3")` to `=== "JHS 3"`. |
@@ -276,12 +291,12 @@ Sales-driven priorities benchmarked against SchoolPad, iSchool, TopHat, ClassEra
 **Track 1 — close the critical sales-blocking gaps (next 2 months)**
 
 - **Fee management** (~40–60 h) — fee structures, term invoicing, Paystack pay-now (MoMo + card + bank), receipts, bursaries, collection reporting. Single biggest revenue lever; without it, every conversation against SchoolPad ends with "does it handle fees?".
-- **SMS gateway** (~10–15 h) — mNotify / Hubtel integration, per-school credit pool, fallback from in-app notifications when users haven't logged in. Reaches the 100% of parents who don't open the app daily.
+- **SMS gateway** (~10–15 h remaining) — scaffolding done in Phase 3 (`SmsProvider` interface, `sms_log` table, Inngest fan-out job, `GET /sms-log`); the real Hubtel client is still a stub pending an account + sender-ID registration. Remaining work: real client + per-school credit pool + fallback from in-app notifications when users haven't logged in.
 
 **Track 2 — kill remaining objections + unblock scale (months 2–4)**
 
 - **Timetable management** (~30–40 h) — period structure, teacher/class/room slotting, conflict detection, substitute overrides on staff leave.
-- **Multi-tenancy refactor** (~80 h) — turn the single-school `getCurrentSchoolId()` constant into per-session resolution. **Hard prerequisite for school #2.**
+- **Multi-tenancy — remaining piece** — the original ask here (`school_id` resolved per-session instead of a hardcoded constant) is already done on the backend: `apps/api/app/core/deps.py`'s `get_current_school_id` reads `school_id` off the JWT per-request, and every table + route is already scoped by it. `apps/web/src/lib/school.ts`'s `getCurrentSchoolId()` is unused dead code left over from the single-school constant era. What's still missing for school #2: an onboarding flow to create a new `schools` row + first Admin, and (if needed) a school-switcher for any future cross-school user.
 
 **Track 3 — differentiation + Ghana-specific value (months 4–6)**
 
@@ -301,10 +316,16 @@ Sales-driven priorities benchmarked against SchoolPad, iSchool, TopHat, ClassEra
 
 ## Other potential improvements (engineering-only, no commercial urgency)
 
-- **Refactor `actions/` → `services/`** — prerequisite for any non-web client. Costs little now, costs a lot later.
-- **JSON API surface** (`app/api/*` route handlers with `Authorization: Bearer` ID-token auth) — for mobile, partner schools, integrations.
-- **Capacitor shell** — App Store / Play Store presence with the existing codebase + FCM push.
-- **Firebase Cloud Messaging** — server-side push triggers (paired with PWA work above).
+Two items from this list were achieved as side effects of the Strategy A migration rather than as standalone work: a JSON API surface with bearer-token auth (that's what `apps/api/` is now) and moving off Server-Action-only mutations (`actions/` files are now thin wrappers around the FastAPI client, not the business logic itself).
+
+- **Real report-card PDF rendering** — the Phase 3 Inngest report jobs write to Supabase Storage but the PDF body is a placeholder; nothing in the repo turns exam data into actual rendered PDF bytes yet.
+- **Hubtel SMS integration** — `SmsProvider` interface + stub + `sms_log` table exist; needs a Hubtel account + sender-ID before the real client can be built.
+- **Demo-data seed script (FastAPI side)** — tracked gap, see the ⚠️ note in [Getting Started](#getting-started). `pnpm seed:supabase` only creates Supabase Auth accounts, not the `staff`/`schools`/`students` rows they need to be functional.
+- **Capacitor shell** — App Store / Play Store presence with the existing codebase + push notifications (provider TBD now that Firebase Cloud Messaging is off the table post-migration).
 - **Offline cache** — last-fetched view stays visible offline. Wait until users complain.
-- **Transactional email upgrade** — swap Gmail SMTP for Resend when bulk sends or analytics matter.
-- **Component-level tests / mobile-viewport E2E** — gaps left by the current layer-1/2/3 mix.
+- **Component-level tests / broader E2E coverage** — the Playwright suite is currently disabled (see the Development Phases table); Vitest now covers pure-logic units only, no DB-integration layer.
+- **Activate Sentry + Logfire for real** — the instrumentation itself is already wired (`apps/api/app/core/observability.py`: FastAPI + SQLAlchemy tracing, PII scrubbing for names/phones/secrets) and runs as a silent no-op until credentials exist. Provisioning real Sentry/Logfire projects and wiring the keys via Railway env vars is a later-phase task, not a code change.
+- **Uptime monitoring (UptimeRobot or similar)** — nothing currently pings `apps/api`'s `/health` or the Next.js app from outside; add external monitors once there's a production URL worth watching.
+- **Rate limiting** — none exists anywhere in `apps/api` today (no `slowapi`/throttling middleware). Needs an audit of which routes actually need it before real users hit them — auth-adjacent endpoints (login, parent OTP request) and the SMS-fan-out trigger are the obvious first candidates.
+- **Umami analytics** — lightweight, privacy-friendly product analytics; not wired anywhere yet. Worth adding once there's an actual question ("which reports do admins open most?") rather than speculatively.
+- **Proper email templates + a transactional provider** — `apps/api/app/integrations/email/provider.py` supports HTML (`EmailMessage.html`), but every current sender (e.g. the lesson-plan-rejection job) only builds a plain-text f-string body. Needs real HTML templates, and probably a move off raw SMTP to Resend (or similar) once send volume or deliverability tracking starts to matter.

@@ -17,18 +17,19 @@ supabase init
 supabase start
 ```
 
-`supabase start` outputs the local URLs + anon/service keys; paste them into the project env files:
+`supabase start` outputs the local URLs + anon/service keys; paste them into the project env files. The anon key is a well-known constant for every local Supabase CLI install (already pre-filled in `apps/web/.env.local.example`) — only `SUPABASE_SERVICE_ROLE_KEY` actually needs copying from the CLI output, on both sides:
 
 ```bash
 # apps/web/.env.local
-NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<from supabase start>
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<from supabase start — same value every local install>
 NEXT_PUBLIC_API_URL=http://localhost:8000
+SUPABASE_SERVICE_ROLE_KEY=<from supabase start>
 
 # apps/api/.env
-SUPABASE_URL=http://localhost:54321
+SUPABASE_URL=http://127.0.0.1:54321
 SUPABASE_SERVICE_ROLE_KEY=<from supabase start>
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:54322/postgres
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:54322/postgres
 ```
 
 ## Where the schema lives
@@ -40,7 +41,7 @@ cd apps/api
 uv run alembic upgrade head
 ```
 
-The baseline migration (`fb2f367656c5_drizzle_baseline_port.py`) creates all 33 tables from the snapshotted Drizzle schema. Future schema changes go through `alembic revision --autogenerate` once SQLAlchemy models exist for each feature.
+The baseline migration (`fb2f367656c5_drizzle_baseline_port.py`) creates the 33 tables from the snapshotted Drizzle schema; later migrations have added more as new domains landed (35 total as of Phase 3 — `lesson_plan_reviews`, `sms_log`, etc.). Schema changes go through hand-written Alembic revisions reviewed in the PR — see any file in `apps/api/alembic/versions/` for the pattern.
 
 ## Daily workflow
 
@@ -48,7 +49,7 @@ The baseline migration (`fb2f367656c5_drizzle_baseline_port.py`) creates all 33 
 supabase start                          # Postgres + Auth + Storage up
 cd apps/api && uv run alembic upgrade head   # apply schema
 uv run uvicorn app.main:app --reload    # backend on :8000
-cd ../web && npm run dev                # frontend on :3000
+cd ../web && pnpm dev                   # frontend on :3000
 ```
 
 To reset local state:

@@ -6,7 +6,7 @@ This file gives Claude context about the project so every session starts with fu
 
 ## What This Is
 
-A Next.js web app for UHAS Basic School, Ghana. It's a School Management System (SMS) covering: student/staff administration, attendance, examinations, lesson plan approval workflows, and parent communication.
+A School Management System (SMS) for UHAS Basic School, Ghana, split across a Next.js frontend and a FastAPI backend: student/staff administration, attendance, examinations, lesson plan approval workflows, background jobs (SMS, email, report generation), and parent communication.
 
 It is a real production system being built for a real school. Code quality, correctness, and security matter.
 
@@ -15,23 +15,23 @@ It is a real production system being built for a real school. Code quality, corr
 ```
 uhas-sms/
 ├── apps/
-│   ├── web/         # Next.js frontend — what this CLAUDE.md mostly describes
-│   └── api/         # FastAPI backend — added in Phase 0 PR #2 (placeholder for now)
-├── supabase/        # Supabase CLI project + Alembic baseline (Phase 0 PR #3)
+│   ├── web/         # Next.js frontend — UI only. No DB access, no domain mutations.
+│   └── api/         # FastAPI backend — owns all data access + mutations + jobs.
+├── supabase/        # Supabase CLI project (Auth/Storage/Postgres config)
 ├── docs/            # Persistent reference docs (HANDOVER, conventions, audits, …)
-├── v2/              # Migration plan set — Strategy A target architecture
+├── v2/              # Migration plan set — Strategy A target architecture (now largely realized)
 └── railway.toml     # Multi-service Railway config
 ```
 
-When you see `apps/web/src/...` below, that's the current Next.js app. The Strategy A migration to FastAPI + Supabase is the active workstream — see [v2/UHAS_Migration_Execution_Plan.md](v2/UHAS_Migration_Execution_Plan.md).
+`apps/web/src/...` below is the Next.js app; `apps/api/` has its own conventions documented in [apps/api/README.md](apps/api/README.md) and isn't described in detail here. The Strategy A migration (Next.js+Drizzle+Firebase → Next.js+FastAPI+Supabase) is **Phases 0–3 complete**: FastAPI/SQLAlchemy/Alembic is the sole data-access + mutation path, Drizzle and Server-Action mutations are fully decommissioned, and Supabase has replaced Firebase for both Auth and Storage. See [v2/UHAS_Migration_Execution_Plan.md](v2/UHAS_Migration_Execution_Plan.md) for phase-by-phase detail.
 
 ---
 
 ## Current State
 
-See `README.md` for phase progress and `docs/implementation-spec.md` for the full feature plan.
+See `README.md`'s Development Phases table for feature history and `docs/implementation-spec.md` for the full feature plan.
 
-Most UI currently uses mock data (`USE_MOCK_DATA=true`). Real DB integration is introduced phase by phase.
+There is no mock-data mode anymore — `USE_MOCK_DATA` and `apps/web/src/lib/mock/` were removed when the app was cut over to a real database (pre-Strategy-A). Every read and mutation goes through the FastAPI backend today. The one known local-dev gap: there is no seed script for business data (`staff`/`schools`/`students` rows) — see the ⚠️ note in the root README's Getting Started.
 
 ---
 
@@ -47,38 +47,37 @@ Most UI currently uses mock data (`USE_MOCK_DATA=true`). Real DB integration is 
 ### Feature-Based Modules
 All domain code lives in `apps/web/src/features/<name>/`. Never dump feature-specific components into `apps/web/src/components/`. The `apps/web/src/components/` folder is for truly shared, reusable UI primitives only.
 
-Each feature folder contains:
+Each feature folder contains whichever of these it needs — most have `hooks/` + `components/`; a handful with cookie-only or non-domain concerns (`shell`, `uploads`) keep a thin `actions/` instead:
 ```
 apps/web/src/features/<name>/
 ├── components/   # UI components for this domain
-├── actions/      # Next.js Server Actions (mutations)
-├── queries/      # Server-side query functions
+├── hooks/        # TanStack Query hooks (useQuery/useMutation) calling lib/api/browser.ts
+├── queries/      # async functions calling lib/api/server.ts, for Server Component reads
+├── actions/      # Server Actions — ONLY for things that aren't domain-data mutations
+│                 # (setting a cookie, minting a signed URL). Domain mutations do not
+│                 # belong here; see "Server vs Client" below.
 └── types.ts      # TypeScript types for this domain
 ```
 
 ### Server vs Client
 - **Default to Server Components.** Only add `"use client"` when you need interactivity, browser APIs, or hooks.
-- **Mutations = Server Actions** in `features/<name>/actions/`. Never use API route handlers for mutations.
-- **Complex client data fetching = TanStack Query** (`useQuery`, `useMutation`). For simple server-rendered data, just fetch in Server Components directly.
+- **All domain data access — reads and mutations — goes through the FastAPI backend (`apps/api/`), never through Drizzle, a DB driver, or a Next.js API route handler.** There are two typed clients in `apps/web/src/lib/api/`: `server.ts`'s `getApi()` (Server Components — reads the session server-side) and `browser.ts`'s `api` (Client Components — reads the session client-side). Both wrap `client.ts`, which is generated against the FastAPI OpenAPI schema (`src/types/api.d.ts` — regenerate with `pnpm generate:api-types` after any backend schema/route change).
+- **Server Component reads**: call `getApi()` directly in the page/component, or via a `features/<name>/queries/` helper.
+- **Client-side mutations**: TanStack Query `useMutation` hooks in `features/<name>/hooks/`, calling `api.<domain>.<method>()` from `lib/api/browser.ts`. On error, catch `ApiError` (from `@/lib/api/client`) and `toast.error(err instanceof ApiError ? err.message : "…")`; on success, `queryClient.invalidateQueries(...)`. This is the dominant pattern — most features have no `actions/` folder at all.
+- **True Server Actions** (`"use server"` in `features/<name>/actions/`) are now reserved for things that genuinely belong on the Next.js side and aren't FastAPI calls: setting a cookie (e.g. the academic-year switcher), or minting a Supabase Storage signed URL for a download click. `ActionResult<T>` (`apps/web/src/lib/action-result.ts`) is still the return shape for these.
 
 ### Database
-- Drizzle ORM + Neon PostgreSQL in production.
-- Locally: Docker PostgreSQL 16 on port 5432.
-- All tables include `schoolId` for multi-tenant scoping — every query must filter by `schoolId`.
-- Schema is in `apps/web/src/db/schema.ts`. After editing it, run `pnpm db:generate` to emit a new migration file in `drizzle/`, then `pnpm db:migrate` to apply it. `db:push` is **not** used — migrations are the only path to a schema change, so the SQL is reviewable in PRs and the test/E2E DBs stay in sync with prod via the same files.
+- **Next.js has zero direct database access.** All of it lives in `apps/api/` — SQLAlchemy 2.0 (async) + Alembic, talking to Supabase Postgres. See [apps/api/README.md](apps/api/README.md) for the FastAPI-side conventions (model.py / repository.py / service.py / router.py per feature, hand-written Alembic migrations, no autogenerate).
+- Every table still includes `schoolId`/`school_id` for multi-tenant scoping — enforced server-side via `apps/api/app/core/deps.py`'s `get_current_school_id`, which resolves it from the JWT per-request (not a hardcoded constant).
+- If a Next.js change looks like it needs a schema change, it needs a PR against `apps/api/`, not `apps/web/`.
 
 ### Auth
 - **Supabase Auth** for identity. Staff sign in with email + password; parents can sign in with email + password OR phone + OTP.
 - Sessions are managed by `@supabase/ssr` via httpOnly cookies — Next.js never hand-rolls session cookies.
-- Role + linked_id come from the JWT's **`app_metadata`** (server-set, trusted). Never read role from `user_metadata` (user-writable).
+- Role + linked_id come from the JWT's **`app_metadata`** (server-set, trusted). Never read role from `user_metadata` (user-writable). FastAPI verifies the same JWT independently on every request (`apps/api/app/core/security.py`) — Next.js's proxy check is a routing convenience, not the security boundary.
 - `apps/web/src/proxy.ts` enforces role-based routing on every request and refreshes near-expired sessions automatically.
 - Locally: Supabase CLI stack via `supabase start` (Auth on `127.0.0.1:54321`, Postgres on `54322`). Local SMS uses `test_otp` from `supabase/config.toml` — no real provider needed.
 - Client helpers in `apps/web/src/lib/supabase/` — `client.ts` (browser), `server.ts` (Server Components / Actions), `middleware.ts` (proxy), `admin.ts` (service-role, for admin user-management).
-
-### Mock Data
-- `USE_MOCK_DATA=true` in `.env.local` makes Server Actions and queries return fixtures from `apps/web/src/lib/mock/`.
-- Remove mock data module-by-module as real DB integration is wired up per phase.
-- Never import mock files directly in UI components — they should only be used inside `actions/` and `queries/`.
 
 ---
 
@@ -119,18 +118,19 @@ Full conventions in [docs/ENGINEERING-CONVENTIONS.md](docs/ENGINEERING-CONVENTIO
 - **Zod for all form validation.** Every form uses `react-hook-form` + `zodResolver` + a Zod schema. Pass error messages as objects (`{ message: "..." }`) not bare strings.
 - **Sonner for all toasts.** Import from `sonner` — `toast.success()`, `toast.error()`.
 
-### Database
-- **Always filter by `schoolId`** via `getCurrentSchoolId()` — every table is multi-tenant-anchored.
+### Database (all of this applies to `apps/api/`, not `apps/web/` — see above)
+- **Always filter by `school_id`**, resolved server-side from the JWT (`CurrentSchoolIdDep`) — every table is multi-tenant-anchored.
 - **Index FK columns and filter-heavy columns** in the same migration that adds them. Postgres doesn't auto-index FKs.
-- **Prefer Drizzle relations + `with:` over manual joins.** Relations live in `apps/web/src/db/schema.ts`. One query beats four.
-- **Migrations only, no `db:push`.** `pnpm db:generate` then `pnpm db:migrate`. SQL must be reviewable in the PR.
-- **Soft-delete high-risk tables** (lesson plans, scores, assignments, schemes) with `deletedAt` rather than `db.delete(...)`.
+- **Prefer SQLAlchemy relationships + eager loading (`selectinload`/`joinedload`) over manual joins.** One query beats four.
+- **Migrations only, hand-written, no autogenerate.** `uv run alembic revision -m "…"` then hand-write the `op.*` calls, then `uv run alembic upgrade head`. SQL must be reviewable in the PR.
+- **Soft-delete high-risk tables** (lesson plans, scores, assignments, schemes) with `deletedAt` rather than a hard delete.
 
-### Server Actions
-- **Return `ActionResult<T>`** — `{ success: true; data?: T } | { success: false; error: string }`. Never throw from an action; catch and return.
-- **Audit-log sensitive mutations** (score overrides, student edits, role changes, promotion approvals, settings updates) via `apps/web/src/lib/audit-log.ts`.
+### Server Actions & FastAPI mutations
+- **Client-side mutations** (the common case — see "Server vs Client" above): catch `ApiError`, `toast.error()` on failure, `invalidateQueries()` on success. There's no `ActionResult` involved.
+- **True Server Actions** (cookies, signed URLs — see above) still return `ActionResult<T>` (`apps/web/src/lib/action-result.ts`) — `{ success: true; ...data } | { success: false; error: string }`. Never throw from one; catch and return.
+- **Audit-log sensitive mutations** (score overrides, student edits, role changes, promotion approvals, settings updates) on the FastAPI side, via `apps/api/app/features/audit/`.
 - **Never log auth tokens or session cookies.** Decoded `uid` / `email` only.
-- **Call `revalidatePath`** after data-mutating actions for routes that show the data.
+- **Call `revalidatePath`** in any Server Component route after a mutation that changed data it reads (rare now — most mutations are client-side and rely on `invalidateQueries` instead).
 
 ### UI
 - **Server Components by default.** Add `"use client"` only for interactivity / hooks / browser APIs.
@@ -141,8 +141,8 @@ Full conventions in [docs/ENGINEERING-CONVENTIONS.md](docs/ENGINEERING-CONVENTIO
 - **Mobile responsive**: every page-header row that pairs a title with an action button uses `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`. Wide tables wrap in `overflow-x-auto`. Report cards / PSC report use `overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0` to allow side-scroll on phones while keeping print layout intact.
 
 ### Quality
-- **Don't commit secrets.** `.env.local`, service-account JSONs, Firebase keys, Neon URLs, App Passwords all stay out of git.
-- **CI must be green before merge.** Lint + tsc + Vitest on every PR; E2E on `main` pushes. Railway deploy is gated on it.
+- **Don't commit secrets.** `.env.local`, `.env` (apps/api), service-account JSONs, Supabase service-role keys, SMTP passwords, Inngest signing keys all stay out of git.
+- **CI must be green before merge.** Two jobs in `.github/workflows/ci.yml`: `web` (lint + tsc + Vitest + build) and `api` (ruff + mypy + pytest + Alembic-upgrade-from-scratch + OpenAPI/TS drift check). The Playwright E2E job exists but is currently disabled (`if: false`) — it still targets the pre-migration Firebase/Server-Action surface and hasn't been re-ported. Railway deploy is gated on the enabled jobs.
 
 ---
 
@@ -174,24 +174,28 @@ Used for score calculation in `features/exams/`. Bands and interpretations come 
 
 | File | Purpose |
 |---|---|
-| `apps/web/src/db/schema.ts` | Single source of truth for all DB tables |
+| `apps/api/app/features/<domain>/model.py` | SQLAlchemy ORM model per domain — schema source of truth, one file per feature, no single monolith |
+| `apps/api/alembic/versions/` | Hand-written migrations, linear history |
+| `apps/api/app/core/config.py` | FastAPI settings — every field has a working local default + a `description` |
+| `apps/api/app/core/deps.py` | Auth/role FastAPI dependencies, incl. `get_current_school_id` (multi-tenant scoping) |
+| `apps/web/src/lib/api/{server,browser,client}.ts` | Typed FastAPI client — `server.ts` for Server Components, `browser.ts` for Client Components, both wrapping `client.ts` |
+| `apps/web/src/types/api.d.ts` | Generated from FastAPI's OpenAPI schema (`pnpm generate:api-types`) — do not hand-edit |
 | `apps/web/src/proxy.ts` | Role-based routing enforcement (Next.js 16 renamed middleware → proxy) |
 | `apps/web/src/lib/supabase/{client,server,middleware,admin}.ts` | Supabase client helpers per execution context |
-| `apps/web/src/features/auth/queries/get-session-user.ts` | Resolves the current `SessionUser` from the Supabase session + DB bridge row |
-| `apps/web/src/lib/mock/*.ts` | Fixture data (replaced phase by phase with real DB) |
+| `apps/web/src/features/auth/queries/get-session-user.ts` | Resolves the current `SessionUser` via one call to FastAPI's `/me` |
 | `apps/web/src/components/ui/` | shadcn UI primitives |
 | `docs/implementation-spec.md` | Full feature spec and phase plan |
-| `apps/web/scripts/seed-supabase-users.ts` | Seeds Supabase Auth with the 8 role-anchored test accounts |
+| `apps/web/scripts/seed-supabase-users.ts` | Seeds Supabase Auth with the 9 role-anchored test accounts — **auth only**; doesn't create the `staff`/`schools`/`students` rows they're linked to (known gap, see root README) |
 | `supabase/config.toml` | Local Supabase CLI config (Auth providers, storage buckets, test_otp) |
 
 ---
 
 ## What NOT to Do
 
-- Don't use Firestore — the database is PostgreSQL. The SRS mentioned Firestore but that decision was superseded.
+- Don't use Firestore — the database is PostgreSQL. The SRS mentioned Firestore but that decision was superseded, and Firebase itself (Auth + Storage) was later replaced by Supabase in the Strategy A migration.
 - Don't add timetable features — explicitly deferred to a later phase.
 - Don't add fee management, payroll, medical, or counselling features — out of MVP scope.
-- Don't create API route handlers for mutations — use Server Actions.
+- Don't add a Next.js API route handler, and don't write Drizzle/raw-SQL DB access in `apps/web/` — all data access is a call through `apps/web/src/lib/api/{server,browser}.ts` to `apps/api/`. If it needs a new endpoint, add it in `apps/api/`.
 - Don't add `"use client"` to layouts or pages that don't need it.
-- Don't skip `schoolId` filtering in any DB query.
+- Don't skip `school_id` filtering in any FastAPI query.
 - The project uses **Tailwind v4**. Config lives in `apps/web/src/app/globals.css` via `@theme inline` — there is no `tailwind.config.ts`. Add new design tokens there, not in JS.

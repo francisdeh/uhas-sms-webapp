@@ -60,21 +60,18 @@ for the discriminated union of audience shapes.
 | promotions | `.open_season`, `.send_back` | `promotion_season_opened`, `promotion_sent_back` |
 | announcements | `.create` (gated by `school.notification_defaults.on_announcement_posted`) | `announcement_posted` |
 
-**Email delivery — deferred to Phase 3 (Storage/Jobs/SMS):**
+**Email delivery — ✅ RESOLVED in Phase 3.**
 
-The TS side had exactly one email trigger — lesson-plan rejection,
-gated by `school.notification_defaults.on_lesson_plan_rejected`. Not
-ported yet because Phase 3 stands up the Inngest job runner (per
-[v2/UHAS_Migration_Execution_Plan.md](../v2/UHAS_Migration_Execution_Plan.md)),
-which is the right home for out-of-band delivery. Building an inline
-Python email path now would just be thrown away when Phase 3 lands.
-Until Phase 3:
-
-  * Teachers still get the in-app notification on rejection.
-  * The `notification_defaults.on_lesson_plan_rejected` setting is
-    honoured by the TS side while it's still live.
-  * Once we deprecate the TS layer we lose the email until Phase 3.
-    Documented risk, low-impact.
+Lesson-plan rejection is the one email trigger the TS side had,
+gated by `school.notification_defaults.on_lesson_plan_rejected`. Ported
+onto the Inngest job runner: `LessonPlansService._emit_rejection_email`
+emits `email/lesson-plan-rejected.requested` (best-effort — a failed
+emit never fails the review itself), and
+[`features/lesson_plans/jobs/rejection_email.py`](../apps/api/app/features/lesson_plans/jobs/rejection_email.py)
+sends it via the provider-agnostic
+[`integrations/email/provider.py`](../apps/api/app/integrations/email/provider.py)
+(SMTP today; missing config logs + skips rather than erroring, same
+contract as the old TS `lib/email.ts`).
 
 ## D. Post-port UX backlog — enriched review history for lesson plans
 
