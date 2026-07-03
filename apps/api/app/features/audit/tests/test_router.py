@@ -66,9 +66,7 @@ async def test_teacher_cannot_read(client: AsyncClient, seed: None) -> None:
     _ = seed
     res = await client.get(
         "/audit-log",
-        headers=auth_header(
-            role="Teacher", user_id=TEACHER_USER, linked_id=TEACHER_STAFF
-        ),
+        headers=auth_header(role="Teacher", user_id=TEACHER_USER, linked_id=TEACHER_STAFF),
     )
     assert res.status_code == 403
 
@@ -77,9 +75,7 @@ async def test_deputy_cannot_read(client: AsyncClient, seed: None) -> None:
     _ = seed
     res = await client.get(
         "/audit-log",
-        headers=auth_header(
-            role="DeputyHead", user_id=ADMIN_USER, linked_id=None
-        ),
+        headers=auth_header(role="DeputyHead", user_id=ADMIN_USER, linked_id=None),
     )
     assert res.status_code == 403
 
@@ -96,17 +92,13 @@ async def test_empty_list(client: AsyncClient, seed: None) -> None:
 # ─── Filtering ─────────────────────────────────────────────────────────────
 
 
-async def test_action_filter(
-    client: AsyncClient, db_session: AsyncSession, seed: None
-) -> None:
+async def test_action_filter(client: AsyncClient, db_session: AsyncSession, seed: None) -> None:
     _ = seed
     await _write(db_session, SCHOOL_SETTINGS_UPDATE)
     await _write(db_session, SCORE_OVERRIDE)
     await _write(db_session, PROMOTION_APPROVED)
 
-    res = await client.get(
-        "/audit-log?action=SCORE_OVERRIDE", headers=auth_header()
-    )
+    res = await client.get("/audit-log?action=SCORE_OVERRIDE", headers=auth_header())
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 1
@@ -129,9 +121,7 @@ async def test_from_filter_lower_bound_inclusive(
         at=datetime(2026, 5, 15, 0, 0, 1),  # on the from-bound
     )
 
-    res = await client.get(
-        "/audit-log?from=2026-05-15", headers=auth_header()
-    )
+    res = await client.get("/audit-log?from=2026-05-15", headers=auth_header())
     assert res.json()["total"] == 1
 
 
@@ -151,18 +141,14 @@ async def test_to_filter_upper_bound_inclusive(
         at=datetime(2026, 5, 16, 0, 0, 1),
     )
 
-    res = await client.get(
-        "/audit-log?to=2026-05-15", headers=auth_header()
-    )
+    res = await client.get("/audit-log?to=2026-05-15", headers=auth_header())
     assert res.json()["total"] == 1
 
 
 # ─── Ordering ──────────────────────────────────────────────────────────────
 
 
-async def test_newest_first(
-    client: AsyncClient, db_session: AsyncSession, seed: None
-) -> None:
+async def test_newest_first(client: AsyncClient, db_session: AsyncSession, seed: None) -> None:
     _ = seed
     now = datetime.now().replace(microsecond=0)
     await _write(db_session, SCORE_OVERRIDE, at=now - timedelta(hours=2))
@@ -229,9 +215,7 @@ async def test_pagination_respects_size(
     assert body["total"] == 5
     assert len(body["items"]) == 2
 
-    res_page2 = await client.get(
-        "/audit-log?size=2&page=2", headers=auth_header()
-    )
+    res_page2 = await client.get("/audit-log?size=2&page=2", headers=auth_header())
     assert len(res_page2.json()["items"]) == 2
     # Page 2 rows shouldn't overlap page 1.
     ids_1 = {i["id"] for i in body["items"]}

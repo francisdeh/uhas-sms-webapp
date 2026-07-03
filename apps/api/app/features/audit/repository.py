@@ -93,10 +93,7 @@ class AuditRepository:
         staff_by_id: dict[str, Staff] = {}
         if staff_ids:
             staff_stmt = select(Staff).where(Staff.id.in_(staff_ids))
-            staff_by_id = {
-                str(s.id): s
-                for s in (await session.execute(staff_stmt)).scalars()
-            }
+            staff_by_id = {str(s.id): s for s in (await session.execute(staff_stmt)).scalars()}
 
         out: dict[str, str] = {}
         for u in users:

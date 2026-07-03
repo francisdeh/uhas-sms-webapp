@@ -69,12 +69,8 @@ async def list_audit_events(
     # `to`'s end-of-day handling is why we accept dates on the wire but
     # do the comparison against `audit_log.created_at` which is a
     # TIMESTAMP.
-    from_dt = (
-        datetime.combine(created_from, time.min) if created_from is not None else None
-    )
-    to_dt = (
-        datetime.combine(created_to, time.max) if created_to is not None else None
-    )
+    from_dt = datetime.combine(created_from, time.min) if created_from is not None else None
+    to_dt = datetime.combine(created_to, time.max) if created_to is not None else None
 
     rows, total = await AuditRepository.list_for_school(
         session,
@@ -87,9 +83,7 @@ async def list_audit_events(
     )
 
     # Resolve actor names in one join off the returned page.
-    actor_map = await AuditRepository.resolve_actor_names(
-        session, [row.user_id for row in rows]
-    )
+    actor_map = await AuditRepository.resolve_actor_names(session, [row.user_id for row in rows])
     items = [_to_read(row, actor_map.get(str(row.user_id))) for row in rows]
 
     return AuditEventsListResponse(items=items, total=total, page=page, size=size)
