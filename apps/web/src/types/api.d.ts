@@ -1878,6 +1878,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sms-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sms Log */
+        get: operations["list_sms_log_sms_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inngest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Api Inngest */
+        get: operations["get_api_inngest_api_inngest_get"];
+        /** Put Inngest Api */
+        put: operations["put_inngest_api_api_inngest_put"];
+        /** Post Inngest Api */
+        post: operations["post_inngest_api_api_inngest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4570,6 +4606,62 @@ export interface components {
         SendBackRequest: {
             /** Comment */
             comment: string;
+        };
+        /**
+         * SmsLogListResponse
+         * @description Newest-first, filterable by category. See `app.core.pagination.Paginated`.
+         */
+        SmsLogListResponse: {
+            /** Items */
+            items: components["schemas"]["SmsLogRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /** SmsLogRead */
+        SmsLogRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /** Recipientphone */
+            recipientPhone: string;
+            /** Recipientguardianid */
+            recipientGuardianId?: string | null;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "absence" | "results" | "fee_reminder" | "announcement" | "other";
+            /** Body */
+            body: string;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "stub" | "hubtel";
+            /** Providermessageid */
+            providerMessageId?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "sent" | "delivered" | "failed";
+            /** Costminor */
+            costMinor?: number | null;
+            /** Createdat */
+            createdAt?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
         };
         /** StaffAttendanceRecordInput */
         StaffAttendanceRecordInput: {
@@ -10230,6 +10322,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sms_log_sms_log_get: {
+        parameters: {
+            query?: {
+                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "other") | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SmsLogListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_inngest_api_inngest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    put_inngest_api_api_inngest_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    post_inngest_api_api_inngest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
