@@ -22,6 +22,7 @@ from app.features.announcements.router import router as announcements_router
 from app.features.appointments.router import router as appointments_router
 from app.features.assignments.router import router as assignments_router
 from app.features.attendance.router import router as attendance_router
+from app.features.audit.router import router as audit_log_router
 from app.features.calendar.router import router as calendar_router
 from app.features.classes.router import router as classes_router
 from app.features.enrollments.router import (
@@ -120,6 +121,7 @@ def create_app() -> FastAPI:
     app.include_router(notifications_router)
     app.include_router(calendar_router)
     app.include_router(appointments_router)
+    app.include_router(audit_log_router)
 
     # Logfire instrumentation attaches after routers register so it sees
     # every endpoint. No-op when LOGFIRE_TOKEN is unset.

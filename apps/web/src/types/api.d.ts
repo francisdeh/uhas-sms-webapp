@@ -1469,6 +1469,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Audit Events */
+        get: operations["list_audit_events_audit_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1945,6 +1962,62 @@ export interface components {
         AttendanceSessionsListResponse: {
             /** Items */
             items: components["schemas"]["AttendanceSessionSummary"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
+         * AuditEventRead
+         * @description One row from the caller's audit log.
+         *
+         *     `actor_name` is a joined display field — the audit row itself only
+         *     stores `user_id`. The resolver falls back to the actor's email when
+         *     no linked staff row exists (Parent auditor edge case, or a stub
+         *     user account).
+         */
+        AuditEventRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Userid
+             * Format: uuid
+             */
+            userId: string;
+            /** Actorname */
+            actorName?: string | null;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT";
+            /** Targettable */
+            targetTable?: string | null;
+            /** Targetid */
+            targetId?: string | null;
+            /** Before */
+            before?: {
+                [key: string]: unknown;
+            } | null;
+            /** After */
+            after?: {
+                [key: string]: unknown;
+            } | null;
+            /** Createdat */
+            createdAt?: string | null;
+        };
+        /**
+         * AuditEventsListResponse
+         * @description Newest-first filtered page.
+         */
+        AuditEventsListResponse: {
+            /** Items */
+            items: components["schemas"]["AuditEventRead"][];
             /** Total */
             total: number;
             /** Page */
@@ -8092,6 +8165,45 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_audit_events_audit_log_get: {
+        parameters: {
+            query?: {
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT") | null;
+                /** @description Inclusive lower bound (YYYY-MM-DD). */
+                from?: string | null;
+                /** @description Inclusive upper bound (YYYY-MM-DD). */
+                to?: string | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventsListResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
