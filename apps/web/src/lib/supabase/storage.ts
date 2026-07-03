@@ -38,8 +38,7 @@ function safeFileName(name: string): string {
 }
 
 // Returns the [bucket, path] pair for a given upload kind. Photos go to
-// the public bucket; documents to private. Path layout mirrors the old
-// Firebase layout so existing DB rows keep working after the migration.
+// the public bucket; documents to private.
 export function buildStoragePath(
   kind: UploadKind,
   ownerId: string,

@@ -363,7 +363,7 @@ function SecurityTab() {
             <div className="space-y-4 max-w-sm">
               <p className="text-sm text-muted-foreground">Scan this QR code with your authenticator app.</p>
               <div className="w-40 h-40 bg-muted rounded-lg flex items-center justify-center border border-border/60">
-                <p className="text-xs text-muted-foreground text-center px-3">QR code — Firebase TOTP setup coming soon</p>
+                <p className="text-xs text-muted-foreground text-center px-3">QR code — 2FA setup coming soon</p>
               </div>
               <Button onClick={() => setMfaStep("verify")} className="bg-accent-orange text-white hover:bg-accent-orange/90">
                 I&apos;ve scanned the code
