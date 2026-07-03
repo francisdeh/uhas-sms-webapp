@@ -7,7 +7,6 @@ Parent) and the auth gate.
 
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,7 +30,6 @@ from app.features.shell.tests.conftest import (
 )
 
 
-@pytest.mark.anyio
 async def test_unit_head_sees_only_own_division_submitted(
     client: AsyncClient, seed: None, db_session: AsyncSession
 ) -> None:
@@ -54,7 +52,6 @@ async def test_unit_head_sees_only_own_division_submitted(
     assert r.json() == {"lessonPlansPendingReview": 3}
 
 
-@pytest.mark.anyio
 async def test_deputy_head_sees_only_unit_head_approved_own_division(
     client: AsyncClient, seed: None, db_session: AsyncSession
 ) -> None:
@@ -80,7 +77,6 @@ async def test_deputy_head_sees_only_unit_head_approved_own_division(
     assert r.json() == {"lessonPlansPendingReview": 2}
 
 
-@pytest.mark.anyio
 async def test_teacher_without_unit_head_flag_gets_zero(
     client: AsyncClient, seed: None, db_session: AsyncSession
 ) -> None:
@@ -96,7 +92,6 @@ async def test_teacher_without_unit_head_flag_gets_zero(
     assert r.json() == {"lessonPlansPendingReview": 0}
 
 
-@pytest.mark.anyio
 async def test_admin_gets_zero(client: AsyncClient, seed: None, db_session: AsyncSession) -> None:
     await add_lesson_plan(db_session, class_id=CLASS_JHS_UUID, status=SUBMITTED_STATUS, week=1)
     await add_lesson_plan(
@@ -111,7 +106,6 @@ async def test_admin_gets_zero(client: AsyncClient, seed: None, db_session: Asyn
     assert r.json() == {"lessonPlansPendingReview": 0}
 
 
-@pytest.mark.anyio
 async def test_parent_gets_zero(client: AsyncClient, seed: None, db_session: AsyncSession) -> None:
     await add_lesson_plan(db_session, class_id=CLASS_JHS_UUID, status=SUBMITTED_STATUS, week=1)
 
@@ -123,7 +117,6 @@ async def test_parent_gets_zero(client: AsyncClient, seed: None, db_session: Asy
     assert r.json() == {"lessonPlansPendingReview": 0}
 
 
-@pytest.mark.anyio
 async def test_missing_auth_header_returns_401(client: AsyncClient, seed: None) -> None:
     r = await client.get("/shell/nav-badges")
     assert r.status_code == 401

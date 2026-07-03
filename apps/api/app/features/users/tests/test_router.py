@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from uuid import UUID
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -96,20 +95,17 @@ async def _seed_user(
     return row
 
 
-@pytest.mark.anyio
 async def test_missing_auth_returns_401(client: AsyncClient, seed_school: School) -> None:
     res = await client.get("/users")
     assert res.status_code == 401
 
 
-@pytest.mark.anyio
 async def test_non_admin_forbidden(client: AsyncClient, seed_school: School) -> None:
     for role in ("Teacher", "Parent", "DeputyHead", "Accountant"):
         res = await client.get("/users", headers=auth_header(role=role))
         assert res.status_code == 403, f"role={role}"
 
 
-@pytest.mark.anyio
 async def test_list_returns_paginated_results(
     client: AsyncClient,
     seed_school: School,
@@ -178,7 +174,6 @@ async def test_list_returns_paginated_results(
     assert "Carol Chen" in display_names
 
 
-@pytest.mark.anyio
 async def test_list_filters_by_q_email(
     client: AsyncClient,
     seed_school: School,
@@ -225,7 +220,6 @@ async def test_list_filters_by_q_email(
     assert body["items"][0]["email"] == "alice@example.com"
 
 
-@pytest.mark.anyio
 async def test_list_filters_by_q_name(
     client: AsyncClient,
     seed_school: School,
@@ -271,7 +265,6 @@ async def test_list_filters_by_q_name(
     assert body["items"][0]["displayName"] == "Zoe Zephyr"
 
 
-@pytest.mark.anyio
 async def test_create_success_calls_supabase(
     client: AsyncClient,
     seed_school: School,
@@ -315,7 +308,6 @@ async def test_create_success_calls_supabase(
     assert call["user_metadata"]["must_change_password"] is True
 
 
-@pytest.mark.anyio
 async def test_create_parent_with_staff_link_returns_400(
     client: AsyncClient,
     seed_school: School,
@@ -341,7 +333,6 @@ async def test_create_parent_with_staff_link_returns_400(
     assert fake_supabase.create_calls == []
 
 
-@pytest.mark.anyio
 async def test_create_teacher_with_guardian_link_returns_400(
     client: AsyncClient,
     seed_school: School,
@@ -367,7 +358,6 @@ async def test_create_teacher_with_guardian_link_returns_400(
     assert fake_supabase.create_calls == []
 
 
-@pytest.mark.anyio
 async def test_deactivate_flips_is_active(
     client: AsyncClient,
     seed_school: School,
@@ -408,7 +398,6 @@ async def test_deactivate_flips_is_active(
     assert call["ban_duration"] == "876600h"
 
 
-@pytest.mark.anyio
 async def test_activate_flips_is_active_true(
     client: AsyncClient,
     seed_school: School,
@@ -447,7 +436,6 @@ async def test_activate_flips_is_active_true(
     assert call["ban_duration"] == "none"
 
 
-@pytest.mark.anyio
 async def test_patch_email(
     client: AsyncClient,
     seed_school: School,
@@ -486,7 +474,6 @@ async def test_patch_email(
     assert fake_supabase.update_calls[0]["email"] == "ivy.new@example.com"
 
 
-@pytest.mark.anyio
 async def test_patch_display_name_updates_linked_staff(
     client: AsyncClient,
     seed_school: School,
@@ -523,7 +510,6 @@ async def test_patch_display_name_updates_linked_staff(
     assert staff.last_name == "New"
 
 
-@pytest.mark.anyio
 async def test_patch_missing_user_returns_404(
     client: AsyncClient,
     seed_school: School,

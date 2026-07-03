@@ -8,7 +8,6 @@ gates so a broken JWT can never reach the composition logic.
 
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 
 from app.features.me.tests.conftest import (
@@ -23,7 +22,6 @@ from app.features.me.tests.conftest import (
 )
 
 
-@pytest.mark.anyio
 async def test_get_me_admin_linked_staff(client: AsyncClient, seed: None) -> None:
     r = await client.get("/me", headers=auth_header())
     assert r.status_code == 200
@@ -39,7 +37,6 @@ async def test_get_me_admin_linked_staff(client: AsyncClient, seed: None) -> Non
     assert body["mustChangePassword"] is False
 
 
-@pytest.mark.anyio
 async def test_get_me_teacher_unit_head(client: AsyncClient, seed: None) -> None:
     r = await client.get(
         "/me",
@@ -58,7 +55,6 @@ async def test_get_me_teacher_unit_head(client: AsyncClient, seed: None) -> None
     assert body["unitHeadOf"] == "JHS"
 
 
-@pytest.mark.anyio
 async def test_get_me_parent_linked_guardian(client: AsyncClient, seed: None) -> None:
     r = await client.get(
         "/me",
@@ -78,7 +74,6 @@ async def test_get_me_parent_linked_guardian(client: AsyncClient, seed: None) ->
     assert body["isUnitHead"] is False
 
 
-@pytest.mark.anyio
 async def test_get_me_email_fallback_when_no_linked_row(client: AsyncClient, seed: None) -> None:
     r = await client.get(
         "/me",
@@ -98,13 +93,11 @@ async def test_get_me_email_fallback_when_no_linked_row(client: AsyncClient, see
     assert body["mustChangePassword"] is True
 
 
-@pytest.mark.anyio
 async def test_get_me_missing_auth_header_returns_401(client: AsyncClient, seed: None) -> None:
     r = await client.get("/me")
     assert r.status_code == 401
 
 
-@pytest.mark.anyio
 async def test_get_me_jwt_without_role_is_forbidden(client: AsyncClient, seed: None) -> None:
     # Empty role field slips past the JWT verify but the service
     # rejects it — a half-provisioned account has no dashboard yet.
