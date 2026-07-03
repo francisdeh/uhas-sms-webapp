@@ -828,6 +828,23 @@ export function createApiClient(getAuthToken: TokenGetter) {
       delete: (id: string) =>
         apiFetch<void>(getAuthToken, `/calendar/${id}`, { method: "DELETE" }),
     },
+    auditLog: {
+      /** Read-only, Admin only. Filters are all optional; `action`
+       *  matches the closed set of `AuditAction` values. */
+      list: (
+        params: {
+          action?: string;
+          from?: string;
+          to?: string;
+          page?: number;
+          size?: number;
+        } = {},
+      ) =>
+        apiFetch<components["schemas"]["AuditEventsListResponse"]>(
+          getAuthToken,
+          `/audit-log${buildQuery(params)}`,
+        ),
+    },
     appointments: {
       /** Own list — Parent sees their requests, Teacher sees their
        *  inbox (pending first). Server infers scope from the JWT. */

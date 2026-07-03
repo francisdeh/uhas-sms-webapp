@@ -2,13 +2,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listAuditEvents } from "@/features/audit-log/queries/list-audit-events";
+import { getApi } from "@/lib/api/server";
 import { AuditLogFilters } from "@/features/audit-log/components/AuditLogFilters";
 import { AuditEventRow } from "@/features/audit-log/components/AuditEventRow";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { AuditAction } from "@/lib/audit-log";
 import { AUDIT_ACTION_LABELS, PAGE_SIZE, type AuditFilters } from "@/features/audit-log/types";
+import type { AuditEventView } from "@/features/audit-log/types";
 
 const VALID_ACTIONS = new Set(Object.keys(AUDIT_ACTION_LABELS));
 
@@ -55,7 +56,29 @@ export default async function AdminAuditLogPage({
 
   const raw = await searchParams;
   const filters = parseFilters(raw);
-  const { events, totalCount } = await listAuditEvents(filters);
+  const api = await getApi();
+  const listing = await api.auditLog.list({
+    action: filters.action !== "all" ? filters.action : undefined,
+    from: filters.from,
+    to: filters.to,
+    page: filters.page,
+    size: PAGE_SIZE,
+  });
+  // Adapt the FastAPI shape to the existing `AuditEventView` the row
+  // component expects. The row is display-only, so this is a pure
+  // rename — no computed fields drop or add.
+  const events: AuditEventView[] = listing.items.map((row) => ({
+    id: row.id,
+    userId: row.userId,
+    actorName: row.actorName ?? null,
+    action: row.action as AuditAction,
+    targetTable: row.targetTable ?? null,
+    targetId: row.targetId ?? null,
+    before: row.before ?? null,
+    after: row.after ?? null,
+    createdAt: row.createdAt ?? new Date().toISOString(),
+  }));
+  const totalCount = listing.total;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
