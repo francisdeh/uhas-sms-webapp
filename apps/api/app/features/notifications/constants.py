@@ -41,6 +41,10 @@ PROMOTION_SENT_BACK: Final = "promotion_sent_back"
 # ─── Assignments ────────────────────────────────────────────────────────────
 ASSIGNMENT_CREATED: Final = "assignment_created"
 
+# ─── Appointments ───────────────────────────────────────────────────────────
+APPOINTMENT_REQUESTED: Final = "appointment_requested"
+APPOINTMENT_DECIDED: Final = "appointment_decided"
+
 
 NotificationKind = Literal[
     "lesson_plan_submitted",
@@ -56,4 +60,6 @@ NotificationKind = Literal[
     "promotion_season_opened",
     "promotion_sent_back",
     "assignment_created",
+    "appointment_requested",
+    "appointment_decided",
 ]

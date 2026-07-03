@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,9 +40,9 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import {
-  createAppointmentAction,
-  cancelAppointmentAction,
-} from "@/features/appointments/actions";
+  useCancelAppointment,
+  useCreateAppointment,
+} from "@/features/appointments/hooks/use-appointments";
 import type { Appointment } from "@/features/appointments/types";
 import { SLOT_LABELS } from "@/features/appointments/types";
 import { AppointmentStatusPill } from "./AppointmentStatusPill";
@@ -77,9 +77,14 @@ export function ParentAppointmentsView({
   appointments,
 }: ParentAppointmentsViewProps) {
   const router = useRouter();
+  const createMut = useCreateAppointment();
+  const cancelMut = useCancelAppointment();
+  const isPending = createMut.isPending || cancelMut.isPending;
   const [createOpen, setCreateOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
-  const [isPending, startTransition] = useTransition();
+  // Guardian id comes from the JWT server-side now.
+  void guardianId;
+  void toast;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -95,14 +100,15 @@ export function ParentAppointmentsView({
   const selectedStudentId = useWatch({ control: form.control, name: "studentId" });
   const teachersForChild = childOptions.find((c) => c.id === selectedStudentId)?.teachers ?? [];
 
-  function onCreate(data: FormValues) {
-    startTransition(async () => {
-      const result = await createAppointmentAction({ guardianId, data });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Appointment requested.");
+  async function onCreate(data: FormValues) {
+    try {
+      await createMut.mutateAsync({
+        studentId: data.studentId,
+        teacherId: data.teacherId,
+        preferredDate: data.preferredDate,
+        preferredSlot: data.preferredSlot,
+        reason: data.reason,
+      });
       setCreateOpen(false);
       form.reset({
         preferredSlot: "morning",
@@ -112,21 +118,20 @@ export function ParentAppointmentsView({
         reason: "",
       });
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
-  function handleCancel() {
+  async function handleCancel() {
     if (!cancelTarget) return;
-    startTransition(async () => {
-      const result = await cancelAppointmentAction({ id: cancelTarget.id, guardianId });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Request cancelled.");
+    try {
+      await cancelMut.mutateAsync(cancelTarget.id);
       setCancelTarget(null);
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    }
   }
 
   return (

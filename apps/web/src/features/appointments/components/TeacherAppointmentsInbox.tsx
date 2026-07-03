@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Check, X, Calendar, Inbox, History } from "lucide-react";
@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { respondToAppointmentAction } from "@/features/appointments/actions";
+import { useRespondToAppointment } from "@/features/appointments/hooks/use-appointments";
 import type { Appointment } from "@/features/appointments/types";
 import { SLOT_LABELS } from "@/features/appointments/types";
 import { AppointmentStatusPill } from "./AppointmentStatusPill";
@@ -33,55 +33,55 @@ export function TeacherAppointmentsInbox({
   appointments: Appointment[];
 }) {
   const router = useRouter();
+  const respondMut = useRespondToAppointment();
+  const isPending = respondMut.isPending;
   const [openId, setOpenId] = useState<string | null>(null);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [declineTarget, setDeclineTarget] = useState<Appointment | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  // Teacher identity comes from the JWT server-side now.
+  void teacherId;
 
   const pending = appointments.filter((a) => a.status === "pending");
   const others = appointments.filter((a) => a.status !== "pending");
 
-  function handleConfirm(appt: Appointment) {
+  async function handleConfirm(appt: Appointment) {
     setActingId(appt.id);
-    startTransition(async () => {
-      const result = await respondToAppointmentAction({
+    try {
+      await respondMut.mutateAsync({
         id: appt.id,
-        teacherId,
-        decision: { decision: "confirm", response: responses[appt.id] },
+        payload: { decision: "confirm", response: responses[appt.id] ?? null },
       });
-      setActingId(null);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Confirmed.");
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    } finally {
+      setActingId(null);
+    }
   }
 
-  function handleDecline() {
+  async function handleDecline() {
     if (!declineTarget) return;
     if (!responses[declineTarget.id]?.trim()) {
       toast.error("Add a reason when declining.");
       return;
     }
     setActingId(declineTarget.id);
-    startTransition(async () => {
-      const result = await respondToAppointmentAction({
+    try {
+      await respondMut.mutateAsync({
         id: declineTarget.id,
-        teacherId,
-        decision: { decision: "decline", response: responses[declineTarget.id] },
+        payload: {
+          decision: "decline",
+          response: responses[declineTarget.id],
+        },
       });
-      setActingId(null);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Declined.");
       setDeclineTarget(null);
       router.refresh();
-    });
+    } catch {
+      /* toast fired inside the hook */
+    } finally {
+      setActingId(null);
+    }
   }
 
   return (

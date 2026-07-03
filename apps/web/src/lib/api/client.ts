@@ -813,6 +813,63 @@ export function createApiClient(getAuthToken: TokenGetter) {
           method: "DELETE",
         }),
     },
+    calendar: {
+      list: (params: { page?: number; size?: number } = {}) =>
+        apiFetch<components["schemas"]["CalendarEventsListResponse"]>(
+          getAuthToken,
+          `/calendar${buildQuery(params)}`,
+        ),
+      create: (payload: components["schemas"]["CalendarEventCreate"]) =>
+        apiFetch<components["schemas"]["CalendarEventRead"]>(
+          getAuthToken,
+          "/calendar",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      delete: (id: string) =>
+        apiFetch<void>(getAuthToken, `/calendar/${id}`, { method: "DELETE" }),
+    },
+    appointments: {
+      /** Own list — Parent sees their requests, Teacher sees their
+       *  inbox (pending first). Server infers scope from the JWT. */
+      list: (params: { page?: number; size?: number } = {}) =>
+        apiFetch<components["schemas"]["AppointmentsListResponse"]>(
+          getAuthToken,
+          `/appointments${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["AppointmentRead"]>(
+          getAuthToken,
+          `/appointments/${id}`,
+        ),
+      /** Powers the parent-side teacher picker. Only Parents (for their
+       *  own children) or Admin can call. */
+      teachersForStudent: (studentId: string) =>
+        apiFetch<components["schemas"]["TeacherOptionsResponse"]>(
+          getAuthToken,
+          `/appointments/teachers-for-student${buildQuery({ studentId })}`,
+        ),
+      create: (payload: components["schemas"]["AppointmentCreate"]) =>
+        apiFetch<components["schemas"]["AppointmentRead"]>(
+          getAuthToken,
+          "/appointments",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      respond: (
+        id: string,
+        payload: components["schemas"]["AppointmentRespond"],
+      ) =>
+        apiFetch<components["schemas"]["AppointmentRead"]>(
+          getAuthToken,
+          `/appointments/${id}/respond`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      cancel: (id: string) =>
+        apiFetch<void>(
+          getAuthToken,
+          `/appointments/${id}/cancel`,
+          { method: "POST" },
+        ),
+    },
   };
 }
 
