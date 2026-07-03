@@ -2,14 +2,19 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, Users, Lock, Check, ClipboardList } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { getCurrentSeason } from "@/features/promotions/queries/get-season";
-import { getPromotionOverview } from "@/features/promotions/queries/get-overview";
+import { getApi } from "@/lib/api/server";
+import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { PromotionSeasonHeader } from "@/features/promotions/components/PromotionSeasonHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { Division } from "@/features/auth/types";
-import type { PromotionSubmissionStatus } from "@/features/promotions/types";
+import type {
+  ClassOverviewRow,
+  PromotionSeason,
+  PromotionSubmission,
+  PromotionSubmissionStatus,
+} from "@/features/promotions/types";
 
 const DIVISION_ORDER: Division[] = ["KG", "Lower Primary", "Upper Primary", "JHS"];
 
@@ -44,10 +49,61 @@ export default async function AdminPromotionsPage() {
   const user = await getSessionUser();
   if (!user || user.role !== "Admin") redirect("/login");
 
-  const [season, overview] = await Promise.all([
-    getCurrentSeason(),
-    getPromotionOverview(),
+  const api = await getApi();
+  const [seasonRow, overviewResp, academicYear] = await Promise.all([
+    api.promotions.getSeason(),
+    api.promotions.getOverview(),
+    getCurrentAcademicYear(),
   ]);
+
+  const season: PromotionSeason | null = seasonRow
+    ? {
+        id: seasonRow.id,
+        schoolId: seasonRow.schoolId,
+        academicYear: seasonRow.academicYear,
+        status: seasonRow.status,
+        openedWithOverride: seasonRow.openedWithOverride ?? false,
+        openedById: seasonRow.openedById ?? null,
+        openedByName: seasonRow.openedByName ?? null,
+        openedAt: seasonRow.openedAt ?? null,
+        closedById: seasonRow.closedById ?? null,
+        closedByName: seasonRow.closedByName ?? null,
+        closedAt: seasonRow.closedAt ?? null,
+      }
+    : null;
+
+  const toSubmission = (
+    s: NonNullable<(typeof overviewResp.items)[number]["submission"]>,
+  ): PromotionSubmission => ({
+    id: s.id,
+    schoolId: s.schoolId,
+    classId: s.classId,
+    academicYear: s.academicYear,
+    status: s.status,
+    submittedById: s.submittedById ?? null,
+    submittedByName: s.submittedByName ?? null,
+    submittedAt: s.submittedAt ?? null,
+    reviewerComment: s.reviewerComment ?? null,
+    reviewedById: s.reviewedById ?? null,
+    reviewedByName: s.reviewedByName ?? null,
+    reviewedAt: s.reviewedAt ?? null,
+  });
+
+  const overview: ClassOverviewRow[] = overviewResp.items.map((r) => ({
+    classId: r.classId,
+    className: r.className,
+    division: r.division,
+    classTeachers: r.classTeachers,
+    totalStudents: r.totalStudents,
+    decidedCount: r.decidedCount,
+    submission: r.submission ? toSubmission(r.submission) : null,
+  }));
+
+  // GAP: `hasPublishedTerm3EndOfTerm` is a server-side derivation that
+  // used to gate the "Override" affordance. No API surface exposes it
+  // yet — passing false here means the affordance always shows the
+  // override warning. Track and wire once endpoint lands.
+  const term3EndOfTermPublished = false;
 
   const byDivision = DIVISION_ORDER.map((division) => ({
     division,
@@ -67,10 +123,10 @@ export default async function AdminPromotionsPage() {
       </div>
 
       <PromotionSeasonHeader
-        season={season.season}
-        academicYear={season.academicYear}
+        season={season}
+        academicYear={academicYear}
         staffId={user.linkedId}
-        term3EndOfTermPublished={season.term3EndOfTermPublished}
+        term3EndOfTermPublished={term3EndOfTermPublished}
       />
 
       {byDivision.every((g) => g.rows.length === 0) ? (

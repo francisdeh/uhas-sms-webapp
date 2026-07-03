@@ -1,90 +1,68 @@
 import { redirect } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { getCurrentAcademicYear } from "@/lib/academic-year-server";
-import { getCurrentSchoolId } from "@/lib/school";
-import { db } from "@/db";
-import {
-  classes,
-  classTeachers,
-  enrollments,
-  schools,
-  students,
-} from "@/db/schema";
-import {
-  getClassTeachersFor,
-  toSchoolClass,
-} from "@/features/classes/queries/get-class-by-id";
-import { listAllSessionsAction } from "@/features/attendance/actions";
+import { getApi } from "@/lib/api/server";
 import TeacherDashboardOverview from "./DashboardOverview";
+import type { SchoolClass } from "@/features/classes/types";
 
 export default async function TeacherPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const schoolId = await getCurrentSchoolId();
-  const currentYear = await getCurrentAcademicYear();
-  const school = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
+  const teacherId = user.linkedId;
 
-  // Classes the user is a class teacher for this year
-  const myClassesRows = await db
-    .select({
-      id: classes.id,
-      schoolId: classes.schoolId,
-      name: classes.name,
-      division: classes.division,
-      academicYear: classes.academicYear,
-    })
-    .from(classTeachers)
-    .innerJoin(classes, eq(classes.id, classTeachers.classId))
-    .where(
-      and(
-        eq(classTeachers.staffId, user.linkedId),
-        eq(classes.academicYear, currentYear)
-      )
-    );
-  const classIds = myClassesRows.map((c) => c.id);
-  const teachersMap = await getClassTeachersFor(classIds);
-  const myClasses = myClassesRows.map((c) =>
-    toSchoolClass(
-      // The select shape matches what toSchoolClass expects (drizzle row of classes).
-      c as unknown as typeof classes.$inferSelect,
-      teachersMap.get(c.id) ?? []
-    )
+  const api = await getApi();
+  const [school, allClassesPage, todaySessionsPage] = await Promise.all([
+    api.school.get(),
+    api.classes.list({ size: 500 }),
+    api.attendance.listSessions({ size: 500 }),
+  ]);
+
+  // Fetch teachers for every class in parallel and keep those where the
+  // current user is a class teacher. There's no direct API to list
+  // "classes I class-teach" today (see GAPs).
+  const perClass = await Promise.all(
+    allClassesPage.items.map(async (c) => ({
+      class: c,
+      teachers: (await api.classes.teachers.list(c.id)).items,
+    })),
   );
 
-  // Active enrollments in those classes
-  let myStudents = 0;
+  const myClassEntries = perClass.filter((e) =>
+    e.teachers.some((t) => t.staffId === teacherId),
+  );
+
+  const myClasses: SchoolClass[] = myClassEntries.map(({ class: c, teachers }) => ({
+    id: c.id,
+    schoolId: c.schoolId,
+    name: c.name,
+    division: c.division,
+    academicYear: c.academicYear,
+    classTeachers: teachers.map((t) => ({
+      staffId: t.staffId,
+      staffName: `${t.staffFirstName} ${t.staffLastName}`.trim(),
+      isPrimary: t.isPrimary,
+    })),
+  }));
+
   const studentCountByClass: Record<string, number> = {};
-  if (classIds.length > 0) {
-    const rows = await db
-      .select({ classId: enrollments.classId })
-      .from(enrollments)
-      .innerJoin(students, eq(students.id, enrollments.studentId))
-      .where(
-        and(
-          inArray(enrollments.classId, classIds),
-          eq(enrollments.academicYear, currentYear),
-          eq(enrollments.status, "Active"),
-          eq(students.isActive, true)
-        )
-      );
-    for (const r of rows) {
-      studentCountByClass[r.classId] = (studentCountByClass[r.classId] ?? 0) + 1;
-      myStudents++;
-    }
+  let myStudents = 0;
+  for (const c of myClasses) {
+    const count =
+      myClassEntries.find((e) => e.class.id === c.id)?.class.studentCount ?? 0;
+    studentCountByClass[c.id] = count;
+    myStudents += count;
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const todaySessions = await listAllSessionsAction({ from: today, to: today });
+  const todaySessions = todaySessionsPage.items.filter((s) => s.date === today);
   const submittedClassIds = new Set(todaySessions.map((s) => s.classId));
   const submittedCount = myClasses.filter((c) => submittedClassIds.has(c.id)).length;
 
   return (
     <TeacherDashboardOverview
       displayName={user.displayName}
-      currentYear={currentYear}
-      currentTerm={school?.currentTerm ?? 1}
+      currentYear={school.academicYear}
+      currentTerm={school.currentTerm ?? 1}
       stats={{ students: myStudents, classes: myClasses.length }}
       myClasses={myClasses}
       studentCountByClass={studentCountByClass}

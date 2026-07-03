@@ -1,22 +1,24 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listAnnouncementsForGuardianAction } from "@/features/announcements/actions";
-import { listClassesAction } from "@/features/classes/actions";
+import { getApi } from "@/lib/api/server";
 import { ParentAnnouncementsList } from "@/features/announcements/components/ParentAnnouncementsList";
+import type { Announcement } from "@/features/announcements/types";
 
 export default async function ParentAnnouncementsPage() {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
 
-  const [announcements, classes] = await Promise.all([
-    listAnnouncementsForGuardianAction(user.linkedId),
-    listClassesAction(),
+  const api = await getApi();
+  const [announcementsPage, classesPage] = await Promise.all([
+    api.announcements.list(),
+    api.classes.list(),
   ]);
+  const announcements = announcementsPage.items as unknown as Announcement[];
 
   return (
     <ParentAnnouncementsList
       announcements={announcements}
-      classes={classes.map((c) => ({ id: c.id, name: c.name }))}
+      classes={classesPage.items.map((c) => ({ id: c.id, name: c.name }))}
     />
   );
 }

@@ -23,10 +23,22 @@ class AppError(Exception):
     status_code: int = 500
     code: str = "internal_error"
 
-    def __init__(self, message: str, *, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        details: dict[str, Any] | None = None,
+        code: str | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.details = details or {}
+        # Per-instance override for cases where one subclass needs to
+        # emit a more specific code than its class default (e.g.
+        # BadRequestError → "invalid_query" for a mutually-exclusive
+        # query-param violation).
+        if code is not None:
+            self.code = code
 
 
 class NotFoundError(AppError):
@@ -58,3 +70,28 @@ class ValidationError(AppError):
 
     status_code = 400
     code = "validation_error"
+
+
+class BadRequestError(AppError):
+    """Request-shape violations that FastAPI's own 422 path doesn't catch —
+    e.g. mutually exclusive query params, or a `?since=` value that fails
+    a hand-rolled parse. Emitted as a 400 with a stable string code so
+    the frontend can branch on it.
+    """
+
+    status_code = 400
+    code = "bad_request"
+
+
+class ServiceUnavailableError(AppError):
+    """External dependency is unreachable or not configured.
+
+    Raised when a required upstream (Supabase Auth admin API, an SMS
+    provider, etc.) is unusable at runtime — either its credentials are
+    absent from settings or the network call itself failed. Distinct
+    from a domain 400/404 because the request is well-formed and
+    authorized; the failure is on our side.
+    """
+
+    status_code = 503
+    code = "service_unavailable"

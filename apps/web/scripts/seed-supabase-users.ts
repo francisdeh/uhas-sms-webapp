@@ -1,8 +1,7 @@
 /**
  * Seeds a Supabase project's `auth.users` with one user per role.
  *
- * Mirrors what scripts/seed-firebase-users.ts used to do, but for
- * Supabase Auth. Each user gets:
+ * Each user gets:
  *   - A pinned UUID (so the `users` bridge table can FK back to it)
  *   - app_metadata.{role, school_id, linked_id} — the privileged claims
  *     the proxy + FastAPI read from the JWT. NEVER set in user_metadata.

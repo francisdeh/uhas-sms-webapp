@@ -7,7 +7,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from app.core.security import CurrentUser
 from app.features.audit.model import AuditLog
 from app.features.schools.model import School
 from app.features.staff.schema import (
@@ -18,6 +19,17 @@ from app.features.staff.schema import (
 )
 from app.features.staff.service import StaffService
 from app.features.staff.tests.conftest import SCHOOL_UUID, USER_UUID
+
+
+def _admin_user() -> CurrentUser:
+    return CurrentUser(
+        user_id=str(USER_UUID),
+        email="admin@u.gh",
+        phone=None,
+        role="Admin",
+        school_id=str(SCHOOL_UUID),
+        linked_id=None,
+    )
 
 
 def _create_payload(
@@ -82,10 +94,103 @@ async def test_update_only_touches_present_fields(
 ) -> None:
     row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
     updated = await StaffService.update(
-        db_session, SCHOOL_UUID, row.id, StaffUpdate(phone="+233500000000")
+        db_session,
+        SCHOOL_UUID,
+        row.id,
+        StaffUpdate(phone="+233500000000"),
+        user=_admin_user(),
     )
     assert updated.phone == "+233500000000"
     assert updated.first_name == row.first_name  # untouched
+
+
+async def test_update_teacher_can_patch_own_photo(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    teacher = CurrentUser(
+        user_id=str(USER_UUID),
+        email="t@u.gh",
+        phone=None,
+        role="Teacher",
+        school_id=str(SCHOOL_UUID),
+        linked_id=str(row.id),
+    )
+    updated = await StaffService.update(
+        db_session,
+        SCHOOL_UUID,
+        row.id,
+        StaffUpdate(photo_url="https://cdn.example/img.png"),
+        user=teacher,
+    )
+    assert updated.photo_url == "https://cdn.example/img.png"
+
+
+async def test_update_teacher_cannot_patch_other_staff_row(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    other = await StaffService.create(db_session, SCHOOL_UUID, _create_payload(email="a@u.gh"))
+    me = await StaffService.create(db_session, SCHOOL_UUID, _create_payload(email="b@u.gh"))
+    teacher = CurrentUser(
+        user_id=str(USER_UUID),
+        email="b@u.gh",
+        phone=None,
+        role="Teacher",
+        school_id=str(SCHOOL_UUID),
+        linked_id=str(me.id),
+    )
+    with pytest.raises(ForbiddenError):
+        await StaffService.update(
+            db_session,
+            SCHOOL_UUID,
+            other.id,
+            StaffUpdate(photo_url="https://cdn.example/x.png"),
+            user=teacher,
+        )
+
+
+async def test_update_teacher_cannot_patch_other_fields_on_own_row(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    teacher = CurrentUser(
+        user_id=str(USER_UUID),
+        email="t@u.gh",
+        phone=None,
+        role="Teacher",
+        school_id=str(SCHOOL_UUID),
+        linked_id=str(row.id),
+    )
+    with pytest.raises(ForbiddenError):
+        await StaffService.update(
+            db_session,
+            SCHOOL_UUID,
+            row.id,
+            StaffUpdate(first_name="Renamed"),
+            user=teacher,
+        )
+
+
+async def test_update_parent_cannot_patch_anything(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    parent = CurrentUser(
+        user_id=str(USER_UUID),
+        email="p@u.gh",
+        phone=None,
+        role="Parent",
+        school_id=str(SCHOOL_UUID),
+        linked_id=str(row.id),
+    )
+    with pytest.raises(ForbiddenError):
+        await StaffService.update(
+            db_session,
+            SCHOOL_UUID,
+            row.id,
+            StaffUpdate(photo_url="https://cdn.example/p.png"),
+            user=parent,
+        )
 
 
 async def test_change_role_writes_audit_row(db_session: AsyncSession, seed_school: School) -> None:

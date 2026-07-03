@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PscReport } from "./PscReport";
-import type { PscReportData } from "@/features/reports/queries/get-psc-report";
+import type { PscReportData } from "@/features/reports/types";
 
 export function PscReportPage({ data, backHref }: { data: PscReportData; backHref: string }) {
   useEffect(() => {

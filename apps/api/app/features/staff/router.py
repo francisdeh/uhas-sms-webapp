@@ -11,9 +11,11 @@ Six endpoints — one for each Admin UI action:
   POST   /staff/{id}/activate   → reactivate
   POST   /staff/{id}/deactivate → deactivate
 
-All writes require `Admin`. Reads are open to any authenticated user;
-several pages (lesson plan reviewer list, class-teacher dropdown) need
-to see staff names.
+All writes require `Admin`, except `PATCH /staff/{id}` — non-Admin staff
+can patch `photo_url` on their own row so the profile page can update
+avatars without a separate endpoint. Reads are open to any authenticated
+user; several pages (lesson plan reviewer list, class-teacher dropdown)
+need to see staff names.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.deps import CurrentSchoolIdDep, RequireAdmin
+from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
 from app.features.staff.schema import (
     StaffCreate,
     StaffListResponse,
@@ -96,9 +98,9 @@ async def update_staff(
     payload: StaffUpdate,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    user: RequireAdmin,
+    user: CurrentUserDep,
 ) -> StaffRead:
-    row = await StaffService.update(session, school_id, staff_id, payload)
+    row = await StaffService.update(session, school_id, staff_id, payload, user=user)
     return StaffRead.model_validate(row)
 
 

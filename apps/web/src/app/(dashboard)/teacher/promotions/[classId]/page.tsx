@@ -2,14 +2,12 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Lock, AlertTriangle } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { getCurrentSeason } from "@/features/promotions/queries/get-season";
-import { getTeacherPromotionClasses } from "@/features/promotions/queries/get-teacher-classes";
-import { getSubmissionByClassId } from "@/features/promotions/queries/get-submission";
-import { ensureSubmissionAction } from "@/features/promotions/actions";
+import { getApi } from "@/lib/api/server";
 import { PromotionDecisionTable } from "@/features/promotions/components/PromotionDecisionTable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import type { DecisionRowView, PromotionSubmission } from "@/features/promotions/types";
 
 export default async function TeacherPromotionClassPage({
   params,
@@ -21,24 +19,25 @@ export default async function TeacherPromotionClassPage({
 
   const { classId } = await params;
 
-  const [season, myClasses] = await Promise.all([
-    getCurrentSeason(),
-    getTeacherPromotionClasses(user.linkedId),
+  const api = await getApi();
+  const [season, myClassesResp] = await Promise.all([
+    api.promotions.getSeason(),
+    api.promotions.getTeacherClasses(),
   ]);
 
-  if (!season.isOpen) redirect("/teacher/promotions");
+  if (!season || season.status !== "open") redirect("/teacher/promotions");
 
-  const myClass = myClasses.find((c) => c.classId === classId);
+  const myClass = myClassesResp.items.find((c) => c.classId === classId);
   if (!myClass) notFound();
 
   // Initialise the submission + decision rows on first visit. Safe to re-run
   // because the action is idempotent for existing rows.
   if (myClass.isPrimary) {
-    await ensureSubmissionAction(classId);
+    await api.promotions.ensureSubmission({ classId });
   }
 
-  const detail = await getSubmissionByClassId(classId);
-  if (!detail) {
+  const raw = await api.promotions.getSubmissionByClass(classId);
+  if (!raw) {
     return (
       <EmptyState
         icon={Lock}
@@ -47,6 +46,46 @@ export default async function TeacherPromotionClassPage({
       />
     );
   }
+
+  const submission: PromotionSubmission = {
+    id: raw.submission.id,
+    schoolId: raw.submission.schoolId,
+    classId: raw.submission.classId,
+    academicYear: raw.submission.academicYear,
+    status: raw.submission.status,
+    submittedById: raw.submission.submittedById ?? null,
+    submittedByName: raw.submission.submittedByName ?? null,
+    submittedAt: raw.submission.submittedAt ?? null,
+    reviewerComment: raw.submission.reviewerComment ?? null,
+    reviewedById: raw.submission.reviewedById ?? null,
+    reviewedByName: raw.submission.reviewedByName ?? null,
+    reviewedAt: raw.submission.reviewedAt ?? null,
+  };
+
+  const decisions: DecisionRowView[] = raw.decisions.map((d) => ({
+    decision: {
+      id: d.id,
+      submissionId: d.submissionId,
+      studentId: d.studentId,
+      decision: d.decision,
+      targetClassId: d.targetClassId ?? null,
+      reason: d.reason ?? null,
+      suggestedDecision: d.suggestedDecision ?? null,
+      suggestedReason: d.suggestedReason ?? null,
+      failedCoreSubjects: d.failedCoreSubjects ?? null,
+    },
+    studentName: d.studentName,
+    studentPhotoUrl: d.studentPhotoUrl ?? null,
+  }));
+
+  const detail = {
+    submission,
+    className: raw.className,
+    division: raw.division,
+    nextAcademicYear: raw.nextAcademicYear,
+    nextYearClasses: raw.nextYearClasses.map((c) => ({ id: c.id, name: c.name })),
+    decisions,
+  };
 
   const readonly = !myClass.isPrimary || detail.submission.status !== "draft";
   const isSubmitted = detail.submission.status === "submitted";
@@ -138,7 +177,7 @@ export default async function TeacherPromotionClassPage({
           nextYearClasses={detail.nextYearClasses}
           initial={detail.decisions}
           submittedById={user.linkedId}
-          overrideMode={season.season?.openedWithOverride ?? false}
+          overrideMode={season.openedWithOverride ?? false}
         />
       )}
     </div>

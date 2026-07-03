@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
+from sqlalchemy import Row
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.errors import (
+    BadRequestError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+)
+from app.core.roles import ADMIN, DEPUTY_HEAD, TEACHER
+from app.core.security import CurrentUser
 from app.features.classes.model import Class, ClassSubject, ClassTeacher
 from app.features.classes.repository import (
     ClassesRepository,
@@ -199,6 +209,54 @@ class ClassSubjectsService:
             raise NotFoundError("Subject is not assigned to this class.")
         await session.delete(row)
         await session.flush()
+
+    @staticmethod
+    async def list_class_subjects(
+        session: AsyncSession,
+        user: CurrentUser,
+        *,
+        subject_id: UUID | None,
+        teacher_id: UUID | None,
+    ) -> list[Row[Any]]:
+        """Inverse lookup on `class_subjects` — by subject XOR by teacher.
+
+        Role gates:
+          - Admin / Deputy Head → either lookup, any id in-school.
+          - Teacher → only `teacher_id == user.linked_id`; subject
+            lookups are forbidden (teachers use the class-detail view,
+            not the school-wide inventory).
+          - Everyone else → forbidden.
+
+        Raises `BadRequestError` (code `invalid_query`) if the caller
+        passes both or neither of the mutually exclusive params.
+        """
+        if not user.school_id:
+            raise ForbiddenError("Session is missing school scope.")
+        if (subject_id is None) == (teacher_id is None):
+            raise BadRequestError(
+                "Pass exactly one of subjectId or teacherId.",
+                code="invalid_query",
+            )
+
+        role = user.role
+        if role in (ADMIN, DEPUTY_HEAD):
+            pass
+        elif role == TEACHER:
+            if subject_id is not None:
+                raise ForbiddenError("Teachers cannot list class-subjects by subjectId.")
+            if not user.linked_id or str(teacher_id) != user.linked_id:
+                raise ForbiddenError("Teachers can only list their own class-subjects.")
+        else:
+            raise ForbiddenError("This lookup is not available to your role.")
+
+        if subject_id is not None:
+            return await ClassSubjectsRepository.find_class_subjects_by_subject(
+                session, school_id=user.school_id, subject_id=subject_id
+            )
+        assert teacher_id is not None
+        return await ClassSubjectsRepository.find_class_subjects_by_teacher(
+            session, school_id=user.school_id, teacher_id=teacher_id
+        )
 
 
 class ClassTeachersService:

@@ -1,14 +1,17 @@
 import { notFound, redirect } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
-import { db } from "@/db";
-import { classes, enrollments, studentGuardians, students as studentsTable } from "@/db/schema";
-import { getStudentAttendanceCalendarAction } from "@/features/attendance/actions";
+import { getApi } from "@/lib/api/server";
 import ParentAttendanceView from "@/features/attendance/components/ParentAttendanceView";
+import type { AttendanceStatus } from "@/features/attendance/types";
 
 interface Props {
   searchParams: Promise<{ studentId?: string }>;
+}
+
+function academicYearRange(year: string): { start: string; end: string } {
+  const [startYear, endYear] = year.split("/");
+  return { start: `${startYear}-09-01`, end: `${endYear}-08-31` };
 }
 
 export default async function ParentAttendancePage({ searchParams }: Props) {
@@ -17,43 +20,21 @@ export default async function ParentAttendancePage({ searchParams }: Props) {
 
   const guardianId = user.linkedId ?? "";
   const year = await getCurrentAcademicYear();
+  const api = await getApi();
 
-  const links = await db.query.studentGuardians.findMany({
-    where: eq(studentGuardians.guardianId, guardianId),
-  });
-  const childIds = links.map((l) => l.studentId);
+  if (!guardianId) notFound();
+  const { items: childRows } = await api.guardians.children(guardianId);
+  const childIds = childRows.map((s) => s.id);
   if (childIds.length === 0) notFound();
 
-  const studentRows = await db.query.students.findMany({
-    where: inArray(studentsTable.id, childIds),
-  });
-
-  const enrRows = await db
-    .select({
-      studentId: enrollments.studentId,
-      classId: classes.id,
-      className: classes.name,
-    })
-    .from(enrollments)
-    .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .where(
-      and(
-        inArray(enrollments.studentId, childIds),
-        eq(enrollments.academicYear, year),
-        eq(enrollments.status, "Active")
-      )
-    );
-  const enrByStudent = new Map(enrRows.map((e) => [e.studentId, e]));
-
-  const students = studentRows.flatMap((s) => {
-    const enr = enrByStudent.get(s.id);
-    if (!enr) return [];
+  const students = childRows.flatMap((s) => {
+    if (!s.classId || !s.className) return [];
     return [
       {
         id: s.id,
         name: `${s.firstName} ${s.lastName}`,
-        classId: enr.classId,
-        className: enr.className,
+        classId: s.classId,
+        className: s.className,
       },
     ];
   });
@@ -69,10 +50,12 @@ export default async function ParentAttendancePage({ searchParams }: Props) {
   const selectedStudentId = rawStudentId ?? students[0].id;
   const selectedStudent = students.find((s) => s.id === selectedStudentId)!;
 
-  const records = await getStudentAttendanceCalendarAction(
-    selectedStudent.id,
-    selectedStudent.classId
-  );
+  const { start, end } = academicYearRange(year);
+  const rawRecords = await api.studentViews.attendanceCalendar(selectedStudent.id, {
+    termStart: start,
+    termEnd: end,
+  });
+  const records = rawRecords as unknown as { date: string; status: AttendanceStatus }[];
 
   return (
     <ParentAttendanceView

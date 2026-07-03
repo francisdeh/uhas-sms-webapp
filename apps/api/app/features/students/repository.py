@@ -17,7 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.classes.model import Class
 from app.features.enrollments.constants import ACTIVE
 from app.features.enrollments.model import Enrollment
-from app.features.students.model import Student
+from app.features.guardians.model import Guardian
+from app.features.students.model import Student, StudentGuardian
 
 
 class StudentsRepository:
@@ -126,6 +127,60 @@ class StudentsRepository:
         )
         cls = (await session.execute(class_stmt)).scalar_one_or_none()
         return student, cls
+
+    @staticmethod
+    async def list_for_guardian(
+        session: AsyncSession,
+        school_id: UUID | str,
+        guardian_id: UUID | str,
+        *,
+        academic_year: str,
+    ) -> list[tuple[Student, Class | None]]:
+        """Every student linked to this guardian, with current-year class."""
+        base: Any = (
+            select(Student, Class)
+            .join(StudentGuardian, StudentGuardian.student_id == Student.id)
+            .outerjoin(
+                Enrollment,
+                and_(
+                    Enrollment.student_id == Student.id,
+                    Enrollment.academic_year == academic_year,
+                    Enrollment.status == ACTIVE,
+                ),
+            )
+            .outerjoin(Class, Class.id == Enrollment.class_id)
+            .where(
+                and_(
+                    StudentGuardian.guardian_id == guardian_id,
+                    Student.school_id == school_id,
+                )
+            )
+            .order_by(asc(Student.last_name), asc(Student.id))
+        )
+        result = (await session.execute(base)).all()
+        return [(s, c) for s, c in result]
+
+    @staticmethod
+    async def get_primary_guardian(
+        session: AsyncSession, school_id: UUID | str, student_id: UUID | str
+    ) -> tuple[Any, str | None] | None:
+        """First linked guardian for this student — `(Guardian, relation)`,
+        or `None` if no guardian is linked. Matches the legacy TS action's
+        `.limit(1)` behaviour (a student may have multiple guardians; only
+        one is shown in the detail-panel "Guardian" card)."""
+        stmt = (
+            select(Guardian, StudentGuardian.relation)
+            .join(StudentGuardian, StudentGuardian.guardian_id == Guardian.id)
+            .where(
+                and_(
+                    StudentGuardian.student_id == student_id,
+                    Guardian.school_id == school_id,
+                )
+            )
+            .limit(1)
+        )
+        row = (await session.execute(stmt)).first()
+        return (row[0], row[1]) if row else None
 
     @staticmethod
     async def find_class(

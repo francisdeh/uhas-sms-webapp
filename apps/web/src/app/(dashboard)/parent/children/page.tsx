@@ -1,12 +1,9 @@
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import type { Division } from "@/features/auth/types";
-import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { formatDate } from "@/lib/dates";
-import { db } from "@/db";
-import { classes, enrollments, studentGuardians, students } from "@/db/schema";
+import { getApi } from "@/lib/api/server";
 import Link from "next/link";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { GraduationCap, CalendarCheck, FileText } from "lucide-react";
@@ -29,52 +26,27 @@ export default async function ParentChildrenPage() {
   if (!user) redirect("/login");
 
   const guardianId = user.linkedId ?? "";
-  const year = await getCurrentAcademicYear();
+  if (!guardianId) notFound();
 
-  const links = await db.query.studentGuardians.findMany({
-    where: eq(studentGuardians.guardianId, guardianId),
-  });
-  const childIds = links.map((l) => l.studentId);
-  if (childIds.length === 0) notFound();
+  const api = await getApi();
+  const { items: childRows } = await api.guardians.children(guardianId);
+  if (childRows.length === 0) notFound();
 
-  const studentRows = await db.query.students.findMany({ where: inArray(students.id, childIds) });
-  const enrollmentRows = await db
-    .select({
-      studentId: enrollments.studentId,
-      className: classes.name,
-      division: classes.division,
-    })
-    .from(enrollments)
-    .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .where(
-      and(
-        inArray(enrollments.studentId, childIds),
-        eq(enrollments.academicYear, year),
-        eq(enrollments.status, "Active")
-      )
-    );
-  const enrByStudent = new Map(enrollmentRows.map((e) => [e.studentId, e]));
-
-  const children = studentRows.map((s) => {
-    const enr = enrByStudent.get(s.id);
-    return {
-      student: {
-        id: s.id,
-        firstName: s.firstName,
-        lastName: s.lastName,
-        gender: s.gender ?? "Male",
-        dob: s.dob ?? "",
-        division: (enr?.division ?? "KG") as Division,
-        isActive: s.isActive ?? true,
-        nationality: s.nationality,
-        religion: s.religion,
-        photoUrl: s.photoUrl,
-      },
-      className: enr?.className ?? "",
-    };
-  });
-
-  if (children.length === 0) notFound();
+  const children = childRows.map((s) => ({
+    student: {
+      id: s.id,
+      firstName: s.firstName,
+      lastName: s.lastName,
+      gender: s.gender ?? "Male",
+      dob: s.dob ?? "",
+      division: (s.division ?? "KG") as Division,
+      isActive: s.isActive ?? true,
+      nationality: s.nationality,
+      religion: s.religion,
+      photoUrl: s.photoUrl,
+    },
+    className: s.className ?? "",
+  }));
 
   return (
     <div className="space-y-5">

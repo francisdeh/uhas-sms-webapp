@@ -2,17 +2,11 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import {
-  getExamAction,
-  getClassReportSubmissionAction,
-  listRemarksForExamClassAction,
-} from "@/features/exams/actions";
-import { and, asc, eq, inArray } from "drizzle-orm";
-import { db } from "@/db";
-import { enrollments, scores, students as studentsTable } from "@/db/schema";
-import { listClassesAction } from "@/features/classes/actions";
-import { computeAggregate } from "@/features/exams/utils";
+import { getClassById } from "@/features/classes/queries/get-class-by-id";
+import { getApi } from "@/lib/api/server";
+import { ApiError } from "@/lib/api/client";
 import { ClassReportSubmitForm } from "@/features/exams/components/ClassReportSubmitForm";
+import type { ClassReportSubmission } from "@/features/exams/types";
 
 interface PageProps {
   params: Promise<{ examId: string; classId: string }>;
@@ -23,16 +17,17 @@ export default async function ClassReportSubmitPage({ params }: PageProps) {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
 
-  const [exam, classes, submission, remarks] = await Promise.all([
-    getExamAction(examId),
-    listClassesAction(),
-    getClassReportSubmissionAction(examId, classId),
-    listRemarksForExamClassAction(examId, classId),
+  const api = await getApi();
+
+  const [exam, schoolClass] = await Promise.all([
+    api.exams.get(examId).catch((err) => {
+      if (err instanceof ApiError && err.status === 404) return null;
+      throw err;
+    }),
+    getClassById(classId),
   ]);
 
   if (!exam) notFound();
-
-  const schoolClass = classes.find((c) => c.id === classId);
   if (!schoolClass) notFound();
 
   // Authorize: must be a class teacher for this class
@@ -53,47 +48,47 @@ export default async function ClassReportSubmitPage({ params }: PageProps) {
     );
   }
 
-  const roster = await db
-    .select({
-      id: studentsTable.id,
-      firstName: studentsTable.firstName,
-      lastName: studentsTable.lastName,
+  const [rosterRes, classReport] = await Promise.all([
+    api.classes.enrollments(classId, { status: "Active", size: 200 }),
+    api.classReports.get(examId, classId).catch((err) => {
+      if (err instanceof ApiError && err.status === 404) return null;
+      throw err;
+    }),
+  ]);
+
+  const roster = rosterRes.items
+    .slice()
+    .sort((a, b) => (a.studentLastName ?? "").localeCompare(b.studentLastName ?? ""));
+
+  const aggregates = new Map<string, number | null>();
+  await Promise.all(
+    roster.map(async (s) => {
+      const card = await api.studentViews.reportCard(s.studentId, examId);
+      aggregates.set(s.studentId, card.aggregate ?? null);
     })
-    .from(enrollments)
-    .innerJoin(studentsTable, eq(studentsTable.id, enrollments.studentId))
-    .where(
-      and(
-        eq(enrollments.classId, classId),
-        eq(enrollments.academicYear, exam.academicYear),
-        eq(enrollments.status, "Active"),
-        eq(studentsTable.isActive, true)
-      )
-    )
-    .orderBy(asc(studentsTable.lastName));
-  const studentIds = roster.map((s) => s.id);
+  );
 
-  const scoreRows = studentIds.length === 0
-    ? []
-    : await db.query.scores.findMany({
-        where: and(eq(scores.examId, examId), inArray(scores.studentId, studentIds)),
-      });
-  const scoresByStudent = new Map<string, typeof scoreRows>();
-  for (const sc of scoreRows) {
-    const list = scoresByStudent.get(sc.studentId) ?? [];
-    list.push(sc);
-    scoresByStudent.set(sc.studentId, list);
-  }
+  const remarksById = new Map(
+    (classReport?.remarks ?? []).map((r) => [r.studentId, r.text ?? ""])
+  );
 
-  const initialRows = roster.map((s) => {
-    const remark = remarks.find((r) => r.studentId === s.id);
-    const studentScores = scoresByStudent.get(s.id) ?? [];
-    return {
-      studentId: s.id,
-      studentName: `${s.firstName} ${s.lastName}`,
-      aggregate: computeAggregate(studentScores),
-      classTeacherRemark: remark?.classTeacherRemark ?? "",
-    };
-  });
+  const submission: ClassReportSubmission | null = classReport
+    ? {
+        id: classReport.id ?? "",
+        examId: classReport.examId,
+        classId: classReport.classId,
+        status: classReport.status,
+        submittedById: classReport.submittedById ?? null,
+        submittedAt: classReport.submittedAt ?? null,
+      }
+    : null;
+
+  const initialRows = roster.map((s) => ({
+    studentId: s.studentId,
+    studentName: `${s.studentFirstName ?? ""} ${s.studentLastName ?? ""}`.trim(),
+    aggregate: aggregates.get(s.studentId) ?? null,
+    classTeacherRemark: remarksById.get(s.studentId) ?? "",
+  }));
 
   return (
     <div className="space-y-4">
@@ -104,7 +99,7 @@ export default async function ClassReportSubmitPage({ params }: PageProps) {
         <ArrowLeft size={14} className="mr-1" /> Back to class reports
       </Link>
       <ClassReportSubmitForm
-        exam={exam}
+        exam={{ ...exam, publishedAt: exam.publishedAt ?? null, createdAt: exam.createdAt ?? "" }}
         classId={classId}
         className={schoolClass.name}
         submittedById={user.linkedId}

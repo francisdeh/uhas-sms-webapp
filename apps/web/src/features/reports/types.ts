@@ -70,3 +70,32 @@ export type CreateCalendarEventInput = {
   endDate?: string;
   type: CalendarEventType;
 };
+
+export type PscClassRow = {
+  classId: string;
+  className: string;
+  division: Division;
+  boys: number;
+  girls: number;
+  total: number;
+};
+
+export type PscDivisionStaff = {
+  division: Division | "Cross";
+  staff: { id: string; name: string; rank: string; isUnitHead: boolean }[];
+};
+
+export type PscReportData = {
+  schoolName: string;
+  asOf: string;
+  totals: {
+    students: number;
+    boys: number;
+    girls: number;
+    leavers: number;
+    teachers: number;
+    admins: number;
+  };
+  classRows: PscClassRow[];
+  staffByDivision: PscDivisionStaff[];
+};

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi } from "@/lib/api/server";
 import { PscReportPage } from "@/features/reports/components/PscReportPage";
-import type { PscReportData } from "@/features/reports/queries/get-psc-report";
+import type { PscReportData } from "@/features/reports/types";
 
 // Rendered per-request — depends on the caller's session; opts out of
 // Next's static analysis (which would fail on the Supabase env-var

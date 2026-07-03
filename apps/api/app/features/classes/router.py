@@ -24,13 +24,15 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.deps import CurrentSchoolIdDep, RequireAdmin
+from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
 from app.features.classes.model import Class, ClassSubject, ClassTeacher
 from app.features.classes.schema import (
     ClassCreate,
     ClassesListResponse,
     ClassRead,
     ClassSubjectAssignRequest,
+    ClassSubjectLookupResponse,
+    ClassSubjectLookupRow,
     ClassSubjectRead,
     ClassSubjectsListResponse,
     ClassSubjectTeacherUpdate,
@@ -277,3 +279,47 @@ async def remove_class_teacher(
     user: RequireAdmin,
 ) -> None:
     await ClassTeachersService.remove(session, school_id, class_id, staff_id)
+
+
+# ─── /class-subjects (top-level inverse lookups) ─────────────────────────────
+# Kept in this file so all class_subjects surfaces are discoverable in one
+# place. Mounted separately in main.py because the prefix (`/class-subjects`)
+# is disjoint from `/classes`.
+
+class_subjects_router = APIRouter(prefix="/class-subjects", tags=["classes"])
+
+
+@class_subjects_router.get(
+    "",
+    response_model=ClassSubjectLookupResponse,
+    response_model_by_alias=True,
+    summary="Inverse lookup on class_subjects by subject XOR teacher",
+)
+async def list_class_subjects_by(
+    user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    subject_id: Annotated[UUID | None, Query(alias="subjectId")] = None,
+    teacher_id: Annotated[UUID | None, Query(alias="teacherId")] = None,
+) -> ClassSubjectLookupResponse:
+    rows = await ClassSubjectsService.list_class_subjects(
+        session,
+        user,
+        subject_id=subject_id,
+        teacher_id=teacher_id,
+    )
+    return ClassSubjectLookupResponse(
+        rows=[
+            ClassSubjectLookupRow(
+                class_id=r.class_id,
+                class_name=r.class_name,
+                class_slug=r.class_slug,
+                division=r.division,
+                subject_id=r.subject_id,
+                subject_name=r.subject_name,
+                subject_slug=r.subject_slug,
+                teacher_id=r.teacher_id,
+                teacher_name=r.teacher_name,
+            )
+            for r in rows
+        ]
+    )

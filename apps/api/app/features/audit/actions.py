@@ -25,6 +25,7 @@ ROLE_CHANGE: Final = "ROLE_CHANGE"
 PROMOTION_APPROVED: Final = "PROMOTION_APPROVED"
 SCHOOL_SETTINGS_UPDATE: Final = "SCHOOL_SETTINGS_UPDATE"
 SCHOOL_TERMS_UPSERT: Final = "SCHOOL_TERMS_UPSERT"
+CLASS_REPORT_HOS_COMMENT_UPDATED: Final = "CLASS_REPORT_HOS_COMMENT_UPDATED"
 
 AuditAction = Literal[
     "EXAM_PUBLISH",
@@ -35,6 +36,7 @@ AuditAction = Literal[
     "PROMOTION_APPROVED",
     "SCHOOL_SETTINGS_UPDATE",
     "SCHOOL_TERMS_UPSERT",
+    "CLASS_REPORT_HOS_COMMENT_UPDATED",
 ]
 """All audit_log.action values the API writes. Add new actions here
 *and* on the TS side before introducing them."""

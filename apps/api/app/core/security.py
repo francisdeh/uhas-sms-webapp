@@ -56,6 +56,12 @@ class CurrentUser:
     role: str | None
     school_id: str | None
     linked_id: str | None
+    # user_metadata.must_change_password — Supabase user_metadata is
+    # user-writable, but this flag only gates a UX-forced password
+    # rotation dialog, not an authorization boundary. Setting it to
+    # False on the client side merely dismisses the dialog; the caller
+    # still needs a valid session to reach anything sensitive.
+    must_change_password: bool = False
 
 
 @lru_cache(maxsize=1)
@@ -136,6 +142,10 @@ def verify_supabase_jwt(token: str) -> CurrentUser:
     if not isinstance(app_metadata, dict):
         app_metadata = {}
 
+    user_metadata = payload.get("user_metadata") or {}
+    if not isinstance(user_metadata, dict):
+        user_metadata = {}
+
     email = payload.get("email")
     phone = payload.get("phone")
     return CurrentUser(
@@ -147,4 +157,5 @@ def verify_supabase_jwt(token: str) -> CurrentUser:
         role=app_metadata.get("role"),
         school_id=app_metadata.get("school_id"),
         linked_id=app_metadata.get("linked_id"),
+        must_change_password=bool(user_metadata.get("must_change_password")),
     )

@@ -85,6 +85,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/shell/nav-badges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sidebar badge counts for the caller
+         * @description Return the caller's badge counts.
+         *
+         *     Only Unit Heads and Deputy Heads accumulate a non-zero
+         *     `lessonPlansPendingReview`. Every other role sees zeroes without
+         *     the DB being queried.
+         */
+        get: operations["get_nav_badges_shell_nav_badges_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/staff": {
         parameters: {
             query?: never;
@@ -225,6 +249,27 @@ export interface paths {
         patch: operations["update_guardian_guardians__guardian_id__patch"];
         trace?: never;
     };
+    "/guardians/{guardian_id}/children": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the students linked to a guardian
+         * @description A Parent may only look up their own linked guardian row — every
+         *     other role can look up any guardian, matching `/guardians/{id}`.
+         */
+        get: operations["list_guardian_children_guardians__guardian_id__children_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/students": {
         parameters: {
             query?: never;
@@ -259,6 +304,23 @@ export interface paths {
         head?: never;
         /** Update Student */
         patch: operations["update_student_students__student_id__patch"];
+        trace?: never;
+    };
+    "/students/{student_id}/guardian": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** First linked guardian for a student, or null */
+        get: operations["get_student_guardian_students__student_id__guardian_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/students/{student_id}/activate": {
@@ -438,6 +500,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/class-subjects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inverse lookup on class_subjects by subject XOR teacher */
+        get: operations["list_class_subjects_by_class_subjects_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/enrollments": {
         parameters: {
             query?: never;
@@ -526,6 +605,40 @@ export interface paths {
         };
         /** Get Session By Id */
         get: operations["get_session_by_id_attendance_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{student_id}/attendance-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Aggregate status counts for a student over a date range */
+        get: operations["get_student_attendance_summary_students__student_id__attendance_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{student_id}/attendance-calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Per-day status for a student over a date range */
+        get: operations["get_student_attendance_calendar_students__student_id__attendance_calendar_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -759,6 +872,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/exams/{exam_id}/class-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Class Reports */
+        get: operations["list_class_reports_exams__exam_id__class_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exams/{exam_id}/class-reports/{class_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Class Report */
+        get: operations["get_class_report_exams__exam_id__class_reports__class_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exams/{exam_id}/class-reports/{class_id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Class Report Draft */
+        put: operations["save_class_report_draft_exams__exam_id__class_reports__class_id__draft_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exams/{exam_id}/class-reports/{class_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Class Report */
+        post: operations["submit_class_report_exams__exam_id__class_reports__class_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exams/{exam_id}/class-reports/{class_id}/hos-comment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Class Report Hos Comment */
+        patch: operations["update_class_report_hos_comment_exams__exam_id__class_reports__class_id__hos_comment_patch"];
+        trace?: never;
+    };
+    "/students/{student_id}/report-card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Assembled report card for one student, one exam */
+        get: operations["get_student_report_card_students__student_id__report_card_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lesson-plans": {
         parameters: {
             query?: never;
@@ -834,6 +1049,31 @@ export interface paths {
         put?: never;
         /** Review Lesson Plan */
         post: operations["review_lesson_plan_lesson_plans__plan_id__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch the caller's composite session profile
+         * @description Return the current session's rich SessionUser shape.
+         *
+         *     The web layer calls this on every dashboard render — one round-trip
+         *     instead of three (`users` + `staff|guardians` + JWT decode). Fields
+         *     match the legacy `SessionUser` TS type 1:1 so the display doesn't
+         *     shift when the migration cuts over.
+         */
+        get: operations["get_me_me_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1554,6 +1794,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Global cross-domain search for the Cmd-K palette */
+        get: operations["global_search_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Users */
+        get: operations["list_users_users_get"];
+        put?: never;
+        /** Create User */
+        post: operations["create_user_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update User */
+        patch: operations["update_user_users__user_id__patch"];
+        trace?: never;
+    };
+    "/users/{user_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate User */
+        post: operations["deactivate_user_users__user_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{user_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate User */
+        post: operations["activate_user_users__user_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2080,7 +2406,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT";
+            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED";
             /** Targettable */
             targetTable?: string | null;
             /** Targetid */
@@ -2212,6 +2538,20 @@ export interface components {
             /** Slug */
             slug: string;
         };
+        /** ClassHit */
+        ClassHit: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Division */
+            division: string;
+        };
         /** ClassRead */
         ClassRead: {
             /** Name */
@@ -2243,6 +2583,100 @@ export interface components {
             /** Primaryteachername */
             primaryTeacherName?: string | null;
         };
+        /**
+         * ClassReportListItem
+         * @description Row in `GET /exams/{id}/class-reports` — the workflow header for
+         *     one class, no remarks joined.
+         */
+        ClassReportListItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Examid
+             * Format: uuid
+             */
+            examId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /** Division */
+            division: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "submitted";
+            /** Submittedbyid */
+            submittedById?: string | null;
+            /** Submittedat */
+            submittedAt?: string | null;
+            /** Hoscomment */
+            hosComment?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
+        };
+        /** ClassReportListResponse */
+        ClassReportListResponse: {
+            /** Items */
+            items: components["schemas"]["ClassReportListItem"][];
+        };
+        /**
+         * ClassReportRead
+         * @description `GET /exams/{id}/class-reports/{class_id}` detail — report header
+         *     + every remark row for the class's active roster (one per student,
+         *     even if no remark saved yet).
+         */
+        ClassReportRead: {
+            /** Id */
+            id?: string | null;
+            /**
+             * Examid
+             * Format: uuid
+             */
+            examId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /** Division */
+            division: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "submitted";
+            /** Submittedbyid */
+            submittedById?: string | null;
+            /** Submittedat */
+            submittedAt?: string | null;
+            /** Hoscomment */
+            hosComment?: string | null;
+            /** Remarks */
+            remarks: components["schemas"]["StudentRemarkRead"][];
+            /** Updatedat */
+            updatedAt?: string | null;
+        };
+        /**
+         * ClassReportUpsertRequest
+         * @description `PUT /exams/{id}/class-reports/{class_id}/draft` body. Remarks are
+         *     the FULL set for the class — anything not in the array is deleted.
+         */
+        ClassReportUpsertRequest: {
+            /** Hoscomment */
+            hosComment?: string | null;
+            /** Remarks */
+            remarks?: components["schemas"]["RemarkInput"][];
+        };
         /** ClassStats */
         ClassStats: {
             /**
@@ -2271,6 +2705,56 @@ export interface components {
             subjectId: string;
             /** Teacherid */
             teacherId?: string | null;
+        };
+        /**
+         * ClassSubjectLookupResponse
+         * @description Non-paged wrapper — a subject or a teacher is typically in <20 classes.
+         */
+        ClassSubjectLookupResponse: {
+            /** Rows */
+            rows: components["schemas"]["ClassSubjectLookupRow"][];
+        };
+        /**
+         * ClassSubjectLookupRow
+         * @description A `class_subjects` row enriched with class + subject + teacher labels.
+         *
+         *     Powers the inverse lookups: "which classes teach subject X" and
+         *     "which class-subject rows is teacher Y assigned to". Different
+         *     shape from `ClassSubjectRead` because the caller cares about the
+         *     class labels (name/slug/division), not the join key.
+         *
+         *     Note: `class_subjects` has no scalar PK — the PK is composite
+         *     `(class_id, subject_id)`. The pair itself uniquely identifies a
+         *     row, so no synthetic id is included.
+         */
+        ClassSubjectLookupRow: {
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /** Classslug */
+            classSlug: string;
+            /**
+             * Division
+             * @enum {string}
+             */
+            division: "KG" | "Lower Primary" | "Upper Primary" | "JHS";
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Subjectname */
+            subjectName: string;
+            /** Subjectslug */
+            subjectSlug: string;
+            /** Teacherid */
+            teacherId?: string | null;
+            /** Teachername */
+            teacherName?: string | null;
         };
         /**
          * ClassSubjectRead
@@ -2769,6 +3253,15 @@ export interface components {
             /** Interpretation */
             interpretation: string;
         };
+        /**
+         * GuardianChildrenResponse
+         * @description Plain array on the wire — a guardian's child count is always small,
+         *     unpaginated matches the rest of the API's small fixed-set responses.
+         */
+        GuardianChildrenResponse: {
+            /** Items */
+            items: components["schemas"]["StudentRead"][];
+        };
         /** GuardianCreate */
         GuardianCreate: {
             /** Firstname */
@@ -2862,6 +3355,14 @@ export interface components {
              * @description Deployment environment label.
              */
             env: string;
+        };
+        /**
+         * HosCommentUpdate
+         * @description `PATCH /exams/{id}/class-reports/{class_id}/hos-comment` body.
+         */
+        HosCommentUpdate: {
+            /** Hoscomment */
+            hosComment?: string | null;
         };
         /**
          * LeaveRequestCreate
@@ -3159,6 +3660,70 @@ export interface components {
             /** Marked */
             marked: number;
         };
+        /**
+         * MeRead
+         * @description Composite session shape returned by `GET /me`.
+         *
+         *     Assembles claims from three sources:
+         *       - JWT (uid, email, role, linked_id, must_change_password from
+         *         `user_metadata`).
+         *       - `users` bridge row (is_active flag, fallback email).
+         *       - Linked `staff` or `guardians` row for `display_name` +
+         *         Teacher/UnitHead's `division`.
+         *
+         *     `display_name` falls back to email → phone if the linked row is
+         *     missing (which happens briefly during account provisioning).
+         */
+        MeRead: {
+            /**
+             * Uid
+             * Format: uuid
+             */
+            uid: string;
+            /** Email */
+            email: string;
+            /** Displayname */
+            displayName: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "Admin" | "DeputyHead" | "Teacher" | "Parent" | "Accountant";
+            /** Linkedid */
+            linkedId?: string | null;
+            /**
+             * Mustchangepassword
+             * @default false
+             */
+            mustChangePassword: boolean;
+            /**
+             * Isactive
+             * @default true
+             */
+            isActive: boolean;
+            /**
+             * Isunithead
+             * @default false
+             */
+            isUnitHead: boolean;
+            /** Unitheadof */
+            unitHeadOf?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+        };
+        /**
+         * NavBadges
+         * @description Counts the sidebar renders next to menu entries.
+         *
+         *     Only Unit Heads (Teacher + is_unit_head) and Deputy Heads receive
+         *     a non-zero `lesson_plans_pending_review`. All other roles get a
+         *     zero-filled object so the client shape stays uniform.
+         */
+        NavBadges: {
+            /**
+             * Lessonplanspendingreview
+             * @default 0
+             */
+            lessonPlansPendingReview: number;
+        };
         /** NextYearClassOption */
         NextYearClassOption: {
             /**
@@ -3327,6 +3892,137 @@ export interface components {
             teachers: number;
             /** Admins */
             admins: number;
+        };
+        /**
+         * RemarkInput
+         * @description One row of the PUT /draft payload.
+         */
+        RemarkInput: {
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /**
+         * ReportCardExam
+         * @description Exam header — the assembled card is always for exactly one exam.
+         */
+        ReportCardExam: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "MidTerm" | "EndOfTerm";
+            /** Term */
+            term: number;
+            /** Academicyear */
+            academicYear: string;
+        };
+        /**
+         * ReportCardResponse
+         * @description `GET /students/{id}/report-card?examId=` — everything the FE
+         *     needs to render the printed card in a single fetch.
+         */
+        ReportCardResponse: {
+            student: components["schemas"]["ReportCardStudent"];
+            exam: components["schemas"]["ReportCardExam"];
+            school: components["schemas"]["ReportCardSchool"];
+            /** Scores */
+            scores: components["schemas"]["ReportCardScoreRow"][];
+            /** Aggregate */
+            aggregate?: number | null;
+            /** Classteachers */
+            classTeachers: string[];
+            /** Classteacherremark */
+            classTeacherRemark?: string | null;
+            /** Headofschoolcomment */
+            headOfSchoolComment?: string | null;
+        };
+        /**
+         * ReportCardSchool
+         * @description School masthead — name + logo.
+         */
+        ReportCardSchool: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Logourl */
+            logoUrl?: string | null;
+        };
+        /**
+         * ReportCardScoreRow
+         * @description One printed subject row on the report card.
+         */
+        ReportCardScoreRow: {
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Subjectslug */
+            subjectSlug: string;
+            /** Subjectname */
+            subjectName: string;
+            /** Cat1 */
+            cat1?: number | null;
+            /** Cat2 */
+            cat2?: number | null;
+            /** Projectwork */
+            projectWork?: number | null;
+            /** Groupwork */
+            groupWork?: number | null;
+            /** Examscore */
+            examScore?: number | null;
+            /** Totalscore */
+            totalScore?: number | null;
+            /** Grade */
+            grade?: string | null;
+            /** Interpretation */
+            interpretation?: string | null;
+            /** Subjectposition */
+            subjectPosition?: number | null;
+        };
+        /**
+         * ReportCardStudent
+         * @description Student header on the printed report card.
+         */
+        ReportCardStudent: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Firstname */
+            firstName: string;
+            /** Middlename */
+            middleName?: string | null;
+            /** Lastname */
+            lastName: string;
+            /** Gender */
+            gender?: string | null;
+            /** Division */
+            division: string;
+            /** Classname */
+            className: string;
         };
         /**
          * SaveDraftRequest
@@ -3801,6 +4497,15 @@ export interface components {
             /** Records */
             records: components["schemas"]["ScoreInput"][];
         };
+        /** SearchResults */
+        SearchResults: {
+            /** Students */
+            students: components["schemas"]["StudentHit"][];
+            /** Staff */
+            staff: components["schemas"]["StaffHit"][];
+            /** Classes */
+            classes: components["schemas"]["ClassHit"][];
+        };
         /**
          * SeasonOpenRequest
          * @description POST /promotions/season/open.
@@ -4047,6 +4752,20 @@ export interface components {
             /** Photourl */
             photoUrl?: string | null;
         };
+        /** StaffHit */
+        StaffHit: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Role */
+            role?: string | null;
+        };
         /**
          * StaffListResponse
          * @description Paged staff list. See `app.core.pagination.Paginated` for the envelope.
@@ -4160,6 +4879,41 @@ export interface components {
             photoUrl?: string | null;
         };
         /**
+         * StudentAttendanceCalendarEntry
+         * @description One day of a student's calendar — only days with a recorded
+         *     session appear in the list.
+         */
+        StudentAttendanceCalendarEntry: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "present" | "absent" | "late" | "excused" | "no_session";
+        };
+        /**
+         * StudentAttendanceSummary
+         * @description Aggregate counts across a term for one student. `totalDays` is the
+         *     sum of the four status counts — days the student's class had a
+         *     session and a record was captured for that student.
+         */
+        StudentAttendanceSummary: {
+            /** Presentcount */
+            presentCount: number;
+            /** Absentcount */
+            absentCount: number;
+            /** Latecount */
+            lateCount: number;
+            /** Excusedcount */
+            excusedCount: number;
+            /** Totaldays */
+            totalDays: number;
+        };
+        /**
          * StudentCreate
          * @description Inbound payload for `POST /students`.
          *
@@ -4199,6 +4953,45 @@ export interface components {
              * Format: uuid
              */
             classId: string;
+        };
+        /**
+         * StudentGuardianRead
+         * @description One linked guardian, as seen from the student side — includes the
+         *     `relation` field that lives on the `student_guardians` join row.
+         */
+        StudentGuardianRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Relationship */
+            relationship: string;
+            /** Phone */
+            phone?: string | null;
+            /** Email */
+            email?: string | null;
+        };
+        /**
+         * StudentHit
+         * @description One student result. `class_name` is the label of the student's
+         *     current-year Active enrollment; `None` when the student has no
+         *     active class assigned yet.
+         */
+        StudentHit: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Class */
+            class?: string | null;
         };
         /**
          * StudentRead
@@ -4254,6 +5047,25 @@ export interface components {
             className?: string | null;
             /** Division */
             division?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+        };
+        /**
+         * StudentRemarkRead
+         * @description One per-student remark inside a class-report.
+         */
+        StudentRemarkRead: {
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /** Studentfirstname */
+            studentFirstName: string;
+            /** Studentlastname */
+            studentLastName: string;
+            /** Text */
+            text?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
         };
         /** StudentUpdate */
         StudentUpdate: {
@@ -4609,6 +5421,94 @@ export interface components {
             /** Aggregateavg */
             aggregateAvg?: number | null;
         };
+        /**
+         * UserCreate
+         * @description Inbound payload for `POST /users`.
+         *
+         *     `linked_id` is optional so an admin can provision a Supabase auth
+         *     user before the linked staff/guardian record exists — the UI's
+         *     invite flow allows this. When present, the service enforces that
+         *     the target row exists in the caller's school.
+         */
+        UserCreate: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Displayname */
+            displayName: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "Admin" | "DeputyHead" | "Teacher" | "Parent" | "Accountant";
+            /** Linkedid */
+            linkedId?: string | null;
+        };
+        /**
+         * UserRead
+         * @description Outbound row shape for the admin user-management UI.
+         */
+        UserRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Email */
+            email: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "Admin" | "DeputyHead" | "Teacher" | "Parent" | "Accountant";
+            /** Linkedid */
+            linkedId?: string | null;
+            /**
+             * Displayname
+             * @default
+             */
+            displayName: string;
+            /**
+             * Isactive
+             * @default true
+             */
+            isActive: boolean;
+            /**
+             * Mustchangepassword
+             * @default true
+             */
+            mustChangePassword: boolean;
+        };
+        /**
+         * UserUpdate
+         * @description Partial update for `PATCH /users/{id}`.
+         *
+         *     Only `email` and `display_name` are mutable via this route — role
+         *     and linked_id changes go through a distinct admin flow so audit
+         *     logs can track them separately.
+         */
+        UserUpdate: {
+            /** Email */
+            email?: string | null;
+            /** Displayname */
+            displayName?: string | null;
+        };
+        /**
+         * UsersListResponse
+         * @description Paged user list — see `app.core.pagination.Paginated` for the envelope.
+         */
+        UsersListResponse: {
+            /** Items */
+            items: components["schemas"]["UserRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -4770,6 +5670,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TermsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_nav_badges_shell_nav_badges_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NavBadges"];
                 };
             };
             /** @description Validation Error */
@@ -5207,6 +6138,39 @@ export interface operations {
             };
         };
     };
+    list_guardian_children_guardians__guardian_id__children_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                guardian_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardianChildrenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_students_students_get: {
         parameters: {
             query?: {
@@ -5336,6 +6300,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_student_guardian_students__student_id__guardian_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentGuardianRead"] | null;
                 };
             };
             /** @description Validation Error */
@@ -5940,6 +6937,40 @@ export interface operations {
             };
         };
     };
+    list_class_subjects_by_class_subjects_get: {
+        parameters: {
+            query?: {
+                subjectId?: string | null;
+                teacherId?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassSubjectLookupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     enroll_student_enrollments_post: {
         parameters: {
             query?: never;
@@ -6170,6 +7201,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttendanceSessionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_student_attendance_summary_students__student_id__attendance_summary_get: {
+        parameters: {
+            query: {
+                termStart: string;
+                termEnd: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentAttendanceSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_student_attendance_calendar_students__student_id__attendance_calendar_get: {
+        parameters: {
+            query: {
+                termStart: string;
+                termEnd: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentAttendanceCalendarEntry"][];
                 };
             };
             /** @description Validation Error */
@@ -6818,6 +7921,218 @@ export interface operations {
             };
         };
     };
+    list_class_reports_exams__exam_id__class_reports_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassReportListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_class_report_exams__exam_id__class_reports__class_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassReportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_class_report_draft_exams__exam_id__class_reports__class_id__draft_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassReportUpsertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassReportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_class_report_exams__exam_id__class_reports__class_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassReportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_class_report_hos_comment_exams__exam_id__class_reports__class_id__hos_comment_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HosCommentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassReportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_student_report_card_students__student_id__report_card_get: {
+        parameters: {
+            query: {
+                examId: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCardResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_lesson_plans_lesson_plans_get: {
         parameters: {
             query?: {
@@ -7050,6 +8365,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LessonPlanRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_me_me_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeRead"];
                 };
             };
             /** @description Validation Error */
@@ -8519,7 +9865,7 @@ export interface operations {
     list_audit_events_audit_log_get: {
         parameters: {
             query?: {
-                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT") | null;
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED") | null;
                 /** @description Inclusive lower bound (YYYY-MM-DD). */
                 from?: string | null;
                 /** @description Inclusive upper bound (YYYY-MM-DD). */
@@ -8670,6 +10016,213 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PscReportData"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    global_search_search_get: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResults"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_users_users_get: {
+        parameters: {
+            query?: {
+                /** @description Match email or display_name */
+                q?: string | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_user_users_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_user_users__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_user_users__user_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_user_users__user_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
                 };
             };
             /** @description Validation Error */

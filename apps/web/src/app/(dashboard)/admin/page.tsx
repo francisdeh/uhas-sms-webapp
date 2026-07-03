@@ -1,43 +1,24 @@
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
+import { getApi } from "@/lib/api/server";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
-import { getCurrentSchoolId } from "@/lib/school";
-import { db } from "@/db";
-import { schools, students, staff, classes, announcements } from "@/db/schema";
-import { listAnnouncementsAction } from "@/features/announcements/actions";
-import { getActiveEnrollmentMap } from "@/features/students/queries/get-active-enrollment";
 import AdminDashboardOverview from "./DashboardOverview";
+import type { Announcement } from "@/features/announcements/types";
 
 export default async function AdminDashboardPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const schoolId = await getCurrentSchoolId();
+  const api = await getApi();
   const currentYear = await getCurrentAcademicYear();
-  const school = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
-  const currentTerm = school?.currentTerm ?? 1;
-
-  const [activeStudents, activeStaffRows, classesThisYear, criticalAnnouncementsRows, recentAnnouncements] = await Promise.all([
-    db.query.students.findMany({
-      where: and(eq(students.schoolId, schoolId), eq(students.isActive, true)),
-    }),
-    db.query.staff.findMany({
-      where: and(eq(staff.schoolId, schoolId), eq(staff.isActive, true)),
-    }),
-    db.query.classes.findMany({
-      where: and(eq(classes.schoolId, schoolId), eq(classes.academicYear, currentYear)),
-    }),
-    db.query.announcements.findMany({
-      where: and(eq(announcements.schoolId, schoolId), eq(announcements.isCritical, true)),
-    }),
-    listAnnouncementsAction(),
+  const [stats, school, classesResp, announcementsResp] = await Promise.all([
+    api.reports.getSchoolStats(),
+    api.school.get(),
+    api.classes.list({ academicYear: currentYear, size: 200 }),
+    api.announcements.list({ size: 100 }),
   ]);
 
-  const enrollmentMap = await getActiveEnrollmentMap(
-    activeStudents.map((s) => s.id),
-    currentYear
-  );
+  const currentTerm = school.currentTerm ?? 1;
 
   const divisionBreakdown = [
     { label: "KG", count: 0, color: "bg-purple-400" },
@@ -45,17 +26,18 @@ export default async function AdminDashboardPage() {
     { label: "Upper Primary", count: 0, color: "bg-blue-400" },
     { label: "JHS", count: 0, color: "bg-accent-orange" },
   ];
-  for (const s of activeStudents) {
-    const enr = enrollmentMap.get(s.id);
-    if (!enr) continue;
-    const entry = divisionBreakdown.find((d) => d.label === enr.division);
-    if (entry) entry.count += 1;
+  for (const div of stats.divisions) {
+    const entry = divisionBreakdown.find((d) => d.label === div.division);
+    if (entry) entry.count = div.students;
   }
 
-  const stats = [
+  const totalActiveStudents = stats.totals.activeStudents;
+  const criticalCount = announcementsResp.items.filter((a) => a.isCritical).length;
+
+  const statCards = [
     {
       label: "Total Students",
-      value: activeStudents.length,
+      value: totalActiveStudents,
       icon: "students" as const,
       iconClass: "bg-blue-50 text-blue-600",
       trend: "+3 this term",
@@ -63,7 +45,7 @@ export default async function AdminDashboardPage() {
     },
     {
       label: "Total Staff",
-      value: activeStaffRows.length,
+      value: stats.totals.activeStaff,
       icon: "staff" as const,
       iconClass: "bg-orange-50 text-accent-orange",
       trend: "Fully staffed",
@@ -71,7 +53,7 @@ export default async function AdminDashboardPage() {
     },
     {
       label: "Active Classes",
-      value: classesThisYear.length,
+      value: stats.totals.classes,
       icon: "classes" as const,
       iconClass: "bg-green-50 text-green-600",
       trend: `${currentYear} · KG · Primary · JHS`,
@@ -79,7 +61,7 @@ export default async function AdminDashboardPage() {
     },
     {
       label: "Critical Alerts",
-      value: criticalAnnouncementsRows.length,
+      value: criticalCount,
       icon: "alerts" as const,
       iconClass: "bg-red-50 text-red-500",
       trend: "Requires attention",
@@ -87,15 +69,29 @@ export default async function AdminDashboardPage() {
     },
   ];
 
-  const classOptions = classesThisYear.map((c) => ({ id: c.id, name: c.name }));
+  const classOptions = classesResp.items.map((c) => ({ id: c.id, name: c.name }));
+
+  const recentAnnouncements: Announcement[] = announcementsResp.items
+    .slice(0, 5)
+    .map((a) => ({
+      id: a.id,
+      schoolId: a.schoolId,
+      title: a.title,
+      body: a.body,
+      audience: a.audience,
+      isCritical: a.isCritical,
+      createdById: a.createdById,
+      createdByName: a.createdByName,
+      createdAt: a.createdAt ?? new Date().toISOString(),
+    }));
 
   return (
     <AdminDashboardOverview
       currentYear={currentYear}
       currentTerm={currentTerm}
-      totalActiveStudents={activeStudents.length}
-      stats={stats}
-      recentAnnouncements={recentAnnouncements.slice(0, 5)}
+      totalActiveStudents={totalActiveStudents}
+      stats={statCards}
+      recentAnnouncements={recentAnnouncements}
       classOptions={classOptions}
       divisionBreakdown={divisionBreakdown}
     />

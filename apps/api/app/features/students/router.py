@@ -14,6 +14,7 @@ from app.features.classes.model import Class
 from app.features.students.model import Student
 from app.features.students.schema import (
     StudentCreate,
+    StudentGuardianRead,
     StudentRead,
     StudentsListResponse,
     StudentUpdate,
@@ -72,6 +73,30 @@ async def get_student(
 ) -> StudentRead:
     student, cls = await StudentsService.get(session, school_id, student_id)
     return _to_read(student, cls)
+
+
+@router.get(
+    "/{student_id}/guardian",
+    response_model=StudentGuardianRead | None,
+    response_model_by_alias=True,
+    summary="First linked guardian for a student, or null",
+)
+async def get_student_guardian(
+    student_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> StudentGuardianRead | None:
+    row = await StudentsService.get_primary_guardian(session, school_id, student_id)
+    if not row:
+        return None
+    guardian, relation = row
+    return StudentGuardianRead(
+        id=guardian.id,
+        name=f"{guardian.first_name} {guardian.last_name}".strip(),
+        relationship=relation or "Guardian",
+        phone=guardian.phone,
+        email=guardian.email,
+    )
 
 
 @router.post(

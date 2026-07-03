@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,12 +51,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
-import {
-  updateStaffAction,
-  changeRoleAction,
-  deactivateStaffAction,
-  reactivateStaffAction,
-} from "@/features/staff/actions";
+import { api, ApiError } from "@/lib/api/browser";
 import { TEACHER_RANKS, type Staff } from "@/features/staff/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
@@ -140,8 +136,6 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
-  const [editIsPending, startEditTransition] = useTransition();
-  const [roleIsPending, startRoleTransition] = useTransition();
 
   const editForm = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
@@ -166,58 +160,83 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
   const watchedRole = useWatch({ control: roleForm.control, name: "systemRole" });
   const showDivision = watchedRole === "DeputyHead" || watchedRole === "Teacher";
 
-  function onEditSubmit(data: EditFormValues) {
-    startEditTransition(async () => {
-      const result = await updateStaffAction(staff.id, data);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+  const editMutation = useMutation({
+    mutationFn: (data: EditFormValues) =>
+      api.staff.update(staff.id, {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        rank: data.rank ?? null,
+        phone: data.phone,
+        email: data.email,
+        photoUrl: data.photoUrl || null,
+      }),
+    onSuccess: () => {
       setEditOpen(false);
       router.refresh();
       toast.success("Staff updated");
-    });
-  }
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update staff.");
+    },
+  });
 
-  function onRoleSubmit(data: ChangeRoleFormValues) {
-    startRoleTransition(async () => {
-      const result = await changeRoleAction(staff.id, {
+  const roleMutation = useMutation({
+    mutationFn: (data: ChangeRoleFormValues) =>
+      api.staff.changeRole(staff.id, {
         systemRole: data.systemRole,
-        division: data.division,
-      });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+        division: data.division ?? null,
+      }),
+    onSuccess: () => {
       setRoleOpen(false);
       router.refresh();
       toast.success("Role updated");
-    });
-  }
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to change role.");
+    },
+  });
 
-  function handleDeactivate() {
-    startRoleTransition(async () => {
-      const result = await deactivateStaffAction(staff.id);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
+  const deactivateMutation = useMutation({
+    mutationFn: () => api.staff.deactivate(staff.id),
+    onSuccess: () => {
       setDeactivateOpen(false);
       router.refresh();
       toast.success("Staff deactivated");
-    });
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to deactivate staff.");
+    },
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: () => api.staff.activate(staff.id),
+    onSuccess: () => {
+      router.refresh();
+      toast.success("Staff reactivated");
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to reactivate staff.");
+    },
+  });
+
+  const editIsPending = editMutation.isPending;
+  const roleIsPending =
+    roleMutation.isPending || deactivateMutation.isPending || reactivateMutation.isPending;
+
+  function onEditSubmit(data: EditFormValues) {
+    editMutation.mutate(data);
+  }
+
+  function onRoleSubmit(data: ChangeRoleFormValues) {
+    roleMutation.mutate(data);
+  }
+
+  function handleDeactivate() {
+    deactivateMutation.mutate();
   }
 
   function handleReactivate() {
-    startRoleTransition(async () => {
-      const result = await reactivateStaffAction(staff.id);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      router.refresh();
-      toast.success("Staff reactivated");
-    });
+    reactivateMutation.mutate();
   }
 
   return (

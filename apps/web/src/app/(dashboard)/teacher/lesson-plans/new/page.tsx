@@ -2,22 +2,21 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listTeacherAssignmentsAction } from "@/features/exams/actions";
+import { getApi } from "@/lib/api/server";
 import { LessonPlanForm } from "@/features/lesson-plans/components/LessonPlanForm";
 
 export default async function NewLessonPlanPage() {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
 
-  const assignments = await listTeacherAssignmentsAction(user.linkedId);
-  const flat = assignments.flatMap((c) =>
-    c.subjects.map((s) => ({
-      classId: c.classId,
-      className: c.className,
-      subjectId: s.subjectId,
-      subjectName: s.subjectName,
-    }))
-  );
+  const api = await getApi();
+  const { rows } = await api.classSubjects.listByTeacher(user.linkedId);
+  const flat = rows.map((r) => ({
+    classId: r.classId,
+    className: r.className,
+    subjectId: r.subjectId,
+    subjectName: r.subjectName,
+  }));
 
   return (
     <div className="space-y-4">

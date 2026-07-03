@@ -17,8 +17,9 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import ConflictError, NotFoundError, ValidationError
-from app.core.roles import ADMIN, TEACHER
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from app.core.roles import ACCOUNTANT, ADMIN, DEPUTY_HEAD, TEACHER
+from app.core.security import CurrentUser
 from app.core.slug import insert_with_sequential_slug, per_school_slug_resolver
 from app.features.audit.actions import ROLE_CHANGE
 from app.features.audit.service import write_audit_log
@@ -30,6 +31,9 @@ from app.features.staff.schema import (
     StaffUnitHeadToggle,
     StaffUpdate,
 )
+
+_SELF_SERVICE_ROLES = frozenset({DEPUTY_HEAD, TEACHER, ACCOUNTANT})
+_SELF_SERVICE_FIELDS = frozenset({"photo_url"})
 
 
 class StaffService:
@@ -102,14 +106,39 @@ class StaffService:
         school_id: UUID | str,
         staff_id: UUID | str,
         payload: StaffUpdate,
+        *,
+        user: CurrentUser,
     ) -> Staff:
-        """Partial update — only fields present in `payload` are touched."""
+        """Partial update — only fields present in `payload` are touched.
+
+        Admins can touch any field on any staff row. Non-Admin staff
+        (Deputy Head, Teacher, Accountant) can only patch `photo_url` on
+        their own row — the profile page uses this to let each user set
+        their own avatar without a separate endpoint.
+        """
+        if user.role != ADMIN:
+            StaffService._authorize_self_service_update(staff_id, payload, user)
+
         row = await StaffService.get(session, school_id, staff_id)
         changes = payload.model_dump(exclude_unset=True)
         for field, value in changes.items():
             setattr(row, field, value)
         await session.flush()
         return row
+
+    @staticmethod
+    def _authorize_self_service_update(
+        staff_id: UUID | str,
+        payload: StaffUpdate,
+        user: CurrentUser,
+    ) -> None:
+        if user.role not in _SELF_SERVICE_ROLES:
+            raise ForbiddenError("This action requires Admin.")
+        if not user.linked_id or str(user.linked_id) != str(staff_id):
+            raise ForbiddenError("You can only update your own staff profile.")
+        touched = set(payload.model_dump(exclude_unset=True).keys())
+        if not touched.issubset(_SELF_SERVICE_FIELDS):
+            raise ForbiddenError("You can only update your own photo.")
 
     @staticmethod
     async def change_role(

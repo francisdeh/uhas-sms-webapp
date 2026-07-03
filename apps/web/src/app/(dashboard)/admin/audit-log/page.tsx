@@ -7,7 +7,7 @@ import { AuditLogFilters } from "@/features/audit-log/components/AuditLogFilters
 import { AuditEventRow } from "@/features/audit-log/components/AuditEventRow";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { AuditAction } from "@/lib/audit-log";
+import type { AuditAction } from "@/features/audit-log/types";
 import { AUDIT_ACTION_LABELS, PAGE_SIZE, type AuditFilters } from "@/features/audit-log/types";
 import type { AuditEventView } from "@/features/audit-log/types";
 

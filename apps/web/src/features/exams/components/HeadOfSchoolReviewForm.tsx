@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Save, Lock, Users } from "lucide-react";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
-import { updateHeadOfSchoolCommentAction } from "@/features/exams/actions";
+import { api, ApiError } from "@/lib/api/browser";
 import type { Exam, ClassReportSubmission } from "@/features/exams/types";
 
 interface HeadOfSchoolReviewFormProps {
@@ -35,9 +36,32 @@ export function HeadOfSchoolReviewForm({
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
 
   const locked = exam.isPublished;
+  const classId = submission?.classId ?? null;
+
+  const saveMutation = useMutation({
+    mutationFn: ({ hosComment }: { studentId: string; hosComment: string }) => {
+      if (!classId) {
+        throw new Error("No class report submission to update.");
+      }
+      return api.classReports.updateHosComment(exam.id, classId, {
+        hosComment,
+      });
+    },
+    onSuccess: (_data, { studentId }) => {
+      const row = rows.find((r) => r.studentId === studentId);
+      toast.success(row ? `Saved comment for ${row.studentName}.` : "Saved comment.");
+      setSavingId(null);
+      router.refresh();
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : err.message ?? "Failed to save comment.");
+      setSavingId(null);
+    },
+  });
+
+  const isPending = saveMutation.isPending;
 
   function updateComment(studentId: string, value: string) {
     setRows((prev) =>
@@ -51,20 +75,7 @@ export function HeadOfSchoolReviewForm({
     if (!row) return;
 
     setSavingId(studentId);
-    startTransition(async () => {
-      const result = await updateHeadOfSchoolCommentAction({
-        examId: exam.id,
-        studentId,
-        comment: row.headOfSchoolComment,
-      });
-      setSavingId(null);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success(`Saved comment for ${row.studentName}.`);
-      router.refresh();
-    });
+    saveMutation.mutate({ studentId, hosComment: row.headOfSchoolComment });
   }
 
   return (

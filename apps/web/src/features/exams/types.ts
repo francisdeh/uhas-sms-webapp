@@ -1,3 +1,5 @@
+import type { Student } from "@/features/students/types";
+
 export type ExamType = "MidTerm" | "EndOfTerm";
 
 export type Exam = {
@@ -80,4 +82,33 @@ export type SubmitClassReportInput = {
   examId: string;
   classId: string;
   remarks: { studentId: string; classTeacherRemark: string }[];
+};
+
+export type ReportCardSubjectRow = {
+  subjectId: string;
+  subjectName: string;
+  category: "Core" | "Elective";
+  cat1: number | null;
+  cat2: number | null;
+  projectWork: number | null;
+  groupWork: number | null;
+  examScore: number | null;
+  totalScore: number | null;
+  grade: string | null;
+  interpretation: string | null;
+  subjectPosition: number | null;
+};
+
+export type ReportCardData = {
+  exam: Exam;
+  student: Student;
+  className: string;
+  numberOnRoll: number;
+  coreRows: ReportCardSubjectRow[];
+  electiveRows: ReportCardSubjectRow[];
+  aggregate: number | null;
+  attendance: { attended: number; total: number };
+  classTeacherNames: string[];
+  classTeacherRemark: string | null;
+  headOfSchoolComment: string | null;
 };

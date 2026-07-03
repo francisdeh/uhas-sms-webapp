@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { UserX, UserCheck, Plus, Loader2, Pencil, Users, Activity, UserCog, ShieldCheck, Copy, Check, Link } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -27,13 +28,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  deactivateUserAction,
-  reactivateUserAction,
-  createUserAction,
-  updateUserAction,
-} from "@/features/auth/actions/manage-users";
-import type { ManagedUser } from "@/features/auth/actions/manage-users";
+import { api, ApiError } from "@/lib/api/browser";
+import type { ManagedUser } from "@/features/auth/types";
 import { USER_ROLES, type UserRole } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
@@ -98,7 +94,6 @@ function StatCard({
 
 export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser[] }) {
   const [users, setUsers] = useState(initialUsers);
-  const [isPending, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogView, setDialogView] = useState<"form" | "invite">("form");
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
@@ -109,6 +104,71 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
   const [copied, setCopied] = useState(false);
   const [roleFilter, setRoleFilter] = useState<UserRole | "All">("All");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ uid, isActive }: { uid: string; isActive: boolean }) =>
+      isActive ? api.users.deactivate(uid) : api.users.activate(uid),
+    onSuccess: (_data, { uid, isActive }) => {
+      toast.success(isActive ? "User deactivated." : "User reactivated.");
+      setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, isActive: !isActive } : u)));
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update user.");
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (payload: FormState) =>
+      api.users.create({
+        email: payload.email,
+        displayName: payload.displayName,
+        role: payload.role,
+        linkedId: payload.linkedId || null,
+      }),
+    onSuccess: (created, payload) => {
+      setUsers((prev) => [
+        ...prev,
+        {
+          uid: created.id,
+          email: created.email,
+          displayName: created.displayName,
+          role: created.role as UserRole,
+          linkedId: created.linkedId ?? "",
+          isActive: created.isActive,
+          photoUrl: null,
+        },
+      ]);
+      setInviteName(payload.displayName);
+      setInviteLink(null);
+      setForm(EMPTY_FORM);
+      setDialogView("invite");
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to create user.");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ uid, payload }: { uid: string; payload: FormState }) =>
+      api.users.update(uid, { displayName: payload.displayName }),
+    onSuccess: (_data, { uid, payload }) => {
+      toast.success("Account updated.");
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.uid === uid
+            ? { ...u, displayName: payload.displayName, role: payload.role, linkedId: payload.linkedId }
+            : u,
+        ),
+      );
+      setDialogOpen(false);
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update user.");
+    },
+  });
+
+  const isPending =
+    toggleMutation.isPending || createMutation.isPending || updateMutation.isPending;
 
   const total = users.length;
   const active = users.filter((u) => u.isActive).length;
@@ -150,34 +210,15 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
   }
 
   function doToggle(uid: string, isActive: boolean) {
-    startTransition(async () => {
-      const result = isActive ? await deactivateUserAction(uid) : await reactivateUserAction(uid);
-      if (!result.success) { toast.error(result.error); return; }
-      toast.success(isActive ? "User deactivated." : "User reactivated.");
-      setUsers((prev) => prev.map((u) => u.uid === uid ? { ...u, isActive: !isActive } : u));
-    });
+    toggleMutation.mutate({ uid, isActive });
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (editingUser) {
-      startTransition(async () => {
-        const result = await updateUserAction(editingUser.uid, { displayName: form.displayName, role: form.role, linkedId: form.linkedId });
-        if (!result.success) { toast.error(result.error); return; }
-        toast.success("Account updated.");
-        setUsers((prev) => prev.map((u) => u.uid === editingUser.uid ? { ...u, displayName: form.displayName, role: form.role, linkedId: form.linkedId } : u));
-        setDialogOpen(false);
-      });
+      updateMutation.mutate({ uid: editingUser.uid, payload: form });
     } else {
-      startTransition(async () => {
-        const result = await createUserAction(form);
-        if (!result.success) { toast.error(result.error); return; }
-        setUsers((prev) => [...prev, { uid: result.uid!, ...form, isActive: true, photoUrl: null }]);
-        setInviteName(form.displayName);
-        setInviteLink(result.inviteLink ?? null);
-        setForm(EMPTY_FORM);
-        setDialogView("invite");
-      });
+      createMutation.mutate(form);
     }
   }
 

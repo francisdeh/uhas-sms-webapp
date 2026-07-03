@@ -181,6 +181,13 @@ export function createApiClient(getAuthToken: TokenGetter) {
           `/guardians/${id}`,
           { method: "PATCH", body: JSON.stringify(payload) },
         ),
+      /** Every student linked to this guardian. Parent callers can only
+       *  pass their OWN linked guardian id — server 403s otherwise. */
+      children: (id: string) =>
+        apiFetch<components["schemas"]["GuardianChildrenResponse"]>(
+          getAuthToken,
+          `/guardians/${id}/children`,
+        ),
     },
     students: {
       list: (
@@ -232,6 +239,12 @@ export function createApiClient(getAuthToken: TokenGetter) {
         apiFetch<components["schemas"]["EnrollmentsListResponse"]>(
           getAuthToken,
           `/students/${studentId}/enrollments${buildQuery(params)}`,
+        ),
+      /** First linked guardian, or null if none. */
+      guardian: (studentId: string) =>
+        apiFetch<components["schemas"]["StudentGuardianRead"] | null>(
+          getAuthToken,
+          `/students/${studentId}/guardian`,
         ),
     },
     subjects: {
@@ -914,6 +927,154 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           `/appointments/${id}/cancel`,
           { method: "POST" },
+        ),
+    },
+    me: {
+      /** Compose the caller's SessionUser shape — replaces the Drizzle
+       *  join in the legacy `getSessionUser()` helper. Called on every
+       *  dashboard render. */
+      get: () =>
+        apiFetch<components["schemas"]["MeRead"]>(getAuthToken, "/me"),
+    },
+    shell: {
+      /** Sidebar badge counts (today: lesson-plans-pending-review). */
+      navBadges: () =>
+        apiFetch<components["schemas"]["NavBadges"]>(
+          getAuthToken,
+          "/shell/nav-badges",
+        ),
+    },
+    search: {
+      /** ⌘K palette hits across students/staff/classes. Server enforces
+       *  role-scoping; a q shorter than 2 chars returns empty payload
+       *  without hitting the DB. */
+      global: (q: string) =>
+        apiFetch<components["schemas"]["SearchResults"]>(
+          getAuthToken,
+          `/search${buildQuery({ q })}`,
+        ),
+    },
+    classSubjects: {
+      /** Which classes teach a given subject? */
+      listBySubject: (subjectId: string) =>
+        apiFetch<components["schemas"]["ClassSubjectLookupResponse"]>(
+          getAuthToken,
+          `/class-subjects${buildQuery({ subjectId })}`,
+        ),
+      /** Which class-subjects does a given teacher hold? Teacher callers
+       *  can only pass their OWN teacherId — server 403s otherwise. */
+      listByTeacher: (teacherId: string) =>
+        apiFetch<components["schemas"]["ClassSubjectLookupResponse"]>(
+          getAuthToken,
+          `/class-subjects${buildQuery({ teacherId })}`,
+        ),
+    },
+    users: {
+      /** Admin user management — Admin only. */
+      list: (params: { q?: string; page?: number; size?: number } = {}) =>
+        apiFetch<components["schemas"]["UsersListResponse"]>(
+          getAuthToken,
+          `/users${buildQuery(params)}`,
+        ),
+      get: (id: string) =>
+        apiFetch<components["schemas"]["UserRead"]>(
+          getAuthToken,
+          `/users/${id}`,
+        ),
+      create: (payload: components["schemas"]["UserCreate"]) =>
+        apiFetch<components["schemas"]["UserRead"]>(getAuthToken, "/users", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      update: (id: string, payload: components["schemas"]["UserUpdate"]) =>
+        apiFetch<components["schemas"]["UserRead"]>(
+          getAuthToken,
+          `/users/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      deactivate: (id: string) =>
+        apiFetch<components["schemas"]["UserRead"]>(
+          getAuthToken,
+          `/users/${id}/deactivate`,
+          { method: "POST" },
+        ),
+      activate: (id: string) =>
+        apiFetch<components["schemas"]["UserRead"]>(
+          getAuthToken,
+          `/users/${id}/activate`,
+          { method: "POST" },
+        ),
+    },
+    classReports: {
+      /** List class-report submissions for an exam. Admin sees all,
+       *  Deputy Head sees own-division, Teacher sees own classes. */
+      list: (examId: string) =>
+        apiFetch<components["schemas"]["ClassReportListResponse"]>(
+          getAuthToken,
+          `/exams/${examId}/class-reports`,
+        ),
+      /** Get one class report (with per-student remarks). */
+      get: (examId: string, classId: string) =>
+        apiFetch<components["schemas"]["ClassReportRead"]>(
+          getAuthToken,
+          `/exams/${examId}/class-reports/${classId}`,
+        ),
+      /** Upsert draft — class teacher only. Remarks payload is
+       *  authoritative: anything not in the array is deleted. */
+      saveDraft: (
+        examId: string,
+        classId: string,
+        payload: components["schemas"]["ClassReportUpsertRequest"],
+      ) =>
+        apiFetch<components["schemas"]["ClassReportRead"]>(
+          getAuthToken,
+          `/exams/${examId}/class-reports/${classId}/draft`,
+          { method: "PUT", body: JSON.stringify(payload) },
+        ),
+      /** Transition Draft → Submitted. Idempotent on Submitted. */
+      submit: (examId: string, classId: string) =>
+        apiFetch<components["schemas"]["ClassReportRead"]>(
+          getAuthToken,
+          `/exams/${examId}/class-reports/${classId}/submit`,
+          { method: "POST" },
+        ),
+      /** Update the HOS comment after submission — Deputy/Admin only.
+       *  Writes an audit row. */
+      updateHosComment: (
+        examId: string,
+        classId: string,
+        payload: components["schemas"]["HosCommentUpdate"],
+      ) =>
+        apiFetch<components["schemas"]["ClassReportRead"]>(
+          getAuthToken,
+          `/exams/${examId}/class-reports/${classId}/hos-comment`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+    },
+    studentViews: {
+      /** Assembled report card for one student, one exam. */
+      reportCard: (studentId: string, examId: string) =>
+        apiFetch<components["schemas"]["ReportCardResponse"]>(
+          getAuthToken,
+          `/students/${studentId}/report-card${buildQuery({ examId })}`,
+        ),
+      /** Aggregate present/absent/late/excused counts for a date range. */
+      attendanceSummary: (
+        studentId: string,
+        params: { termStart: string; termEnd: string },
+      ) =>
+        apiFetch<components["schemas"]["StudentAttendanceSummary"]>(
+          getAuthToken,
+          `/students/${studentId}/attendance-summary${buildQuery(params)}`,
+        ),
+      /** Per-day status entries (omits days with no session). */
+      attendanceCalendar: (
+        studentId: string,
+        params: { termStart: string; termEnd: string },
+      ) =>
+        apiFetch<components["schemas"]["StudentAttendanceCalendarEntry"][]>(
+          getAuthToken,
+          `/students/${studentId}/attendance-calendar${buildQuery(params)}`,
         ),
     },
   };

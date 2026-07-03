@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { listTeacherAssignmentsAction } from "@/features/exams/actions";
-import { listClassTeacherClassesAction } from "@/features/exams/actions";
 import { getApi } from "@/lib/api/server";
 import { ApiError } from "@/lib/api/browser";
 import { TeacherReports } from "@/features/reports/components/TeacherReports";
@@ -16,18 +14,27 @@ export default async function TeacherReportsPage() {
   const user = await getSessionUser();
   if (!user || !user.linkedId) redirect("/login");
 
-  // Classes the teacher teaches a subject in, plus classes they class-teach.
-  const [subjectAssignments, classTeacherClasses] = await Promise.all([
-    listTeacherAssignmentsAction(user.linkedId),
-    listClassTeacherClassesAction(user.linkedId),
-  ]);
-
-  const classIds = new Set<string>([
-    ...subjectAssignments.map((c) => c.classId),
-    ...classTeacherClasses.map((c) => c.classId),
-  ]);
-
   const api = await getApi();
+
+  // Classes the teacher teaches a subject in, plus classes they class-teach.
+  const [subjectRowsResp, allClassesPage] = await Promise.all([
+    api.classSubjects.listByTeacher(user.linkedId),
+    api.classes.list({ size: 500 }),
+  ]);
+
+  const classIds = new Set<string>(subjectRowsResp.rows.map((r) => r.classId));
+  const teacherLookups = await Promise.all(
+    allClassesPage.items.map(async (c) => ({
+      classId: c.id,
+      teachers: (await api.classes.teachers.list(c.id)).items,
+    })),
+  );
+  for (const entry of teacherLookups) {
+    if (entry.teachers.some((t) => t.staffId === user.linkedId)) {
+      classIds.add(entry.classId);
+    }
+  }
+
   // A 404 on one class (e.g. archived mid-year) shouldn't blank the page —
   // drop the row and keep the rest. Any other error propagates.
   const results = await Promise.all(

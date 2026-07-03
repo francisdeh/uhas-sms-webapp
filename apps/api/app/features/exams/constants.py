@@ -20,6 +20,17 @@ END_OF_TERM: Final = "EndOfTerm"
 ExamType = Literal["MidTerm", "EndOfTerm"]
 
 
+# ── Class-report workflow ─────────────────────────────────────────────────────
+# Report lifecycle: `draft` (edited by class teacher) → `submitted`
+# (locked; Deputy/Admin can amend HOS comment). The column is
+# `varchar(20)` with a runtime `default('draft')` in the baseline; both
+# lowercase values are baked into the DB — do not capitalise here.
+CLASS_REPORT_DRAFT: Final = "draft"
+CLASS_REPORT_SUBMITTED: Final = "submitted"
+
+ClassReportStatus = Literal["draft", "submitted"]
+
+
 # ── Grade bands ───────────────────────────────────────────────────────────────
 # Ordered highest → lowest. `min` and `max` are inclusive; ranges cover
 # 0-100 without gaps. `grade` is the numeric grade string (1..9); the

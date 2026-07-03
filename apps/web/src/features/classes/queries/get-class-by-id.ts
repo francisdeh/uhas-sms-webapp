@@ -1,49 +1,52 @@
-import { eq, inArray } from "drizzle-orm";
-import { db } from "@/db";
-import { classes, classTeachers, staff } from "@/db/schema";
+import { getApi } from "@/lib/api/server";
+import { ApiError } from "@/lib/api/client";
 import type { SchoolClass, ClassTeacher } from "@/features/classes/types";
 import type { Division } from "@/features/auth/types";
+import type { components } from "@/types/api";
 
 export async function getClassById(id: string): Promise<SchoolClass | undefined> {
-  const row = await db.query.classes.findFirst({ where: eq(classes.id, id) });
-  if (!row) return undefined;
-  const teachers = await getClassTeachersFor([id]);
-  return toSchoolClass(row, teachers.get(id) ?? []);
+  const api = await getApi();
+  try {
+    const [row, teachers] = await Promise.all([
+      api.classes.get(id),
+      api.classes.teachers.list(id).then((r) => r.items),
+    ]);
+    const classTeachers: ClassTeacher[] = teachers.map((t) => ({
+      staffId: t.staffId,
+      staffName: `${t.staffFirstName} ${t.staffLastName}`.trim(),
+      isPrimary: t.isPrimary,
+    }));
+    return toSchoolClass(row, classTeachers);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return undefined;
+    throw err;
+  }
 }
 
-// Bulk fetch class_teachers + staff names for a set of class IDs.
+// Bulk fetch class_teachers + staff names for a set of class IDs. Fan-out
+// pattern — the API exposes per-class endpoints only.
 export async function getClassTeachersFor(
-  classIds: string[]
+  classIds: string[],
 ): Promise<Map<string, ClassTeacher[]>> {
   if (classIds.length === 0) return new Map();
-  const rows = await db
-    .select({
-      classId: classTeachers.classId,
-      staffId: classTeachers.staffId,
-      firstName: staff.firstName,
-      lastName: staff.lastName,
-      isPrimary: classTeachers.isPrimary,
-    })
-    .from(classTeachers)
-    .innerJoin(staff, eq(staff.id, classTeachers.staffId))
-    .where(inArray(classTeachers.classId, classIds));
-
-  const map = new Map<string, ClassTeacher[]>();
-  for (const r of rows) {
-    const list = map.get(r.classId) ?? [];
-    list.push({
-      staffId: r.staffId,
-      staffName: `${r.firstName} ${r.lastName}`,
-      isPrimary: r.isPrimary ?? false,
-    });
-    map.set(r.classId, list);
-  }
-  return map;
+  const api = await getApi();
+  const entries = await Promise.all(
+    classIds.map(async (classId) => {
+      const res = await api.classes.teachers.list(classId);
+      const teachers: ClassTeacher[] = res.items.map((t) => ({
+        staffId: t.staffId,
+        staffName: `${t.staffFirstName} ${t.staffLastName}`.trim(),
+        isPrimary: t.isPrimary,
+      }));
+      return [classId, teachers] as const;
+    }),
+  );
+  return new Map(entries);
 }
 
 export function toSchoolClass(
-  row: typeof classes.$inferSelect,
-  teachers: ClassTeacher[]
+  row: components["schemas"]["ClassRead"],
+  teachers: ClassTeacher[],
 ): SchoolClass {
   return {
     id: row.id,

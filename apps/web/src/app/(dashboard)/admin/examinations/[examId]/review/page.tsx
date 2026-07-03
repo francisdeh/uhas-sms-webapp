@@ -2,11 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, Check } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import {
-  getExamAction,
-  listSubmissionsForExamAction,
-} from "@/features/exams/actions";
-import { listClassesAction } from "@/features/classes/actions";
+import { getApi, ApiError } from "@/lib/api/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -19,15 +15,24 @@ export default async function AdminReviewListPage({ params }: PageProps) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const [exam, classes, submissions] = await Promise.all([
-    getExamAction(examId),
-    listClassesAction(),
-    listSubmissionsForExamAction(examId),
+  const api = await getApi();
+  let exam;
+  try {
+    exam = await api.exams.get(examId);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
+
+  const [classesResp, submissionsResp] = await Promise.all([
+    api.classes.list({ academicYear: exam.academicYear, size: 200 }),
+    api.classReports.list(examId),
   ]);
 
-  if (!exam) notFound();
-
-  const submissionByClass = new Map(submissions.map((s) => [s.classId, s] as const));
+  const classes = classesResp.items;
+  const submissionByClass = new Map(
+    submissionsResp.items.map((s) => [s.classId, s] as const),
+  );
 
   return (
     <div className="space-y-5">

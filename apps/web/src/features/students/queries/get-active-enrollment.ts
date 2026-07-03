@@ -1,6 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
-import { db } from "@/db";
-import { enrollments, classes } from "@/db/schema";
+import { getApi } from "@/lib/api/server";
 import type { Division } from "@/features/auth/types";
 
 export type EnrollmentView = {
@@ -12,29 +10,18 @@ export type EnrollmentView = {
 // Fetch the active enrollment + class for one student in a given year.
 export async function getActiveEnrollment(
   studentId: string,
-  academicYear: string
+  academicYear: string,
 ): Promise<EnrollmentView | null> {
-  const row = await db
-    .select({
-      classId: classes.id,
-      className: classes.name,
-      division: classes.division,
-    })
-    .from(enrollments)
-    .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .where(
-      and(
-        eq(enrollments.studentId, studentId),
-        eq(enrollments.academicYear, academicYear),
-        eq(enrollments.status, "Active")
-      )
-    )
-    .limit(1);
-  if (row.length === 0) return null;
+  const api = await getApi();
+  const list = await api.students.enrollments(studentId);
+  const active = list.items.find(
+    (e) => e.status === "Active" && e.academicYear === academicYear,
+  );
+  if (!active) return null;
   return {
-    classId: row[0].classId,
-    className: row[0].className,
-    division: row[0].division as Division,
+    classId: active.classId,
+    className: active.className ?? "",
+    division: (active.division as Division) ?? "KG",
   };
 }
 
@@ -42,33 +29,19 @@ export async function getActiveEnrollment(
 // to avoid N+1.
 export async function getActiveEnrollmentMap(
   studentIds: string[],
-  academicYear: string
+  academicYear: string,
 ): Promise<Map<string, EnrollmentView>> {
   if (studentIds.length === 0) return new Map();
-  const rows = await db
-    .select({
-      studentId: enrollments.studentId,
-      classId: classes.id,
-      className: classes.name,
-      division: classes.division,
-    })
-    .from(enrollments)
-    .innerJoin(classes, eq(classes.id, enrollments.classId))
-    .where(
-      and(
-        inArray(enrollments.studentId, studentIds),
-        eq(enrollments.academicYear, academicYear),
-        eq(enrollments.status, "Active")
-      )
-    );
+
+  const results = await Promise.all(
+    studentIds.map((id) =>
+      getActiveEnrollment(id, academicYear).then((v) => [id, v] as const),
+    ),
+  );
 
   const map = new Map<string, EnrollmentView>();
-  for (const r of rows) {
-    map.set(r.studentId, {
-      classId: r.classId,
-      className: r.className,
-      division: r.division as Division,
-    });
+  for (const [id, view] of results) {
+    if (view) map.set(id, view);
   }
   return map;
 }

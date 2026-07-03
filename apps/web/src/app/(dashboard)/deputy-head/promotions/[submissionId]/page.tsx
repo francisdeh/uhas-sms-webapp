@@ -3,12 +3,12 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
-import { getCurrentSeason } from "@/features/promotions/queries/get-season";
-import { getSubmissionById } from "@/features/promotions/queries/get-submission";
+import { getApi, ApiError } from "@/lib/api/server";
 import { PromotionDecisionTable } from "@/features/promotions/components/PromotionDecisionTable";
 import { ReviewFooter } from "@/features/promotions/components/ReviewFooter";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import type { DecisionRowView } from "@/features/promotions/types";
 
 export default async function DeputyHeadPromotionReviewPage({
   params,
@@ -22,13 +22,19 @@ export default async function DeputyHeadPromotionReviewPage({
   if (!division) redirect("/deputy-head/promotions");
 
   const { submissionId } = await params;
-  const detail = await getSubmissionById(submissionId);
-  if (!detail) notFound();
+  const api = await getApi();
+  let detail;
+  try {
+    detail = await api.promotions.getSubmission(submissionId);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
 
   // 403 if the submission isn't in this DH's division.
   if (detail.division !== division) redirect("/deputy-head/promotions");
 
-  const season = await getCurrentSeason();
+  const season = await api.promotions.getSeason();
   const isSubmitted = detail.submission.status === "submitted";
 
   return (
@@ -82,8 +88,8 @@ export default async function DeputyHeadPromotionReviewPage({
         className={detail.className}
         nextAcademicYear={detail.nextAcademicYear}
         nextYearClasses={detail.nextYearClasses}
-        initial={detail.decisions}
-        overrideMode={season.season?.openedWithOverride ?? false}
+        initial={detail.decisions as unknown as DecisionRowView[]}
+        overrideMode={season?.openedWithOverride ?? false}
       />
 
       {isSubmitted && (

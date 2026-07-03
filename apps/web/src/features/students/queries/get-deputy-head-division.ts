@@ -1,14 +1,17 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { staff } from "@/db/schema";
+import { getApi } from "@/lib/api/server";
 import type { Division } from "@/features/auth/types";
 
 export async function getDeputyHeadDivision(
-  linkedId: string | undefined
+  linkedId: string | undefined,
 ): Promise<Division | undefined> {
   if (!linkedId) return undefined;
-  const row = await db.query.staff.findFirst({ where: eq(staff.id, linkedId) });
-  const d = row?.division;
-  if (d === "KG" || d === "Lower Primary" || d === "Upper Primary" || d === "JHS") return d;
+  const api = await getApi();
+  try {
+    const staff = await api.staff.get(linkedId);
+    const d = staff.division;
+    if (d === "KG" || d === "Lower Primary" || d === "Upper Primary" || d === "JHS") return d;
+  } catch {
+    return undefined;
+  }
   return undefined;
 }

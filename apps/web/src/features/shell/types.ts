@@ -16,3 +16,10 @@ export type ShellConfig = {
   label: string;
   navGroups: NavGroup[];
 };
+
+export type GlobalSearchResults = {
+  students: { id: string; name: string }[];
+  staff: { id: string; name: string; email: string }[];
+  classes: { id: string; name: string }[];
+  announcements: { id: string; title: string }[];
+};

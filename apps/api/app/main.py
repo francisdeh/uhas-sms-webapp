@@ -21,10 +21,20 @@ from app.core.observability import init_observability, instrument_app
 from app.features.announcements.router import router as announcements_router
 from app.features.appointments.router import router as appointments_router
 from app.features.assignments.router import router as assignments_router
-from app.features.attendance.router import router as attendance_router
+from app.features.attendance.router import (
+    router as attendance_router,
+)
+from app.features.attendance.router import (
+    students_router as student_attendance_router,
+)
 from app.features.audit.router import router as audit_log_router
 from app.features.calendar.router import router as calendar_router
-from app.features.classes.router import router as classes_router
+from app.features.classes.router import (
+    class_subjects_router,
+)
+from app.features.classes.router import (
+    router as classes_router,
+)
 from app.features.enrollments.router import (
     classes_router as class_enrollments_router,
 )
@@ -34,21 +44,30 @@ from app.features.enrollments.router import (
 from app.features.enrollments.router import (
     students_router as student_enrollments_router,
 )
-from app.features.exams.router import router as exams_router
+from app.features.exams.router import (
+    router as exams_router,
+)
+from app.features.exams.router import (
+    students_router as student_exams_router,
+)
 from app.features.guardians.router import router as guardians_router
 from app.features.health.router import router as health_router
 from app.features.leave_requests.router import router as leave_requests_router
 from app.features.lesson_plans.router import router as lesson_plans_router
+from app.features.me.router import router as me_router
 from app.features.notifications.router import router as notifications_router
 from app.features.promotions.router import router as promotions_router
 from app.features.reports.router import router as reports_router
 from app.features.schemes.router import router as schemes_router
 from app.features.school_terms.router import router as school_terms_router
 from app.features.schools.router import router as schools_router
+from app.features.search.router import router as search_router
+from app.features.shell.router import router as shell_router
 from app.features.staff.router import router as staff_router
 from app.features.staff_attendance.router import router as staff_attendance_router
 from app.features.students.router import router as students_router
 from app.features.subjects.router import router as subjects_router
+from app.features.users.router import router as users_router
 
 # Initialise observability before constructing the FastAPI app so that
 # Sentry's middleware integrations attach to the instance we create
@@ -102,19 +121,24 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(schools_router)
     app.include_router(school_terms_router)
+    app.include_router(shell_router)
     app.include_router(staff_router)
     app.include_router(guardians_router)
     app.include_router(students_router)
     app.include_router(subjects_router)
     app.include_router(classes_router)
+    app.include_router(class_subjects_router)
     app.include_router(enrollments_router)
     app.include_router(attendance_router)
+    app.include_router(student_attendance_router)
     app.include_router(staff_attendance_router)
     app.include_router(leave_requests_router)
     app.include_router(student_enrollments_router)
     app.include_router(class_enrollments_router)
     app.include_router(exams_router)
+    app.include_router(student_exams_router)
     app.include_router(lesson_plans_router)
+    app.include_router(me_router)
     app.include_router(schemes_router)
     app.include_router(assignments_router)
     app.include_router(promotions_router)
@@ -124,6 +148,8 @@ def create_app() -> FastAPI:
     app.include_router(appointments_router)
     app.include_router(audit_log_router)
     app.include_router(reports_router)
+    app.include_router(search_router)
+    app.include_router(users_router)
 
     # Logfire instrumentation attaches after routers register so it sees
     # every endpoint. No-op when LOGFIRE_TOKEN is unset.

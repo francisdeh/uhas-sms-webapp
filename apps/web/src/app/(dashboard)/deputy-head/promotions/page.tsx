@@ -3,8 +3,7 @@ import Link from "next/link";
 import { ChevronRight, Lock, Check, ClipboardList } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
-import { getCurrentSeason } from "@/features/promotions/queries/get-season";
-import { getDeputyHeadPromotionQueue } from "@/features/promotions/queries/get-dh-queue";
+import { getApi } from "@/lib/api/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -42,21 +41,27 @@ export default async function DeputyHeadPromotionsPage() {
     );
   }
 
-  const [season, queue] = await Promise.all([
-    getCurrentSeason(),
-    getDeputyHeadPromotionQueue(division),
+  const api = await getApi();
+  const [school, season, queueResponse] = await Promise.all([
+    api.school.get(),
+    api.promotions.getSeason(),
+    api.promotions.getDhQueue(),
   ]);
+
+  const academicYear = season?.academicYear ?? school.academicYear;
+  const isOpen = season?.status === "open";
+  const queue = queueResponse.items;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold">Promotion Reviews</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {division} · {season.academicYear} → next academic year
+          {division} · {academicYear} → next academic year
         </p>
       </div>
 
-      {!season.isOpen ? (
+      {!isOpen ? (
         <EmptyState
           icon={Lock}
           title="Promotion season is closed"
@@ -82,7 +87,7 @@ export default async function DeputyHeadPromotionsPage() {
               >
                 <div className="min-w-0 flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-medium">{row.className}</p>
-                  {statusPill(row.submission.status)}
+                  {statusPill(row.submission.status as PromotionSubmissionStatus)}
                   {row.submission.submittedByName && (
                     <span className="text-xs text-muted-foreground">
                       by {row.submission.submittedByName}

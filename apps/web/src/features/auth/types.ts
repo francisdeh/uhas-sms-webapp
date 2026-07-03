@@ -34,3 +34,13 @@ export const ROLE_DASHBOARD: Record<UserRole, string> = {
 export type Division = "KG" | "Lower Primary" | "Upper Primary" | "JHS";
 
 export const DIVISIONS: Division[] = ["KG", "Lower Primary", "Upper Primary", "JHS"];
+
+export type ManagedUser = {
+  uid: string;
+  email: string;
+  displayName: string;
+  role: UserRole;
+  linkedId: string;
+  isActive: boolean;
+  photoUrl: string | null;
+};
