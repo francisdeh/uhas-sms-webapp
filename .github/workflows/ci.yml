@@ -52,6 +52,14 @@ jobs:
       FIREBASE_CLIENT_EMAIL: dummy@dummy.iam.gserviceaccount.com
       FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\ndummy\n-----END PRIVATE KEY-----\n"
 
+      # Placeholder Supabase config — `next build` imports the ssr client
+      # eagerly so the constructor runs during page-config collection;
+      # missing env vars there crash the build even for pages marked
+      # `dynamic = "force-dynamic"`. Any well-formed URL + non-empty key
+      # works here; production wires the real values via Railway.
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+
       # Forces firebase-admin to skip cert() at module load — `cert()` would
       # try to DER-parse the dummy PRIVATE_KEY above and crash Next's
       # page-data collection during `npm run build`. We never actually hit
@@ -240,6 +248,10 @@ jobs:
       FIREBASE_PROJECT_ID: uhas-sms-dev
       FIREBASE_CLIENT_EMAIL: dummy@dummy.iam.gserviceaccount.com
       FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\ndummy\n-----END PRIVATE KEY-----\n"
+
+      # See the placeholder-values block on the main CI job for context.
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
 
     steps:
       - name: Checkout
