@@ -104,6 +104,43 @@ class ClassSubjectsListResponse(BaseModel):
     items: list[ClassSubjectRead]
 
 
+# ─── Cross-class lookups on class_subjects ───────────────────────────────────
+
+
+class ClassSubjectLookupRow(BaseModel):
+    """A `class_subjects` row enriched with class + subject + teacher labels.
+
+    Powers the inverse lookups: "which classes teach subject X" and
+    "which class-subject rows is teacher Y assigned to". Different
+    shape from `ClassSubjectRead` because the caller cares about the
+    class labels (name/slug/division), not the join key.
+
+    Note: `class_subjects` has no scalar PK — the PK is composite
+    `(class_id, subject_id)`. The pair itself uniquely identifies a
+    row, so no synthetic id is included.
+    """
+
+    model_config = _CAMEL_CONFIG
+
+    class_id: UUID
+    class_name: str
+    class_slug: str
+    division: Division
+    subject_id: UUID
+    subject_name: str
+    subject_slug: str
+    teacher_id: UUID | None = None
+    teacher_name: str | None = None
+
+
+class ClassSubjectLookupResponse(BaseModel):
+    """Non-paged wrapper — a subject or a teacher is typically in <20 classes."""
+
+    model_config = _CAMEL_CONFIG
+
+    rows: list[ClassSubjectLookupRow]
+
+
 # ─── ClassTeacher junction ───────────────────────────────────────────────────
 
 

@@ -145,6 +145,93 @@ async def test_patch_updates_basic_fields(client: AsyncClient, seed_school: Scho
     assert patched.json()["phone"] == "+233500000000"
 
 
+async def test_teacher_can_patch_own_photo_url(client: AsyncClient, seed_school: School) -> None:
+    created = (await client.post("/staff", json=_BODY, headers=auth_header(role="Admin"))).json()
+    res = await client.patch(
+        f"/staff/{created['id']}",
+        json={"photoUrl": "https://cdn.example/me.png"},
+        headers=auth_header(role="Teacher", linked_id=created["id"]),
+    )
+    assert res.status_code == 200
+    assert res.json()["photoUrl"] == "https://cdn.example/me.png"
+
+
+async def test_teacher_cannot_patch_other_staff_photo(
+    client: AsyncClient, seed_school: School
+) -> None:
+    mine = (
+        await client.post(
+            "/staff",
+            json={**_BODY, "email": "mine@u.gh"},
+            headers=auth_header(role="Admin"),
+        )
+    ).json()
+    other = (
+        await client.post(
+            "/staff",
+            json={**_BODY, "email": "other@u.gh"},
+            headers=auth_header(role="Admin"),
+        )
+    ).json()
+    res = await client.patch(
+        f"/staff/{other['id']}",
+        json={"photoUrl": "https://cdn.example/x.png"},
+        headers=auth_header(role="Teacher", linked_id=mine["id"]),
+    )
+    assert res.status_code == 403
+
+
+async def test_teacher_cannot_patch_first_name_on_own_row(
+    client: AsyncClient, seed_school: School
+) -> None:
+    created = (await client.post("/staff", json=_BODY, headers=auth_header(role="Admin"))).json()
+    res = await client.patch(
+        f"/staff/{created['id']}",
+        json={"firstName": "Renamed"},
+        headers=auth_header(role="Teacher", linked_id=created["id"]),
+    )
+    assert res.status_code == 403
+
+
+async def test_teacher_cannot_patch_photo_url_and_first_name_together(
+    client: AsyncClient, seed_school: School
+) -> None:
+    created = (await client.post("/staff", json=_BODY, headers=auth_header(role="Admin"))).json()
+    res = await client.patch(
+        f"/staff/{created['id']}",
+        json={"photoUrl": "https://cdn.example/me.png", "firstName": "Renamed"},
+        headers=auth_header(role="Teacher", linked_id=created["id"]),
+    )
+    assert res.status_code == 403
+
+
+async def test_deputy_can_patch_own_photo_url(client: AsyncClient, seed_school: School) -> None:
+    created = (
+        await client.post(
+            "/staff",
+            json={**_BODY, "systemRole": "DeputyHead"},
+            headers=auth_header(role="Admin"),
+        )
+    ).json()
+    res = await client.patch(
+        f"/staff/{created['id']}",
+        json={"photoUrl": "https://cdn.example/dep.png"},
+        headers=auth_header(role="DeputyHead", linked_id=created["id"]),
+    )
+    assert res.status_code == 200
+    assert res.json()["photoUrl"] == "https://cdn.example/dep.png"
+
+
+async def test_parent_cannot_patch_photo_url(client: AsyncClient, seed_school: School) -> None:
+    created = (await client.post("/staff", json=_BODY, headers=auth_header(role="Admin"))).json()
+    res = await client.patch(
+        f"/staff/{created['id']}",
+        json={"photoUrl": "https://cdn.example/me.png"},
+        headers=auth_header(role="Parent", linked_id=created["id"]),
+    )
+    assert res.status_code == 403
+
+
 async def test_role_change_endpoint(client: AsyncClient, seed_school: School) -> None:
     created = (await client.post("/staff", json=_BODY, headers=auth_header(role="Admin"))).json()
     res = await client.patch(

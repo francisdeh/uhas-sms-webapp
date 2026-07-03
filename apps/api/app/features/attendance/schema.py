@@ -8,6 +8,7 @@ set. The API upserts the session + records in one transaction.
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -101,3 +102,34 @@ class AttendanceSessionSummary(BaseModel):
 
 class AttendanceSessionsListResponse(Paginated[AttendanceSessionSummary]):
     """Paged summaries. See `app.core.pagination.Paginated`."""
+
+
+StudentAttendanceStatus = Literal["present", "absent", "late", "excused", "no_session"]
+"""Wire shape for the parent-facing calendar. Lowercase and includes
+`no_session` for future use — the current calendar endpoint omits days
+with no session entirely, so it's not emitted, but keeping it in the
+union lets a "show empty slot" client mode be added without a break."""
+
+
+class StudentAttendanceSummary(BaseModel):
+    """Aggregate counts across a term for one student. `totalDays` is the
+    sum of the four status counts — days the student's class had a
+    session and a record was captured for that student."""
+
+    model_config = _CAMEL_CONFIG
+
+    present_count: int
+    absent_count: int
+    late_count: int
+    excused_count: int
+    total_days: int
+
+
+class StudentAttendanceCalendarEntry(BaseModel):
+    """One day of a student's calendar — only days with a recorded
+    session appear in the list."""
+
+    model_config = _CAMEL_CONFIG
+
+    date: date
+    status: StudentAttendanceStatus

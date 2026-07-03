@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, asc, desc, func, or_, select
+from sqlalchemy import Row, and_, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.classes.model import Class, ClassSubject, ClassTeacher
@@ -162,6 +162,87 @@ class ClassSubjectsRepository:
             )
         )
         return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    def _lookup_columns() -> tuple[Any, ...]:
+        """SELECT list for the inverse-lookup queries — one row per class_subject
+        with the class + subject + teacher labels the response schema needs.
+        """
+        return (
+            ClassSubject.class_id.label("class_id"),
+            Class.name.label("class_name"),
+            Class.slug.label("class_slug"),
+            Class.division.label("division"),
+            ClassSubject.subject_id.label("subject_id"),
+            Subject.name.label("subject_name"),
+            Subject.slug.label("subject_slug"),
+            ClassSubject.teacher_id.label("teacher_id"),
+            func.nullif(
+                func.trim(
+                    func.concat(
+                        func.coalesce(Staff.first_name, ""),
+                        " ",
+                        func.coalesce(Staff.last_name, ""),
+                    )
+                ),
+                "",
+            ).label("teacher_name"),
+        )
+
+    @staticmethod
+    async def find_class_subjects_by_subject(
+        session: AsyncSession,
+        *,
+        school_id: UUID | str,
+        subject_id: UUID | str,
+        limit: int = 200,
+    ) -> list[Row[Any]]:
+        """All `class_subjects` rows for a subject, scoped to the caller's school.
+
+        The school-scope filter lives on `classes.school_id` — cheaper than
+        joining `subjects` again and equally safe because a class_subjects
+        row is per-class.
+        """
+        stmt = (
+            select(*ClassSubjectsRepository._lookup_columns())
+            .join(Class, Class.id == ClassSubject.class_id)
+            .join(Subject, Subject.id == ClassSubject.subject_id)
+            .outerjoin(Staff, Staff.id == ClassSubject.teacher_id)
+            .where(
+                and_(
+                    ClassSubject.subject_id == subject_id,
+                    Class.school_id == school_id,
+                )
+            )
+            .order_by(asc(Class.division), asc(Class.name))
+            .limit(limit)
+        )
+        return list((await session.execute(stmt)).all())
+
+    @staticmethod
+    async def find_class_subjects_by_teacher(
+        session: AsyncSession,
+        *,
+        school_id: UUID | str,
+        teacher_id: UUID | str,
+        limit: int = 200,
+    ) -> list[Row[Any]]:
+        """All `class_subjects` rows for a teacher, scoped to the caller's school."""
+        stmt = (
+            select(*ClassSubjectsRepository._lookup_columns())
+            .join(Class, Class.id == ClassSubject.class_id)
+            .join(Subject, Subject.id == ClassSubject.subject_id)
+            .outerjoin(Staff, Staff.id == ClassSubject.teacher_id)
+            .where(
+                and_(
+                    ClassSubject.teacher_id == teacher_id,
+                    Class.school_id == school_id,
+                )
+            )
+            .order_by(asc(Class.division), asc(Class.name), asc(Subject.name))
+            .limit(limit)
+        )
+        return list((await session.execute(stmt)).all())
 
 
 class ClassTeachersRepository:

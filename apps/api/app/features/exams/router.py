@@ -25,15 +25,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
-from app.features.exams.model import Exam, Score
+from app.features.classes.model import Class
+from app.features.exams.class_reports_svc import ClassReportsService
+from app.features.exams.model import ClassReportSubmission, Exam, Score, StudentReportRemark
+from app.features.exams.report_card_svc import ReportCardService
 from app.features.exams.schema import (
+    ClassReportListItem,
+    ClassReportListResponse,
+    ClassReportRead,
+    ClassReportUpsertRequest,
     ExamCreate,
     ExamRead,
     ExamsListResponse,
     ExamUpdate,
+    HosCommentUpdate,
+    ReportCardResponse,
     ScoreRead,
     ScoresGridResponse,
     ScoresUpsertRequest,
+    StudentRemarkRead,
 )
 from app.features.exams.service import ExamsService, ScoresService
 from app.features.students.model import Student
@@ -241,4 +251,247 @@ async def upsert_scores(
         class_id=payload.class_id,
         subject_id=payload.subject_id,
         items=[_to_score_read(student, subject, score) for (student, subject, score) in rows],
+    )
+
+
+# ─── /exams/{id}/class-reports ───────────────────────────────────────────────
+
+
+def _to_class_report_list_item(
+    report: ClassReportSubmission | None, cls: Class, exam_id: UUID
+) -> ClassReportListItem:
+    """Synthesise a `draft` row when no report exists yet — the frontend
+    always renders one row per class in the response."""
+    if report is None:
+        return ClassReportListItem(
+            id=UUID(int=0),
+            exam_id=exam_id,
+            class_id=cls.id,
+            class_name=cls.name,
+            division=cls.division,
+            status="draft",
+        )
+    return ClassReportListItem(
+        id=report.id,
+        exam_id=report.exam_id,
+        class_id=report.class_id,
+        class_name=cls.name,
+        division=cls.division,
+        status=("submitted" if report.status == "submitted" else "draft"),
+        submitted_by_id=report.submitted_by_id,
+        submitted_at=report.submitted_at,
+        hos_comment=report.head_of_school_comment,
+        updated_at=report.updated_at,
+    )
+
+
+def _to_remark_read(student: Student, remark: StudentReportRemark | None) -> StudentRemarkRead:
+    return StudentRemarkRead(
+        student_id=student.id,
+        student_first_name=student.first_name,
+        student_last_name=student.last_name,
+        text=(remark.class_teacher_remark if remark else None),
+        updated_at=(remark.updated_at if remark else None),
+    )
+
+
+def _to_class_report_read(
+    report: ClassReportSubmission | None,
+    cls: Class,
+    exam_id: UUID,
+    roster: list[tuple[Student, StudentReportRemark | None]],
+) -> ClassReportRead:
+    remarks = [_to_remark_read(s, r) for s, r in roster]
+    if report is None:
+        return ClassReportRead(
+            exam_id=exam_id,
+            class_id=cls.id,
+            class_name=cls.name,
+            division=cls.division,
+            status="draft",
+            remarks=remarks,
+        )
+    return ClassReportRead(
+        id=report.id,
+        exam_id=report.exam_id,
+        class_id=report.class_id,
+        class_name=cls.name,
+        division=cls.division,
+        status=("submitted" if report.status == "submitted" else "draft"),
+        submitted_by_id=report.submitted_by_id,
+        submitted_at=report.submitted_at,
+        hos_comment=report.head_of_school_comment,
+        remarks=remarks,
+        updated_at=report.updated_at,
+    )
+
+
+@router.get(
+    "/{exam_id}/class-reports",
+    response_model=ClassReportListResponse,
+    response_model_by_alias=True,
+)
+async def list_class_reports(
+    exam_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> ClassReportListResponse:
+    rows = await ClassReportsService.list_for_exam(
+        session,
+        school_id=school_id,
+        exam_id=exam_id,
+        actor_role=user.role or "",
+        actor_staff_id=user.linked_id,
+    )
+    return ClassReportListResponse(
+        items=[_to_class_report_list_item(r, c, exam_id) for r, c in rows]
+    )
+
+
+@router.get(
+    "/{exam_id}/class-reports/{class_id}",
+    response_model=ClassReportRead,
+    response_model_by_alias=True,
+)
+async def get_class_report(
+    exam_id: UUID,
+    class_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> ClassReportRead:
+    report, cls, roster = await ClassReportsService.get_detail(
+        session,
+        school_id=school_id,
+        exam_id=exam_id,
+        class_id=class_id,
+        actor_role=user.role or "",
+        actor_staff_id=user.linked_id,
+    )
+    return _to_class_report_read(report, cls, exam_id, roster)
+
+
+@router.put(
+    "/{exam_id}/class-reports/{class_id}/draft",
+    response_model=ClassReportRead,
+    response_model_by_alias=True,
+)
+async def save_class_report_draft(
+    exam_id: UUID,
+    class_id: UUID,
+    payload: ClassReportUpsertRequest,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> ClassReportRead:
+    await ClassReportsService.save_draft(
+        session,
+        school_id=school_id,
+        exam_id=exam_id,
+        class_id=class_id,
+        hos_comment=payload.hos_comment,
+        remarks=payload.remarks,
+        actor_role=user.role or "",
+        actor_staff_id=user.linked_id,
+    )
+    report, cls, roster = await ClassReportsService.get_detail(
+        session,
+        school_id=school_id,
+        exam_id=exam_id,
+        class_id=class_id,
+        actor_role=user.role or "",
+        actor_staff_id=user.linked_id,
+    )
+    return _to_class_report_read(report, cls, exam_id, roster)
+
+
+@router.post(
+    "/{exam_id}/class-reports/{class_id}/submit",
+    response_model=ClassReportRead,
+    response_model_by_alias=True,
+    status_code=status.HTTP_200_OK,
+)
+async def submit_class_report(
+    exam_id: UUID,
+    class_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> ClassReportRead:
+    await ClassReportsService.submit(
+        session,
+        school_id=school_id,
+        exam_id=exam_id,
+        class_id=class_id,
+        actor_role=user.role or "",
+        actor_staff_id=user.linked_id,
+    )
+    report, cls, roster = await ClassReportsService.get_detail(
+        session,
+        school_id=school_id,
+        exam_id=exam_id,
+        class_id=class_id,
+        actor_role=user.role or "",
+        actor_staff_id=user.linked_id,
+    )
+    return _to_class_report_read(report, cls, exam_id, roster)
+
+
+@router.patch(
+    "/{exam_id}/class-reports/{class_id}/hos-comment",
+    response_model=ClassReportRead,
+    response_model_by_alias=True,
+)
+async def update_class_report_hos_comment(
+    exam_id: UUID,
+    class_id: UUID,
+    payload: HosCommentUpdate,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> ClassReportRead:
+    await ClassReportsService.update_hos_comment(
+        session,
+        school_id=school_id,
+        exam_id=exam_id,
+        class_id=class_id,
+        hos_comment=payload.hos_comment,
+        actor_role=user.role or "",
+        actor_staff_id=user.linked_id,
+        actor_user_id=user.user_id,
+    )
+    report, cls, roster = await ClassReportsService.get_detail(
+        session,
+        school_id=school_id,
+        exam_id=exam_id,
+        class_id=class_id,
+        actor_role=user.role or "",
+        actor_staff_id=user.linked_id,
+    )
+    return _to_class_report_read(report, cls, exam_id, roster)
+
+
+# ─── Nested under /students/{student_id} ──────────────────────────────────────
+# Second router — mounted separately in main.py so this router keeps
+# its own /exams prefix.
+
+students_router = APIRouter(prefix="/students", tags=["exams"])
+
+
+@students_router.get(
+    "/{student_id}/report-card",
+    response_model=ReportCardResponse,
+    response_model_by_alias=True,
+    summary="Assembled report card for one student, one exam",
+)
+async def get_student_report_card(
+    student_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+    exam_id: Annotated[UUID, Query(alias="examId")],
+) -> ReportCardResponse:
+    return await ReportCardService.get(
+        session, school_id, user, student_id=student_id, exam_id=exam_id
     )

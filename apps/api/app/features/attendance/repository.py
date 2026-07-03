@@ -149,3 +149,59 @@ class AttendanceRepository:
             for sess, cls, staff, p, a, late_ct, exc in (await session.execute(rows_stmt)).all()
         ]
         return rows, total
+
+    @staticmethod
+    async def sum_status_counts_for_student(
+        session: AsyncSession,
+        *,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        term_start: date_type,
+        term_end: date_type,
+    ) -> dict[str, int]:
+        """Group-by-status count of a student's attendance records within
+        the date range. One round-trip; caller maps the DB status strings
+        into wire counts."""
+        stmt = (
+            select(
+                AttendanceRecord.status.label("status"),
+                func.count().label("count"),
+            )
+            .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
+            .where(
+                and_(
+                    AttendanceSession.school_id == school_id,
+                    AttendanceRecord.student_id == student_id,
+                    AttendanceSession.date >= term_start,
+                    AttendanceSession.date <= term_end,
+                )
+            )
+            .group_by(AttendanceRecord.status)
+        )
+        return {status: int(count) for status, count in (await session.execute(stmt)).all()}
+
+    @staticmethod
+    async def per_day_status_for_student(
+        session: AsyncSession,
+        *,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        term_start: date_type,
+        term_end: date_type,
+    ) -> list[tuple[date_type, str]]:
+        """Return `(date, status)` for every recorded session-day of a
+        student within the range, oldest first."""
+        stmt = (
+            select(AttendanceSession.date, AttendanceRecord.status)
+            .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
+            .where(
+                and_(
+                    AttendanceSession.school_id == school_id,
+                    AttendanceRecord.student_id == student_id,
+                    AttendanceSession.date >= term_start,
+                    AttendanceSession.date <= term_end,
+                )
+            )
+            .order_by(asc(AttendanceSession.date))
+        )
+        return [(d, s) for d, s in (await session.execute(stmt)).all()]

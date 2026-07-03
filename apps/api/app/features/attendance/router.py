@@ -1,9 +1,17 @@
 """HTTP routes for student attendance.
 
-POST  /attendance/sessions           → batch upsert (session + records)
-GET   /attendance/sessions           → paged history (filters: classId, term)
-GET   /attendance/sessions/{id}      → session + records
-GET   /attendance/sessions/lookup    → find by (classId, date) — 200 or 404
+POST  /attendance/sessions                            → batch upsert (session + records)
+GET   /attendance/sessions                            → paged history (filters: classId, term)
+GET   /attendance/sessions/{id}                       → session + records
+GET   /attendance/sessions/lookup                     → find by (classId, date) — 200 or 404
+
+GET   /students/{id}/attendance-summary               → status counts over a date range
+GET   /students/{id}/attendance-calendar              → per-day status over a date range
+
+The parent-facing summary + calendar endpoints hang off `/students/{id}`
+so they compose naturally with the other student-scoped views. They're
+exported as a second router so `main.py` can mount them at that prefix
+without contorting `/attendance/*`.
 """
 
 from __future__ import annotations
@@ -25,6 +33,8 @@ from app.features.attendance.schema import (
     AttendanceSessionsListResponse,
     AttendanceSessionSummary,
     AttendanceSessionUpsertRequest,
+    StudentAttendanceCalendarEntry,
+    StudentAttendanceSummary,
 )
 from app.features.attendance.service import AttendanceService
 from app.features.classes.model import Class
@@ -201,3 +211,58 @@ async def get_session_by_id(
         session, school_id, session_id
     )
     return _to_session_read(sess, cls, staff, records)
+
+
+# ─── Nested under /students/{student_id} ──────────────────────────────────────
+# Mounted separately in main.py; kept here so all attendance surfaces
+# are discoverable in one place.
+
+students_router = APIRouter(prefix="/students", tags=["attendance"])
+
+
+@students_router.get(
+    "/{student_id}/attendance-summary",
+    response_model=StudentAttendanceSummary,
+    response_model_by_alias=True,
+    summary="Aggregate status counts for a student over a date range",
+)
+async def get_student_attendance_summary(
+    student_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+    term_start: Annotated[date_type, Query(alias="termStart")],
+    term_end: Annotated[date_type, Query(alias="termEnd")],
+) -> StudentAttendanceSummary:
+    return await AttendanceService.get_student_summary(
+        session,
+        school_id,
+        user,
+        student_id=student_id,
+        term_start=term_start,
+        term_end=term_end,
+    )
+
+
+@students_router.get(
+    "/{student_id}/attendance-calendar",
+    response_model=list[StudentAttendanceCalendarEntry],
+    response_model_by_alias=True,
+    summary="Per-day status for a student over a date range",
+)
+async def get_student_attendance_calendar(
+    student_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+    term_start: Annotated[date_type, Query(alias="termStart")],
+    term_end: Annotated[date_type, Query(alias="termEnd")],
+) -> list[StudentAttendanceCalendarEntry]:
+    return await AttendanceService.get_student_calendar(
+        session,
+        school_id,
+        user,
+        student_id=student_id,
+        term_start=term_start,
+        term_end=term_end,
+    )

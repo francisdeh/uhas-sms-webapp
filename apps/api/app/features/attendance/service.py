@@ -17,16 +17,31 @@ from uuid import UUID
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import NotFoundError, ValidationError
+from app.core.errors import ForbiddenError, NotFoundError, ValidationError
+from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT, TEACHER
+from app.core.security import CurrentUser
+from app.features.attendance.constants import ABSENT, EXCUSED, LATE, PRESENT
 from app.features.attendance.model import AttendanceRecord, AttendanceSession
 from app.features.attendance.repository import AttendanceRepository
-from app.features.attendance.schema import AttendanceSessionUpsertRequest
-from app.features.classes.model import Class
+from app.features.attendance.schema import (
+    AttendanceSessionUpsertRequest,
+    StudentAttendanceCalendarEntry,
+    StudentAttendanceSummary,
+)
+from app.features.classes.model import Class, ClassSubject, ClassTeacher
 from app.features.classes.repository import ClassesRepository
 from app.features.enrollments.constants import ACTIVE as ACTIVE_ENROLLMENT
 from app.features.enrollments.model import Enrollment
+from app.features.schools.repository import SchoolsRepository
 from app.features.staff.model import Staff
-from app.features.students.model import Student
+from app.features.students.model import Student, StudentGuardian
+
+_DB_STATUS_TO_WIRE: dict[str, str] = {
+    PRESENT: "present",
+    ABSENT: "absent",
+    LATE: "late",
+    EXCUSED: "excused",
+}
 
 
 async def _class_roster_student_ids(
@@ -140,3 +155,184 @@ class AttendanceService:
         return await AttendanceRepository.list_sessions(
             session, school_id, class_id=class_id, term=term, page=page, size=size
         )
+
+    @staticmethod
+    async def _assert_can_view_student(
+        session: AsyncSession,
+        user: CurrentUser,
+        *,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        academic_year: str,
+    ) -> None:
+        """Role gate for the parent-facing attendance endpoints.
+
+        * Admin  — any student in the school.
+        * Parent — must be linked via `student_guardians`.
+        * Teacher — must class-teach the student's current class or
+          teach any subject in it (matches `AppointmentsRepository`).
+        * DeputyHead — student's current class division must match the
+          deputy's `staff.division`.
+
+        404 if the student is not in the caller's school; 403 for any
+        role-scope miss.
+        """
+        student = await session.scalar(
+            select(Student).where(and_(Student.id == student_id, Student.school_id == school_id))
+        )
+        if student is None:
+            raise NotFoundError(f"Student {student_id!r} not found.")
+
+        role = user.role
+        if role == ADMIN:
+            return
+
+        if role == PARENT:
+            if not user.linked_id:
+                raise ForbiddenError("Parent identity missing.")
+            link = await session.scalar(
+                select(StudentGuardian.student_id).where(
+                    and_(
+                        StudentGuardian.student_id == student_id,
+                        StudentGuardian.guardian_id == user.linked_id,
+                    )
+                )
+            )
+            if link is None:
+                raise ForbiddenError("You may only view your own children.")
+            return
+
+        if role == TEACHER:
+            if not user.linked_id:
+                raise ForbiddenError("Teacher identity missing.")
+            class_ids_subq = select(Enrollment.class_id).where(
+                and_(
+                    Enrollment.student_id == student_id,
+                    Enrollment.academic_year == academic_year,
+                    Enrollment.status == ACTIVE_ENROLLMENT,
+                )
+            )
+            ct_stmt = select(ClassTeacher.class_id).where(
+                and_(
+                    ClassTeacher.staff_id == user.linked_id,
+                    ClassTeacher.class_id.in_(class_ids_subq),
+                )
+            )
+            cs_stmt = select(ClassSubject.class_id).where(
+                and_(
+                    ClassSubject.teacher_id == user.linked_id,
+                    ClassSubject.class_id.in_(class_ids_subq),
+                )
+            )
+            found = (await session.execute(ct_stmt.union(cs_stmt))).first()
+            if found is None:
+                raise ForbiddenError("You may only view students you teach.")
+            return
+
+        if role == DEPUTY_HEAD:
+            if not user.linked_id:
+                raise ForbiddenError("Deputy identity missing.")
+            deputy_division = await session.scalar(
+                select(Staff.division).where(Staff.id == user.linked_id)
+            )
+            if deputy_division is None:
+                raise ForbiddenError("Deputy has no assigned division.")
+            student_divisions = list(
+                (
+                    await session.execute(
+                        select(Class.division)
+                        .join(Enrollment, Enrollment.class_id == Class.id)
+                        .where(
+                            and_(
+                                Enrollment.student_id == student_id,
+                                Enrollment.academic_year == academic_year,
+                                Enrollment.status == ACTIVE_ENROLLMENT,
+                            )
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if deputy_division not in student_divisions:
+                raise ForbiddenError("Student is not in your division.")
+            return
+
+        raise ForbiddenError("Not permitted.")
+
+    @staticmethod
+    async def get_student_summary(
+        session: AsyncSession,
+        school_id: UUID | str,
+        user: CurrentUser,
+        *,
+        student_id: UUID | str,
+        term_start: date_type,
+        term_end: date_type,
+    ) -> StudentAttendanceSummary:
+        """Aggregate the student's status counts over the term window."""
+        school = await SchoolsRepository.get_by_id(session, school_id)
+        if school is None:
+            raise NotFoundError(f"School {school_id!r} not found.")
+        await AttendanceService._assert_can_view_student(
+            session,
+            user,
+            school_id=school_id,
+            student_id=student_id,
+            academic_year=school.academic_year,
+        )
+        counts = await AttendanceRepository.sum_status_counts_for_student(
+            session,
+            school_id=school_id,
+            student_id=student_id,
+            term_start=term_start,
+            term_end=term_end,
+        )
+        present = counts.get(PRESENT, 0)
+        absent = counts.get(ABSENT, 0)
+        late = counts.get(LATE, 0)
+        excused = counts.get(EXCUSED, 0)
+        return StudentAttendanceSummary(
+            present_count=present,
+            absent_count=absent,
+            late_count=late,
+            excused_count=excused,
+            total_days=present + absent + late + excused,
+        )
+
+    @staticmethod
+    async def get_student_calendar(
+        session: AsyncSession,
+        school_id: UUID | str,
+        user: CurrentUser,
+        *,
+        student_id: UUID | str,
+        term_start: date_type,
+        term_end: date_type,
+    ) -> list[StudentAttendanceCalendarEntry]:
+        """One entry per recorded session-day. Days without a session are
+        omitted (not returned as `no_session`)."""
+        school = await SchoolsRepository.get_by_id(session, school_id)
+        if school is None:
+            raise NotFoundError(f"School {school_id!r} not found.")
+        await AttendanceService._assert_can_view_student(
+            session,
+            user,
+            school_id=school_id,
+            student_id=student_id,
+            academic_year=school.academic_year,
+        )
+        rows = await AttendanceRepository.per_day_status_for_student(
+            session,
+            school_id=school_id,
+            student_id=student_id,
+            term_start=term_start,
+            term_end=term_end,
+        )
+        return [
+            StudentAttendanceCalendarEntry(
+                date=d,
+                status=_DB_STATUS_TO_WIRE.get(status, "no_session"),
+            )
+            for d, status in rows
+        ]

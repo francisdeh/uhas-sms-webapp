@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
-from app.features.exams.constants import ExamType
+from app.features.exams.constants import ClassReportStatus, ExamType
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
@@ -141,3 +141,173 @@ class ScoresGridResponse(BaseModel):
     class_id: UUID
     subject_id: UUID
     items: list[ScoreRead]
+
+
+# ─── Class-report workflow ───────────────────────────────────────────────────
+
+
+class StudentRemarkRead(BaseModel):
+    """One per-student remark inside a class-report."""
+
+    model_config = _CAMEL_CONFIG
+
+    student_id: UUID
+    student_first_name: str
+    student_last_name: str
+    text: str | None = None
+    updated_at: datetime | None = None
+
+
+class ClassReportListItem(BaseModel):
+    """Row in `GET /exams/{id}/class-reports` — the workflow header for
+    one class, no remarks joined."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    exam_id: UUID
+    class_id: UUID
+    class_name: str
+    division: str
+    status: ClassReportStatus
+    submitted_by_id: UUID | None = None
+    submitted_at: datetime | None = None
+    hos_comment: str | None = None
+    updated_at: datetime | None = None
+
+
+class ClassReportRead(BaseModel):
+    """`GET /exams/{id}/class-reports/{class_id}` detail — report header
+    + every remark row for the class's active roster (one per student,
+    even if no remark saved yet)."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID | None = None
+    exam_id: UUID
+    class_id: UUID
+    class_name: str
+    division: str
+    status: ClassReportStatus
+    submitted_by_id: UUID | None = None
+    submitted_at: datetime | None = None
+    hos_comment: str | None = None
+    remarks: list[StudentRemarkRead]
+    updated_at: datetime | None = None
+
+
+class RemarkInput(BaseModel):
+    """One row of the PUT /draft payload."""
+
+    model_config = _CAMEL_CONFIG
+
+    student_id: UUID
+    text: str = Field("", max_length=1000)
+
+
+class ClassReportUpsertRequest(BaseModel):
+    """`PUT /exams/{id}/class-reports/{class_id}/draft` body. Remarks are
+    the FULL set for the class — anything not in the array is deleted."""
+
+    model_config = _CAMEL_CONFIG
+
+    hos_comment: str | None = Field(None, max_length=2000)
+    remarks: list[RemarkInput] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _unique_student_ids(self) -> Self:
+        seen: set[UUID] = set()
+        for r in self.remarks:
+            if r.student_id in seen:
+                raise ValueError(f"Duplicate studentId in payload: {r.student_id}")
+            seen.add(r.student_id)
+        return self
+
+
+class HosCommentUpdate(BaseModel):
+    """`PATCH /exams/{id}/class-reports/{class_id}/hos-comment` body."""
+
+    model_config = _CAMEL_CONFIG
+
+    hos_comment: str | None = Field(None, max_length=2000)
+
+
+class ClassReportListResponse(BaseModel):
+    model_config = _CAMEL_CONFIG
+
+    items: list[ClassReportListItem]
+
+
+# ─── Report card ─────────────────────────────────────────────────────────────
+
+
+class ReportCardStudent(BaseModel):
+    """Student header on the printed report card."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    slug: str
+    first_name: str
+    middle_name: str | None = None
+    last_name: str
+    gender: str | None = None
+    division: str
+    class_name: str
+
+
+class ReportCardExam(BaseModel):
+    """Exam header — the assembled card is always for exactly one exam."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    name: str
+    type: ExamType
+    term: int
+    academic_year: str
+
+
+class ReportCardScoreRow(BaseModel):
+    """One printed subject row on the report card."""
+
+    model_config = _CAMEL_CONFIG
+
+    subject_id: UUID
+    subject_slug: str
+    subject_name: str
+    cat1: int | None = None
+    cat2: int | None = None
+    project_work: int | None = None
+    group_work: int | None = None
+    exam_score: int | None = None
+    total_score: int | None = None
+    grade: str | None = None
+    interpretation: str | None = None
+    subject_position: int | None = None
+
+
+class ReportCardSchool(BaseModel):
+    """School masthead — name + logo."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    name: str
+    logo_url: str | None = None
+
+
+class ReportCardResponse(BaseModel):
+    """`GET /students/{id}/report-card?examId=` — everything the FE
+    needs to render the printed card in a single fetch."""
+
+    model_config = _CAMEL_CONFIG
+
+    student: ReportCardStudent
+    exam: ReportCardExam
+    school: ReportCardSchool
+    scores: list[ReportCardScoreRow]
+    aggregate: int | None = None
+    class_teachers: list[str]
+    class_teacher_remark: str | None = None
+    head_of_school_comment: str | None = None
