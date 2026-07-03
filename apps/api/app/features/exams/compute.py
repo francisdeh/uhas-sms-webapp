@@ -129,3 +129,20 @@ def assign_positions(rows: list[tuple[Any, int | None]]) -> dict[Any, int | None
             last_total = total
         out[rid] = position
     return out
+
+
+def compute_aggregate(grades: list[str | None]) -> int | None:
+    """BECE-style aggregate: sum of grade numbers across the student's
+    reported subjects. Lower is better.
+
+    `grades` is a list of grade strings (`"1"` through `"9"`); `None`
+    entries (missing/pending scores) are skipped. Returns `None` when
+    no graded rows exist — the caller renders that as "—" rather than
+    a misleading `0`.
+
+    Mirrors `apps/web/src/features/exams/utils.ts::computeAggregate`.
+    """
+    graded = [g for g in grades if g is not None]
+    if not graded:
+        return None
+    return sum(int(g) for g in graded)
