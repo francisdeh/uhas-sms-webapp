@@ -50,9 +50,7 @@ export interface paths {
          * @description Apply a partial update; writes an audit_log row with the diff.
          *
          *     Only `Admin` can modify settings. The audit row records who, when,
-         *     and the field-level before/after — same shape as the legacy
-         *     `SCHOOL_SETTINGS_UPDATE` rows produced by the Next-side Server
-         *     Action, so historical entries remain queryable.
+         *     and the field-level before/after (`SCHOOL_SETTINGS_UPDATE` action).
          */
         patch: operations["patch_school_school_patch"];
         trace?: never;

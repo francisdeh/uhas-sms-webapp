@@ -26,7 +26,7 @@ _CAMEL_CONFIG = ConfigDict(
     populate_by_name=True,
 )
 
-# Academic year format `YYYY/YYYY` — mirrors the Drizzle CHECK pattern.
+# Academic year format `YYYY/YYYY` — matches the DB CHECK constraint.
 _ACADEMIC_YEAR_RE = r"^\d{4}/\d{4}$"
 
 
