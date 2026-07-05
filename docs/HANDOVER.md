@@ -250,9 +250,10 @@ Grouped by domain. "Works" means reachable end-to-end through the current FastAP
 
 ### Profile pages
 - Each role has its own profile page at `/<role>/profile`
-- Photo upload + password change are **real** (persist)
-- Save Changes, 2FA, Active Sessions, Notifications prefs, Deactivate are **UI-only**
-- *Gaps documented in [implementation-spec.md "Next up — Profile page completion"](implementation-spec.md#next-up--profile-page-completion).*
+- Photo upload, password change, and Profile-tab Save Changes (display name + phone, via `PATCH /me`) are **real** (persist)
+- 2FA, Active Sessions, Notifications prefs, Deactivate are still **UI-only** — five largely-independent sub-features, not one project; each needs its own design (see `docs/superpowers/specs/2026-07-05-profile-save-changes-design.md` for how Save Changes was scoped, as a template for the rest)
+- The Language dropdown was removed from the Profile tab — no i18n system exists anywhere in this app, so persisting a value nothing reads would be dishonest UI. Re-add once i18n exists or the Notifications work builds a `user_preferences` table it could piggyback on.
+- *The pre-migration gap list in [implementation-spec.md "Next up — Profile page completion"](implementation-spec.md#next-up--profile-page-completion) is stale — its implementation mechanics (Firebase MFA, Server Actions) predate Supabase Auth + FastAPI. The feature-level punch list is still accurate for the four remaining pieces; the mechanics need re-deriving against the current architecture, same as this design doc did for Save Changes.*
 
 ### Demo data seeding
 - `pnpm seed:supabase` (from `apps/web/`) — creates the 9 role-anchored Supabase Auth test accounts (auth only)
@@ -484,7 +485,7 @@ Surface-level summary, business-logic gaps that are independent of the backend m
 | Audit log filters | No user/target filter, no CSV export | — | ~6–10 h |
 | Calendar | List view only — no grid, no recurring | ~10 h | ~20–25 h |
 | Admin settings UI | Backend supports it; the page to edit most of it isn't built | ~11 h | — |
-| Profile pages | Save Changes, 2FA, Sessions, Notifications, Deactivate UI-only | — | ~12 h |
+| Profile pages | Save Changes ✅ done — 2FA, Sessions, Notifications, Deactivate still UI-only | — | ~12 h |
 
 Rate limiting is done — see Phase 3.5 below. Batch report-card printing remains a separate, larger, explicitly-deferred piece of work (tracked in [FEATURE-ENHANCEMENTS.md](FEATURE-ENHANCEMENTS.md) §5).
 

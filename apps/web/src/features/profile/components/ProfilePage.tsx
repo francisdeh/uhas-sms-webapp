@@ -20,7 +20,6 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import { api, ApiError } from "@/lib/api/browser";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
@@ -34,15 +33,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { SessionUser } from "@/features/auth/types";
 
-const LANG_OPTIONS = [
-  { value: "en", label: "English" },
-  { value: "ewe", label: "Ewe" },
-] as const;
-
 const profileSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters" }),
   phone: z.string().optional(),
-  language: z.string(),
 });
 
 const passwordSchema = z
@@ -145,7 +138,6 @@ function ProfilePageContent({ user, currentPhotoUrl = null }: ProfilePageProps) 
 
 function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhotoUrl: string | null }) {
   const router = useRouter();
-  const [language, setLanguage] = useState("en");
   const [photoUrl, setPhotoUrl] = useState<string | null>(currentPhotoUrl);
   const canEditPhoto = !!user.linkedId && user.role !== "Parent";
 
@@ -167,24 +159,27 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { displayName: user.displayName, phone: "", language: "en" },
+    defaultValues: { displayName: user.displayName, phone: user.phone ?? "" },
   });
 
   async function onSubmit(values: ProfileValues) {
-    await new Promise((r) => setTimeout(r, 600));
-    console.log("profile update", values);
-    toast.success("Profile updated successfully.");
+    try {
+      await api.me.update({ displayName: values.displayName, phone: values.phone || null });
+      toast.success("Profile updated successfully.");
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update profile.");
+    }
   }
 
   return (
     <Card className="rounded-t-none border-t-0">
       <CardHeader>
         <CardTitle className="text-base">Personal Information</CardTitle>
-        <CardDescription>Update your name, contact info, and language preference.</CardDescription>
+        <CardDescription>Update your name and contact info.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
@@ -233,27 +228,6 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
             <Field>
               <FieldLabel htmlFor="phone">Phone Number</FieldLabel>
               <Input id="phone" className="rounded-md" placeholder="0244 000 000" {...register("phone")} />
-            </Field>
-
-            <Field>
-              <FieldLabel>Language</FieldLabel>
-              <Select
-                value={language}
-                onValueChange={(v) => {
-                  if (v) { setLanguage(v); setValue("language", v); }
-                }}
-              >
-                <SelectTrigger className="rounded-md w-full">
-                  <span className="text-sm">
-                    {LANG_OPTIONS.find((l) => l.value === language)?.label ?? "Select language"}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {LANG_OPTIONS.map((l) => (
-                    <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </Field>
 
             <Button type="submit" variant="ink" className="px-5 py-2 h-auto text-sm" disabled={isSubmitting}>

@@ -17,6 +17,7 @@ from typing import Any
 from uuid import UUID
 
 import jwt
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,7 @@ from app.features.guardians.model import Guardian
 from app.features.schools.model import School
 from app.features.staff.model import Staff
 from app.features.users.model import User
+from app.features.users.supabase_admin import get_supabase_admin_client
 from app.main import app
 
 SCHOOL_UUID = UUID("10101010-1010-4101-8101-101010100001")
@@ -148,12 +150,39 @@ async def seed(db_session: AsyncSession) -> None:
     await db_session.flush()
 
 
+class FakeSupabaseAdminClient:
+    """Minimal fake — `PATCH /me` only ever calls `update_user_by_id`."""
+
+    def __init__(self) -> None:
+        self.update_calls: list[dict[str, Any]] = []
+
+    async def create_user(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def update_user_by_id(self, user_id: UUID | str, **kwargs: Any) -> None:
+        self.update_calls.append({"user_id": user_id, **kwargs})
+
+    async def delete_user(self, user_id: UUID | str) -> None:
+        raise NotImplementedError
+
+    async def invite_user_by_email(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+
+@pytest.fixture
+def fake_supabase() -> FakeSupabaseAdminClient:
+    return FakeSupabaseAdminClient()
+
+
 @pytest_asyncio.fixture
-async def client(db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
+async def client(
+    db_session: AsyncSession, fake_supabase: FakeSupabaseAdminClient
+) -> AsyncIterator[AsyncClient]:
     async def _override_get_session() -> AsyncIterator[AsyncSession]:
         yield db_session
 
     app.dependency_overrides[get_session] = _override_get_session
+    app.dependency_overrides[get_supabase_admin_client] = lambda: fake_supabase
     transport = ASGITransport(app=app)
     try:
         async with AsyncClient(transport=transport, base_url="http://test") as ac:

@@ -46,7 +46,22 @@ class MeRead(BaseModel):
     role: Role
     linked_id: UUID | None = None
     slug: str | None = None
+    phone: str | None = None
     must_change_password: bool = False
     is_active: bool = True
     is_unit_head: bool = False
     unit_head_of: Division | None = None
+
+
+class MeUpdate(BaseModel):
+    """Partial self-update for `PATCH /me` — display name + phone only.
+
+    Written to the caller's own linked `staff` or `guardians` row.
+    Anything else about the account (role, linked_id, email) goes
+    through the admin-only `PATCH /users/{id}` flow instead.
+    """
+
+    model_config = _CAMEL_CONFIG
+
+    display_name: str | None = None
+    phone: str | None = None

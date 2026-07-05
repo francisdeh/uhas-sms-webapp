@@ -956,6 +956,12 @@ export function createApiClient(getAuthToken: TokenGetter) {
        *  dashboard render. */
       get: () =>
         apiFetch<components["schemas"]["MeRead"]>(getAuthToken, "/me"),
+      /** Self-service update of the caller's own display name + phone. */
+      update: (payload: components["schemas"]["MeUpdate"]) =>
+        apiFetch<components["schemas"]["MeRead"]>(getAuthToken, "/me", {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        }),
     },
     shell: {
       /** Sidebar badge counts (today: lesson-plans-pending-review). */
