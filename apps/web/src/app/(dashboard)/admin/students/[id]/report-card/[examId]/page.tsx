@@ -95,6 +95,8 @@ export default async function AdminReportCardRoute({ params }: PageProps) {
     <ReportCardPage
       data={data}
       backHref={`/admin/students/${id}`}
+      studentId={id}
+      examId={examId}
       unpublishedNotice={!exam.isPublished}
     />
   );

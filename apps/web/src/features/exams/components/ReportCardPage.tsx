@@ -1,26 +1,55 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Printer, Download, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ReportCard } from "./ReportCard";
 import type { ReportCardData } from "@/features/exams/types";
+import { api, ApiError } from "@/lib/api/browser";
 
 interface ReportCardPageProps {
   data: ReportCardData;
   backHref: string;
+  studentId: string;
+  examId: string;
   unpublishedNotice?: boolean;
 }
 
-export function ReportCardPage({ data, backHref, unpublishedNotice }: ReportCardPageProps) {
+export function ReportCardPage({
+  data,
+  backHref,
+  studentId,
+  examId,
+  unpublishedNotice,
+}: ReportCardPageProps) {
+  const [downloading, setDownloading] = useState(false);
+
   useEffect(() => {
     document.body.classList.add("print-mode-report-card");
     return () => {
       document.body.classList.remove("print-mode-report-card");
     };
   }, []);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const blob = await api.studentViews.reportCardPdf(studentId, examId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `report-card-${studentId}-${examId}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to download report card.");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -31,9 +60,19 @@ export function ReportCardPage({ data, backHref, unpublishedNotice }: ReportCard
         >
           <ArrowLeft size={14} className="mr-1" /> Back
         </Link>
-        <Button variant="outline" size="sm" onClick={() => window.print()}>
-          <Printer size={13} className="mr-1.5" /> Print
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
+            {downloading ? (
+              <Loader2 size={13} className="mr-1.5 animate-spin" />
+            ) : (
+              <Download size={13} className="mr-1.5" />
+            )}
+            Download PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Printer size={13} className="mr-1.5" /> Print
+          </Button>
+        </div>
       </div>
 
       {unpublishedNotice && (
