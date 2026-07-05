@@ -119,7 +119,7 @@ export function CalendarTab({ settings }: { settings: SchoolSettings }) {
               <FieldLabel>Current Term</FieldLabel>
               <Select value={currentTerm} onValueChange={(v) => v && setCurrentTerm(v)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue>{(value: string) => `Term ${value}`}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1">Term 1</SelectItem>

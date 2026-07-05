@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import { api, ApiError } from "@/lib/api/browser";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -70,7 +70,26 @@ interface ProfilePageProps {
   currentPhotoUrl?: string | null;
 }
 
-export function ProfilePage({ user, currentPhotoUrl = null }: ProfilePageProps) {
+const PROFILE_TABS = ["profile", "security", "notifications", "danger"] as const;
+type ProfileTab = (typeof PROFILE_TABS)[number];
+
+export function ProfilePage(props: ProfilePageProps) {
+  // useSearchParams() requires a Suspense boundary — kept internal so
+  // the 4 role route files can keep rendering <ProfilePage /> plainly.
+  return (
+    <Suspense fallback={null}>
+      <ProfilePageContent {...props} />
+    </Suspense>
+  );
+}
+
+function ProfilePageContent({ user, currentPhotoUrl = null }: ProfilePageProps) {
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const initialTab: ProfileTab = PROFILE_TABS.includes(requestedTab as ProfileTab)
+    ? (requestedTab as ProfileTab)
+    : "profile";
+
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-6">
@@ -78,7 +97,7 @@ export function ProfilePage({ user, currentPhotoUrl = null }: ProfilePageProps) 
         <p className="text-sm text-muted-foreground mt-0.5">Manage your account, security, and preferences.</p>
       </div>
 
-      <Tabs defaultValue="profile" className="flex flex-col gap-0">
+      <Tabs defaultValue={initialTab} className="flex flex-col gap-0">
         <div className="bg-card dark:bg-slate-800/60 border border-border/60 rounded-xl rounded-b-none px-4 pt-3">
           <TabsList variant="line" className="w-full justify-start gap-0">
             <TabsTrigger value="profile" className="cursor-pointer px-4"><UserCircle size={15} />Profile</TabsTrigger>
@@ -128,7 +147,7 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
   const router = useRouter();
   const [language, setLanguage] = useState("en");
   const [photoUrl, setPhotoUrl] = useState<string | null>(currentPhotoUrl);
-  const canEditPhoto = !!user.linkedId && user.linkedId.startsWith("STAFF-");
+  const canEditPhoto = !!user.linkedId && user.role !== "Parent";
 
   async function onPhotoChange(next: string | null) {
     setPhotoUrl(next);
@@ -179,8 +198,8 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
           <div className="flex-1">
             <p className="font-semibold">{user.displayName}</p>
             <p className="text-sm text-muted-foreground">{user.email || "—"}</p>
-            {user.linkedId && (
-              <p className="text-xs text-muted-foreground mt-0.5">Staff ID: {user.linkedId}</p>
+            {user.slug && (
+              <p className="text-xs text-muted-foreground mt-0.5">Staff ID: {user.slug}</p>
             )}
             <Badge variant="secondary" className="mt-1.5 text-xs">{user.role}</Badge>
           </div>
@@ -259,6 +278,7 @@ function SecurityTab() {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<PasswordValues>({ resolver: zodResolver(passwordSchema) });
 
@@ -285,10 +305,19 @@ function SecurityTab() {
     }
     const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
     if (updateError) {
-      toast.error("Failed to update password. Please try again.");
+      // Same Supabase error codes ChangePasswordForm handles — keep the
+      // messaging consistent across both password-change surfaces.
+      if (updateError.code === "same_password") {
+        toast.error("New password must be different from your current one.");
+      } else if (updateError.code === "weak_password") {
+        toast.error("Password is too weak. Try a longer, less common phrase.");
+      } else {
+        toast.error("Failed to update password. Please try again.");
+      }
       return;
     }
     toast.success("Password updated successfully.");
+    reset();
   }
 
   function handleCopyBackupCodes() {

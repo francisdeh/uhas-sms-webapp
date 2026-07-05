@@ -220,7 +220,11 @@ export function AnnouncementsView({
                       onValueChange={(v) => { if (v) field.onChange(v); }}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue />
+                        <SelectValue>
+                          {(value: string) =>
+                            audienceOptions.find((opt) => opt.value === value)?.label ?? ""
+                          }
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {audienceOptions.map((opt) => (
@@ -246,7 +250,9 @@ export function AnnouncementsView({
                       onValueChange={(v) => field.onChange(v === "yes")}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue />
+                        <SelectValue>
+                          {(value: string) => (value === "yes" ? "Yes — flag as critical" : "No")}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="no">No</SelectItem>

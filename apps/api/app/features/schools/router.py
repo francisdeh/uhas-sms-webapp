@@ -1,14 +1,17 @@
 """HTTP routes for the Schools/Settings domain.
 
-Two endpoints — every settings tab in the Admin UI uses these:
+Three endpoints:
 
-  GET   /school          → current user's school (read)
+  GET   /school          → current user's school (read, any authenticated role)
   PATCH /school          → partial update (admin only)
+  GET   /school/public    → cosmetic-only read, no auth (login-page branding)
 
-Both read the school_id from the JWT (`CurrentSchoolIdDep`) so there's
-no opportunity for path-tampering to read another school's data. The
-PATCH is gated on the `Admin` role via `require_role`; non-admins get a
-403 distinct from the 401 they'd get for an invalid token.
+The first two read the school_id from the JWT (`CurrentSchoolIdDep`) so
+there's no opportunity for path-tampering to read another school's
+data. The PATCH is gated on the `Admin` role via `require_role`;
+non-admins get a 403 distinct from the 401 they'd get for an invalid
+token. `/school/public` is the deliberate exception — see its own
+docstring for why.
 
 The OpenAPI schema this generates is consumed by `apps/web` via
 `scripts/check-api-types-drift.sh` — keep `response_model=` accurate.
@@ -23,10 +26,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, RequireAdmin
-from app.features.schools.schema import SchoolRead, SchoolUpdate
+from app.features.schools.schema import SchoolPublicRead, SchoolRead, SchoolUpdate
 from app.features.schools.service import SchoolsService
 
 router = APIRouter(prefix="/school", tags=["school"])
+
+
+@router.get(
+    "/public",
+    response_model=SchoolPublicRead,
+    response_model_by_alias=True,
+    summary="Fetch cosmetic school info for the login page — no auth required",
+)
+async def get_school_public(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SchoolPublicRead:
+    """Return name/motto/logo only — the login page renders this before
+    any session exists, so there's no JWT to resolve a school_id from.
+
+    Deliberately excludes everything else on the `schools` row (address,
+    phone, grading config, security policy, …) — this is the one route
+    in the entire API that skips auth, so the response shape stays
+    permanently minimal regardless of what gets added to `SchoolRead`.
+    """
+    row = await SchoolsService.get_public(session)
+    return SchoolPublicRead.model_validate(row)
 
 
 @router.get(

@@ -33,6 +33,7 @@ It is a **demo-phase migration**: there is no production data to protect and no 
 | 1 | Auth migration | Supabase Auth live; JWT pipeline; phone login for parents |
 | 2 | Core domain port | All existing domains running on FastAPI + Supabase |
 | 3 | Storage + jobs + SMS | Supabase Storage, Inngest, Hubtel wired |
+| 3.5 | Platform completion + admin polish | Real report-card PDFs, Admin Settings page, Profile page completion, rate limiting |
 | 4 | Requirement gaps | Partial → Done (subjects, SoL, slots, report fields, etc.) |
 | 5 | Procurement features | Fees, SMS notices, Accountant role |
 | 6 | Depth + polish | Leave, profiles, audit filters, KG reports, batch print |
@@ -106,6 +107,23 @@ Port in dependency order. Each domain is a vertical slice: `repository.py` → `
 - **Email:** confirm the provider-agnostic email path on the new stack.
 
 **Done when:** files upload/serve from Supabase, a test SMS sends and logs via Hubtel, and Inngest jobs run on trigger.
+
+**Status:** platform plumbing is scaffolded — Storage, Inngest, and the `SmsProvider` interface + `sms_log` table all exist. Hubtel itself is still a stub (no account/sender-ID yet), and the report-generation job writes a placeholder instead of a real PDF — both carried forward into Phase 3.5 below rather than blocking on them here.
+
+---
+
+## 7a. Phase 3.5 — Platform Completion & Admin Polish
+
+**Goal:** finish the loose ends Phase 3 scaffolded but didn't complete, plus the two admin-facing pages already scoped and waiting, before moving on to new requirement work.
+
+- **Real report-card PDF rendering** — the Phase 3 Inngest report-generation job (`app/features/reports/jobs/report_generate.py`) writes a placeholder instead of an actual PDF. Render the existing HTML/print-CSS report-card template (already built and used for on-screen/browser-print report cards) to real PDF bytes and write those to Supabase Storage instead. Testable end-to-end now that seed data provides real students/exams/scores.
+- **Admin Settings page** — new `/admin/settings` route to configure school identity, academic calendar, grading bands + score weights, communication defaults, and security policy (session timeout, password rules), replacing what's currently hardcoded. Already scoped in [`docs/implementation-spec.md`](../docs/implementation-spec.md#next-up--admin-settings-page) (~11h across 5 PRs).
+- **Profile page completion** — the shared Profile & Settings page mocks most of its surface (Save Changes, 2FA, Active Sessions, Notifications, Deactivate are UI-only); photo upload + password change already work end-to-end. Full punch list in [`docs/implementation-spec.md`](../docs/implementation-spec.md#next-up--profile-page-completion).
+- **Rate limiting audit** — no throttling middleware exists anywhere in `apps/api` today. Audit auth-adjacent routes (login, parent OTP request) and the SMS-fan-out trigger, then add `slowapi` or equivalent where it's actually warranted.
+
+**Done when:** report cards render as real PDFs, Admin Settings and Profile pages are fully wired (no UI-only stubs), and rate limiting exists on the routes that need it.
+
+**Explicitly deferred to Phase 7:** Postgres RLS policies and Locust load testing — tracked there, not here (see §12 and §15).
 
 ---
 

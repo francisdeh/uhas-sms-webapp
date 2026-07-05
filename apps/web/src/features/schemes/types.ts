@@ -3,6 +3,11 @@ import type { Division } from "@/features/auth/types";
 export type SchemeType = "work" | "learning";
 export type SchemeStatus = "draft" | "submitted" | "acknowledged";
 
+export const SCHEME_TYPE_LABELS: Record<SchemeType, string> = {
+  work: "Scheme of Work",
+  learning: "Scheme of Learning",
+};
+
 export type Scheme = {
   id: string;
   schoolId: string;

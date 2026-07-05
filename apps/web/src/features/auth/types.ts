@@ -18,6 +18,8 @@ export type SessionUser = {
   displayName: string;
   role: UserRole;
   linkedId: string;
+  /** Human-readable id ("STAFF-001") for the linked staff/guardian row — display only. */
+  slug: string | null;
   mustChangePassword: boolean;
   isUnitHead?: boolean;
   unitHeadOf?: Division | null;
@@ -31,6 +33,17 @@ export const ROLE_DASHBOARD: Record<UserRole, string> = {
   Accountant: "/accountant",
 };
 
+// Single source of truth for role display text — every UI surface that
+// shows a role to a human (tables, dropdowns, badges) imports this
+// rather than hand-rolling its own "DeputyHead" -> "Deputy Head" mapping.
+export const ROLE_LABELS: Record<UserRole, string> = {
+  Admin: "Admin",
+  DeputyHead: "Deputy Head",
+  Teacher: "Teacher",
+  Parent: "Parent",
+  Accountant: "Accountant",
+};
+
 export type Division = "KG" | "Lower Primary" | "Upper Primary" | "JHS";
 
 export const DIVISIONS: Division[] = ["KG", "Lower Primary", "Upper Primary", "JHS"];
@@ -41,6 +54,8 @@ export type ManagedUser = {
   displayName: string;
   role: UserRole;
   linkedId: string;
+  /** Human-readable id ("STAFF-001") for the linked staff/guardian row — display only. */
+  slug: string | null;
   isActive: boolean;
   photoUrl: string | null;
 };

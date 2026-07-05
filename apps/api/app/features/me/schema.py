@@ -30,8 +30,9 @@ class MeRead(BaseModel):
       - JWT (uid, email, role, linked_id, must_change_password from
         `user_metadata`).
       - `users` bridge row (is_active flag, fallback email).
-      - Linked `staff` or `guardians` row for `display_name` +
-        Teacher/UnitHead's `division`.
+      - Linked `staff` or `guardians` row for `display_name`, `slug`
+        (human-readable id, e.g. "STAFF-001"), and Teacher/UnitHead's
+        `division`.
 
     `display_name` falls back to email → phone if the linked row is
     missing (which happens briefly during account provisioning).
@@ -44,6 +45,7 @@ class MeRead(BaseModel):
     display_name: str
     role: Role
     linked_id: UUID | None = None
+    slug: str | None = None
     must_change_password: bool = False
     is_active: bool = True
     is_unit_head: bool = False

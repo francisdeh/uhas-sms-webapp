@@ -91,6 +91,9 @@ export function createApiClient(getAuthToken: TokenGetter) {
           method: "PATCH",
           body: JSON.stringify(payload),
         }),
+      /** Cosmetic-only read for the login page — no session required. */
+      getPublic: () =>
+        apiFetch<components["schemas"]["SchoolPublicRead"]>(getAuthToken, "/school/public"),
     },
     schoolTerms: {
       /** List every configured term row for the caller's school. Any role. */

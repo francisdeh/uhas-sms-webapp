@@ -47,7 +47,11 @@ async def list_staff(
     session: Annotated[AsyncSession, Depends(get_session)],
     q: Annotated[str | None, Query(description="Search across name + email + UHAS ID")] = None,
     page: Annotated[int, Query(ge=1, description="1-based page index")] = 1,
-    size: Annotated[int, Query(ge=1, le=100, description="Rows per page")] = 50,
+    # Staff is bounded by school size, not row-count risk — several
+    # frontend pages fetch "all staff" for a dropdown/lookup in one page
+    # rather than paginating. 500 comfortably covers even a very large
+    # school; matches the precedent set by the calendar endpoint.
+    size: Annotated[int, Query(ge=1, le=500, description="Rows per page")] = 50,
     active_only: Annotated[bool, Query(alias="activeOnly")] = False,
 ) -> StaffListResponse:
     rows, total = await StaffService.list_for_school(

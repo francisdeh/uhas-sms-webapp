@@ -81,6 +81,62 @@ async def test_filter_by_division_and_year(client: AsyncClient, seed_school: Sch
     assert len(yr.json()["items"]) == 2
 
 
+async def test_deputy_head_list_ignores_wider_division_param(
+    client: AsyncClient, seed_school: School, seed_teacher: Staff
+) -> None:
+    """seed_teacher is JHS. A DeputyHead linked to that staff row must
+    only ever see JHS classes — even when they explicitly ask for KG."""
+    await client.post("/classes", json=_CLASS_BODY, headers=auth_header(role="Admin"))
+    await client.post(
+        "/classes",
+        json={"slug": "class-kg1", "name": "KG 1", "division": "KG", "academicYear": "2025/2026"},
+        headers=auth_header(role="Admin"),
+    )
+    res = await client.get(
+        "/classes?division=KG",
+        headers=auth_header(role="DeputyHead", linked_id=STAFF_UUID),
+    )
+    assert res.status_code == 200
+    items = res.json()["items"]
+    assert len(items) == 1
+    assert items[0]["division"] == "JHS"
+
+
+async def test_deputy_head_can_get_class_in_own_division(
+    client: AsyncClient, seed_school: School, seed_teacher: Staff
+) -> None:
+    created = (
+        await client.post("/classes", json=_CLASS_BODY, headers=auth_header(role="Admin"))
+    ).json()
+    res = await client.get(
+        f"/classes/{created['id']}",
+        headers=auth_header(role="DeputyHead", linked_id=STAFF_UUID),
+    )
+    assert res.status_code == 200
+
+
+async def test_deputy_head_cannot_get_class_outside_division(
+    client: AsyncClient, seed_school: School, seed_teacher: Staff
+) -> None:
+    created = (
+        await client.post(
+            "/classes",
+            json={
+                "slug": "class-kg1",
+                "name": "KG 1",
+                "division": "KG",
+                "academicYear": "2025/2026",
+            },
+            headers=auth_header(role="Admin"),
+        )
+    ).json()
+    res = await client.get(
+        f"/classes/{created['id']}",
+        headers=auth_header(role="DeputyHead", linked_id=STAFF_UUID),
+    )
+    assert res.status_code == 403
+
+
 async def test_cross_school_scoping(client: AsyncClient, seed_school: School) -> None:
     await client.post(
         "/classes", json=_CLASS_BODY, headers=auth_header(role="Admin", school_id=SCHOOL_UUID)

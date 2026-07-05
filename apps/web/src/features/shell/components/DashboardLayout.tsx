@@ -7,6 +7,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { AutoBreadcrumb } from "./AutoBreadcrumb";
 import { SessionExpiryWatcher } from "@/features/auth/components/SessionExpiryWatcher";
+import { isDevMode, DEV_BANNER_HEIGHT_REM } from "@/components/DevModeBanner";
 import type { SessionUser } from "@/features/auth/types";
 
 interface DashboardLayoutProps {
@@ -32,7 +33,14 @@ export function DashboardLayout({
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen bg-muted/30 dark:bg-background overflow-hidden">
+    <div
+      className="flex bg-muted/30 dark:bg-background overflow-hidden"
+      // The dev-mode banner (rendered above this in the root layout) eats
+      // into the viewport — shrink by exactly its height so this shell's
+      // bottom edge doesn't clip below the visible viewport. Full
+      // `100vh` in production, where the banner is absent.
+      style={{ height: isDevMode() ? `calc(100vh - ${DEV_BANNER_HEIGHT_REM})` : "100vh" }}
+    >
       <Sidebar
         user={user}
         navBadges={navBadges}

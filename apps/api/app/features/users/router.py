@@ -46,7 +46,9 @@ async def list_users(
     _admin: RequireAdmin,
     q: Annotated[str | None, Query(description="Match email or display_name")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 20,
+    # One row per staff/guardian account — bounded by school size like
+    # classes/staff. The Admin Users page fetches "everyone" in one page.
+    size: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> UsersListResponse:
     items, total = await UsersService.list_for_school(session, school_id, q=q, page=page, size=size)
     return UsersListResponse(items=items, total=total, page=page, size=size)

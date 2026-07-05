@@ -73,7 +73,7 @@ export function Sidebar({
         layout
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className={cn(
-          "hidden lg:flex flex-col h-screen bg-sidebar border-r border-border/60 flex-shrink-0 overflow-hidden"
+          "hidden lg:flex flex-col h-full bg-sidebar border-r border-border/60 flex-shrink-0 overflow-hidden"
         )}
         style={{ width: collapsed ? 64 : 240 }}
       >

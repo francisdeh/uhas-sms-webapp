@@ -50,7 +50,11 @@ export function AuditLogFilters({ filters }: Props) {
           onValueChange={(v) => pushParams({ action: !v || v === "all" ? "" : v })}
         >
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="All actions">
+              {(value: AuditAction | "all") =>
+                value === "all" || !value ? "All actions" : AUDIT_ACTION_LABELS[value]
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All actions</SelectItem>

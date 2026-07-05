@@ -203,7 +203,11 @@ export function AssignmentForm({ teacherId, existing, assignments, backHref }: A
                         }}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select class" />
+                          <SelectValue placeholder="Select class">
+                            {(value: string) =>
+                              uniqueClasses.find((c) => c.classId === value)?.className ?? ""
+                            }
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {uniqueClasses.length === 0 ? (
@@ -236,7 +240,11 @@ export function AssignmentForm({ teacherId, existing, assignments, backHref }: A
                         disabled={!selectedClassId}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select subject" />
+                          <SelectValue placeholder="Select subject">
+                            {(value: string) =>
+                              subjectsForClass.find((s) => s.subjectId === value)?.subjectName ?? ""
+                            }
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {subjectsForClass.length === 0 ? (

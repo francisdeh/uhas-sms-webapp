@@ -77,6 +77,18 @@ class SchoolsService:
         return row
 
     @staticmethod
+    async def get_public(session: AsyncSession) -> School:
+        """Fetch the school for the unauthenticated login-page branding read.
+
+        No `school_id` to resolve against — there's no JWT yet. 404 only
+        if the DB has no active school at all (misconfigured install).
+        """
+        row = await SchoolsRepository.get_first_active(session)
+        if row is None:
+            raise NotFoundError("No active school found.")
+        return row
+
+    @staticmethod
     async def patch(
         session: AsyncSession,
         school_id: UUID | str,

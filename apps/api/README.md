@@ -17,12 +17,12 @@ The Python side of the Strategy A architecture. Talks to Supabase Postgres via S
 - ✅ Sentry (job + request error capture, PII-scrubbed) + Logfire — both no-op when credentials are unset
 - ✅ Tooling: `ruff` (lint + format), `mypy` (strict), `pytest` (+ asyncio, 510+ tests)
 - ✅ CI job runs lint + format-check + mypy + pytest + Alembic-upgrade-from-scratch + OpenAPI/TS drift check
+- ✅ Demo-data seed script (`app/scripts/seed/`) — wipes and re-populates every business-data table; see "Seeding demo data" below
 
 Not yet wired:
 
 - ❌ Real Hubtel SMS client — interface + stub exist; needs an account + sender-ID first
 - ❌ Real report-card PDF rendering — the Inngest jobs exist and write to Storage, but the body is a placeholder (nothing in the repo turns exam data into PDF bytes yet)
-- ❌ Local demo-data seed script — the Drizzle-based one was removed with Drizzle; nothing replaced it (tracked separately)
 - ❌ Pre-commit hooks (`ruff`, `mypy`) at repo root — still TODO (lefthook or husky-mono)
 - ❌ Rate limiting — no throttling middleware anywhere yet; needs an audit of auth-adjacent + SMS-triggering routes before real users hit them
 - ❌ Sentry/Logfire *activation* — the instrumentation is wired (see above) but stays a no-op until real project credentials are provisioned and set via env vars
@@ -38,6 +38,7 @@ uv sync                    # installs deps from uv.lock into .venv
 # Needs a local Supabase stack running first — `supabase start` from the
 # repo root. See the root README's Getting Started for the full sequence.
 uv run alembic upgrade head          # apply schema (35 tables)
+uv run python -m app.scripts.seed    # optional — populate demo data (see below)
 
 uv run uvicorn app.main:app --reload --port 8000
 # → http://localhost:8000/health
@@ -61,6 +62,18 @@ uv run alembic upgrade head  # Apply migrations
 uv run alembic revision -m "…"  # New migration — hand-write op.* calls, no autogenerate
 ```
 
+## Seeding demo data
+
+```bash
+uv run python -m app.scripts.seed
+```
+
+Wipes and re-populates every business-data table (`TRUNCATE ... CASCADE`, then re-inserts) — one school (UHAS Basic School, Volta Region), 17 staff, 41 guardians, 112 students across 11 classes, plus exams/scores, two weeks of attendance history, lesson plans/schemes/assignments in every workflow status, and a handful of announcements/calendar events/appointments. Reset-only by design — there's no upsert/idempotent mode; re-run anytime for a clean slate.
+
+The 9 Supabase Auth test accounts (`apps/web/scripts/_seed-data/users.ts` → `pnpm seed:supabase`) are auth-only — this script is what makes them actually functional, by creating the `staff`/`guardians`/`users` rows their JWT claims point at, using the same deterministic-UUID scheme (`app/scripts/seed/det.py`, a Python port of `apps/web/src/lib/uuid.ts`'s `det()`). The two scripts are independent (one hits Supabase Auth, the other hits Postgres directly) — run them in any order, just run both before trying to log in.
+
+Refuses to run against `settings.env == "production"`.
+
 ## Layout
 
 ```
@@ -72,6 +85,8 @@ apps/api/
 │
 ├── app/
 │   ├── main.py               # FastAPI app + router/job registration + error handler
+│   │
+│   ├── scripts/seed/         # Demo-data seed script — see "Seeding demo data" above
 │   │
 │   ├── core/                 # Cross-cutting concerns only
 │   │   ├── config.py         # pydantic-settings — env-driven, every var has a dev default

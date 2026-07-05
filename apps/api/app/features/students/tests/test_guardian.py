@@ -67,6 +67,7 @@ async def test_returns_linked_guardian(client: AsyncClient, seed_guardian_link: 
     assert res.status_code == 200
     body = res.json()
     assert body["id"] == str(GUARDIAN_UUID)
+    assert body["slug"] == "GRD-STU-1"
     assert body["name"] == "Efua Parent"
     assert body["relationship"] == "mother"
 

@@ -224,8 +224,8 @@ export function Header({ user, currentYear, onMobileMenuOpen, userPhotoUrl = nul
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   )}
                   <div className="flex items-center gap-1.5 mt-1">
-                    {user.linkedId && (
-                      <span className="text-xs text-muted-foreground">{user.linkedId}</span>
+                    {user.slug && (
+                      <span className="text-xs text-muted-foreground">{user.slug}</span>
                     )}
                     <span className="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-white dark:bg-slate-600">
                       {user.role}
@@ -238,7 +238,10 @@ export function Header({ user, currentYear, onMobileMenuOpen, userPhotoUrl = nul
                 <DropdownMenuItem onClick={() => router.push(profileHref)} className="cursor-pointer">
                   <User size={14} className="mr-2" /> My Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/change-password")} className="cursor-pointer">
+                <DropdownMenuItem
+                  onClick={() => router.push(`${profileHref}?tab=security`)}
+                  className="cursor-pointer"
+                >
                   <Settings size={14} className="mr-2" /> Change Password
                 </DropdownMenuItem>
                 {mounted && (

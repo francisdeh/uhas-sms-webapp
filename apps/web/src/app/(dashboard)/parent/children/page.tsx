@@ -35,6 +35,7 @@ export default async function ParentChildrenPage() {
   const children = childRows.map((s) => ({
     student: {
       id: s.id,
+      slug: s.slug,
       firstName: s.firstName,
       lastName: s.lastName,
       gender: s.gender ?? "Male",
@@ -73,7 +74,7 @@ export default async function ParentChildrenPage() {
                   <p className="text-base font-semibold">
                     {student.firstName} {student.lastName}
                   </p>
-                  <p className="text-xs text-muted-foreground font-mono">{student.id}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{student.slug}</p>
                 </div>
                 <span
                   className={cn(

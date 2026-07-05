@@ -10,9 +10,10 @@
   # so no corepack/install boilerplate here. We just filter to the web
   # package for the build + start steps.
   buildCommand = "pnpm --filter uhas-sms-webapp build"
-  # Apply Drizzle migrations + idempotent prod seed before booting the
-  # Next.js server. Both are no-ops when there's nothing to do.
-  startCommand = "pnpm --filter uhas-sms-webapp db:migrate && pnpm --filter uhas-sms-webapp db:seed:prod && pnpm --filter uhas-sms-webapp start"
+  # No DB step here — Next.js has zero direct database access under
+  # Strategy A (see CLAUDE.md). Schema migrations run on the api
+  # service below; this just serves the built app.
+  startCommand = "pnpm --filter uhas-sms-webapp start"
   restartPolicyType = "on_failure"
   restartPolicyMaxRetries = 5
 
@@ -21,9 +22,18 @@
   source = "apps/api"
   # Frozen install matches the committed uv.lock exactly.
   buildCommand = "uv sync --frozen"
-  # Railway assigns $PORT at runtime; binding 0.0.0.0 makes the service
+  # Apply pending Alembic migrations before booting — safe to run on
+  # every deploy (no-op when the schema is already current). Railway
+  # assigns $PORT at runtime; binding 0.0.0.0 makes the service
   # reachable from the public URL Railway provisions for it.
-  startCommand = "uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+  #
+  # Supabase-platform migrations (supabase/migrations/ — Storage RLS
+  # policies etc.) are NOT run here. They go through a separate,
+  # manual `supabase db push` against the linked prod project — see
+  # docs/DEPLOY.md. Baking that into every app deploy would mean
+  # storing a Supabase access token in the app's runtime env for
+  # something that changes rarely.
+  startCommand = "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
   restartPolicyType = "on_failure"
   restartPolicyMaxRetries = 5
 

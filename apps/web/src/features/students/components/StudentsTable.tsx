@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -71,6 +72,7 @@ export default function StudentsTable({
   division,
   listHref,
 }: StudentsTableProps) {
+  const router = useRouter();
   // FastAPI is now the source of truth. When a `division` prop is given
   // (deputy-head pages), the server filters; otherwise the client toggles
   // a local divisionFilter for visual filtering only.
@@ -164,7 +166,7 @@ export default function StudentsTable({
               <p className="text-sm font-medium truncate">
                 {s.firstName} {s.lastName}
               </p>
-              <p className="text-xs text-muted-foreground font-mono truncate">{s.id}</p>
+              <p className="text-xs text-muted-foreground font-mono truncate">{s.slug}</p>
             </div>
           </div>
         );
@@ -237,7 +239,10 @@ export default function StudentsTable({
       cell: ({ row }) => {
         const s = row.original;
         return (
-          <div className="flex items-center justify-end gap-0.5">
+          <div
+            className="flex items-center justify-end gap-0.5"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Link
               href={`${listHref}/${s.id}`}
               className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -371,6 +376,7 @@ export default function StudentsTable({
         <DataTable
           columns={columns}
           data={displayedStudents}
+          onRowClick={(s) => router.push(`${listHref}/${s.id}`)}
           searchKey="name"
           searchPlaceholder="Search by name, class, ID…"
         />

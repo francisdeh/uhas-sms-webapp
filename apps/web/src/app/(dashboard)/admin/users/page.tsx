@@ -13,6 +13,7 @@ export default async function AdminUsersPage() {
     displayName: u.displayName,
     role: u.role,
     linkedId: u.linkedId ?? "",
+    slug: u.slug ?? null,
     isActive: u.isActive,
     photoUrl: null,
   }));

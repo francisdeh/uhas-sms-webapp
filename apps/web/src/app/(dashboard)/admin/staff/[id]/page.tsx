@@ -31,6 +31,7 @@ export default async function AdminStaffDetailPage({
 
   const staff: Staff = {
     id: row.id,
+    slug: row.slug,
     schoolId: row.schoolId,
     uhasId: row.uhasId ?? null,
     firstName: row.firstName,

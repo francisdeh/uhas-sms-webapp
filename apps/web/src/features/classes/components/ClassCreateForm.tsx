@@ -7,7 +7,6 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,6 +20,7 @@ import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field
 import { useCreateClass } from "@/features/classes/hooks/use-classes";
 import { ApiError } from "@/lib/api/browser";
 import type { Division } from "@/features/classes/types";
+import { ACADEMIC_YEARS, type AcademicYear } from "@/lib/academic-year";
 
 const CLASS_NAMES: Array<{ name: string; division: Division; slug: string }> = [
   { name: "KG 1", division: "KG", slug: "class-kg1" },
@@ -38,9 +38,7 @@ const CLASS_NAMES: Array<{ name: string; division: Division; slug: string }> = [
 
 const schema = z.object({
   name: z.string().min(1, { message: "Select a class" }),
-  academicYear: z
-    .string()
-    .regex(/^\d{4}\/\d{4}$/, { message: "Format must be YYYY/YYYY (e.g. 2025/2026)" }),
+  academicYear: z.enum(ACADEMIC_YEARS, { message: "Select an academic year" }),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -48,7 +46,7 @@ type FormValues = z.infer<typeof schema>;
 interface ClassCreateFormProps {
   listHref: string;
   /** Current-year default for the form; comes from the school config. */
-  currentYear: string;
+  currentYear: AcademicYear;
 }
 
 /**
@@ -72,7 +70,6 @@ export default function ClassCreateForm({
   const createClass = useCreateClass();
 
   const {
-    register,
     handleSubmit,
     control,
     formState: { errors, isSubmitting },
@@ -155,12 +152,29 @@ export default function ClassCreateForm({
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="academicYear">Academic Year</FieldLabel>
-                <Input
-                  id="academicYear"
-                  type="text"
-                  placeholder="e.g. 2025/2026"
-                  {...register("academicYear")}
+                <FieldLabel>Academic Year</FieldLabel>
+                <Controller
+                  name="academicYear"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(v) => {
+                        if (v) field.onChange(v);
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select an academic year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ACADEMIC_YEARS.map((year) => (
+                          <SelectItem key={year} value={year}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
                 <FieldError errors={[errors.academicYear]} />
               </Field>

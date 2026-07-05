@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import Providers from "@/components/providers";
+import { DevModeBanner, isDevMode } from "@/components/DevModeBanner";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={jakarta.variable} data-color-scheme="uhas" suppressHydrationWarning>
       <body>
         <Providers>
+          {isDevMode() && <DevModeBanner />}
           {children}
           <Toaster position="top-right" richColors />
         </Providers>

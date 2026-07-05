@@ -50,12 +50,20 @@ class FakeSupabaseAdminClient:
         self.create_calls: list[dict[str, Any]] = []
         self.update_calls: list[dict[str, Any]] = []
         self.delete_calls: list[UUID | str] = []
+        self.invite_calls: list[dict[str, Any]] = []
         self._preset_ids: list[UUID] = []
         self._preset_index = 0
 
     def preset_ids(self, *ids: UUID) -> None:
         self._preset_ids = list(ids)
         self._preset_index = 0
+
+    def _next_uid(self) -> UUID:
+        if self._preset_index < len(self._preset_ids):
+            uid = self._preset_ids[self._preset_index]
+            self._preset_index += 1
+            return uid
+        return uuid4()
 
     async def create_user(
         self,
@@ -65,11 +73,7 @@ class FakeSupabaseAdminClient:
         app_metadata: dict[str, Any],
         user_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        if self._preset_index < len(self._preset_ids):
-            uid = self._preset_ids[self._preset_index]
-            self._preset_index += 1
-        else:
-            uid = uuid4()
+        uid = self._next_uid()
         self.create_calls.append(
             {
                 "email": email,
@@ -102,6 +106,11 @@ class FakeSupabaseAdminClient:
 
     async def delete_user(self, user_id: UUID | str) -> None:
         self.delete_calls.append(user_id)
+
+    async def invite_user_by_email(self, *, email: str, redirect_to: str) -> dict[str, Any]:
+        uid = self._next_uid()
+        self.invite_calls.append({"email": email, "redirect_to": redirect_to, "returned_id": uid})
+        return {"id": str(uid), "email": email}
 
 
 @pytest_asyncio.fixture

@@ -55,7 +55,7 @@ import { api, ApiError } from "@/lib/api/browser";
 import { TEACHER_RANKS, type Staff } from "@/features/staff/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
-import { STAFF_SYSTEM_ROLES } from "@/features/auth/types";
+import { STAFF_SYSTEM_ROLES, ROLE_LABELS } from "@/features/auth/types";
 
 const ROLE_AVATAR: Record<Staff["systemRole"], string> = {
   Admin: "from-purple-400 to-purple-600",
@@ -264,7 +264,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
           <h1 className="text-xl font-bold truncate">
             {staff.firstName} {staff.lastName}
           </h1>
-          <p className="text-sm text-muted-foreground font-mono mt-0.5">{staff.id}</p>
+          <p className="text-sm text-muted-foreground font-mono mt-0.5">{staff.slug}</p>
           <div className="flex items-center gap-2 mt-1.5">
             <span
               className={cn(
@@ -374,7 +374,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
               <Card className="rounded-t-none border-t-0">
                 <CardContent className="pt-5 space-y-5">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
-                    <InfoRow label="Staff ID" value={staff.id} mono />
+                    <InfoRow label="Staff ID" value={staff.slug} mono />
                     <div>
                       <p className="text-xs text-muted-foreground mb-0.5">System Role</p>
                       <span
@@ -519,12 +519,14 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                       }}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a role" />
+                        <SelectValue placeholder="Select a role">
+                          {(value: keyof typeof ROLE_LABELS) => ROLE_LABELS[value]}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Admin">Admin</SelectItem>
-                        <SelectItem value="DeputyHead">Deputy Head</SelectItem>
-                        <SelectItem value="Teacher">Teacher</SelectItem>
+                        <SelectItem value="Admin">{ROLE_LABELS.Admin}</SelectItem>
+                        <SelectItem value="DeputyHead">{ROLE_LABELS.DeputyHead}</SelectItem>
+                        <SelectItem value="Teacher">{ROLE_LABELS.Teacher}</SelectItem>
                       </SelectContent>
                     </Select>
                   )}

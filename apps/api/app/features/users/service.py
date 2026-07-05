@@ -16,12 +16,12 @@ same convention.
 
 from __future__ import annotations
 
-import secrets
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import NotFoundError, ValidationError
 from app.core.roles import PARENT
 from app.features.users.model import User
@@ -29,18 +29,9 @@ from app.features.users.repository import JoinedRow, UsersRepository
 from app.features.users.schema import UserCreate, UserRead, UserUpdate
 from app.features.users.supabase_admin import PERMANENT_BAN, SupabaseAdminClient
 
-_PASSWORD_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-
-def _generate_temp_password() -> str:
-    """Randomised throwaway password.
-
-    Satisfies Supabase's "email signups need a password" invariant; the
-    admin hand-delivers a recovery link, so the value here is never
-    typed by a human.
-    """
-    body = "".join(secrets.choice(_PASSWORD_ALPHABET) for _ in range(12))
-    return body + "A1!"
+def _invite_redirect_url() -> str:
+    return f"{settings.app_url}/change-password"
 
 
 def _display_name_from_joined(
@@ -57,12 +48,13 @@ def _display_name_from_joined(
 
 
 def _row_to_read(joined: JoinedRow) -> UserRead:
-    row, staff_first, staff_last, guardian_first, guardian_last = joined
+    row, staff_first, staff_last, guardian_first, guardian_last, staff_slug, guardian_slug = joined
     return UserRead(
         id=row.id,
         email=row.email,
         role=row.role,
         linked_id=row.linked_id,
+        slug=staff_slug or guardian_slug,
         display_name=_display_name_from_joined(
             staff_first, staff_last, guardian_first, guardian_last
         ),
@@ -134,9 +126,11 @@ class UsersService:
     ) -> UserRead:
         await UsersService._validate_link(session, school_id, payload.role, payload.linked_id)
 
-        created = await supabase.create_user(
-            email=payload.email,
-            password=_generate_temp_password(),
+        redirect_to = _invite_redirect_url()
+        created = await supabase.invite_user_by_email(email=payload.email, redirect_to=redirect_to)
+        auth_uid = UUID(str(created["id"]))
+        await supabase.update_user_by_id(
+            auth_uid,
             app_metadata={
                 "role": payload.role,
                 "school_id": str(school_id),
@@ -147,7 +141,6 @@ class UsersService:
                 "must_change_password": True,
             },
         )
-        auth_uid = UUID(str(created["id"]))
         school_uuid = school_id if isinstance(school_id, UUID) else UUID(str(school_id))
         row = User(
             id=auth_uid,

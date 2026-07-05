@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { School, BookOpen, GraduationCap, BookMarked, Eye, Plus, Loader2 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -34,6 +35,7 @@ export default function ClassesTable({
   listHref,
   readonly = false,
 }: ClassesTableProps) {
+  const router = useRouter();
   const [divisionFilter, setDivisionFilter] = useState<DivisionFilter>("All");
 
   // Server-side filter — the API handles division scoping.
@@ -103,7 +105,10 @@ export default function ClassesTable({
             id: "actions",
             header: "",
             cell: ({ row }: { row: { original: ClassRead } }) => (
-              <div className="flex items-center justify-end">
+              <div
+                className="flex items-center justify-end"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Link
                   href={`${listHref}/${row.original.id}`}
                   className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -194,6 +199,7 @@ export default function ClassesTable({
           <DataTable
             columns={columns}
             data={classes}
+            onRowClick={(c) => router.push(`${listHref}/${c.id}`)}
             searchKey="class"
             searchPlaceholder="Search by class name…"
           />

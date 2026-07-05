@@ -107,7 +107,9 @@ export default function ParentAttendanceView({
             onValueChange={(id) => router.push(`/parent/attendance?studentId=${id}`)}
           >
             <SelectTrigger className="w-48">
-              <SelectValue />
+              <SelectValue>
+                {(value: string) => students.find((s) => s.id === value)?.name ?? ""}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {students.map((s) => (

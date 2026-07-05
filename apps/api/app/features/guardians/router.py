@@ -44,7 +44,9 @@ async def list_guardians(
     session: Annotated[AsyncSession, Depends(get_session)],
     q: Annotated[str | None, Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    # Bounded by school size like staff/classes — the admin user-linking
+    # picker fetches "every guardian" in one page.
+    size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> GuardiansListResponse:
     rows, total = await GuardiansService.list_for_school(
         session, school_id, q=q, page=page, size=size

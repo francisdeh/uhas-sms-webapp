@@ -32,6 +32,11 @@ interface DataTableProps<TData> {
   searchPlaceholder?: string;
   isLoading?: boolean;
   pageSize?: number;
+  /** When set, rows are clickable — e.g. navigate to the record's detail page.
+   *  Interactive cells (links/buttons in an actions column) should call
+   *  `e.stopPropagation()` in their own handlers so a row click isn't also
+   *  triggered. */
+  onRowClick?: (row: TData) => void;
 }
 
 export function DataTable<TData>({
@@ -41,6 +46,7 @@ export function DataTable<TData>({
   searchPlaceholder = "Search…",
   isLoading = false,
   pageSize = 10,
+  onRowClick,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -125,7 +131,11 @@ export function DataTable<TData>({
               </TableRow>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="hover:bg-muted/30">
+                <TableRow
+                  key={row.id}
+                  className={cn("hover:bg-muted/30", onRowClick && "cursor-pointer")}
+                  onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="text-sm">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

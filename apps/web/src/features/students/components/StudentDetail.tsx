@@ -205,7 +205,7 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
             <h1 className="text-xl font-bold">
               {student.firstName} {student.lastName}
             </h1>
-            <p className="text-sm text-muted-foreground font-mono mt-0.5">{student.id}</p>
+            <p className="text-sm text-muted-foreground font-mono mt-0.5">{student.slug}</p>
             <div className="flex items-center gap-2 mt-1.5">
               <span
                 className={cn(
@@ -298,7 +298,7 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <InfoRow label="Student ID" value={student.id} mono />
+                    <InfoRow label="Student ID" value={student.slug} mono />
                     <InfoRow label="Class" value={student.className} />
                     <div>
                       <p className="text-xs text-muted-foreground mb-0.5">Division</p>
@@ -376,7 +376,7 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
                       <InfoRow label="Relationship" value={guardian.relationship} />
                       <InfoRow label="Phone" value={guardian.phone} />
                       <InfoRow label="Email" value={guardian.email} />
-                      <InfoRow label="Guardian ID" value={guardian.id} mono />
+                      <InfoRow label="Guardian ID" value={guardian.slug} mono />
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
@@ -496,7 +496,9 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={(v) => { if (v) field.onChange(v); }}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a class" />
+                        <SelectValue placeholder="Select a class">
+                          {(value: string) => classes.find((cls) => cls.id === value)?.name ?? ""}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {classes.map((cls) => (

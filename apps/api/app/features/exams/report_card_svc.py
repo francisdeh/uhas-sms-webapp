@@ -6,8 +6,9 @@ Composes the queries in `ReportCardRepository` into a `ReportCardResponse`
 Role gate:
 
   * Admin        — any student in the school.
-  * Parent       — must be linked via `student_guardians`. Any exam
-                   type (MidTerm + EndOfTerm both allowed).
+  * Parent       — must be linked via `student_guardians`, and the exam
+                   must be published. Any exam type (MidTerm + EndOfTerm
+                   both allowed) once published.
   * Teacher      — must class-teach or subject-teach the student's
                    active-year class.
   * DeputyHead   — student's active class division must match the
@@ -28,6 +29,7 @@ from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT, TEACHER
 from app.core.security import CurrentUser
 from app.features.classes.model import Class
 from app.features.exams.compute import compute_aggregate
+from app.features.exams.model import Exam
 from app.features.exams.report_card_repo import ReportCardRepository
 from app.features.exams.schema import (
     ReportCardExam,
@@ -67,7 +69,7 @@ class ReportCardService:
                 f"Student {student_id!r} has no active enrollment for {exam.academic_year}."
             )
 
-        await _assert_can_view(session, school_id, user, student, cls)
+        await _assert_can_view(session, school_id, user, student, cls, exam)
 
         scored = await ReportCardRepository.list_scored_rows(
             session, student_id=student.id, exam_id=exam.id
@@ -122,6 +124,7 @@ class ReportCardService:
                 type=exam.type,
                 term=exam.term,
                 academic_year=exam.academic_year,
+                is_published=bool(exam.is_published),
             ),
             school=ReportCardSchool(id=school.id, name=school.name, logo_url=school.logo_url),
             scores=scores,
@@ -138,6 +141,7 @@ async def _assert_can_view(
     user: CurrentUser,
     student: Student,
     cls: Class,
+    exam: Exam,
 ) -> None:
     role = user.role
     if role == ADMIN:
@@ -151,6 +155,11 @@ async def _assert_can_view(
         )
         if not linked:
             raise ForbiddenError("You may only view your own children's report cards.")
+        if not exam.is_published:
+            # Server-side mirror of the frontend's publish gate — a parent
+            # hitting the API directly must not see scores before the
+            # school publishes them, same as the UI never linking to one.
+            raise ForbiddenError("This report card has not been published yet.")
         return
 
     if role == TEACHER:

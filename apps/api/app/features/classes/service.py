@@ -39,9 +39,23 @@ from app.features.subjects.repository import SubjectsRepository
 
 class ClassesService:
     @staticmethod
+    async def _deputy_division(
+        session: AsyncSession, school_id: UUID | str, user: CurrentUser
+    ) -> str:
+        """Resolve the caller's own division — raises if their staff row
+        is missing or has no division set (a half-configured account)."""
+        if not user.linked_id:
+            raise ForbiddenError("Deputy identity missing.")
+        staff = await StaffRepository.get_by_id(session, school_id, user.linked_id)
+        if staff is None or not staff.division:
+            raise ForbiddenError("Your staff record has no division assigned.")
+        return staff.division
+
+    @staticmethod
     async def list_for_school(
         session: AsyncSession,
         school_id: UUID | str,
+        user: CurrentUser,
         *,
         q: str | None = None,
         division: str | None = None,
@@ -49,6 +63,10 @@ class ClassesService:
         page: int = 1,
         size: int = 50,
     ) -> tuple[list[tuple[Class, int, str | None]], int]:
+        # A Deputy Head is scoped to their own division regardless of what
+        # the query param asks for — never let `?division=` widen it.
+        if user.role == DEPUTY_HEAD:
+            division = await ClassesService._deputy_division(session, school_id, user)
         return await ClassesRepository.list_for_school(
             session,
             school_id,
@@ -69,12 +87,16 @@ class ClassesService:
 
     @staticmethod
     async def get_enriched(
-        session: AsyncSession, school_id: UUID | str, class_id: UUID | str
+        session: AsyncSession, school_id: UUID | str, class_id: UUID | str, user: CurrentUser
     ) -> tuple[Class, int, str | None]:
         """Class + student_count + primary_teacher_name — for the detail page."""
         row = await ClassesRepository.get_enriched(session, school_id, class_id)
         if not row:
             raise NotFoundError(f"Class {class_id!r} not found.")
+        if user.role == DEPUTY_HEAD:
+            own_division = await ClassesService._deputy_division(session, school_id, user)
+            if row[0].division != own_division:
+                raise ForbiddenError("You may only view classes in your division.")
         return row
 
     @staticmethod

@@ -103,7 +103,11 @@ export function GradingTab({ settings }: { settings: SchoolSettings }) {
             <FieldLabel>Grading scale</FieldLabel>
             <Select value={scale} onValueChange={(v) => v && setScale(v as "GES_STANDARD" | "CUSTOM")}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: "GES_STANDARD" | "CUSTOM") =>
+                    value === "CUSTOM" ? "Custom bands" : "GES Standard (9 bands)"
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="GES_STANDARD">GES Standard (9 bands)</SelectItem>

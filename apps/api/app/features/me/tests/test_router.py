@@ -29,6 +29,7 @@ async def test_get_me_admin_linked_staff(client: AsyncClient, seed: None) -> Non
     assert body["uid"] == str(ADMIN_USER)
     assert body["role"] == "Admin"
     assert body["linkedId"] == str(ADMIN_STAFF)
+    assert body["slug"] == "STAFF-adm-me"
     assert body["displayName"] == "Adae Admin"
     assert body["email"] == "admin@me.test"
     assert body["isActive"] is True
@@ -50,6 +51,7 @@ async def test_get_me_teacher_unit_head(client: AsyncClient, seed: None) -> None
     assert r.status_code == 200
     body = r.json()
     assert body["role"] == "Teacher"
+    assert body["slug"] == "STAFF-t-me"
     assert body["displayName"] == "Ama Teacher"
     assert body["isUnitHead"] is True
     assert body["unitHeadOf"] == "JHS"
@@ -69,6 +71,7 @@ async def test_get_me_parent_linked_guardian(client: AsyncClient, seed: None) ->
     body = r.json()
     assert body["role"] == "Parent"
     assert body["linkedId"] == str(GUARDIAN_ID)
+    assert body["slug"] == "GUAR-p-me"
     assert body["displayName"] == "Paa Parent"
     # Parents never get unit-head fields — even if the branch runs.
     assert body["isUnitHead"] is False
@@ -88,6 +91,7 @@ async def test_get_me_email_fallback_when_no_linked_row(client: AsyncClient, see
     assert r.status_code == 200
     body = r.json()
     assert body["linkedId"] is None
+    assert body["slug"] is None
     # No linked staff → fall through to the JWT email.
     assert body["displayName"] == "fallback@me.test"
     assert body["mustChangePassword"] is True

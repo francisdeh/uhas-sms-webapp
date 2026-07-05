@@ -51,6 +51,7 @@ export default async function AdminReportCardRoute({ params }: PageProps) {
 
   const student: Student = {
     id: card.student.id,
+    slug: card.student.slug,
     schoolId: examRead.schoolId,
     firstName: card.student.firstName,
     middleName: card.student.middleName ?? undefined,

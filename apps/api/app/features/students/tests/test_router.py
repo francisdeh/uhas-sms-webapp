@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.audit.model import AuditLog
@@ -118,8 +118,17 @@ async def test_patch_writes_audit_when_changes_present(
     assert res.status_code == 200
     assert res.json()["firstName"] == "Adwoa"
 
+    # Scoped to this test's own student — an unscoped action-only filter
+    # would also match unrelated STUDENT_EDIT rows already committed in
+    # the shared local dev DB (real seed/demo data, manual testing, …).
     audit_rows = (
-        (await db_session.execute(select(AuditLog).where(AuditLog.action == "STUDENT_EDIT")))
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    and_(AuditLog.action == "STUDENT_EDIT", AuditLog.target_id == created["id"])
+                )
+            )
+        )
         .scalars()
         .all()
     )
@@ -142,7 +151,16 @@ async def test_patch_no_changes_skips_audit(
         headers=auth_header(role="Admin"),
     )
     audit_count = (
-        (await db_session.execute(select(AuditLog).where(AuditLog.action == "STUDENT_EDIT")))
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    and_(
+                        AuditLog.action == "STUDENT_EDIT",
+                        AuditLog.target_id == created["id"],
+                    )
+                )
+            )
+        )
         .scalars()
         .all()
     )

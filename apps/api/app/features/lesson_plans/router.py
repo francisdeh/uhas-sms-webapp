@@ -104,7 +104,9 @@ async def list_lesson_plans(
     class_id: Annotated[UUID | None, Query(alias="classId")] = None,
     term: Annotated[int | None, Query(ge=1, le=3)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    # Review-queue and "my plans" views fetch up to 200 in one page
+    # rather than paginating a per-teacher/per-division list.
+    size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> LessonPlansListResponse:
     """Non-Admin/Deputy default to own plans only. Reviewers see everyone
     unless they narrow with `?teacherId=`."""

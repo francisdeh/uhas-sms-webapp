@@ -231,7 +231,12 @@ export function ParentAppointmentsView({
                       }}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a child" />
+                        <SelectValue placeholder="Select a child">
+                          {(value: string) => {
+                            const c = childOptions.find((c) => c.id === value);
+                            return c ? `${c.name} — ${c.className}` : "";
+                          }}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {childOptions.map((c) => (
@@ -301,7 +306,9 @@ export function ParentAppointmentsView({
                         onValueChange={(v) => { if (v) field.onChange(v); }}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue />
+                          <SelectValue>
+                            {(value: keyof typeof SLOT_LABELS) => SLOT_LABELS[value]}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="morning">{SLOT_LABELS.morning}</SelectItem>

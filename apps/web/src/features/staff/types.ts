@@ -16,6 +16,7 @@ export const TEACHER_RANKS: readonly TeacherRank[] = [
 
 export type Staff = {
   id: string;
+  slug: string;
   schoolId: string;
   uhasId: string | null;
   firstName: string;

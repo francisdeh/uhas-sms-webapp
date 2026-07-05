@@ -78,7 +78,15 @@ cd ../..
 
 ### 5. Seed demo data
 
-⚠️ **No working seed script exists yet.** The old Drizzle-based `seed-db.ts` was removed when Drizzle was decommissioned (Phase 2); nothing on the FastAPI side replaced it. `apps/web/scripts/seed-supabase-users.ts` still creates Supabase Auth users, but their `app_metadata.linked_id`/`school_id` claims point at `staff`/`schools` rows that don't exist without it — logging in with those accounts will hit 403s/404s once past auth. Tracked as a gap; for now, create at least one `schools` row + a linked `staff` row manually (via `psql` against `54322`, or Supabase Studio at `54323`) before testing anything role-gated.
+```bash
+# Auth accounts (Supabase) — the 9 test accounts, see Test Accounts below
+cd apps/web && pnpm seed:supabase && cd ../..
+
+# Business data (Postgres) — school, staff, students, classes, everything else
+cd apps/api && uv run python -m app.scripts.seed && cd ../..
+```
+
+Either order works — they hit two independent systems (Supabase Auth vs. Postgres) but agree on the same deterministic IDs, so the auth accounts' `linked_id`/`school_id` claims resolve to real rows either way. The business-data script is reset-only (wipes + re-seeds every run) — safe to re-run anytime.
 
 ### 6. Start the background job runner (Inngest)
 
@@ -111,7 +119,7 @@ App runs at `http://localhost:3000`.
 
 ## Test Accounts (Supabase Auth)
 
-Defined in [`apps/web/scripts/_seed-data/users.ts`](apps/web/scripts/_seed-data/users.ts), created by `pnpm seed:supabase` (repo root: `cd apps/web && pnpm seed:supabase`). ⚠️ Auth-only until the [seed-data gap](#getting-started) is closed — these accounts can log in, but most role-gated pages will 403/404 because their linked `staff`/`guardians` rows don't exist yet.
+Defined in [`apps/web/scripts/_seed-data/users.ts`](apps/web/scripts/_seed-data/users.ts), created by `pnpm seed:supabase` (repo root: `cd apps/web && pnpm seed:supabase`). Fully functional once you've also run the business-data seed (`cd apps/api && uv run python -m app.scripts.seed`) — see [Seed demo data](#5-seed-demo-data) above.
 
 | Role | Email | Password | Notes |
 |---|---|---|---|
@@ -320,7 +328,6 @@ Two items from this list were achieved as side effects of the Strategy A migrati
 
 - **Real report-card PDF rendering** — the Phase 3 Inngest report jobs write to Supabase Storage but the PDF body is a placeholder; nothing in the repo turns exam data into actual rendered PDF bytes yet.
 - **Hubtel SMS integration** — `SmsProvider` interface + stub + `sms_log` table exist; needs a Hubtel account + sender-ID before the real client can be built.
-- **Demo-data seed script (FastAPI side)** — tracked gap, see the ⚠️ note in [Getting Started](#getting-started). `pnpm seed:supabase` only creates Supabase Auth accounts, not the `staff`/`schools`/`students` rows they need to be functional.
 - **Capacitor shell** — App Store / Play Store presence with the existing codebase + push notifications (provider TBD now that Firebase Cloud Messaging is off the table post-migration).
 - **Offline cache** — last-fetched view stays visible offline. Wait until users complain.
 - **Component-level tests / broader E2E coverage** — the Playwright suite is currently disabled (see the Development Phases table); Vitest now covers pure-logic units only, no DB-integration layer.

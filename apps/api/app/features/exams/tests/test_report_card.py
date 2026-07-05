@@ -220,14 +220,14 @@ async def seed_extra_subjects(db_session: AsyncSession, seed_school: School) -> 
     await db_session.flush()
 
 
-async def _seed_exam(db_session: AsyncSession) -> Exam:
+async def _seed_exam(db_session: AsyncSession, *, is_published: bool = True) -> Exam:
     exam = Exam(
         school_id=SCHOOL_UUID,
         name="Term 2 End of Term",
         type="EndOfTerm",
         term=2,
         academic_year="2025/2026",
-        is_published=True,
+        is_published=is_published,
     )
     db_session.add(exam)
     await db_session.flush()
@@ -290,6 +290,22 @@ async def test_admin_can_fetch_any_student_report(
     body = res.json()
     assert body["student"]["id"] == str(STUDENT_A_UUID)
     assert body["exam"]["id"] == str(exam.id)
+    assert body["exam"]["isPublished"] is True
+
+
+async def test_admin_can_fetch_unpublished_exam(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    """Admin needs to review scores before publishing — no publish gate."""
+    exam = await _seed_exam(db_session, is_published=False)
+    res = await client.get(
+        _url(STUDENT_A_UUID, exam.id),
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["exam"]["isPublished"] is False
 
 
 async def test_parent_can_fetch_own_child(
@@ -304,6 +320,21 @@ async def test_parent_can_fetch_own_child(
     )
     assert res.status_code == 200, res.text
     assert res.json()["student"]["id"] == str(STUDENT_A_UUID)
+
+
+async def test_parent_cannot_fetch_unpublished_exam(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    """Server-side mirror of the frontend's publish gate — a parent
+    hitting the API directly must not see scores before publish."""
+    exam = await _seed_exam(db_session, is_published=False)
+    res = await client.get(
+        _url(STUDENT_A_UUID, exam.id),
+        headers=auth_header(role="Parent", linked_id=GUARDIAN_UUID),
+    )
+    assert res.status_code == 403
 
 
 async def test_parent_cannot_fetch_unrelated_child(

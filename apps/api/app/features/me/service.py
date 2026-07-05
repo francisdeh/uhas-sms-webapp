@@ -30,9 +30,9 @@ class MeService:
 
         Reads:
           - `users` bridge row for `is_active` + fallback email
-          - Linked `staff` row (non-Parent) for display_name + Teacher
-            unit-head fields
-          - Linked `guardians` row (Parent) for display_name
+          - Linked `staff` row (non-Parent) for display_name, slug,
+            + Teacher unit-head fields
+          - Linked `guardians` row (Parent) for display_name + slug
 
         Falls back to email → phone for `display_name` when the linked
         row is missing — happens briefly during account provisioning
@@ -50,6 +50,7 @@ class MeService:
             raise ForbiddenError("Session has no matching user row.")
 
         display_name = ""
+        slug: str | None = None
         is_unit_head = False
         unit_head_of: Division | None = None
 
@@ -59,10 +60,12 @@ class MeService:
                 guardian = await session.scalar(select(Guardian).where(Guardian.id == linked_uuid))
                 if guardian is not None:
                     display_name = f"{guardian.first_name} {guardian.last_name}"
+                    slug = guardian.slug
             else:
                 staff = await session.scalar(select(Staff).where(Staff.id == linked_uuid))
                 if staff is not None:
                     display_name = f"{staff.first_name} {staff.last_name}"
+                    slug = staff.slug
                     if bool(staff.is_unit_head):
                         is_unit_head = True
                         unit_head_of = staff.unit_head_of  # type: ignore[assignment]
@@ -76,6 +79,7 @@ class MeService:
             display_name=display_name,
             role=user.role,
             linked_id=user_row.linked_id,
+            slug=slug,
             must_change_password=user.must_change_password,
             is_active=bool(user_row.is_active) if user_row.is_active is not None else True,
             is_unit_head=is_unit_head,
