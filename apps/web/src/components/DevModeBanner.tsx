@@ -6,7 +6,15 @@ export const DEV_BANNER_HEIGHT_CLASS = "h-7";
 export const DEV_BANNER_HEIGHT_REM = "1.75rem"; // h-7 = 28px = 1.75rem
 
 export function isDevMode(): boolean {
-  return process.env.NODE_ENV === "development";
+  // `next build` hardcodes NODE_ENV=production unconditionally — that
+  // check alone only ever catches `next dev` on a laptop, never a
+  // deployed-but-non-production Railway environment (which runs the
+  // exact same `next build && next start` as real production). Set
+  // NEXT_PUBLIC_APP_ENV=development on that Railway environment's
+  // variables to opt it into the banner too.
+  return (
+    process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_APP_ENV === "development"
+  );
 }
 
 export function DevModeBanner() {

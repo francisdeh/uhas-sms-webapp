@@ -85,6 +85,14 @@ Both are silent no-ops until configured — safe to defer, but worth doing befor
 
 - [ ] Sentry: create a project, set `SENTRY_DSN` + `SENTRY_TRACES_SAMPLE_RATE` on `apps/api`; `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_TRACES_SAMPLE_RATE` (+ `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT` for source-map upload at build time) on `apps/web`.
 - [ ] Logfire: create a workspace, set `LOGFIRE_TOKEN` on `apps/api`.
+- [ ] **If you create a non-production Railway environment** (staging, dev) for `apps/web`: set `NEXT_PUBLIC_APP_ENV=development` on that environment's variables to show the dev-mode banner there. `NODE_ENV` alone can't distinguish it from real production — every Railway environment runs the same `next build && next start`, which always hardcodes `NODE_ENV=production`. Leave unset on the real production environment.
+
+## 8. Rate limiting
+
+`apps/api` rate-limits every route except `/health` (see `app/core/rate_limit.py` for the design rationale — keyed by authenticated user id, not IP). Works out of the box with in-memory counters, correct only for a single instance:
+
+- [ ] **Before ever scaling `apps/api` to more than one Railway replica**: add a Redis service on Railway and set `REDIS_URL` on the `api` service to its connection string. Without this, each replica enforces the limit independently, silently multiplying the effective cap by the replica count.
+- [ ] Not required for the current single-instance deployment — safe to defer indefinitely if `apps/api` never scales horizontally.
 
 ## Pre-flight
 

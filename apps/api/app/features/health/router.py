@@ -5,6 +5,7 @@ from importlib.metadata import PackageNotFoundError, version
 from fastapi import APIRouter
 
 from app.core.config import settings
+from app.core.rate_limit import limiter
 from app.features.health.schema import HealthResponse
 
 router = APIRouter(tags=["health"])
@@ -29,6 +30,8 @@ def _package_version() -> str:
     summary="Liveness check",
     description="Returns 200 when the process is up. Used by Railway + load-balancer probes.",
 )
+# slowapi's `exempt` decorator doesn't preserve the wrapped function's typing.
+@limiter.exempt  # type: ignore[untyped-decorator]
 def get_health() -> HealthResponse:
     return HealthResponse(
         status="ok",

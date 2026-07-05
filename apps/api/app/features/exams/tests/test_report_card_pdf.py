@@ -19,6 +19,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.rate_limit import REPORT_CARD_PDF_LIMIT
 from app.features.exams.model import ReportCardPdfCache
 from app.features.exams.tests.conftest import (
     GUARDIAN_UUID,
@@ -184,3 +185,35 @@ async def test_parent_can_fetch_pdf_for_published_exam(
     )
     assert res.status_code in (302, 307), res.text
     assert len(fake_storage.uploads) == 1
+
+
+async def test_exceeding_the_pdf_rate_limit_returns_429(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+    fake_storage: FakeStorageClient,
+) -> None:
+    """Stricter than the global default given WeasyPrint's cost — see
+    app/core/rate_limit.py. Requests beyond the threshold hit the cache
+    (see test_repeat_download_skips_render), so this is cheap to run."""
+    exam = await _seed_exam(db_session)
+    await _seed_score(
+        db_session,
+        exam_id=exam.id,
+        student_id=STUDENT_A_UUID,
+        subject_id=SUBJECT_UUID,
+        total=70,
+        grade="3",
+        interpretation="High",
+    )
+    limit = int(REPORT_CARD_PDF_LIMIT.split("/")[0])
+    headers = auth_header(role="Admin")
+
+    for _ in range(limit):
+        res = await client.get(_url(STUDENT_A_UUID, exam.id), headers=headers)
+        assert res.status_code in (302, 307), res.text
+
+    res = await client.get(_url(STUDENT_A_UUID, exam.id), headers=headers)
+    assert res.status_code == 429
+    body = res.json()
+    assert body["error"]["code"] == "rate_limited"
