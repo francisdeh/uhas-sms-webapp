@@ -109,9 +109,7 @@ class FakeSupabaseAdminClient:
 
     async def invite_user_by_email(self, *, email: str, redirect_to: str) -> dict[str, Any]:
         uid = self._next_uid()
-        self.invite_calls.append(
-            {"email": email, "redirect_to": redirect_to, "returned_id": uid}
-        )
+        self.invite_calls.append({"email": email, "redirect_to": redirect_to, "returned_id": uid})
         return {"id": str(uid), "email": email}
 
 
