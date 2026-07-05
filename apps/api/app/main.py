@@ -14,12 +14,15 @@ import inngest.fast_api
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.core.db import engine
 from app.core.errors import AppError
 from app.core.inngest import inngest_client
 from app.core.observability import init_observability, instrument_app
+from app.core.rate_limit import limiter
 from app.features.announcements.router import router as announcements_router
 from app.features.appointments.router import router as appointments_router
 from app.features.assignments.router import router as assignments_router
@@ -108,6 +111,11 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # ── Rate limiting — global default + per-route overrides (see
+    # app/core/rate_limit.py for the threat model + keying rationale) ────
+    app.state.limiter = limiter
+    app.add_middleware(SlowAPIMiddleware)
+
     # ── Global error envelope ────────────────────────────────────────────
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
@@ -121,6 +129,19 @@ def create_app() -> FastAPI:
         if exc.details:
             payload["error"]["details"] = exc.details
         return JSONResponse(status_code=exc.status_code, content=payload)
+
+    @app.exception_handler(RateLimitExceeded)
+    async def rate_limit_handler(_: Request, exc: RateLimitExceeded) -> JSONResponse:
+        """Same error envelope as app_error_handler above — slowapi's
+        exception isn't an AppError subclass, so it needs its own
+        handler, but the shape the frontend sees is identical."""
+        payload: dict[str, Any] = {
+            "error": {
+                "code": "rate_limited",
+                "message": f"Rate limit exceeded: {exc.detail}",
+            }
+        }
+        return JSONResponse(status_code=429, content=payload)
 
     # ── Routers ───────────────────────────────────────────────────────────
     # Each feature's router lands here. Keep the list flat + alphabetised

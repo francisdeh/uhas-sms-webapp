@@ -480,14 +480,15 @@ Surface-level summary, business-logic gaps that are independent of the backend m
 | Leave management | No quota, no docs, no substitute workflow | ~15 h | ~30–40 h |
 | Student profile | No siblings, multiple guardians, medical, docs | ~12 h | ~25–30 h |
 | Staff management | No qualifications, subject expertise, docs | ~10 h | ~20–25 h |
-| Report cards | No real PDF rendering, no KG variant, no conduct, no batch print | ~15 h | ~35–40 h |
+| Report cards | Real PDF rendering ✅ done — still no KG variant, no conduct, no batch print | ~15 h | ~35–40 h |
 | Audit log filters | No user/target filter, no CSV export | — | ~6–10 h |
 | Calendar | List view only — no grid, no recurring | ~10 h | ~20–25 h |
 | Admin settings UI | Backend supports it; the page to edit most of it isn't built | ~11 h | — |
 | Profile pages | Save Changes, 2FA, Sessions, Notifications, Deactivate UI-only | — | ~12 h |
-| Rate limiting | None exists anywhere in `apps/api` | — | audit + `slowapi`, size TBD |
 
-**Recommended priority order** — see the migration plan's **Phase 3.5** for the currently-agreed near-term sequencing (real report-card PDFs, Admin Settings page, Profile page completion, rate limiting), then **Phase 4** for the FRD requirement gaps.
+Rate limiting is done — see Phase 3.5 below. Batch report-card printing remains a separate, larger, explicitly-deferred piece of work (tracked in [FEATURE-ENHANCEMENTS.md](FEATURE-ENHANCEMENTS.md) §5).
+
+**Recommended priority order** — Phase 3.5 is half done (real report-card PDFs ✅, rate-limiting audit ✅; Admin Settings page and Profile page completion still open) — see the migration plan for sequencing, then **Phase 4** for the FRD requirement gaps.
 
 ---
 
@@ -518,7 +519,7 @@ Full competitive ranking in [COMPETITIVE-ANALYSIS.md](COMPETITIVE-ANALYSIS.md). 
 
 **The current, single source of truth for sequencing is [v2/UHAS_Migration_Execution_Plan.md](../v2/UHAS_Migration_Execution_Plan.md)** — Phases 0–3 done, then:
 
-- **Phase 3.5 — Platform completion & admin polish**: real report-card PDF rendering, Admin Settings page, Profile page completion, rate-limiting audit.
+- **Phase 3.5 — Platform completion & admin polish**: real report-card PDF rendering ✅, rate-limiting audit ✅, Admin Settings page, Profile page completion.
 - **Phase 4 — Close requirement gaps**: the 11 Common Core subjects, full Scheme-of-Learning template, named appointment slots, max-two-guardians + sibling links, report-card field additions.
 - **Phase 5 — Procurement features**: fee management (biggest revenue lever), real Hubtel SMS, Accountant role scoped to a real finance domain.
 - **Phase 6 — Depth & polish**: student/staff profile depth, leave management upgrade, audit-log filters, report-card polish.

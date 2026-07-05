@@ -73,6 +73,17 @@ class Settings(BaseSettings):
         description="Logfire write token. Empty = local stdout only, no upload.",
     )
 
+    # ── Rate limiting ─────────────────────────────────────────────────────
+    # Empty = in-memory counters (correct for a single instance — the
+    # only thing this API runs as today). Set to a real Redis URL before
+    # ever scaling apps/api to more than one Railway replica, or each
+    # replica would enforce the limit independently, multiplying the
+    # effective cap by the replica count.
+    redis_url: str | None = Field(
+        default=None,
+        description="redis://... for rate-limit storage. Empty = in-memory (single instance only).",
+    )
+
     # ── Supabase Auth ─────────────────────────────────────────────────────
     # `supabase_url` is the public REST endpoint; `supabase_jwt_secret` is
     # what verifies inbound JWTs (HS256 algorithm — the Supabase default).

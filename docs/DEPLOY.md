@@ -85,6 +85,14 @@ Both are silent no-ops until configured — safe to defer, but worth doing befor
 
 - [ ] Sentry: create a project, set `SENTRY_DSN` + `SENTRY_TRACES_SAMPLE_RATE` on `apps/api`; `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_TRACES_SAMPLE_RATE` (+ `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT` for source-map upload at build time) on `apps/web`.
 - [ ] Logfire: create a workspace, set `LOGFIRE_TOKEN` on `apps/api`.
+- [ ] **If you create a non-production Railway environment** (staging, dev) for `apps/web`: set `NEXT_PUBLIC_APP_ENV=development` on that environment's variables to show the dev-mode banner there. `NODE_ENV` alone can't distinguish it from real production — every Railway environment runs the same `next build && next start`, which always hardcodes `NODE_ENV=production`. Leave unset on the real production environment.
+
+## 8. Rate limiting
+
+`apps/api` rate-limits every route except `/health` (see `app/core/rate_limit.py` for the design rationale — keyed by authenticated user id, not IP). Works out of the box with in-memory counters, correct only for a single instance:
+
+- [ ] **Before ever scaling `apps/api` to more than one Railway replica**: add a Redis service on Railway and set `REDIS_URL` on the `api` service to its connection string. Without this, each replica enforces the limit independently, silently multiplying the effective cap by the replica count.
+- [ ] Not required for the current single-instance deployment — safe to defer indefinitely if `apps/api` never scales horizontally.
 
 ## Pre-flight
 
@@ -96,7 +104,7 @@ Both are silent no-ops until configured — safe to defer, but worth doing befor
 
 Triggered by pushing to `main`. Railway (per [`railway.toml`](../railway.toml)):
 
-1. Builds `web` (Railpack + Node 20) and `api` (`uv sync --frozen`) independently — each only rebuilds when its own `source` path changes.
+1. Builds `web` (Railpack + Node 20) and `api` (`apps/api/Dockerfile` — `uv sync --frozen` plus the system libraries WeasyPrint needs for report-card PDF rendering) independently — each only rebuilds when its own `source` path changes.
 2. `web` starts with `pnpm --filter uhas-sms-webapp start` — no DB step; Next.js has zero direct database access.
 3. `api` starts with `uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT` — migrations apply automatically, safe to re-run every deploy.
 4. Restart policy: `on_failure`, up to 5 retries, per service.
@@ -114,6 +122,7 @@ Run after every release that touches DB / Auth / Storage / Jobs.
 5. **Upload a document** to a lesson plan → "View attachment" issues a fresh signed URL on click. Confirms the `documents` bucket's RLS policy + server-side signing (`lib/storage-admin.ts`).
 6. **Reject a submitted lesson plan** with a comment → teacher receives an email. Confirms the Inngest job runner + SMTP.
 7. **Hit `/admin/audit-log`** → entries from steps 2 and 4 appear with the correct admin identity.
+8. **Download a report card as PDF** from a student's report-card page → a real PDF downloads (not a 500). Confirms WeasyPrint's system libraries are actually present in the deployed `api` image — this is exactly the kind of failure that's silent locally (works on a dev machine with the libraries installed some other way) and only surfaces against the real Docker build.
 
 If any step fails, **roll back** before investigating — don't leave a broken release running.
 

@@ -20,12 +20,13 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
+from app.core.rate_limit import REPORT_CARD_PDF_LIMIT, limiter
 from app.features.classes.model import Class
 from app.features.exams.class_reports_svc import ClassReportsService
 from app.features.exams.model import ClassReportSubmission, Exam, Score, StudentReportRemark
@@ -504,7 +505,9 @@ async def get_student_report_card(
     "/{student_id}/report-card/pdf",
     summary="Real PDF of one student's report card, one exam",
 )
+@limiter.limit(REPORT_CARD_PDF_LIMIT)
 async def get_student_report_card_pdf(
+    request: Request,  # required by @limiter.limit, not used directly
     student_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],

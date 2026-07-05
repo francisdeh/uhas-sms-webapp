@@ -40,6 +40,8 @@ dependencies = [
     "inngest>=0.5.19",
     "weasyprint>=69.0",
     "jinja2>=3.1.6",
+    "slowapi>=0.1.10",
+    "redis>=8.0.1",
 ]
 
 [dependency-groups]
