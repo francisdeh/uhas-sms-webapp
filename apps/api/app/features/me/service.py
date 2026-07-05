@@ -19,7 +19,7 @@ from app.core.security import CurrentUser
 from app.features.guardians.model import Guardian
 from app.features.me.schema import MeRead, MeUpdate
 from app.features.staff.model import Staff
-from app.features.users.model import User
+from app.features.users.model import User, UserPreferences
 from app.features.users.repository import UsersRepository
 from app.features.users.supabase_admin import SupabaseAdminClient
 
@@ -79,6 +79,13 @@ class MeService:
         if not display_name:
             display_name = user.email or user.phone or ""
 
+        prefs = await session.scalar(
+            select(UserPreferences).where(UserPreferences.user_id == UUID(user.user_id))
+        )
+        email_on_lesson_plan_rejected = (
+            prefs.email_on_lesson_plan_rejected if prefs is not None else True
+        )
+
         return MeRead(
             uid=UUID(user.user_id),
             email=user.email or user_row.email or "",
@@ -91,6 +98,7 @@ class MeService:
             is_active=bool(user_row.is_active) if user_row.is_active is not None else True,
             is_unit_head=is_unit_head,
             unit_head_of=unit_head_of,
+            email_on_lesson_plan_rejected=email_on_lesson_plan_rejected,
         )
 
     @staticmethod
@@ -101,49 +109,69 @@ class MeService:
         *,
         supabase: SupabaseAdminClient,
     ) -> MeRead:
-        """Self-service update of the caller's own display name + phone.
+        """Self-service update of the caller's own profile + preferences.
 
-        Writes to the linked `staff`/`guardians` row directly — there's
-        no separate "users" row to update here (unlike the admin-side
-        `UsersService.update`, which patches a bridge-table row this
-        one skips entirely since the caller IS the row's owner).
+        `display_name`/`phone` write to the linked `staff`/`guardians`
+        row directly — there's no separate "users" row to update here
+        (unlike the admin-side `UsersService.update`, which patches a
+        bridge-table row this one skips entirely since the caller IS
+        the row's owner). `email_on_lesson_plan_rejected` writes to
+        `user_preferences` instead, which isn't tied to a linked row —
+        it works even for an account with no staff/guardian record yet.
         """
-        if not user.school_id or not user.linked_id:
-            raise ValidationError("No linked staff or guardian record to update.")
-
         changes = payload.model_dump(exclude_unset=True)
-        linked_uuid = UUID(user.linked_id)
-
         display_name = changes.get("display_name")
         phone = changes.get("phone")
+        email_on_lesson_plan_rejected = changes.get("email_on_lesson_plan_rejected")
 
-        if user.role == PARENT:
-            guardian = await UsersRepository.find_guardian_in_school(
-                session, user.school_id, linked_uuid
-            )
-            if guardian is None:
-                raise ForbiddenError("Linked guardian record not found.")
-            if display_name is not None:
-                first, _, last = display_name.partition(" ")
-                guardian.first_name = first
-                guardian.last_name = last
-            if phone is not None:
-                guardian.phone = phone
-        else:
-            staff = await UsersRepository.find_staff_in_school(session, user.school_id, linked_uuid)
-            if staff is None:
-                raise ForbiddenError("Linked staff record not found.")
-            if display_name is not None:
-                first, _, last = display_name.partition(" ")
-                staff.first_name = first
-                staff.last_name = last
-            if phone is not None:
-                staff.phone = phone
+        if display_name is not None or phone is not None:
+            if not user.school_id or not user.linked_id:
+                raise ValidationError("No linked staff or guardian record to update.")
+            linked_uuid = UUID(user.linked_id)
 
-        if display_name is not None:
-            await supabase.update_user_by_id(
-                UUID(user.user_id), user_metadata={"display_name": display_name}
+            if user.role == PARENT:
+                guardian = await UsersRepository.find_guardian_in_school(
+                    session, user.school_id, linked_uuid
+                )
+                if guardian is None:
+                    raise ForbiddenError("Linked guardian record not found.")
+                if display_name is not None:
+                    first, _, last = display_name.partition(" ")
+                    guardian.first_name = first
+                    guardian.last_name = last
+                if phone is not None:
+                    guardian.phone = phone
+            else:
+                staff = await UsersRepository.find_staff_in_school(
+                    session, user.school_id, linked_uuid
+                )
+                if staff is None:
+                    raise ForbiddenError("Linked staff record not found.")
+                if display_name is not None:
+                    first, _, last = display_name.partition(" ")
+                    staff.first_name = first
+                    staff.last_name = last
+                if phone is not None:
+                    staff.phone = phone
+
+            if display_name is not None:
+                await supabase.update_user_by_id(
+                    UUID(user.user_id), user_metadata={"display_name": display_name}
+                )
+
+        if email_on_lesson_plan_rejected is not None:
+            prefs = await session.scalar(
+                select(UserPreferences).where(UserPreferences.user_id == UUID(user.user_id))
             )
+            if prefs is None:
+                session.add(
+                    UserPreferences(
+                        user_id=UUID(user.user_id),
+                        email_on_lesson_plan_rejected=email_on_lesson_plan_rejected,
+                    )
+                )
+            else:
+                prefs.email_on_lesson_plan_rejected = email_on_lesson_plan_rejected
 
         try:
             await session.flush()

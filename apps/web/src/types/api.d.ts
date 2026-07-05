@@ -3791,20 +3791,30 @@ export interface components {
             isUnitHead: boolean;
             /** Unitheadof */
             unitHeadOf?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+            /**
+             * Emailonlessonplanrejected
+             * @default true
+             */
+            emailOnLessonPlanRejected: boolean;
         };
         /**
          * MeUpdate
-         * @description Partial self-update for `PATCH /me` — display name + phone only.
+         * @description Partial self-update for `PATCH /me`.
          *
-         *     Written to the caller's own linked `staff` or `guardians` row.
-         *     Anything else about the account (role, linked_id, email) goes
-         *     through the admin-only `PATCH /users/{id}` flow instead.
+         *     `display_name`/`phone` are written to the caller's own linked
+         *     `staff` or `guardians` row. `email_on_lesson_plan_rejected` is
+         *     written to `user_preferences` (upserted — most users have no row
+         *     until they touch a preference for the first time). Anything else
+         *     about the account (role, linked_id, email) goes through the
+         *     admin-only `PATCH /users/{id}` flow instead.
          */
         MeUpdate: {
             /** Displayname */
             displayName?: string | null;
             /** Phone */
             phone?: string | null;
+            /** Emailonlessonplanrejected */
+            emailOnLessonPlanRejected?: boolean | null;
         };
         /**
          * NavBadges

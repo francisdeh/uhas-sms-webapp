@@ -20,7 +20,6 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import { api, ApiError } from "@/lib/api/browser";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -119,7 +118,7 @@ function ProfilePageContent({ user, currentPhotoUrl = null }: ProfilePageProps) 
         <TabsContent value="notifications">
           <AnimatePresence mode="wait">
             <motion.div key="notifications" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
-              <NotificationsTab />
+              <NotificationsTab user={user} />
             </motion.div>
           </AnimatePresence>
         </TabsContent>
@@ -440,16 +439,25 @@ function SecurityTab() {
   );
 }
 
-function NotificationsTab() {
-  const [prefs, setPrefs] = useState({
-    emailAnnouncements: true,
-    emailAttendance: false,
-    inAppSound: true,
-  });
+function NotificationsTab({ user }: { user: SessionUser }) {
+  const router = useRouter();
+  const [emailOnRejected, setEmailOnRejected] = useState(user.emailOnLessonPlanRejected);
+  const [saving, setSaving] = useState(false);
 
-  function toggle(key: keyof typeof prefs) {
-    setPrefs((p) => ({ ...p, [key]: !p[key] }));
-    toast.success("Preference saved.");
+  async function onToggle() {
+    const next = !emailOnRejected;
+    setEmailOnRejected(next);
+    setSaving(true);
+    try {
+      await api.me.update({ emailOnLessonPlanRejected: next });
+      toast.success("Preference saved.");
+      router.refresh();
+    } catch (err) {
+      setEmailOnRejected(!next);
+      toast.error(err instanceof ApiError ? err.message : "Failed to update preference.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -459,41 +467,44 @@ function NotificationsTab() {
         <CardDescription>Choose how you want to receive notifications.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        {user.role === "Teacher" ? (
           <NotifRow
-            label="Email — New Announcements"
-            description="Receive an email when a school-wide announcement is posted."
-            checked={prefs.emailAnnouncements}
-            onToggle={() => toggle("emailAnnouncements")}
+            label="Email — Lesson Plan Rejected"
+            description="Receive an email when a reviewer sends one of your lesson plans back for changes."
+            checked={emailOnRejected}
+            onToggle={onToggle}
+            disabled={saving}
           />
-          <Separator />
-          <NotifRow
-            label="Email — Attendance Alerts"
-            description="Receive an email when an attendance issue is flagged."
-            checked={prefs.emailAttendance}
-            onToggle={() => toggle("emailAttendance")}
-          />
-          <Separator />
-          <NotifRow
-            label="In-App Notification Sound"
-            description="Play a sound when you receive in-app notifications."
-            checked={prefs.inAppSound}
-            onToggle={() => toggle("inAppSound")}
-          />
-        </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            There&apos;s nothing to configure for your role yet.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function NotifRow({ label, description, checked, onToggle }: { label: string; description: string; checked: boolean; onToggle: () => void }) {
+function NotifRow({
+  label,
+  description,
+  checked,
+  onToggle,
+  disabled,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between gap-4">
       <div>
         <Label className="text-sm font-medium">{label}</Label>
         <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
       </div>
-      <Switch checked={checked} onCheckedChange={onToggle} />
+      <Switch checked={checked} onCheckedChange={onToggle} disabled={disabled} />
     </div>
   );
 }

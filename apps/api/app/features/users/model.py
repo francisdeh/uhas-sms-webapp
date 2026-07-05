@@ -16,9 +16,10 @@ Table was created in the Drizzle baseline; no columns change here.
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, String, Uuid
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -34,3 +35,25 @@ class User(Base):
     linked_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
     is_active: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)
     must_change_password: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)
+
+
+class UserPreferences(Base):
+    """One row per user, created lazily on first write — see
+    `MeService.update`. Absent row means every preference is at its
+    code-level default (checked at read time), not that the user has
+    opted out of anything; there's no backfill migration for existing
+    users when a new flag is added here.
+    """
+
+    __tablename__ = "user_preferences"
+
+    user_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id"), primary_key=True)
+    email_on_lesson_plan_rejected: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )

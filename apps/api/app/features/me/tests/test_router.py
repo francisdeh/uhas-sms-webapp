@@ -27,6 +27,7 @@ from app.features.me.tests.conftest import (
     auth_header,
 )
 from app.features.staff.model import Staff
+from app.features.users.model import UserPreferences
 
 
 async def test_get_me_admin_linked_staff(client: AsyncClient, seed: None) -> None:
@@ -43,6 +44,8 @@ async def test_get_me_admin_linked_staff(client: AsyncClient, seed: None) -> Non
     assert body["isUnitHead"] is False
     assert body["unitHeadOf"] is None
     assert body["mustChangePassword"] is False
+    # No user_preferences row yet — defaults to true, not "opted out".
+    assert body["emailOnLessonPlanRejected"] is True
 
 
 async def test_get_me_teacher_unit_head(client: AsyncClient, seed: None) -> None:
@@ -252,3 +255,72 @@ async def test_patch_me_duplicate_guardian_phone_returns_409(
 async def test_patch_me_missing_auth_header_returns_401(client: AsyncClient, seed: None) -> None:
     res = await client.patch("/me", json={"displayName": "X"})
     assert res.status_code == 401
+
+
+# ─── PATCH /me — notification preferences ───────────────────────────────────
+
+
+async def test_patch_me_creates_preferences_row_on_first_write(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    res = await client.patch(
+        "/me", json={"emailOnLessonPlanRejected": False}, headers=auth_header()
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["emailOnLessonPlanRejected"] is False
+
+    prefs = await db_session.scalar(
+        select(UserPreferences).where(UserPreferences.user_id == ADMIN_USER)
+    )
+    assert prefs is not None
+    assert prefs.email_on_lesson_plan_rejected is False
+
+
+async def test_patch_me_updates_existing_preferences_row(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    db_session.add(UserPreferences(user_id=ADMIN_USER, email_on_lesson_plan_rejected=False))
+    await db_session.flush()
+
+    res = await client.patch("/me", json={"emailOnLessonPlanRejected": True}, headers=auth_header())
+    assert res.status_code == 200, res.text
+    assert res.json()["emailOnLessonPlanRejected"] is True
+
+    rows = (
+        (
+            await db_session.execute(
+                select(UserPreferences).where(UserPreferences.user_id == ADMIN_USER)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].email_on_lesson_plan_rejected is True
+
+
+async def test_patch_me_preferences_works_without_a_linked_row(
+    client: AsyncClient,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    """Unlike displayName/phone, this preference isn't tied to a linked
+    staff/guardian row — it must work even for an account that has none."""
+    res = await client.patch(
+        "/me",
+        json={"emailOnLessonPlanRejected": False},
+        headers=auth_header(
+            role="Admin",
+            user_id=EMAIL_ONLY_USER,
+            linked_id=None,
+            email="fallback@me.test",
+        ),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["emailOnLessonPlanRejected"] is False
