@@ -71,6 +71,24 @@ async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
+/**
+ * Like `apiFetch`, but for binary responses (PDFs, etc.) — `apiFetch`
+ * always calls `res.json()` on success, which throws on a non-JSON
+ * body. `fetch` follows redirects by default, so this transparently
+ * reads the final response (e.g. a Storage signed-URL redirect).
+ */
+async function apiFetchBlob(getAuthToken: TokenGetter, path: string): Promise<Blob> {
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}${path}`, { headers });
+  if (!res.ok) {
+    throw new ApiError(res.status, "http_error", `HTTP ${res.status}`);
+  }
+  return res.blob();
+}
+
 // ── Domain namespaces — one per feature folder in apps/api/app/features/ ─────
 
 export type ApiClient = ReturnType<typeof createApiClient>;
@@ -1060,6 +1078,12 @@ export function createApiClient(getAuthToken: TokenGetter) {
         apiFetch<components["schemas"]["ReportCardResponse"]>(
           getAuthToken,
           `/students/${studentId}/report-card${buildQuery({ examId })}`,
+        ),
+      /** Real PDF of one student's report card, one exam. */
+      reportCardPdf: (studentId: string, examId: string) =>
+        apiFetchBlob(
+          getAuthToken,
+          `/students/${studentId}/report-card/pdf${buildQuery({ examId })}`,
         ),
       /** Aggregate present/absent/late/excused counts for a date range. */
       attendanceSummary: (

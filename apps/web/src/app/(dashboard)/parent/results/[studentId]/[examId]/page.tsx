@@ -94,5 +94,12 @@ export default async function ParentReportCardRoute({ params }: PageProps) {
     headOfSchoolComment: card.headOfSchoolComment ?? null,
   };
 
-  return <ReportCardPage data={data} backHref="/parent/results" />;
+  return (
+    <ReportCardPage
+      data={data}
+      backHref="/parent/results"
+      studentId={studentId}
+      examId={examId}
+    />
+  );
 }

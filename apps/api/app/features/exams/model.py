@@ -11,6 +11,9 @@ Draft/Submitted status and the HOS comment; one remark row per
 (exam, student) carrying the class teacher's per-student remark. Both
 tables ship with the Drizzle baseline; the HOS comment column was added
 in migration `60606060cr01`.
+
+`ReportCardPdfCache` tracks the last-rendered report-card PDF per
+(school, exam, student) so repeat downloads can skip re-rendering.
 """
 
 from __future__ import annotations
@@ -125,4 +128,26 @@ class StudentReportRemark(Base):
     head_of_school_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime, server_default=func.now(), nullable=True
+    )
+
+
+class ReportCardPdfCache(Base):
+    """One rendered-PDF cache entry per (school, exam, student).
+
+    Pure cache, no soft-delete: `content_hash` is a sha256 of the
+    assembled `ReportCardResponse` JSON, so a score/remark/comment edit
+    invalidates the row automatically on the next request — nothing
+    needs to remember to bump a version counter at each mutation site.
+    See `ReportCardService.get_pdf` for the read/write flow.
+    """
+
+    __tablename__ = "report_card_pdf_cache"
+
+    school_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("schools.id"), primary_key=True)
+    exam_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("exams.id"), primary_key=True)
+    student_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("students.id"), primary_key=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    storage_path: Mapped[str] = mapped_column(String, nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
     )

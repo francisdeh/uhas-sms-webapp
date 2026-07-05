@@ -21,6 +21,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -28,6 +29,7 @@ from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
 from app.features.classes.model import Class
 from app.features.exams.class_reports_svc import ClassReportsService
 from app.features.exams.model import ClassReportSubmission, Exam, Score, StudentReportRemark
+from app.features.exams.report_card_pdf import ReportCardPdfService
 from app.features.exams.report_card_svc import ReportCardService
 from app.features.exams.schema import (
     ClassReportListItem,
@@ -48,6 +50,7 @@ from app.features.exams.schema import (
 from app.features.exams.service import ExamsService, ScoresService
 from app.features.students.model import Student
 from app.features.subjects.model import Subject
+from app.integrations.storage import StorageClient, get_storage_client
 
 router = APIRouter(prefix="/exams", tags=["exams"])
 
@@ -495,3 +498,21 @@ async def get_student_report_card(
     return await ReportCardService.get(
         session, school_id, user, student_id=student_id, exam_id=exam_id
     )
+
+
+@students_router.get(
+    "/{student_id}/report-card/pdf",
+    summary="Real PDF of one student's report card, one exam",
+)
+async def get_student_report_card_pdf(
+    student_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+    storage: Annotated[StorageClient, Depends(get_storage_client)],
+    exam_id: Annotated[UUID, Query(alias="examId")],
+) -> RedirectResponse:
+    url = await ReportCardPdfService.get_or_render(
+        session, school_id, user, student_id=student_id, exam_id=exam_id, storage=storage
+    )
+    return RedirectResponse(url)

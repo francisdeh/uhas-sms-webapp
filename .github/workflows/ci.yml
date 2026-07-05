@@ -113,6 +113,22 @@ jobs:
       - name: Install dependencies (frozen)
         run: uv sync --frozen
 
+      - name: Install WeasyPrint system libraries
+        # Report-card PDF rendering needs Pango/cairo/GDK-PixBuf at the
+        # OS level — this job runs pytest directly on the runner (not
+        # through apps/api/Dockerfile), so it needs its own install
+        # step. Package name is Ubuntu-specific (matches ubuntu-latest);
+        # the Dockerfile uses Debian trixie's renamed equivalent.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2 \
+            libpango-1.0-0 \
+            libpangocairo-1.0-0 \
+            libgdk-pixbuf2.0-0 \
+            libffi-dev \
+            shared-mime-info
+
       - name: Ruff lint
         run: uv run ruff check .
 

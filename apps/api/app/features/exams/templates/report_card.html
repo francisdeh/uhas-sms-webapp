@@ -1,0 +1,187 @@
+<!doctype html>
+<!--
+  Mirrors apps/web/src/features/exams/components/ReportCard.tsx by hand
+  — same content, same section order, same known gaps (see comments
+  below) — so the downloaded PDF matches what the browser-print
+  experience already shows. Keep the two in sync if the report-card
+  design changes.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 10mm; }
+  body {
+    font-family: "Georgia", "Times New Roman", serif;
+    color: #000;
+    background: #fff;
+    margin: 0;
+    font-size: 11pt;
+  }
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .crest, .seal {
+    width: 60pt;
+    height: 60pt;
+    border-radius: 50%;
+    border: 1.5pt solid #047857;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-weight: bold;
+    font-size: 8pt;
+    color: #065f46;
+    line-height: 1.1;
+  }
+  .crest { background: #d1fae5; }
+  .seal { background: #ecfdf5; font-size: 7pt; }
+  .title-block { flex: 1; text-align: center; padding: 0 1rem; }
+  .title-block h1 { font-size: 16pt; margin: 0; letter-spacing: 0.02em; }
+  .title-block p { margin: 0.15rem 0 0; }
+  .title-block .report-title { font-size: 12pt; font-weight: bold; }
+
+  .info-section { margin-bottom: 1.1rem; }
+  .info-row { font-size: 10pt; margin: 0.15rem 0; }
+  .info-row .label { font-weight: bold; }
+  .info-grid { display: flex; gap: 1.5rem; }
+  .info-grid .info-row { flex: 1; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 1.1rem; }
+  th, td { border: 1pt solid #000; padding: 3pt 4pt; }
+  th { text-align: left; }
+  .scores-table th.center, .scores-table td.center { text-align: center; }
+  .section-header td { text-align: center; font-weight: bold; }
+  .empty-row td { text-align: center; font-style: italic; color: #666; padding: 8pt; }
+
+  .sig-table td.field-label { font-weight: bold; width: 30%; vertical-align: top; }
+  .sig-table td.sig-blank { height: 24pt; }
+
+  .legend-title { text-align: center; font-weight: bold; font-size: 10pt; margin-bottom: 0.4rem; }
+  .legend-table { font-size: 8pt; }
+  .legend-table th, .legend-table td { border: none; border-bottom: 1pt solid #000; text-align: center; padding: 2pt; }
+  .legend-table tbody td { border-bottom: none; }
+  .legend-table .interp-row th { background: #f3f4f6; font-weight: 600; }
+
+  .tagline { text-align: center; font-style: italic; margin-top: 1.5rem; font-size: 10pt; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="crest">UHAS<br>CREST</div>
+    <div class="title-block">
+      <h1>{{ data.school.name.upper() }}</h1>
+      <p class="report-title">{{ title }}</p>
+      <p>{{ month_year }}</p>
+    </div>
+    <div class="seal">UHAS<br>SEAL</div>
+  </div>
+
+  <div class="info-section">
+    <p class="info-row"><span class="label">STUDENT NAME:</span> {{ full_name or "—" }}</p>
+    <div class="info-grid">
+      <p class="info-row"><span class="label">BASIC:</span> {{ data.student.class_name or "—" }}</p>
+      <p class="info-row"><span class="label">NUMBER ON ROLL:</span> {{ number_on_roll }}</p>
+      <p class="info-row"><span class="label">TERM:</span> {{ data.exam.term }}</p>
+    </div>
+    <div class="info-grid">
+      <p class="info-row"><span class="label">YEAR:</span> {{ data.exam.academic_year }}</p>
+      <p class="info-row"><span class="label">DATE:</span> {{ generated_date }}</p>
+      <p class="info-row"><span class="label">AGGREGATE:</span> {{ data.aggregate if data.aggregate is not none else "—" }}</p>
+    </div>
+  </div>
+
+  <table class="scores-table">
+    <thead>
+      <tr>
+        <th style="width: 40%">SUBJECTS</th>
+        <th class="center" style="width: 18%">{{ "EXAM SCORE [100]" if is_mid_term else "TOTAL SCORE [100]" }}</th>
+        <th class="center" style="width: 14%">SUBJECT POSITION</th>
+        <th class="center" style="width: 10%">GRADE</th>
+        <th class="center" style="width: 18%">INTERPRETATION</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="section-header"><td colspan="5">CORE SUBJECTS</td></tr>
+      {% if data.scores %}
+        {% for row in data.scores %}
+        <tr>
+          <td>{{ row.subject_name }}</td>
+          <td class="center">{{ row.total_score if row.total_score is not none else "" }}</td>
+          <td class="center">{{ row.subject_position if row.subject_position is not none else "" }}</td>
+          <td class="center">{{ row.grade if row.grade is not none else "" }}</td>
+          <td class="center">{{ row.interpretation if row.interpretation is not none else "" }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr class="empty-row"><td colspan="5">No subjects in this section</td></tr>
+      {% endif %}
+      <!--
+        GAP (matches apps/web/src/app/(dashboard)/admin/students/[id]/report-card/[examId]/page.tsx):
+        ReportCardResponse's scores don't carry a Core/Elective flag —
+        everything is bucketed as Core above, Elective always empty.
+        Fix both once the API exposes a category field.
+      -->
+      <tr class="section-header"><td colspan="5">ELECTIVE SUBJECTS</td></tr>
+      <tr class="empty-row"><td colspan="5">No subjects in this section</td></tr>
+    </tbody>
+  </table>
+
+  <table class="sig-table">
+    <tbody>
+      <tr>
+        <td class="field-label">ATTENDANCE</td>
+        <td style="width: 10%">{{ attendance_attended }}</td>
+        <td class="field-label" style="width: 10%">OUT OF</td>
+        <td style="width: 10%">{{ attendance_total }}</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td class="field-label">Class Teachers&rsquo; Remarks</td>
+        <td colspan="4">{{ data.class_teacher_remark or "" }}</td>
+      </tr>
+      <tr>
+        <td class="field-label">Class Teachers&rsquo; Names</td>
+        <td colspan="4">{{ data.class_teachers | join(", ") if data.class_teachers else "—" }}</td>
+      </tr>
+      <tr>
+        <td class="field-label">Class Teachers&rsquo; Signature</td>
+        <td colspan="4" class="sig-blank"></td>
+      </tr>
+      <tr>
+        <td class="field-label">Head of School&rsquo;s Comment</td>
+        <td colspan="4">{{ data.head_of_school_comment or "" }}</td>
+      </tr>
+      <tr>
+        <td class="field-label">Head of School&rsquo;s Signature</td>
+        <td colspan="4" class="sig-blank"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="legend-title">INTERPRETATION OF THE GRADING SYSTEM</div>
+  <table class="legend-table">
+    <thead>
+      <tr>
+        {% for band in grade_bands %}<th>{{ band.max }}-{{ band.min }}</th>{% endfor %}
+      </tr>
+      <tr class="interp-row">
+        {% for band in grade_bands %}<th>{{ band.interpretation }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        {% for band in grade_bands %}<td>{{ band.grade }}</td>{% endfor %}
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="tagline">Learning Today, Leading Tomorrow</p>
+
+</body>
+</html>
