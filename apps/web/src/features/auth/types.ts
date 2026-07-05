@@ -24,6 +24,7 @@ export type SessionUser = {
   mustChangePassword: boolean;
   isUnitHead?: boolean;
   unitHeadOf?: Division | null;
+  emailOnLessonPlanRejected: boolean;
 };
 
 export const ROLE_DASHBOARD: Record<UserRole, string> = {

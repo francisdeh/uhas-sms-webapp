@@ -30,7 +30,7 @@ from app.features.lesson_plans.tests.test_router import _create_plan
 from app.features.schools.model import School
 from app.features.staff.model import Staff
 from app.features.subjects.model import Subject
-from app.features.users.model import User
+from app.features.users.model import User, UserPreferences
 
 TEACHER_USER_UUID = UUID("dddddddd-dddd-4ddd-8ddd-dddddddd0401")
 
@@ -80,6 +80,10 @@ async def test_rejection_emits_email_event_when_default_is_on(
     seed_staff: tuple[Staff, ...],
     seed_teacher_user: User,
 ) -> None:
+    """Also covers the "no user_preferences row yet" case — a teacher
+    who's never touched the setting has no row at all, and must still
+    get the email (default-true, same as before the per-user flag
+    existed)."""
     fake_send = _FakeSend()
     monkeypatch.setattr(inngest_client, "send", fake_send)
 
@@ -112,6 +116,34 @@ async def test_rejection_skips_email_when_default_is_off(
     seed_teacher_user: User,
 ) -> None:
     seed_school.notification_defaults = {"on_lesson_plan_rejected": False}
+    await db_session.flush()
+
+    fake_send = _FakeSend()
+    monkeypatch.setattr(inngest_client, "send", fake_send)
+
+    plan_id = await _create_and_submit_plan(client)
+    res = await client.post(
+        f"/lesson-plans/{plan_id}/review",
+        json={"decision": "rejected"},
+        headers=auth_header(role="Teacher", linked_id=str(UNIT_HEAD_UUID)),
+    )
+    assert res.status_code == 200
+    assert fake_send.events == []
+
+
+async def test_rejection_skips_email_when_teacher_opted_out(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    seed_school: School,
+    seed_class: Class,
+    seed_subject: Subject,
+    seed_staff: tuple[Staff, ...],
+    seed_teacher_user: User,
+) -> None:
+    """School default is on, but the teacher's own preference wins —
+    both gates must pass for the email to send."""
+    db_session.add(UserPreferences(user_id=TEACHER_USER_UUID, email_on_lesson_plan_rejected=False))
     await db_session.flush()
 
     fake_send = _FakeSend()

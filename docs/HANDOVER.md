@@ -250,10 +250,11 @@ Grouped by domain. "Works" means reachable end-to-end through the current FastAP
 
 ### Profile pages
 - Each role has its own profile page at `/<role>/profile`
-- Photo upload, password change, and Profile-tab Save Changes (display name + phone, via `PATCH /me`) are **real** (persist)
-- 2FA, Active Sessions, Notifications prefs, Deactivate are still **UI-only** — five largely-independent sub-features, not one project; each needs its own design (see `docs/superpowers/specs/2026-07-05-profile-save-changes-design.md` for how Save Changes was scoped, as a template for the rest)
-- The Language dropdown was removed from the Profile tab — no i18n system exists anywhere in this app, so persisting a value nothing reads would be dishonest UI. Re-add once i18n exists or the Notifications work builds a `user_preferences` table it could piggyback on.
-- *The pre-migration gap list in [implementation-spec.md "Next up — Profile page completion"](implementation-spec.md#next-up--profile-page-completion) is stale — its implementation mechanics (Firebase MFA, Server Actions) predate Supabase Auth + FastAPI. The feature-level punch list is still accurate for the four remaining pieces; the mechanics need re-deriving against the current architecture, same as this design doc did for Save Changes.*
+- Photo upload, password change, Profile-tab Save Changes (display name + phone, via `PATCH /me`), and Notification preferences are **real** (persist)
+- **Notification preferences**: the three toggles that used to be on this tab (announcement emails, attendance alerts, in-app sound) were fictional — none had a real email/sound path behind them anywhere in the codebase. Replaced with the one real preference that exists: a Teacher-only "email me when my lesson plan is rejected" toggle, backed by a new `user_preferences` table (one row per user, created lazily; absent row means "hasn't touched it yet," defaults to the pre-existing always-on behavior, not opted out). Wired into the one real email-sending path in this app (`lesson_plans/service.py`'s rejection-email gate), which now requires *both* the school-level default and this per-user flag.
+- 2FA, Active Sessions, Deactivate are still **UI-only** — the remaining independent Profile-page sub-features; each needs its own design (see `docs/superpowers/specs/2026-07-05-profile-save-changes-design.md` and `2026-07-06-notification-preferences-design.md` for how the first two were scoped, as templates).
+- The Language dropdown was removed from the Profile tab — no i18n system exists anywhere in this app, so persisting a value nothing reads would be dishonest UI. Re-add once i18n exists — `user_preferences` now exists and could hold it.
+- *The pre-migration gap list in [implementation-spec.md "Next up — Profile page completion"](implementation-spec.md#next-up--profile-page-completion) is stale — its implementation mechanics (Firebase MFA, Server Actions) predate Supabase Auth + FastAPI, and its assumed notification types (announcement/attendance emails) turned out not to exist at all. The feature-level intent (persist per-user settings, gate real behavior on them) is still accurate for the remaining pieces; verify what's actually real before assuming the old spec's specifics, same as the last two sub-features did.*
 
 ### Demo data seeding
 - `pnpm seed:supabase` (from `apps/web/`) — creates the 9 role-anchored Supabase Auth test accounts (auth only)
@@ -485,7 +486,7 @@ Surface-level summary, business-logic gaps that are independent of the backend m
 | Audit log filters | No user/target filter, no CSV export | — | ~6–10 h |
 | Calendar | List view only — no grid, no recurring | ~10 h | ~20–25 h |
 | Admin settings UI | Backend supports it; the page to edit most of it isn't built | ~11 h | — |
-| Profile pages | Save Changes ✅ done — 2FA, Sessions, Notifications, Deactivate still UI-only | — | ~12 h |
+| Profile pages | Save Changes + Notification prefs ✅ done — 2FA, Sessions, Deactivate still UI-only | — | ~12 h |
 
 Rate limiting is done — see Phase 3.5 below. Batch report-card printing remains a separate, larger, explicitly-deferred piece of work (tracked in [FEATURE-ENHANCEMENTS.md](FEATURE-ENHANCEMENTS.md) §5).
 

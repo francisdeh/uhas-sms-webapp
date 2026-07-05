@@ -31,6 +31,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       mustChangePassword: me.mustChangePassword,
       isUnitHead: me.isUnitHead,
       unitHeadOf: me.unitHeadOf ?? null,
+      emailOnLessonPlanRejected: me.emailOnLessonPlanRejected,
     };
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {

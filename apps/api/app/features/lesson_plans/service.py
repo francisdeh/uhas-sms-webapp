@@ -23,6 +23,7 @@ from uuid import UUID
 
 import inngest
 import sentry_sdk
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
@@ -59,6 +60,7 @@ from app.features.staff.model import Staff
 from app.features.staff.repository import StaffRepository
 from app.features.subjects.model import Subject
 from app.features.subjects.repository import SubjectsRepository
+from app.features.users.model import UserPreferences
 
 logger = logging.getLogger(__name__)
 
@@ -464,6 +466,7 @@ async def _fan_out_review_notification(
             session,
             school_id,
             plan=plan,
+            teacher_user_id=teacher_user.id,
             teacher_email=teacher_user.email,
             comment=comment,
             reviewer_staff_id=reviewer_staff_id,
@@ -475,18 +478,27 @@ async def _emit_rejection_email(
     school_id: UUID | str,
     *,
     plan: LessonPlan,
+    teacher_user_id: UUID | str,
     teacher_email: str,
     comment: str | None,
     reviewer_staff_id: UUID | str | None,
 ) -> None:
     """Emits `email/lesson-plan-rejected.requested` — picked up by
-    `features/lesson_plans/jobs/rejection_email.py`. Gated on the
+    `features/lesson_plans/jobs/rejection_email.py`. Gated on both the
     school's `notification_defaults.on_lesson_plan_rejected` toggle
-    (Admin Settings → Communication), same as the TS-side behaviour it
-    replaces."""
+    (Admin Settings → Communication) AND the teacher's own
+    `user_preferences.email_on_lesson_plan_rejected` — no preferences
+    row means the teacher hasn't opted out, so it defaults to sending,
+    same as before this per-user flag existed."""
     school = await SchoolsRepository.get_by_id(session, school_id)
     defaults = (school.notification_defaults if school else None) or {}
     if not defaults.get("on_lesson_plan_rejected", True):
+        return
+
+    prefs = await session.scalar(
+        select(UserPreferences).where(UserPreferences.user_id == teacher_user_id)
+    )
+    if prefs is not None and not prefs.email_on_lesson_plan_rejected:
         return
 
     reviewer = (
