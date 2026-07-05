@@ -38,7 +38,7 @@ import {
   useSubmitScheme,
   useUpdateScheme,
 } from "@/features/schemes/hooks/use-schemes";
-import type { Scheme } from "@/features/schemes/types";
+import { SCHEME_TYPE_LABELS, type Scheme } from "@/features/schemes/types";
 import { SchemeStatusPill } from "./SchemeStatusPill";
 
 const schema = z
@@ -213,11 +213,13 @@ export function SchemeForm({
                         disabled={locked}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue />
+                          <SelectValue>
+                            {(value: keyof typeof SCHEME_TYPE_LABELS) => SCHEME_TYPE_LABELS[value]}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="work">Scheme of Work</SelectItem>
-                          <SelectItem value="learning">Scheme of Learning</SelectItem>
+                          <SelectItem value="work">{SCHEME_TYPE_LABELS.work}</SelectItem>
+                          <SelectItem value="learning">{SCHEME_TYPE_LABELS.learning}</SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -236,7 +238,7 @@ export function SchemeForm({
                         disabled={locked}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue />
+                          <SelectValue>{(value: string) => `Term ${value}`}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="1">Term 1</SelectItem>
@@ -267,7 +269,11 @@ export function SchemeForm({
                         disabled={locked}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select class" />
+                          <SelectValue placeholder="Select class">
+                            {(value: string) =>
+                              uniqueClasses.find((c) => c.classId === value)?.className ?? ""
+                            }
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {uniqueClasses.length === 0 ? (
@@ -300,7 +306,11 @@ export function SchemeForm({
                         disabled={locked || !selectedClassId}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select subject" />
+                          <SelectValue placeholder="Select subject">
+                            {(value: string) =>
+                              subjectsForClass.find((s) => s.subjectId === value)?.subjectName ?? ""
+                            }
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {subjectsForClass.length === 0 ? (

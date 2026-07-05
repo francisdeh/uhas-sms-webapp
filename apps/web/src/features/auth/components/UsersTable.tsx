@@ -1,15 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { UserX, UserCheck, Plus, Loader2, Pencil, Users, Activity, UserCog, ShieldCheck, Copy, Check, Link } from "lucide-react";
+import { UserX, UserCheck, Plus, Loader2, Pencil, Users, Activity, UserCog, ShieldCheck, Mail } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldGroup } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DataTable } from "@/components/ui/data-table";
+import { useStaffList } from "@/features/staff/hooks/use-staff";
 import {
   Dialog,
   DialogContent,
@@ -30,18 +38,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { api, ApiError } from "@/lib/api/browser";
 import type { ManagedUser } from "@/features/auth/types";
-import { USER_ROLES, type UserRole } from "@/features/auth/types";
+import { USER_ROLES, ROLE_LABELS, type UserRole } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
 const ROLES = USER_ROLES;
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  Admin: "Admin",
-  DeputyHead: "Deputy Head",
-  Teacher: "Teacher",
-  Parent: "Parent",
-  Accountant: "Accountant",
-};
 
 const ROLE_PILL: Record<UserRole, string> = {
   Admin: "bg-slate-800 text-white dark:bg-slate-600",
@@ -99,11 +99,40 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [deactivateTarget, setDeactivateTarget] = useState<ManagedUser | null>(null);
-  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
-  const [copied, setCopied] = useState(false);
   const [roleFilter, setRoleFilter] = useState<UserRole | "All">("All");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
+
+  const isParentRole = form.role === "Parent";
+  const { data: staffData, isLoading: staffLoading } = useStaffList(
+    { activeOnly: true, size: 200 },
+    { enabled: dialogOpen && !isParentRole },
+  );
+  const { data: guardiansData, isLoading: guardiansLoading } = useQuery({
+    queryKey: ["guardians", "list", { size: 200 }],
+    queryFn: () => api.guardians.list({ size: 200 }),
+    enabled: dialogOpen && isParentRole,
+  });
+  const linkOptions = isParentRole
+    ? (guardiansData?.items ?? []).map((g) => ({
+        id: g.id,
+        label: `${g.firstName} ${g.lastName} (${g.slug})`,
+      }))
+    : (staffData?.items ?? []).map((s) => ({
+        id: s.id,
+        label: `${s.firstName} ${s.lastName} (${s.slug})`,
+      }));
+  const linkOptionsLoading = isParentRole ? guardiansLoading : staffLoading;
+  // Base UI's <Select.Value> only resolves a label from <Select.Item>s
+  // that have actually mounted (i.e. the dropdown has been opened at
+  // least once) — a value pre-filled via openEdit() on a never-opened
+  // dropdown falls back to showing the raw UUID. An explicit children
+  // render-prop sidesteps that.
+  function linkOptionLabel(id: string | undefined): string {
+    if (!id) return "";
+    return linkOptions.find((opt) => opt.id === id)?.label ?? "";
+  }
 
   const toggleMutation = useMutation({
     mutationFn: ({ uid, isActive }: { uid: string; isActive: boolean }) =>
@@ -134,12 +163,13 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
           displayName: created.displayName,
           role: created.role as UserRole,
           linkedId: created.linkedId ?? "",
+          slug: created.slug ?? null,
           isActive: created.isActive,
           photoUrl: null,
         },
       ]);
       setInviteName(payload.displayName);
-      setInviteLink(null);
+      setInviteEmail(payload.email);
       setForm(EMPTY_FORM);
       setDialogView("invite");
     },
@@ -153,12 +183,11 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
       api.users.update(uid, { displayName: payload.displayName }),
     onSuccess: (_data, { uid, payload }) => {
       toast.success("Account updated.");
+      // Only displayName is actually sent/persisted (see mutationFn) —
+      // role and linkedId are disabled inputs while editing, so they
+      // always equal the existing values here regardless.
       setUsers((prev) =>
-        prev.map((u) =>
-          u.uid === uid
-            ? { ...u, displayName: payload.displayName, role: payload.role, linkedId: payload.linkedId }
-            : u,
-        ),
+        prev.map((u) => (u.uid === uid ? { ...u, displayName: payload.displayName } : u)),
       );
       setDialogOpen(false);
     },
@@ -197,8 +226,6 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
 
   function closeDialog() {
     setDialogOpen(false);
-    setCopied(false);
-    setInviteLink(null);
   }
 
   function confirmDeactivate(user: ManagedUser) {
@@ -253,11 +280,11 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
       },
     },
     {
-      accessorKey: "linkedId",
+      accessorKey: "slug",
       header: "Staff ID",
       cell: ({ row }) => (
         <span className="text-xs font-mono text-muted-foreground">
-          {row.original.linkedId || "—"}
+          {row.original.slug || "—"}
         </span>
       ),
     },
@@ -291,7 +318,10 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
       cell: ({ row }) => {
         const u = row.original;
         return (
-          <div className="flex items-center justify-end gap-0.5">
+          <div
+            className="flex items-center justify-end gap-0.5"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               onClick={() => openEdit(u)}
               className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -410,6 +440,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
         <DataTable
           columns={columns}
           data={displayedUsers}
+          onRowClick={openEdit}
           searchKey="name"
           searchPlaceholder="Search by name, email, role…"
         />
@@ -454,7 +485,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
                 <DialogDescription>
                   {editingUser
                     ? "Update the details for this account."
-                    : "Create a new system account. An invite link will be generated."}
+                    : "Create a new system account. An invite email will be sent."}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit}>
@@ -485,8 +516,15 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
                       <FieldLabel>Role</FieldLabel>
                       <select
                         value={form.role}
-                        onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
-                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-colors"
+                        disabled={!!editingUser}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            role: e.target.value as UserRole,
+                            linkedId: "",
+                          }))
+                        }
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {ROLES.map((r) => (
                           <option key={r} value={r}>{ROLE_LABELS[r]}</option>
@@ -494,14 +532,39 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
                       </select>
                     </Field>
                     <Field>
-                      <FieldLabel>Staff ID</FieldLabel>
-                      <Input
-                        placeholder="STAFF-042"
-                        value={form.linkedId}
-                        onChange={(e) => setForm((f) => ({ ...f, linkedId: e.target.value }))}
-                      />
+                      <FieldLabel>{isParentRole ? "Guardian" : "Staff"}</FieldLabel>
+                      <Select
+                        value={linkOptionsLoading ? undefined : form.linkedId}
+                        onValueChange={(v) => setForm((f) => ({ ...f, linkedId: v || "" }))}
+                        disabled={linkOptionsLoading || !!editingUser}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue
+                            placeholder={
+                              linkOptionsLoading
+                                ? "Loading…"
+                                : `Select a ${isParentRole ? "guardian" : "staff member"}`
+                            }
+                          >
+                            {(value: string) => linkOptionLabel(value)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {linkOptions.map((opt) => (
+                            <SelectItem key={opt.id} value={opt.id}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </Field>
                   </div>
+                  {editingUser && (
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      Role and linked staff/guardian can&apos;t be changed here — deactivate and
+                      recreate the account to change either.
+                    </p>
+                  )}
                 </FieldGroup>
                 <DialogFooter className="mt-2">
                   <Button type="submit" variant="ink" className="px-5 py-2 h-auto text-sm" disabled={isPending}>
@@ -515,31 +578,17 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
             <>
               <DialogHeader>
                 <div className="flex items-center justify-center h-12 w-12 rounded-full bg-green-50 dark:bg-green-950/40 mx-auto mb-1">
-                  <Link size={20} className="text-green-600" />
+                  <Mail size={20} className="text-green-600" />
                 </div>
                 <DialogTitle className="text-center">Account created</DialogTitle>
                 <DialogDescription className="text-center">
-                  Share this one-time invite link with <strong>{inviteName}</strong> so they can set their password and log in.
+                  We&apos;ve emailed <strong>{inviteName}</strong> an invite at{" "}
+                  <strong>{inviteEmail}</strong> to set their password and log in.
                 </DialogDescription>
               </DialogHeader>
-              <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-xs font-mono break-all text-muted-foreground">
-                {inviteLink}
-              </div>
-              <Button
-                variant="ink"
-                className="w-full py-2 h-auto text-sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(inviteLink ?? "");
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-              >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-                {copied ? "Copied!" : "Copy link"}
+              <Button variant="ink" className="w-full py-2 h-auto text-sm" onClick={closeDialog}>
+                Done
               </Button>
-              <p className="text-[11px] text-muted-foreground text-center -mt-1">
-                This link expires after use.
-              </p>
             </>
           )}
         </DialogContent>

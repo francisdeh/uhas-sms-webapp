@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { ErrorState } from "@/components/ui/error-state";
 import { DataTable } from "@/components/ui/data-table";
 import {
   useClass,
@@ -76,11 +77,16 @@ type SelectFormValues = z.infer<typeof selectSchema>;
 
 interface ClassDetailProps {
   classId: string;
+  /** View-only — hides teacher/subject assignment affordances. Every
+   * mutation endpoint here is Admin-only server-side (RequireAdmin), so
+   * a non-admin viewer (e.g. Deputy Head) must never see edit UI it
+   * can't actually use. */
+  readonly?: boolean;
 }
 
-export default function ClassDetail({ classId }: ClassDetailProps) {
+export default function ClassDetail({ classId, readonly = false }: ClassDetailProps) {
   // Detail — populates the header + drives the primary teacher assign dialog default.
-  const { data: schoolClass, isLoading: classLoading } = useClass(classId);
+  const { data: schoolClass, isLoading: classLoading, error: classError } = useClass(classId);
 
   // Junctions + roster (all keyed under the class).
   const { data: subjectsData } = useClassSubjects(classId);
@@ -106,8 +112,19 @@ export default function ClassDetail({ classId }: ClassDetailProps) {
     return (allSubjectsData?.items ?? []).filter((s) => !assigned.has(s.id));
   }, [classSubjects, allSubjectsData]);
 
-  const { data: staffData } = useStaffList({ activeOnly: true, size: 100 });
+  const { data: staffData, isLoading: staffLoading } = useStaffList({ activeOnly: true, size: 100 });
   const availableTeachers = staffData?.items ?? [];
+  // Base UI's <Select.Value> only resolves a label from <Select.Item>s
+  // that have actually mounted (i.e. the dropdown has been opened at
+  // least once) — a value set programmatically via form.reset() on a
+  // never-opened dropdown falls back to showing the raw value. Passing
+  // an explicit children render-prop sidesteps that entirely.
+  function teacherLabel(id: string | undefined): string {
+    if (!id || id === "none") return "Unassigned";
+    const staff = availableTeachers.find((s) => s.id === id);
+    if (!staff) return "Unassigned";
+    return `${staff.firstName} ${staff.lastName}${staff.rank ? ` (${staff.rank})` : ""}`;
+  }
 
   // Category lookup for the pill under each subject row.
   const subjectCategoryMap = useMemo(() => {
@@ -273,6 +290,24 @@ export default function ClassDetail({ classId }: ClassDetailProps) {
     },
   ];
 
+  if (classError) {
+    const is403 = classError instanceof ApiError && classError.status === 403;
+    return (
+      <div className="flex items-center justify-center py-16">
+        <ErrorState
+          error={classError}
+          title={is403 ? "Access restricted" : "Couldn't load class"}
+          description={
+            is403
+              ? "You may only view classes in your own division."
+              : classError.message
+          }
+          className="w-full max-w-md"
+        />
+      </div>
+    );
+  }
+
   if (classLoading || !schoolClass) {
     return (
       <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
@@ -303,32 +338,36 @@ export default function ClassDetail({ classId }: ClassDetailProps) {
             {schoolClass.academicYear}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            teacherForm.reset({ value: primaryClassTeacher?.staffId ?? "none" });
-            setTeacherOpen(true);
-          }}
-        >
-          Change Class Teacher
-        </Button>
+        {!readonly && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              teacherForm.reset({ value: primaryClassTeacher?.staffId ?? "none" });
+              setTeacherOpen(true);
+            }}
+          >
+            Change Class Teacher
+          </Button>
+        )}
       </div>
 
       {/* Subjects & Teachers */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-sm font-semibold">Subjects &amp; Teachers</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              subjectForm.reset({ value: "" });
-              setSubjectOpen(true);
-            }}
-          >
-            Add Subject
-          </Button>
+          {!readonly && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                subjectForm.reset({ value: "" });
+                setSubjectOpen(true);
+              }}
+            >
+              Add Subject
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="pt-0">
           {classSubjects.length === 0 ? (
@@ -343,7 +382,7 @@ export default function ClassDetail({ classId }: ClassDetailProps) {
                     <th className="text-left text-xs font-semibold px-4 py-2.5">Subject</th>
                     <th className="text-left text-xs font-semibold px-4 py-2.5">Category</th>
                     <th className="text-left text-xs font-semibold px-4 py-2.5">Teacher</th>
-                    <th className="px-4 py-2.5" />
+                    {!readonly && <th className="px-4 py-2.5" />}
                   </tr>
                 </thead>
                 <tbody>
@@ -378,24 +417,26 @@ export default function ClassDetail({ classId }: ClassDetailProps) {
                             <span className="italic text-muted-foreground">Unassigned</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center gap-1">
-                            <button
-                              onClick={() => openAssignDialog(cs)}
-                              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                              title="Assign teacher"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                            <button
-                              onClick={() => onRemoveSubject(cs.subjectId)}
-                              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-                              title="Remove subject from class"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </td>
+                        {!readonly && (
+                          <td className="px-4 py-3 text-right">
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                onClick={() => openAssignDialog(cs)}
+                                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                title="Assign teacher"
+                              >
+                                <Pencil size={13} />
+                              </button>
+                              <button
+                                onClick={() => onRemoveSubject(cs.subjectId)}
+                                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                                title="Remove subject from class"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -441,11 +482,14 @@ export default function ClassDetail({ classId }: ClassDetailProps) {
                   control={teacherForm.control}
                   render={({ field }) => (
                     <Select
-                      value={field.value}
+                      value={staffLoading ? undefined : field.value}
                       onValueChange={(v) => { if (v) field.onChange(v); }}
+                      disabled={staffLoading}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a teacher" />
+                        <SelectValue placeholder={staffLoading ? "Loading teachers…" : "Select a teacher"}>
+                          {(value: string) => teacherLabel(value)}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Remove class teacher</SelectItem>
@@ -555,11 +599,14 @@ export default function ClassDetail({ classId }: ClassDetailProps) {
                   control={assignForm.control}
                   render={({ field }) => (
                     <Select
-                      value={field.value}
+                      value={staffLoading ? undefined : field.value}
                       onValueChange={(v) => { if (v) field.onChange(v); }}
+                      disabled={staffLoading}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a teacher" />
+                        <SelectValue placeholder={staffLoading ? "Loading teachers…" : "Select a teacher"}>
+                          {(value: string) => teacherLabel(value)}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Unassigned</SelectItem>

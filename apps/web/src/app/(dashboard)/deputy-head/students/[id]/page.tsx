@@ -40,6 +40,7 @@ export default async function DeputyHeadStudentDetailPage({
 
   const student: Student = {
     id: studentRead.id,
+    slug: studentRead.slug,
     schoolId: studentRead.schoolId,
     firstName: studentRead.firstName,
     middleName: studentRead.middleName ?? undefined,
@@ -67,6 +68,7 @@ export default async function DeputyHeadStudentDetailPage({
   const guardianProfile = guardian
     ? {
         id: guardian.id,
+        slug: guardian.slug,
         name: guardian.name,
         relationship: guardian.relationship,
         phone: guardian.phone ?? undefined,

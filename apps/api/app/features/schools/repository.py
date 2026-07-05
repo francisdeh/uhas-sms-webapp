@@ -35,6 +35,21 @@ class SchoolsRepository:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_first_active(session: AsyncSession) -> School | None:
+        """Fetch the first active school — for the one unauthenticated
+        read in this domain (login-page branding), where there's no JWT
+        yet to resolve a specific `school_id` from.
+
+        Single-tenant-only: arbitrary among ties if more than one
+        school is ever active at once. Fine today (exactly one school
+        exists); revisit alongside multi-school onboarding.
+        """
+        result = await session.execute(
+            select(School).where(School.is_active.is_(True)).order_by(School.created_at).limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
     async def apply_patch(session: AsyncSession, school: School, patch: dict[str, Any]) -> School:
         """Apply a field-level patch in-place. Caller computes the diff.
 

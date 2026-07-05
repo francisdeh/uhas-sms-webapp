@@ -35,6 +35,7 @@ class UserRead(BaseModel):
     email: str
     role: Role
     linked_id: UUID | None = None
+    slug: str | None = None
     display_name: str = ""
     is_active: bool = True
     must_change_password: bool = True

@@ -34,7 +34,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:54322/postgres
 
 ## Where the schema lives
 
-Schema is managed by **Alembic in [`apps/api/alembic/`](../apps/api/alembic/)**, not by `supabase/migrations/`. After `supabase start`, populate the schema with:
+**Application schema** (`schools`, `students`, every domain table) is managed by **Alembic in [`apps/api/alembic/`](../apps/api/alembic/)**, not by `supabase/migrations/`. After `supabase start`, populate it with:
 
 ```bash
 cd apps/api
@@ -42,6 +42,8 @@ uv run alembic upgrade head
 ```
 
 The baseline migration (`fb2f367656c5_drizzle_baseline_port.py`) creates the 33 tables from the snapshotted Drizzle schema; later migrations have added more as new domains landed (35 total as of Phase 3 — `lesson_plan_reviews`, `sms_log`, etc.). Schema changes go through hand-written Alembic revisions reviewed in the PR — see any file in `apps/api/alembic/versions/` for the pattern.
+
+**Supabase platform config** (Storage RLS policies, Auth hooks, anything that lives in Supabase's own schemas rather than the app's) goes through `supabase/migrations/` instead — that's genuinely Supabase-CLI-managed territory, separate from the app schema above. Currently just one: `storage_object_policies.sql`, granting authenticated INSERT/UPDATE/DELETE on the `photos`/`documents` buckets (`storage.objects` has RLS on by default with zero policies out of the box, which silently blocks every upload until something explicitly allows it). Applied automatically on a brand-new `supabase start` (first-time volume) or by `supabase db reset` — for an already-running stack, run the file's SQL directly instead of resetting, which would also wipe every seeded row.
 
 ## Daily workflow
 
@@ -66,10 +68,9 @@ supabase stop && supabase start         # nuke containers + restart fresh
 supabase/
 ├── config.toml             # Local stack config (ports, services enabled) — CLI-managed
 ├── .gitignore              # CLI-managed; covers .branches/, .temp/, .env.*
-└── (migrations/ stays empty — Alembic in apps/api/ owns schema)
+└── migrations/             # Supabase platform config only (Storage RLS, etc.) —
+                             # NOT the app schema; that's Alembic in apps/api/
 ```
-
-The `migrations/` folder is intentionally empty when present — Alembic in `apps/api/` is the single source of truth for schema changes.
 
 ## Ports the local stack uses
 

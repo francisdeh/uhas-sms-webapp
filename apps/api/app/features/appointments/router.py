@@ -76,7 +76,9 @@ async def list_appointments(
     session: Annotated[AsyncSession, Depends(get_session)],
     user: CurrentUserDep,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    # The teacher/parent appointment inbox fetches its full pending queue
+    # in one page rather than paginating a naturally small list.
+    size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> AppointmentsListResponse:
     if not user.linked_id:
         raise ForbiddenError("Actor identity missing.")

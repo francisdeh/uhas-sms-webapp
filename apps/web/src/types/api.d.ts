@@ -24,6 +24,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/school/public": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch cosmetic school info for the login page — no auth required
+         * @description Return name/motto/logo only — the login page renders this before
+         *     any session exists, so there's no JWT to resolve a school_id from.
+         *
+         *     Deliberately excludes everything else on the `schools` row (address,
+         *     phone, grading config, security policy, …) — this is the one route
+         *     in the entire API that skips auth, so the response shape stays
+         *     permanently minimal regardless of what gets added to `SchoolRead`.
+         */
+        get: operations["get_school_public_school_public_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/school": {
         parameters: {
             query?: never;
@@ -3702,8 +3728,9 @@ export interface components {
          *       - JWT (uid, email, role, linked_id, must_change_password from
          *         `user_metadata`).
          *       - `users` bridge row (is_active flag, fallback email).
-         *       - Linked `staff` or `guardians` row for `display_name` +
-         *         Teacher/UnitHead's `division`.
+         *       - Linked `staff` or `guardians` row for `display_name`, `slug`
+         *         (human-readable id, e.g. "STAFF-001"), and Teacher/UnitHead's
+         *         `division`.
          *
          *     `display_name` falls back to email → phone if the linked row is
          *     missing (which happens briefly during account provisioning).
@@ -3725,6 +3752,8 @@ export interface components {
             role: "Admin" | "DeputyHead" | "Teacher" | "Parent" | "Accountant";
             /** Linkedid */
             linkedId?: string | null;
+            /** Slug */
+            slug?: string | null;
             /**
              * Mustchangepassword
              * @default false
@@ -3964,6 +3993,8 @@ export interface components {
             term: number;
             /** Academicyear */
             academicYear: string;
+            /** Ispublished */
+            isPublished: boolean;
         };
         /**
          * ReportCardResponse
@@ -4211,6 +4242,27 @@ export interface components {
             page: number;
             /** Size */
             size: number;
+        };
+        /**
+         * SchoolPublicRead
+         * @description Outbound shape for the one unauthenticated read in this domain.
+         *
+         *     The login page needs the school's name/motto/logo before any
+         *     session exists — there's no JWT yet to resolve `school_id` from.
+         *     Deliberately minimal: only cosmetic fields a login screen would
+         *     ever need, nothing that would matter if cached or logged publicly.
+         *
+         *     Single-tenant-only for now — see `SchoolsRepository.get_first_active`.
+         *     Revisit when a multi-school onboarding flow needs the login page to
+         *     resolve a *specific* tenant (e.g. by subdomain/slug) instead.
+         */
+        SchoolPublicRead: {
+            /** Name */
+            name: string;
+            /** Motto */
+            motto?: string | null;
+            /** Logourl */
+            logoUrl?: string | null;
         };
         /**
          * SchoolRead
@@ -5055,6 +5107,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Slug */
+            slug: string;
             /** Name */
             name: string;
             /** Relationship */
@@ -5555,6 +5609,8 @@ export interface components {
             role: "Admin" | "DeputyHead" | "Teacher" | "Parent" | "Accountant";
             /** Linkedid */
             linkedId?: string | null;
+            /** Slug */
+            slug?: string | null;
             /**
              * Displayname
              * @default
@@ -5637,6 +5693,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    get_school_public_school_public_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolPublicRead"];
                 };
             };
         };

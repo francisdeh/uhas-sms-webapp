@@ -1,6 +1,16 @@
-# Supabase Migration — Change Outline
+# Supabase Migration — Change Outline (SUPERSEDED)
 
-> **Status:** Planning only. No implementation yet. This document enumerates *what* changes to move the app from **Firebase Auth + Firebase Storage + Neon Postgres** to a **self-hosted Supabase stack on Railway** (Postgres + Auth/GoTrue + Storage + Edge Functions + PostgREST/Realtime). It is organised by change surface, with exact file paths, so the work can be planned and estimated. Authored 2026-06-10.
+> **⚠️ This plan was not the one executed. Kept for historical record only — do not follow anything below.**
+>
+> Authored 2026-06-10, this document proposed a **minimal** migration: swap Firebase Auth/Storage for a **self-hosted** Supabase-on-Railway stack, while explicitly *keeping* Drizzle ORM, Next.js Server Actions as the mutation path, and the app's own custom session cookies (see its own §2 "What does NOT change" and decision D2/D3).
+>
+> **What actually happened instead** ("Strategy A", Phases 0–3 complete) was a far larger rewrite: Drizzle was fully removed in favor of a new **FastAPI + SQLAlchemy + Alembic** backend owning all data access and mutations; Next.js Server Actions were decommissioned in favor of a typed FastAPI client + TanStack Query; Supabase is used as a **hosted** project (not self-hosted on Railway); sessions are Supabase's own `@supabase/ssr` cookies, not custom ones. None of Track B/C/D/E's file-level plans below match the real codebase.
+>
+> **For the plan that was actually followed, see [v2/UHAS_Migration_Execution_Plan.md](../v2/UHAS_Migration_Execution_Plan.md).** For the real current architecture, see [CLAUDE.md](../CLAUDE.md) and [docs/HANDOVER.md](HANDOVER.md).
+>
+> Everything below this line is the original, superseded proposal, unedited.
+
+---
 
 ---
 

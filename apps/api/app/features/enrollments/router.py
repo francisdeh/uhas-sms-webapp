@@ -131,7 +131,9 @@ async def list_class_enrollments(
     session: Annotated[AsyncSession, Depends(get_session)],
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    # A class roster is bounded by school size like classes/staff — the
+    # attendance-taking view fetches the whole roster in one page.
+    size: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> EnrollmentsListResponse:
     rows, total = await EnrollmentsService.list_for_class(
         session, school_id, class_id, status=status_filter, page=page, size=size

@@ -218,3 +218,27 @@ class SchoolRead(SchoolBase):
         alias_generator=to_camel,
         populate_by_name=True,
     )
+
+
+class SchoolPublicRead(BaseModel):
+    """Outbound shape for the one unauthenticated read in this domain.
+
+    The login page needs the school's name/motto/logo before any
+    session exists — there's no JWT yet to resolve `school_id` from.
+    Deliberately minimal: only cosmetic fields a login screen would
+    ever need, nothing that would matter if cached or logged publicly.
+
+    Single-tenant-only for now — see `SchoolsRepository.get_first_active`.
+    Revisit when a multi-school onboarding flow needs the login page to
+    resolve a *specific* tenant (e.g. by subdomain/slug) instead.
+    """
+
+    name: str
+    motto: str | None = None
+    logo_url: str | None = None
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )

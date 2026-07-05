@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -68,6 +69,7 @@ interface StaffTableProps {
 }
 
 export default function StaffTable({ initialData, classes, listHref }: StaffTableProps) {
+  const router = useRouter();
   // FastAPI is now the source of truth. TanStack handles cache + invalidation;
   // mutations call `onSuccess` → invalidate, which triggers a refetch.
   const { data } = useStaffList({}, { initialData });
@@ -138,7 +140,7 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
               <p className="text-sm font-medium truncate">
                 {s.firstName} {s.lastName}
               </p>
-              <p className="text-xs text-muted-foreground font-mono truncate">{s.id}</p>
+              <p className="text-xs text-muted-foreground font-mono truncate">{s.slug}</p>
             </div>
           </div>
         );
@@ -233,7 +235,10 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
       cell: ({ row }) => {
         const s = row.original;
         return (
-          <div className="flex items-center justify-end gap-0.5">
+          <div
+            className="flex items-center justify-end gap-0.5"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Link
               href={`${listHref}/${s.id}`}
               className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -363,6 +368,7 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
         <DataTable
           columns={columns}
           data={displayedStaff}
+          onRowClick={(s) => router.push(`${listHref}/${s.id}`)}
           searchKey="name"
           searchPlaceholder="Search by name, role, ID…"
         />

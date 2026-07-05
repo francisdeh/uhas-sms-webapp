@@ -16,7 +16,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.audit.model import AuditLog
@@ -33,6 +33,41 @@ from app.features.schools.tests.conftest import (
 async def test_get_school_requires_auth(client: AsyncClient) -> None:
     res = await client.get("/school")
     assert res.status_code == 401
+
+
+# ─── GET /school/public ──────────────────────────────────────────────────────
+#
+# `get_first_active` is the one unscoped ("get anything active") query in
+# this domain — every other test here queries by a pinned UUID, which is
+# safe to run against a shared local dev DB regardless of what else is
+# committed in it. An unscoped query isn't, so these tests deactivate
+# (not delete — real seeded rows have FKs from other tables) any other
+# school inside their own rolled-back transaction first, rather than
+# assuming the table starts empty.
+
+
+async def test_get_school_public_requires_no_auth(client: AsyncClient, seed_school: School) -> None:
+    res = await client.get("/school/public")
+    assert res.status_code == 200
+
+
+async def test_get_school_public_returns_cosmetic_fields_only(
+    client: AsyncClient, db_session: AsyncSession, seed_school: School
+) -> None:
+    await db_session.execute(
+        text("UPDATE schools SET is_active = false WHERE id != :id"), {"id": str(SCHOOL_UUID)}
+    )
+    res = await client.get("/school/public")
+    body = res.json()
+    assert body == {"name": "Test School", "motto": None, "logoUrl": None}
+
+
+async def test_get_school_public_404s_when_no_active_school(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await db_session.execute(text("UPDATE schools SET is_active = false"))
+    res = await client.get("/school/public")
+    assert res.status_code == 404
 
 
 async def test_get_school_returns_caller_school(client: AsyncClient, seed_school: School) -> None:

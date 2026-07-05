@@ -266,6 +266,7 @@ class ReportCardExam(BaseModel):
     type: ExamType
     term: int
     academic_year: str
+    is_published: bool
 
 
 class ReportCardScoreRow(BaseModel):

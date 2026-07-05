@@ -2,8 +2,8 @@
 
 The list query LEFT JOINs both `staff` and `guardians` because a user
 row points at one or the other via `linked_id` (Parents → guardians,
-everyone else → staff). Coalescing the name columns app-side matches
-the legacy Drizzle implementation.
+everyone else → staff). Coalescing the name + slug columns app-side
+matches the legacy Drizzle implementation.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from app.features.guardians.model import Guardian
 from app.features.staff.model import Staff
 from app.features.users.model import User
 
-JoinedRow = tuple[User, str | None, str | None, str | None, str | None]
+JoinedRow = tuple[User, str | None, str | None, str | None, str | None, str | None, str | None]
 
 
 class UsersRepository:
@@ -43,6 +43,8 @@ class UsersRepository:
                 Staff.last_name,
                 Guardian.first_name,
                 Guardian.last_name,
+                Staff.slug,
+                Guardian.slug,
             )
             .outerjoin(Staff, Staff.id == User.linked_id)
             .outerjoin(Guardian, Guardian.id == User.linked_id)
@@ -71,7 +73,7 @@ class UsersRepository:
         offset = (page - 1) * size
         rows_stmt = base.order_by(asc(User.email), asc(User.id)).offset(offset).limit(size)
         result = (await session.execute(rows_stmt)).all()
-        return [(r[0], r[1], r[2], r[3], r[4]) for r in result], total
+        return [(r[0], r[1], r[2], r[3], r[4], r[5], r[6]) for r in result], total
 
     @staticmethod
     async def get_by_id(session: AsyncSession, school_id: UUID | str, user_id: UUID) -> User | None:
@@ -89,6 +91,8 @@ class UsersRepository:
                 Staff.last_name,
                 Guardian.first_name,
                 Guardian.last_name,
+                Staff.slug,
+                Guardian.slug,
             )
             .outerjoin(Staff, Staff.id == User.linked_id)
             .outerjoin(Guardian, Guardian.id == User.linked_id)
@@ -97,7 +101,7 @@ class UsersRepository:
         row = (await session.execute(stmt)).first()
         if row is None:
             return None
-        return (row[0], row[1], row[2], row[3], row[4])
+        return (row[0], row[1], row[2], row[3], row[4], row[5], row[6])
 
     @staticmethod
     async def insert(session: AsyncSession, row: User) -> User:

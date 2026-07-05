@@ -59,6 +59,13 @@ class SupabaseAdminClient(Protocol):
 
     async def delete_user(self, user_id: UUID | str) -> None: ...
 
+    async def invite_user_by_email(
+        self,
+        *,
+        email: str,
+        redirect_to: str,
+    ) -> dict[str, Any]: ...
+
 
 class _NotConfiguredSupabaseAdminClient:
     """Stub for environments without a Supabase service-role key.
@@ -92,6 +99,9 @@ class _NotConfiguredSupabaseAdminClient:
         raise ServiceUnavailableError(self._MSG)
 
     async def delete_user(self, user_id: UUID | str) -> None:
+        raise ServiceUnavailableError(self._MSG)
+
+    async def invite_user_by_email(self, *, email: str, redirect_to: str) -> dict[str, Any]:
         raise ServiceUnavailableError(self._MSG)
 
 
@@ -165,6 +175,25 @@ class RealSupabaseAdminClient:
             self._client.auth.admin.delete_user(str(user_id))
 
         await asyncio.to_thread(_run)
+
+    async def invite_user_by_email(self, *, email: str, redirect_to: str) -> dict[str, Any]:
+        """Creates the auth user AND sends Supabase's built-in invite email.
+
+        `invite_user_by_email` only accepts a `data` bucket (user_metadata)
+        — it has no `app_metadata` parameter — so the caller still needs a
+        follow-up `update_user_by_id` to set role/school_id/linked_id.
+        """
+
+        def _run() -> dict[str, Any]:
+            resp = self._client.auth.admin.invite_user_by_email(
+                email, cast(Any, {"redirect_to": redirect_to})
+            )
+            user = getattr(resp, "user", None)
+            if user is None:
+                raise ServiceUnavailableError("Supabase did not return an auth user.")
+            return {"id": str(user.id), "email": user.email}
+
+        return await asyncio.to_thread(_run)
 
 
 def get_supabase_admin_client() -> SupabaseAdminClient:

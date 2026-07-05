@@ -87,7 +87,9 @@ async def list_schemes(
     term: Annotated[int | None, Query(ge=1, le=3)] = None,
     academic_year: Annotated[str | None, Query(alias="academicYear")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    # A per-teacher "all my schemes" view fetches up to 200 in one page
+    # rather than paginating.
+    size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> SchemesListResponse:
     effective_teacher_id = teacher_id
     if user.role not in _APPROVER_ROLES:

@@ -48,6 +48,7 @@ export default async function TeacherAttendanceClassPage({
 
   const students: Student[] = rosterPage.items.map((e) => ({
     id: e.studentId,
+    slug: e.studentSlug ?? e.studentId,
     schoolId: "",
     firstName: e.studentFirstName ?? "",
     lastName: e.studentLastName ?? "",

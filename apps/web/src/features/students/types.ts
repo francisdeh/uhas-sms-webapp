@@ -2,6 +2,7 @@ import type { Division } from "@/features/auth/types";
 
 export type Student = {
   id: string;
+  slug: string;
   schoolId: string;
   firstName: string;
   middleName?: string;
@@ -59,6 +60,7 @@ export type ClassRecord = {
 
 export type GuardianProfile = {
   id: string;
+  slug: string;
   name: string;
   relationship: string;
   phone?: string;

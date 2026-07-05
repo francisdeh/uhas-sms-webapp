@@ -31,7 +31,7 @@ uhas-sms/
 
 See `README.md`'s Development Phases table for feature history and `docs/implementation-spec.md` for the full feature plan.
 
-There is no mock-data mode anymore — `USE_MOCK_DATA` and `apps/web/src/lib/mock/` were removed when the app was cut over to a real database (pre-Strategy-A). Every read and mutation goes through the FastAPI backend today. The one known local-dev gap: there is no seed script for business data (`staff`/`schools`/`students` rows) — see the ⚠️ note in the root README's Getting Started.
+There is no mock-data mode anymore — `USE_MOCK_DATA` and `apps/web/src/lib/mock/` were removed when the app was cut over to a real database (pre-Strategy-A). Every read and mutation goes through the FastAPI backend today. Local demo data comes from two independent seed scripts — `pnpm seed:supabase` (Supabase Auth accounts) and `cd apps/api && uv run python -m app.scripts.seed` (business data: school, staff, students, classes, everything else) — see the root README's Getting Started.
 
 ---
 
@@ -185,7 +185,8 @@ Used for score calculation in `features/exams/`. Bands and interpretations come 
 | `apps/web/src/features/auth/queries/get-session-user.ts` | Resolves the current `SessionUser` via one call to FastAPI's `/me` |
 | `apps/web/src/components/ui/` | shadcn UI primitives |
 | `docs/implementation-spec.md` | Full feature spec and phase plan |
-| `apps/web/scripts/seed-supabase-users.ts` | Seeds Supabase Auth with the 9 role-anchored test accounts — **auth only**; doesn't create the `staff`/`schools`/`students` rows they're linked to (known gap, see root README) |
+| `apps/web/scripts/seed-supabase-users.ts` | Seeds Supabase Auth with the 9 role-anchored test accounts — **auth only**; pair with `apps/api/app/scripts/seed/` for the `staff`/`schools`/`students` rows they're linked to |
+| `apps/api/app/scripts/seed/` | Business-data seed script (reset-only) — one school, staff, students, classes, and every other domain's demo data |
 | `supabase/config.toml` | Local Supabase CLI config (Auth providers, storage buckets, test_otp) |
 
 ---

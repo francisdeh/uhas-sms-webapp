@@ -228,7 +228,11 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
                         disabled={locked}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select class" />
+                          <SelectValue placeholder="Select class">
+                            {(value: string) =>
+                              uniqueClasses.find((c) => c.classId === value)?.className ?? ""
+                            }
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {uniqueClasses.length === 0 ? (
@@ -261,7 +265,12 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
                         disabled={locked || !selectedClassId}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select subject" />
+                          <SelectValue placeholder="Select subject">
+                            {(value: string) =>
+                              subjectsForSelectedClass.find((s) => s.subjectId === value)
+                                ?.subjectName ?? ""
+                            }
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {subjectsForSelectedClass.length === 0 ? (
@@ -296,7 +305,7 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
                         disabled={locked}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue />
+                          <SelectValue>{(value: string) => `Term ${value}`}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="1">Term 1</SelectItem>

@@ -58,7 +58,11 @@ export function BrandingTab({ settings }: { settings: SchoolSettings }) {
             <FieldLabel>Default colour scheme</FieldLabel>
             <Select value={scheme} onValueChange={(v) => v && setScheme(v as "default" | "uhas")}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: "default" | "uhas") =>
+                    value === "uhas" ? "UHAS Brand" : "Default (orange)"
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="uhas">UHAS Brand</SelectItem>

@@ -16,10 +16,35 @@ import { GraduationCap, Users, School, Bell, LayoutDashboard } from "lucide-reac
 import { getShellConfig } from "@/features/shell/role-config";
 import { api } from "@/lib/api/browser";
 import type { GlobalSearchResults } from "@/features/shell/types";
-import type { SessionUser } from "@/features/auth/types";
+import type { SessionUser, UserRole } from "@/features/auth/types";
+import { ROLE_DASHBOARD } from "@/features/auth/types";
 
 const RECENT_KEY = "uhas_recent_searches";
 const MAX_RECENT = 5;
+
+// Not every role has a detail (or even list) page for every result type —
+// e.g. Deputy Head gets staff hits back from the search API but has no
+// staff route at all, and Teacher/Parent have no per-student page yet.
+// Falls back to the closest relevant page rather than a hardcoded
+// `/admin/*` path, which `proxy.ts` redirects non-Admins away from.
+function studentHref(role: UserRole, id: string): string {
+  if (role === "Admin") return `/admin/students/${id}`;
+  if (role === "DeputyHead") return `/deputy-head/students/${id}`;
+  if (role === "Parent") return "/parent/children";
+  if (role === "Teacher") return "/teacher/classes";
+  return ROLE_DASHBOARD[role];
+}
+
+function staffHref(role: UserRole, id: string): string {
+  if (role === "Admin") return `/admin/staff/${id}`;
+  return ROLE_DASHBOARD[role];
+}
+
+function classHref(role: UserRole, id: string): string {
+  if (role === "Admin") return `/admin/classes/${id}`;
+  if (role === "DeputyHead") return `/deputy-head/classes/${id}`;
+  return ROLE_DASHBOARD[role];
+}
 
 interface SearchCommandProps {
   open: boolean;
@@ -146,7 +171,7 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
                   <CommandItem
                     key={s.id}
                     value={s.name}
-                    onSelect={() => navigate("/admin/students", s.name)}
+                    onSelect={() => navigate(studentHref(user.role, s.id), s.name)}
                   >
                     <GraduationCap size={14} className="mr-2 text-muted-foreground" />
                     <span>{s.name}</span>
@@ -165,7 +190,7 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
                   <CommandItem
                     key={s.id}
                     value={s.name}
-                    onSelect={() => navigate("/admin/users", s.name)}
+                    onSelect={() => navigate(staffHref(user.role, s.id), s.name)}
                   >
                     <Users size={14} className="mr-2 text-muted-foreground" />
                     <span>{s.name}</span>
@@ -184,7 +209,7 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
                   <CommandItem
                     key={c.id}
                     value={c.name}
-                    onSelect={() => navigate("/admin/classes", c.name)}
+                    onSelect={() => navigate(classHref(user.role, c.id), c.name)}
                   >
                     <School size={14} className="mr-2 text-muted-foreground" />
                     <span>{c.name}</span>
@@ -202,7 +227,7 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
                   <CommandItem
                     key={a.id}
                     value={a.title}
-                    onSelect={() => navigate("/admin", a.title)}
+                    onSelect={() => navigate(`${ROLE_DASHBOARD[user.role]}/announcements`, a.title)}
                   >
                     <Bell size={14} className="mr-2 text-muted-foreground" />
                     <span className="truncate">{a.title}</span>

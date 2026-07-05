@@ -92,6 +92,7 @@ async def get_student_guardian(
     guardian, relation = row
     return StudentGuardianRead(
         id=guardian.id,
+        slug=guardian.slug,
         name=f"{guardian.first_name} {guardian.last_name}".strip(),
         relationship=relation or "Guardian",
         phone=guardian.phone,

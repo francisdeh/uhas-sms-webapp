@@ -50,14 +50,13 @@ import {
   useUnpublishExam,
 } from "@/features/exams/hooks/use-exams";
 import type { Exam } from "@/features/exams/types";
+import { ACADEMIC_YEARS, type AcademicYear } from "@/lib/academic-year";
 
 const createSchema = z.object({
   name: z.string().min(2, { message: "Name required" }),
   type: z.enum(["MidTerm", "EndOfTerm"], { message: "Select a type" }),
   term: z.number().int().min(1).max(3),
-  academicYear: z
-    .string()
-    .regex(/^\d{4}\/\d{4}$/, { message: "Format must be YYYY/YYYY (e.g. 2025/2026)" }),
+  academicYear: z.enum(ACADEMIC_YEARS, { message: "Select an academic year" }),
 });
 
 type CreateFormValues = z.infer<typeof createSchema>;
@@ -67,7 +66,7 @@ export function ExamsManager({
   currentYear,
 }: {
   initialExams: Exam[];
-  currentYear: string;
+  currentYear: AcademicYear;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [publishTarget, setPublishTarget] = useState<Exam | null>(null);
@@ -253,7 +252,7 @@ export function ExamsManager({
                         onValueChange={(v) => { if (v) field.onChange(Number(v)); }}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Term" />
+                          <SelectValue placeholder="Term">{(value: string) => `Term ${value}`}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="1">Term 1</SelectItem>
@@ -266,11 +265,27 @@ export function ExamsManager({
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="academic-year">Academic Year</FieldLabel>
-                  <Input
-                    id="academic-year"
-                    placeholder="2025/2026"
-                    {...form.register("academicYear")}
+                  <FieldLabel>Academic Year</FieldLabel>
+                  <Controller
+                    name="academicYear"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={(v) => { if (v) field.onChange(v); }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Academic year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ACADEMIC_YEARS.map((year) => (
+                            <SelectItem key={year} value={year}>
+                              {year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   />
                   <FieldError errors={[form.formState.errors.academicYear]} />
                 </Field>

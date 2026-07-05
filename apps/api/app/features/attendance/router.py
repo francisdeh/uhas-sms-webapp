@@ -152,7 +152,9 @@ async def list_sessions(
     class_id: Annotated[UUID | None, Query(alias="classId")] = None,
     term: Annotated[int | None, Query(ge=1, le=3)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    # A term's worth of daily sessions for one class fetched in one page
+    # rather than paginating — up to 500 to match the heaviest caller.
+    size: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> AttendanceSessionsListResponse:
     rows, total = await AttendanceService.list_sessions(
         session, school_id, class_id=class_id, term=term, page=page, size=size

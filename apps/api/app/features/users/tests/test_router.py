@@ -172,6 +172,8 @@ async def test_list_returns_paginated_results(
     display_names = {item["displayName"] for item in body["items"]}
     assert "Alice Anderson" in display_names
     assert "Carol Chen" in display_names
+    slugs = {item["slug"] for item in body["items"]}
+    assert slugs == {"STAFF-alice", "STAFF-bob", "GUAR-carol"}
 
 
 async def test_list_filters_by_q_email(
@@ -294,13 +296,17 @@ async def test_create_success_calls_supabase(
     assert body["email"] == "dan@example.com"
     assert body["role"] == "Teacher"
     assert body["linkedId"] == str(staff.id)
+    assert body["slug"] == "STAFF-dan"
     assert body["displayName"] == "Dan Doe"
     assert body["isActive"] is True
     assert body["mustChangePassword"] is True
 
-    assert len(fake_supabase.create_calls) == 1
-    call = fake_supabase.create_calls[0]
-    assert call["email"] == "dan@example.com"
+    assert len(fake_supabase.invite_calls) == 1
+    invite_call = fake_supabase.invite_calls[0]
+    assert invite_call["email"] == "dan@example.com"
+
+    assert len(fake_supabase.update_calls) == 1
+    call = fake_supabase.update_calls[0]
     assert call["app_metadata"]["role"] == "Teacher"
     assert call["app_metadata"]["school_id"] == str(seed_school.id)
     assert call["app_metadata"]["linked_id"] == str(staff.id)
@@ -330,7 +336,7 @@ async def test_create_parent_with_staff_link_returns_400(
     }
     res = await client.post("/users", json=payload, headers=auth_header(role="Admin"))
     assert res.status_code == 400
-    assert fake_supabase.create_calls == []
+    assert fake_supabase.invite_calls == []
 
 
 async def test_create_teacher_with_guardian_link_returns_400(
@@ -355,7 +361,7 @@ async def test_create_teacher_with_guardian_link_returns_400(
     }
     res = await client.post("/users", json=payload, headers=auth_header(role="Admin"))
     assert res.status_code == 400
-    assert fake_supabase.create_calls == []
+    assert fake_supabase.invite_calls == []
 
 
 async def test_deactivate_flips_is_active(

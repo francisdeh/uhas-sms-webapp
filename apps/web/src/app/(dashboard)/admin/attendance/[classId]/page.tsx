@@ -55,6 +55,7 @@ export default async function AdminAttendanceClassPage({
     .filter((e) => e.studentIsActive ?? true)
     .map((e) => ({
       id: e.studentId,
+      slug: e.studentSlug ?? e.studentId,
       schoolId: schoolClass.schoolId,
       firstName: e.studentFirstName ?? "",
       lastName: e.studentLastName ?? "",

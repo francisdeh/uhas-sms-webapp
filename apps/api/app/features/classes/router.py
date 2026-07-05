@@ -71,15 +71,21 @@ def _to_class_read(
 async def list_classes(
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
     q: Annotated[str | None, Query()] = None,
     division: Annotated[str | None, Query()] = None,
     academic_year: Annotated[str | None, Query(alias="academicYear")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    # Classes are bounded by school structure, not row-count risk — several
+    # frontend pages fetch "all classes" for a dropdown/lookup in one page
+    # rather than paginating. 500 comfortably covers even a very large
+    # school; matches the precedent set by the calendar endpoint.
+    size: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> ClassesListResponse:
     rows, total = await ClassesService.list_for_school(
         session,
         school_id,
+        user,
         q=q,
         division=division,
         academic_year=academic_year,
@@ -99,9 +105,10 @@ async def get_class(
     class_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
 ) -> ClassRead:
     cls, student_count, primary_teacher_name = await ClassesService.get_enriched(
-        session, school_id, class_id
+        session, school_id, class_id, user
     )
     return _to_class_read(cls, student_count, primary_teacher_name)
 
@@ -135,7 +142,7 @@ async def update_class(
     # Re-read the enriched shape so the response carries the same
     # fields the list/detail return — keeps client code uniform.
     cls, student_count, primary_teacher_name = await ClassesService.get_enriched(
-        session, school_id, class_id
+        session, school_id, class_id, user
     )
     return _to_class_read(cls, student_count, primary_teacher_name)
 

@@ -115,7 +115,9 @@ async def list_assignments(
     class_id: Annotated[UUID | None, Query(alias="classId")] = None,
     for_student_ids: Annotated[list[UUID] | None, Query(alias="forStudentIds")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    # The parent "all my children's assignments" view fetches up to 200
+    # in one page rather than paginating.
+    size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> AssignmentsListResponse:
     """Read semantics:
     * Parent → `for_student_ids` required, ownership verified,

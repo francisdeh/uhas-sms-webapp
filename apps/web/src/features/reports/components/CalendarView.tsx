@@ -244,14 +244,18 @@ export function CalendarView({ events, authorId, canManage }: CalendarViewProps)
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={(v) => { if (v) field.onChange(v); }}>
                       <SelectTrigger className="w-full">
-                        <SelectValue />
+                        <SelectValue>
+                          {(value: CalendarEventType) => TYPE_LABELS[value]}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="term_start">Term Start</SelectItem>
-                        <SelectItem value="term_end">Term End</SelectItem>
-                        <SelectItem value="exam">Exam</SelectItem>
-                        <SelectItem value="holiday">Holiday</SelectItem>
-                        <SelectItem value="event">Event</SelectItem>
+                        {(Object.entries(TYPE_LABELS) as [CalendarEventType, string][]).map(
+                          ([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ),
+                        )}
                       </SelectContent>
                     </Select>
                   )}

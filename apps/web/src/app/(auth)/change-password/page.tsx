@@ -1,11 +1,15 @@
-import { redirect } from "next/navigation";
-import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import ChangePasswordForm from "@/features/auth/components/ChangePasswordForm";
 
-export default async function ChangePasswordPage() {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-
+// Deliberately does NOT gate on getSessionUser() here. Supabase's
+// invite/recovery links deliver their session as a URL hash fragment
+// (`#access_token=...`) that the browser never sends to the server —
+// a server-side redirect-if-no-cookie check would bounce every
+// freshly-arrived link straight to /login before the client-side
+// Supabase browser client ever gets a chance to read the hash and
+// establish the session. Supabase itself is the real enforcement
+// boundary: ChangePasswordForm's updateUser() call fails cleanly if no
+// session was established.
+export default function ChangePasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-8 w-full max-w-sm">

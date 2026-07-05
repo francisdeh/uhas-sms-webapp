@@ -113,6 +113,7 @@ class StudentGuardianRead(BaseModel):
     model_config = _CAMEL_CONFIG
 
     id: UUID
+    slug: str
     name: str
     relationship: str
     phone: str | None = None

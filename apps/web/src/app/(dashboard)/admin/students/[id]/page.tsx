@@ -33,6 +33,7 @@ export default async function AdminStudentDetailPage({
 
   const student: Student = {
     id: studentRead.id,
+    slug: studentRead.slug,
     schoolId: studentRead.schoolId,
     firstName: studentRead.firstName,
     middleName: studentRead.middleName ?? undefined,

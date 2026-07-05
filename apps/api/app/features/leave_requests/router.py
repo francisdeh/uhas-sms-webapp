@@ -57,7 +57,9 @@ async def list_leave_requests(
     staff_id: Annotated[UUID | None, Query(alias="staffId")] = None,
     status_: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    # A "show every approved leave this year" view fetches up to 500 in
+    # one page rather than paginating.
+    size: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> LeaveRequestsListResponse:
     """Teachers see only their own by default (`staffId` auto-filled
     from `linked_id`); Admin/Deputy see everyone unless they narrow

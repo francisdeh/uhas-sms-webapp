@@ -2,7 +2,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { GraduationCap, ClipboardList, BarChart3 } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { getSchoolSettings } from "@/features/settings/queries/get-school-settings";
+import { getPublicSchoolBranding } from "@/features/settings/queries/get-public-school-branding";
 import { ROLE_DASHBOARD } from "@/features/auth/types";
 import LoginForm from "@/features/auth/components/LoginForm";
 import ParticlesBg from "@/components/ParticlesBg";
@@ -16,7 +16,7 @@ const features = [
 export default async function LoginPage() {
   const user = await getSessionUser();
   if (user) redirect(ROLE_DASHBOARD[user.role]);
-  const settings = await getSchoolSettings();
+  const settings = await getPublicSchoolBranding();
   const logoSrc = settings.logoUrl ?? "/logo.png";
   const schoolWords = settings.name.split(" ");
   const firstWord = schoolWords[0] ?? "UHAS";

@@ -282,7 +282,11 @@ export function PromotionDecisionTable({
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue>
+                          {(value: PromotionDecisionKind) =>
+                            options.find((o) => o.value === value)?.label ?? value
+                          }
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {options.map((o) => (
@@ -305,7 +309,11 @@ export function PromotionDecisionTable({
                         onValueChange={(v) => patch(row.studentId, { targetClassId: v })}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Pick a class…" />
+                          <SelectValue placeholder="Pick a class…">
+                            {(value: string) =>
+                              nextYearClasses.find((c) => c.id === value)?.name ?? ""
+                            }
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {nextYearClasses.map((c) => (
