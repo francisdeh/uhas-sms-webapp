@@ -20,6 +20,7 @@ export type SessionUser = {
   linkedId: string;
   /** Human-readable id ("STAFF-001") for the linked staff/guardian row — display only. */
   slug: string | null;
+  phone: string | null;
   mustChangePassword: boolean;
   isUnitHead?: boolean;
   unitHeadOf?: Division | null;

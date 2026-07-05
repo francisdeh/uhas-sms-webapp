@@ -1,6 +1,7 @@
-"""HTTP route for the session-user endpoint.
+"""HTTP routes for the session-user endpoint.
 
-    GET /me   →  MeRead (any authenticated user)
+    GET   /me   →  MeRead (any authenticated user)
+    PATCH /me   →  MeRead — self-service displayName/phone update
 
 Called on every dashboard render by the Next-side `getSessionUser()`
 helper — this endpoint replaces the Drizzle join across users/staff/
@@ -16,8 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import CurrentUserDep
-from app.features.me.schema import MeRead
+from app.features.me.schema import MeRead, MeUpdate
 from app.features.me.service import MeService
+from app.features.users.supabase_admin import SupabaseAdminClient, get_supabase_admin_client
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -40,3 +42,18 @@ async def get_me(
     shift when the migration cuts over.
     """
     return await MeService.get(session, user)
+
+
+@router.patch(
+    "",
+    response_model=MeRead,
+    response_model_by_alias=True,
+    summary="Update the caller's own display name and/or phone",
+)
+async def update_me(
+    payload: MeUpdate,
+    user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    supabase: Annotated[SupabaseAdminClient, Depends(get_supabase_admin_client)],
+) -> MeRead:
+    return await MeService.update(session, user, payload, supabase=supabase)

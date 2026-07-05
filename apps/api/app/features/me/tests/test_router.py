@@ -8,8 +8,13 @@ gates so a broken JWT can never reach the composition logic.
 
 from __future__ import annotations
 
-from httpx import AsyncClient
+from uuid import UUID
 
+from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.features.guardians.model import Guardian
 from app.features.me.tests.conftest import (
     ADMIN_STAFF,
     ADMIN_USER,
@@ -18,8 +23,10 @@ from app.features.me.tests.conftest import (
     PARENT_USER,
     TEACHER_STAFF,
     TEACHER_USER,
+    FakeSupabaseAdminClient,
     auth_header,
 )
+from app.features.staff.model import Staff
 
 
 async def test_get_me_admin_linked_staff(client: AsyncClient, seed: None) -> None:
@@ -126,3 +133,122 @@ async def test_get_me_jwt_without_role_is_forbidden(client: AsyncClient, seed: N
     )
     r = await client.get("/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 403
+
+
+# ─── PATCH /me ───────────────────────────────────────────────────────────────
+
+
+async def test_patch_me_updates_staff_row_and_syncs_supabase(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    res = await client.patch(
+        "/me",
+        json={"displayName": "Kojo Newname", "phone": "0244000111"},
+        headers=auth_header(),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["displayName"] == "Kojo Newname"
+
+    staff = await db_session.scalar(select(Staff).where(Staff.id == ADMIN_STAFF))
+    assert staff is not None
+    assert staff.first_name == "Kojo"
+    assert staff.last_name == "Newname"
+    assert staff.phone == "0244000111"
+
+    assert len(fake_supabase.update_calls) == 1
+    assert fake_supabase.update_calls[0]["user_id"] == ADMIN_USER
+    assert fake_supabase.update_calls[0]["user_metadata"] == {"display_name": "Kojo Newname"}
+
+
+async def test_patch_me_updates_guardian_row_for_parent(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    res = await client.patch(
+        "/me",
+        json={"displayName": "Paa Newlast", "phone": "0244000222"},
+        headers=auth_header(
+            role="Parent", user_id=PARENT_USER, linked_id=GUARDIAN_ID, email="p@me.test"
+        ),
+    )
+    assert res.status_code == 200, res.text
+
+    guardian = await db_session.scalar(select(Guardian).where(Guardian.id == GUARDIAN_ID))
+    assert guardian is not None
+    assert guardian.first_name == "Paa"
+    assert guardian.last_name == "Newlast"
+    assert guardian.phone == "0244000222"
+
+
+async def test_patch_me_partial_update_leaves_name_untouched(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    res = await client.patch("/me", json={"phone": "0244000333"}, headers=auth_header())
+    assert res.status_code == 200, res.text
+
+    staff = await db_session.scalar(select(Staff).where(Staff.id == ADMIN_STAFF))
+    assert staff is not None
+    assert staff.first_name == "Adae"
+    assert staff.last_name == "Admin"
+    assert staff.phone == "0244000333"
+    # No display_name in the payload → no Supabase sync call.
+    assert fake_supabase.update_calls == []
+
+
+async def test_patch_me_without_linked_id_returns_400(
+    client: AsyncClient,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    res = await client.patch(
+        "/me",
+        json={"displayName": "Nobody"},
+        headers=auth_header(
+            role="Admin",
+            user_id=EMAIL_ONLY_USER,
+            linked_id=None,
+            email="fallback@me.test",
+        ),
+    )
+    assert res.status_code == 400
+
+
+async def test_patch_me_duplicate_guardian_phone_returns_409(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    other_guardian = Guardian(
+        id=UUID("10101010-1010-4101-8101-101010100305"),
+        slug="GUAR-other-me",
+        school_id=UUID("10101010-1010-4101-8101-101010100001"),
+        first_name="Kwesi",
+        last_name="Other",
+        email="other@me.test",
+        phone="0244999999",
+    )
+    db_session.add(other_guardian)
+    await db_session.flush()
+
+    res = await client.patch(
+        "/me",
+        json={"phone": "0244999999"},
+        headers=auth_header(
+            role="Parent", user_id=PARENT_USER, linked_id=GUARDIAN_ID, email="p@me.test"
+        ),
+    )
+    assert res.status_code == 409
+
+
+async def test_patch_me_missing_auth_header_returns_401(client: AsyncClient, seed: None) -> None:
+    res = await client.patch("/me", json={"displayName": "X"})
+    assert res.status_code == 401

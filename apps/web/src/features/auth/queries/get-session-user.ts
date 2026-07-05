@@ -27,6 +27,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       role: me.role,
       linkedId: me.linkedId ?? "",
       slug: me.slug ?? null,
+      phone: me.phone ?? null,
       mustChangePassword: me.mustChangePassword,
       isUnitHead: me.isUnitHead,
       unitHeadOf: me.unitHeadOf ?? null,

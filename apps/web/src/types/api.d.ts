@@ -1118,7 +1118,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update the caller's own display name and/or phone */
+        patch: operations["update_me_me_patch"];
         trace?: never;
     };
     "/schemes": {
@@ -3771,6 +3772,8 @@ export interface components {
             linkedId?: string | null;
             /** Slug */
             slug?: string | null;
+            /** Phone */
+            phone?: string | null;
             /**
              * Mustchangepassword
              * @default false
@@ -3788,6 +3791,20 @@ export interface components {
             isUnitHead: boolean;
             /** Unitheadof */
             unitHeadOf?: ("KG" | "Lower Primary" | "Upper Primary" | "JHS") | null;
+        };
+        /**
+         * MeUpdate
+         * @description Partial self-update for `PATCH /me` — display name + phone only.
+         *
+         *     Written to the caller's own linked `staff` or `guardians` row.
+         *     Anything else about the account (role, linked_id, email) goes
+         *     through the admin-only `PATCH /users/{id}` flow instead.
+         */
+        MeUpdate: {
+            /** Displayname */
+            displayName?: string | null;
+            /** Phone */
+            phone?: string | null;
         };
         /**
          * NavBadges
@@ -8606,6 +8623,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_me_me_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
