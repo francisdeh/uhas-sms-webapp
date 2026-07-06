@@ -19,7 +19,10 @@ type Props = {
 };
 
 const MAX_BYTES = 20 * 1024 * 1024;
-const DEFAULT_ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.txt";
+// Must match the `documents` bucket's `allowed_mime_types` in
+// supabase/config.toml — anything else passes this client-side picker
+// but gets rejected by Supabase Storage after the upload starts.
+const DEFAULT_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx";
 
 function basename(path: string): string {
   return path.split("/").pop() ?? path;
@@ -131,7 +134,7 @@ export function FileUploadField({
             )}
           </Button>
           <p className="text-[10px] text-muted-foreground">
-            PDF / DOC / PPT / TXT, max 20 MB
+            PDF / DOC / XLS, max 20 MB
           </p>
         </div>
       )}

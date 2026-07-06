@@ -226,7 +226,9 @@ class PromotionsService:
             session.add(submission)
             await session.flush()
 
-        await _ensure_decisions_for_roster(session, school_id, submission, cls, year)
+        await _ensure_decisions_for_roster(
+            session, school_id, submission, cls, year, pass_mark=school.pass_mark or 40
+        )
         return submission
 
     @staticmethod
@@ -596,6 +598,8 @@ async def _ensure_decisions_for_roster(
     submission: PromotionSubmission,
     cls: Class,
     academic_year: str,
+    *,
+    pass_mark: int,
 ) -> None:
     """Insert one PromotionDecision per active student who doesn't
     already have one, prefilling the algorithmic suggestion."""
@@ -636,6 +640,7 @@ async def _ensure_decisions_for_roster(
                 for s in scores
             ],
             exam_published=exam_published,
+            fail_threshold=pass_mark,
         )
         initial_decision: DecisionKind = (
             suggestion.suggested_decision  # type: ignore[assignment]

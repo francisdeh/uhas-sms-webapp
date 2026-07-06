@@ -10,8 +10,9 @@ Rule set (per school policy):
     The season was opened with `override` and the teacher must decide
     every row manually.
   * `JHS 3` → `graduate` unconditionally.
-  * Otherwise: count core subjects where `total_score < 40`. If ≥ 3 →
-    `repeat` with the failed-subject list. Otherwise → `promote`.
+  * Otherwise: count core subjects where `total_score < fail_threshold`
+    (the school's configured `schools.pass_mark`, defaulting to 40). If
+    ≥ 3 → `repeat` with the failed-subject list. Otherwise → `promote`.
 """
 
 from __future__ import annotations
@@ -22,7 +23,6 @@ from uuid import UUID
 from app.features.promotions.constants import DEC_GRADUATE, DEC_PROMOTE, DEC_REPEAT
 from app.features.promotions.next_class import JHS_3
 
-_FAIL_THRESHOLD = 40
 _FAIL_COUNT_REPEAT = 3
 
 
@@ -51,6 +51,7 @@ def compute_suggestion(
     division_core_subjects: list[CoreSubject],
     scores_for_student: list[ScoreForSuggestion],
     exam_published: bool,
+    fail_threshold: int,
 ) -> Suggestion | None:
     """See module docstring for the rule set."""
     if not exam_published:
@@ -75,7 +76,7 @@ def compute_suggestion(
         for sub in division_core_subjects
         if (score := score_by_subject.get(str(sub.id))) is not None
         and score.total_score is not None
-        and score.total_score < _FAIL_THRESHOLD
+        and score.total_score < fail_threshold
     ]
 
     if len(failed_subjects) >= _FAIL_COUNT_REPEAT:

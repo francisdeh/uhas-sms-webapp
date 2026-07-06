@@ -19,9 +19,13 @@ import { Separator } from "@/components/ui/separator";
 import { api, ApiError } from "@/lib/api/browser";
 import type { SchoolSettings, GradingBand, ScoreWeights } from "@/features/settings/types";
 
-// GES default bands — also defined in src/features/exams/utils.ts.
-// Duplicated here so the "Reset to GES standard" button works without a
-// server roundtrip.
+// GES default bands — mirrors apps/api/app/features/exams/constants.py's
+// DEFAULT_GRADE_BANDS. This is the one deliberately-kept copy: the
+// "Reset to GES standard" button needs the fixed national standard as
+// a reset *target*, which is a different thing from "the school's
+// current bands" (what GET /school actually returns) — there's no
+// backend value this could read instead without adding an endpoint
+// solely to serve a static external constant.
 const GES_BANDS: GradingBand[] = [
   { min: 90, max: 100, grade: "1", interpretation: "Highest" },
   { min: 80, max: 89, grade: "2", interpretation: "Higher" },
