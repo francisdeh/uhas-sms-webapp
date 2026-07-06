@@ -64,7 +64,7 @@ export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {
     // The OpenAPI type stays nullable because the underlying column is.
     gradingBands: school.gradingBands!,
     scoreWeights: school.scoreWeights!,
-    passMark: school.passMark ?? 40,
+    passMark: school.passMark,
     emailFromName: school.emailFromName ?? null,
     emailReplyTo: school.emailReplyTo ?? null,
     notificationDefaults: school.notificationDefaults ?? DEFAULT_NOTIFICATIONS,

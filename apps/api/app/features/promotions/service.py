@@ -37,6 +37,7 @@ from app.features.audit.actions import PROMOTION_APPROVED
 from app.features.audit.service import write_audit_log
 from app.features.classes.model import Class, ClassTeacher
 from app.features.enrollments.model import Enrollment
+from app.features.exams.constants import DEFAULT_PASS_MARK
 from app.features.notifications.audience import AllTeachersAudience
 from app.features.notifications.constants import (
     PROMOTION_SEASON_OPENED,
@@ -227,7 +228,12 @@ class PromotionsService:
             await session.flush()
 
         await _ensure_decisions_for_roster(
-            session, school_id, submission, cls, year, pass_mark=school.pass_mark or 40
+            session,
+            school_id,
+            submission,
+            cls,
+            year,
+            pass_mark=school.pass_mark or DEFAULT_PASS_MARK,
         )
         return submission
 

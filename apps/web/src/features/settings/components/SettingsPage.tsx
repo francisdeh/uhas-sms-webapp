@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { SchoolSettings } from "@/features/settings/types";
+import type { SchoolSettings, GradingDefaults } from "@/features/settings/types";
 import { IdentityTab } from "./IdentityTab";
 import { CalendarTab } from "./CalendarTab";
 import { GradingTab } from "./GradingTab";
@@ -27,7 +27,13 @@ const TABS = [
   { id: "branding", label: "Branding", icon: Palette },
 ] as const;
 
-export function SettingsPage({ settings }: { settings: SchoolSettings }) {
+export function SettingsPage({
+  settings,
+  gradingDefaults,
+}: {
+  settings: SchoolSettings;
+  gradingDefaults: GradingDefaults;
+}) {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
@@ -61,7 +67,7 @@ export function SettingsPage({ settings }: { settings: SchoolSettings }) {
         </TabsContent>
         <TabsContent value="grading">
           <AnimateIn>
-            <GradingTab settings={settings} />
+            <GradingTab settings={settings} defaults={gradingDefaults} />
           </AnimateIn>
         </TabsContent>
         <TabsContent value="communication">

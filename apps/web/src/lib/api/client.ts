@@ -112,6 +112,12 @@ export function createApiClient(getAuthToken: TokenGetter) {
       /** Cosmetic-only read for the login page — no session required. */
       getPublic: () =>
         apiFetch<components["schemas"]["SchoolPublicRead"]>(getAuthToken, "/school/public"),
+      /** The fixed GES-standard grading defaults — a constant, not this school's saved config. */
+      gradingDefaults: () =>
+        apiFetch<components["schemas"]["GradingDefaultsRead"]>(
+          getAuthToken,
+          "/school/grading-defaults",
+        ),
     },
     schoolTerms: {
       /** List every configured term row for the caller's school. Any role. */

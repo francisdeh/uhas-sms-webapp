@@ -116,6 +116,7 @@ export default async function ScoreEntryPage({ params }: PageProps) {
         // `SchoolsService.get_resolved`.
         gradingBands={school.gradingBands!}
         scoreWeights={school.scoreWeights!}
+        passMark={school.passMark}
       />
     </div>
   );

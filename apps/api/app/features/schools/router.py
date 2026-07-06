@@ -21,12 +21,17 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.deps import CurrentSchoolIdDep, RequireAdmin
-from app.features.schools.schema import SchoolPublicRead, SchoolRead, SchoolUpdate
+from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
+from app.features.schools.schema import (
+    GradingDefaultsRead,
+    SchoolPublicRead,
+    SchoolRead,
+    SchoolUpdate,
+)
 from app.features.schools.service import SchoolsService
 
 router = APIRouter(prefix="/school", tags=["school"])
@@ -51,6 +56,28 @@ async def get_school_public(
     """
     row = await SchoolsService.get_public(session)
     return SchoolPublicRead.model_validate(row)
+
+
+@router.get(
+    "/grading-defaults",
+    response_model=GradingDefaultsRead,
+    response_model_by_alias=True,
+    summary="Fetch the fixed GES-standard grading defaults",
+)
+async def get_grading_defaults(
+    user: CurrentUserDep,
+    response: Response,
+) -> GradingDefaultsRead:
+    """Return the national GES-standard grading bands / weights / pass
+    mark — a process-level constant, not this school's saved config.
+
+    Backs the Settings > Grading "Reset to GES standard" control. Any
+    authenticated user may read it; the payload is identical for
+    everyone and non-sensitive, so it's cacheable — it only changes when
+    the constant ships in a new deploy.
+    """
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return SchoolsService.grading_defaults()
 
 
 @router.get(

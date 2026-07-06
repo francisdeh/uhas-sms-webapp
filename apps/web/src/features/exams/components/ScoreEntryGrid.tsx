@@ -47,6 +47,9 @@ interface ScoreEntryGridProps {
   // compute + persist on save.
   gradingBands: GradingBand[];
   scoreWeights: ScoreWeights;
+  // The school's configured pass mark, shown so teachers can see the
+  // threshold while entering scores (totals below it render in red).
+  passMark: number;
 }
 
 function toRow(r: { studentId: string; studentName: string; score: Score | null }): Row {
@@ -78,6 +81,7 @@ export function ScoreEntryGrid({
   initialRows,
   gradingBands,
   scoreWeights,
+  passMark,
 }: ScoreEntryGridProps) {
   const [rows, setRows] = useState<Row[]>(() => initialRows.map(toRow));
   const upsertScores = useUpsertScores();
@@ -162,6 +166,7 @@ export function ScoreEntryGrid({
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary">{isMidTerm ? "Mid-Term · raw 100" : "End of Term · weighted"}</Badge>
+          <Badge variant="outline">Pass mark: {passMark}%</Badge>
           {locked && (
             <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
               <Lock size={11} className="mr-1" /> Published
@@ -210,7 +215,13 @@ export function ScoreEntryGrid({
                     </>
                   )}
                   <ScoreCell value={row.examScore} disabled={locked} onChange={(v) => updateField(row.studentId, "examScore", v)} />
-                  <TableCell className="text-center text-sm font-semibold tabular-nums">
+                  <TableCell
+                    className={cn(
+                      "text-center text-sm font-semibold tabular-nums",
+                      row.total != null && row.total < passMark && "text-red-600"
+                    )}
+                    title={row.total != null && row.total < passMark ? "Below pass mark" : undefined}
+                  >
                     {row.total ?? "—"}
                   </TableCell>
                   <TableCell className="text-center">

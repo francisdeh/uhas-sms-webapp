@@ -23,6 +23,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
+from app.features.exams.constants import DEFAULT_PASS_MARK
 
 
 class School(Base):
@@ -54,7 +55,7 @@ class School(Base):
     # Grading tab — JSONB carries the band/weight arrays + objects.
     grading_bands: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     score_weights: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-    pass_mark: Mapped[int | None] = mapped_column(Integer, nullable=True, default=40)
+    pass_mark: Mapped[int | None] = mapped_column(Integer, nullable=True, default=DEFAULT_PASS_MARK)
 
     # Communication tab
     email_from_name: Mapped[str | None] = mapped_column(String(255), nullable=True)

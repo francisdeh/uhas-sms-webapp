@@ -1,5 +1,4 @@
-// Strongly-typed shape of the JSON columns on the `schools` row. Drizzle
-// returns these as `unknown`, so consumers cast through these helpers.
+// Strongly-typed shapes of the JSON columns on the `schools` row.
 
 export type GradingBand = {
   min: number;
@@ -14,6 +13,14 @@ export type ScoreWeights = {
   cat2: number;
   groupWork: number;
   projectWork: number;
+};
+
+// The fixed GES-standard grading config, from GET /school/grading-defaults.
+// Distinct from a school's saved settings — this is the reset target.
+export type GradingDefaults = {
+  gradingBands: GradingBand[];
+  scoreWeights: ScoreWeights;
+  passMark: number;
 };
 
 export type NotificationDefaults = {
