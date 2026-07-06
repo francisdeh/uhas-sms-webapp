@@ -1040,6 +1040,13 @@ export function createApiClient(getAuthToken: TokenGetter) {
           `/users/${id}/activate`,
           { method: "POST" },
         ),
+      /** Clear a user's 2FA factors — admin lockout recovery. */
+      resetMfa: (id: string) =>
+        apiFetch<components["schemas"]["MfaResetResponse"]>(
+          getAuthToken,
+          `/users/${id}/reset-mfa`,
+          { method: "POST" },
+        ),
     },
     classReports: {
       /** List class-report submissions for an exam. Admin sees all,

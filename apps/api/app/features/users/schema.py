@@ -74,3 +74,11 @@ class UserUpdate(BaseModel):
 
 class UsersListResponse(Paginated[UserRead]):
     """Paged user list — see `app.core.pagination.Paginated` for the envelope."""
+
+
+class MfaResetResponse(BaseModel):
+    """Result of `POST /users/{id}/reset-mfa` — how many 2FA factors were cleared."""
+
+    model_config = _CAMEL_CONFIG
+
+    factors_removed: int

@@ -51,6 +51,9 @@ class FakeSupabaseAdminClient:
         self.update_calls: list[dict[str, Any]] = []
         self.delete_calls: list[UUID | str] = []
         self.invite_calls: list[dict[str, Any]] = []
+        self.reset_mfa_calls: list[UUID | str] = []
+        # user_id (str) -> number of factors the fake pretends they have.
+        self.mfa_factor_counts: dict[str, int] = {}
         self._preset_ids: list[UUID] = []
         self._preset_index = 0
 
@@ -111,6 +114,12 @@ class FakeSupabaseAdminClient:
         uid = self._next_uid()
         self.invite_calls.append({"email": email, "redirect_to": redirect_to, "returned_id": uid})
         return {"id": str(uid), "email": email}
+
+    async def reset_mfa(self, user_id: UUID | str) -> int:
+        self.reset_mfa_calls.append(user_id)
+        removed = self.mfa_factor_counts.get(str(user_id), 0)
+        self.mfa_factor_counts[str(user_id)] = 0
+        return removed
 
 
 @pytest_asyncio.fixture

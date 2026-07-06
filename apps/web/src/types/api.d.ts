@@ -1976,6 +1976,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{user_id}/reset-mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset User Mfa
+         * @description Clear a user's 2FA factors — lockout recovery for a lost
+         *     authenticator (Supabase has no backup codes). Admin-only.
+         */
+        post: operations["reset_user_mfa_users__user_id__reset_mfa_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sms-log": {
         parameters: {
             query?: never;
@@ -2538,7 +2559,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED";
+            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET";
             /** Targettable */
             targetTable?: string | null;
             /** Targetid */
@@ -3885,6 +3906,14 @@ export interface components {
             phone?: string | null;
             /** Emailonlessonplanrejected */
             emailOnLessonPlanRejected?: boolean | null;
+        };
+        /**
+         * MfaResetResponse
+         * @description Result of `POST /users/{id}/reset-mfa` — how many 2FA factors were cleared.
+         */
+        MfaResetResponse: {
+            /** Factorsremoved */
+            factorsRemoved: number;
         };
         /**
          * NavBadges
@@ -10266,7 +10295,7 @@ export interface operations {
     list_audit_events_audit_log_get: {
         parameters: {
             query?: {
-                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED") | null;
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET") | null;
                 /** @description Inclusive lower bound (YYYY-MM-DD). */
                 from?: string | null;
                 /** @description Inclusive upper bound (YYYY-MM-DD). */
@@ -10624,6 +10653,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_user_mfa_users__user_id__reset_mfa_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaResetResponse"];
                 };
             };
             /** @description Validation Error */

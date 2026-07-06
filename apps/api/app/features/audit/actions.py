@@ -34,6 +34,9 @@ CLASS_REPORT_HOS_COMMENT_UPDATED: Final = "CLASS_REPORT_HOS_COMMENT_UPDATED"
 USER_DEACTIVATED: Final = "USER_DEACTIVATED"
 USER_REACTIVATED: Final = "USER_REACTIVATED"
 ACCOUNT_SELF_DEACTIVATED: Final = "ACCOUNT_SELF_DEACTIVATED"
+# Admin cleared a user's 2FA factors (lockout recovery — Supabase has no
+# backup codes, so an admin reset is the way back in).
+USER_MFA_RESET: Final = "USER_MFA_RESET"
 
 AuditAction = Literal[
     "EXAM_PUBLISH",
@@ -48,6 +51,7 @@ AuditAction = Literal[
     "USER_DEACTIVATED",
     "USER_REACTIVATED",
     "ACCOUNT_SELF_DEACTIVATED",
+    "USER_MFA_RESET",
 ]
 """All audit_log.action values the API writes. Add new actions here
 *and* on the TS side before introducing them."""

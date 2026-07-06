@@ -405,7 +405,11 @@ async def test_deactivate_flips_is_active(
     assert str(call["user_id"]) == str(row.id)
     assert call["ban_duration"] == "876600h"
 
-    audit = await db_session.scalar(select(AuditLog).where(AuditLog.action == "USER_DEACTIVATED"))
+    audit = await db_session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "USER_DEACTIVATED", AuditLog.school_id == seed_school.id
+        )
+    )
     assert audit is not None
     assert audit.target_id == row.id
     assert audit.after == {"isActive": False}
@@ -448,10 +452,67 @@ async def test_activate_flips_is_active_true(
     call = fake_supabase.update_calls[0]
     assert call["ban_duration"] == "none"
 
-    audit = await db_session.scalar(select(AuditLog).where(AuditLog.action == "USER_REACTIVATED"))
+    audit = await db_session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "USER_REACTIVATED", AuditLog.school_id == seed_school.id
+        )
+    )
     assert audit is not None
     assert audit.target_id == row.id
     assert audit.after == {"isActive": True}
+
+
+async def test_reset_mfa_clears_factors_and_audits(
+    client: AsyncClient,
+    seed_school: School,
+    db_session: AsyncSession,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    staff = await _seed_staff(
+        db_session,
+        seed_school.id,
+        staff_id=STAFF_UUID_A,
+        first="Mia",
+        last="Moon",
+        email="mia@example.com",
+    )
+    row = await _seed_user(
+        db_session,
+        seed_school.id,
+        user_id=USER_UUID_1,
+        email="mia@example.com",
+        role="Teacher",
+        linked_id=staff.id,
+    )
+    fake_supabase.mfa_factor_counts[str(row.id)] = 2
+
+    res = await client.post(f"/users/{row.id}/reset-mfa", headers=auth_header(role="Admin"))
+    assert res.status_code == 200, res.text
+    assert res.json() == {"factorsRemoved": 2}
+    assert fake_supabase.reset_mfa_calls == [row.id]
+
+    audit = await db_session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "USER_MFA_RESET", AuditLog.school_id == seed_school.id
+        )
+    )
+    assert audit is not None
+    assert audit.target_id == row.id
+    assert audit.after == {"factorsRemoved": 2}
+
+
+async def test_reset_mfa_requires_admin(client: AsyncClient, seed_school: School) -> None:
+    for role in ("Teacher", "Parent", "DeputyHead", "Accountant"):
+        res = await client.post(f"/users/{USER_UUID_1}/reset-mfa", headers=auth_header(role=role))
+        assert res.status_code == 403, f"role={role}"
+
+
+async def test_reset_mfa_unknown_user_404(
+    client: AsyncClient, seed_school: School, fake_supabase: FakeSupabaseAdminClient
+) -> None:
+    res = await client.post(f"/users/{USER_UUID_2}/reset-mfa", headers=auth_header(role="Admin"))
+    assert res.status_code == 404
+    assert fake_supabase.reset_mfa_calls == []
 
 
 async def test_patch_email(
