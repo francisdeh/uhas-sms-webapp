@@ -24,6 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.errors import NotFoundError, ValidationError
 from app.core.roles import PARENT
+from app.features.audit.actions import AuditAction
+from app.features.audit.service import write_audit_log
 from app.features.users.model import User
 from app.features.users.repository import JoinedRow, UsersRepository
 from app.features.users.schema import UserCreate, UserRead, UserUpdate
@@ -212,12 +214,33 @@ class UsersService:
         *,
         active: bool,
         supabase: SupabaseAdminClient,
+        actor_user_id: UUID | str,
+        action: AuditAction,
     ) -> UserRead:
+        """Flip `users.is_active` + set the matching Supabase ban, then
+        audit-log it. Shared by the admin activate/deactivate endpoints
+        and the self-service `POST /me/deactivate` — the caller supplies
+        the `action` (who initiated) and `actor_user_id`.
+
+        The Supabase ban is the real enforcement — nothing in the app
+        consults `is_active` on its own — so both must move together.
+        """
         row = await UsersService._get_or_404(session, school_id, user_id)
+        before = row.is_active
         await supabase.update_user_by_id(
             row.id,
             ban_duration="none" if active else PERMANENT_BAN,
         )
         row.is_active = active
         await session.flush()
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=action,
+            target_table="users",
+            target_id=user_id,
+            before={"isActive": before},
+            after={"isActive": active},
+        )
         return await UsersService._read_or_404(session, school_id, user_id)

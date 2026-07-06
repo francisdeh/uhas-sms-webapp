@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -57,3 +57,20 @@ async def update_me(
     supabase: Annotated[SupabaseAdminClient, Depends(get_supabase_admin_client)],
 ) -> MeRead:
     return await MeService.update(session, user, payload, supabase=supabase)
+
+
+@router.post(
+    "/deactivate",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Deactivate the caller's own account (non-Admin only)",
+)
+async def deactivate_me(
+    user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    supabase: Annotated[SupabaseAdminClient, Depends(get_supabase_admin_client)],
+) -> None:
+    """Self-service account deactivation. Bans the caller's Supabase
+    auth user + flips `users.is_active`, so they're logged out on the
+    next token refresh; the web client also signs them out immediately.
+    Admins get 403 (see `MeService.deactivate`)."""
+    await MeService.deactivate(session, user, supabase=supabase)

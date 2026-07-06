@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, RequireAdmin
+from app.features.audit.actions import USER_DEACTIVATED, USER_REACTIVATED
 from app.features.users.schema import (
     UserCreate,
     UserRead,
@@ -91,11 +92,17 @@ async def deactivate_user(
     user_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    _admin: RequireAdmin,
+    admin: RequireAdmin,
     supabase: _SupabaseDep,
 ) -> UserRead:
     return await UsersService.set_active(
-        session, school_id, user_id, active=False, supabase=supabase
+        session,
+        school_id,
+        user_id,
+        active=False,
+        supabase=supabase,
+        actor_user_id=admin.user_id,
+        action=USER_DEACTIVATED,
     )
 
 
@@ -108,9 +115,15 @@ async def activate_user(
     user_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    _admin: RequireAdmin,
+    admin: RequireAdmin,
     supabase: _SupabaseDep,
 ) -> UserRead:
     return await UsersService.set_active(
-        session, school_id, user_id, active=True, supabase=supabase
+        session,
+        school_id,
+        user_id,
+        active=True,
+        supabase=supabase,
+        actor_user_id=admin.user_id,
+        action=USER_REACTIVATED,
     )

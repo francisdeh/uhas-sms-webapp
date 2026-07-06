@@ -510,8 +510,27 @@ function NotifRow({
 }
 
 function DangerTab({ user }: { user: SessionUser }) {
-  const [confirming, setConfirming] = useState(false);
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
   const isAdmin = user.role === "Admin";
+
+  async function handleDeactivate() {
+    setDeactivating(true);
+    try {
+      await api.me.deactivate();
+    } catch (err) {
+      setDeactivating(false);
+      setOpen(false);
+      toast.error(err instanceof ApiError ? err.message : "Could not deactivate your account.");
+      return;
+    }
+    // Account is now banned server-side; sign the current session out
+    // immediately rather than waiting for the token to expire.
+    await createSupabaseClient().auth.signOut();
+    router.replace("/login?deactivated=1");
+    router.refresh();
+  }
 
   return (
     <Card className="rounded-t-none border-t-0 border-red-200">
@@ -525,24 +544,47 @@ function DangerTab({ user }: { user: SessionUser }) {
             <p className="text-sm font-medium">Deactivate Account</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {isAdmin
-                ? "Admin accounts cannot be self-deactivated. Contact the system owner."
-                : "Sends a deactivation request to the school administrator."}
+                ? "Admin accounts cannot be self-deactivated. Ask another admin to do it."
+                : "Deactivates your account and signs you out. Contact your administrator to reactivate."}
             </p>
           </div>
           {isAdmin ? (
-            <Button variant="outline" size="sm" disabled>Deactivate</Button>
-          ) : confirming ? (
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>Cancel</Button>
-              <Button size="sm" variant="destructive" onClick={() => { setConfirming(false); toast.success("Deactivation request sent to administrator."); }}>
-                Confirm
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" disabled>
+              Deactivate
+            </Button>
           ) : (
-            <Button variant="destructive" size="sm" onClick={() => setConfirming(true)}>Deactivate</Button>
+            <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
+              Deactivate
+            </Button>
           )}
         </div>
       </CardContent>
+
+      <AlertDialog open={open} onOpenChange={(o) => !deactivating && setOpen(o)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You&apos;ll be signed out immediately and won&apos;t be able to log back in. Only a
+              school administrator can reactivate your account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deactivating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeactivate();
+              }}
+              disabled={deactivating}
+              className="bg-red-600 hover:bg-red-700 focus-visible:ring-red-600"
+            >
+              {deactivating && <Loader2 size={14} className="mr-2 animate-spin" />}
+              Deactivate account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

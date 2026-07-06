@@ -1153,6 +1153,29 @@ export interface paths {
         patch: operations["update_me_me_patch"];
         trace?: never;
     };
+    "/me/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivate the caller's own account (non-Admin only)
+         * @description Self-service account deactivation. Bans the caller's Supabase
+         *     auth user + flips `users.is_active`, so they're logged out on the
+         *     next token refresh; the web client also signs them out immediately.
+         *     Admins get 403 (see `MeService.deactivate`).
+         */
+        post: operations["deactivate_me_me_deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/schemes": {
         parameters: {
             query?: never;
@@ -2515,7 +2538,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED";
+            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED";
             /** Targettable */
             targetTable?: string | null;
             /** Targetid */
@@ -8758,6 +8781,35 @@ export interface operations {
             };
         };
     };
+    deactivate_me_me_deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_schemes_schemes_get: {
         parameters: {
             query?: {
@@ -10214,7 +10266,7 @@ export interface operations {
     list_audit_events_audit_log_get: {
         parameters: {
             query?: {
-                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED") | null;
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED") | null;
                 /** @description Inclusive lower bound (YYYY-MM-DD). */
                 from?: string | null;
                 /** @description Inclusive upper bound (YYYY-MM-DD). */

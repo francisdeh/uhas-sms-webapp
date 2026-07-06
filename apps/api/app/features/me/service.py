@@ -13,14 +13,16 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ForbiddenError, ValidationError
-from app.core.roles import PARENT
+from app.core.roles import ADMIN, PARENT
 from app.core.school_structure import Division
 from app.core.security import CurrentUser
+from app.features.audit.actions import ACCOUNT_SELF_DEACTIVATED
 from app.features.guardians.model import Guardian
 from app.features.me.schema import MeRead, MeUpdate
 from app.features.staff.model import Staff
 from app.features.users.model import User, UserPreferences
 from app.features.users.repository import UsersRepository
+from app.features.users.service import UsersService
 from app.features.users.supabase_admin import SupabaseAdminClient
 
 
@@ -184,3 +186,38 @@ class MeService:
             raise ConflictError("That phone number is already in use.") from exc
 
         return await MeService.get(session, user)
+
+    @staticmethod
+    async def deactivate(
+        session: AsyncSession,
+        user: CurrentUser,
+        *,
+        supabase: SupabaseAdminClient,
+    ) -> None:
+        """Deactivate the caller's own account.
+
+        Admins are blocked (403) — a self-deactivating sole admin would
+        orphan the school with no one able to reactivate anyone. They
+        deactivate via the admin users page instead. Reactivation is
+        always admin-only (a deactivated user can't log back in), so
+        there's no self-service counterpart to this.
+
+        Reuses `UsersService.set_active` so the flag flip + Supabase ban
+        + audit row stay identical to admin-initiated deactivation; only
+        the audit action (`ACCOUNT_SELF_DEACTIVATED`) and actor differ.
+        """
+        if not user.school_id:
+            raise ForbiddenError("Session is missing school scope.")
+        if user.role == ADMIN:
+            raise ForbiddenError(
+                "Admin accounts cannot self-deactivate. Ask another admin to do it."
+            )
+        await UsersService.set_active(
+            session,
+            user.school_id,
+            UUID(user.user_id),
+            active=False,
+            supabase=supabase,
+            actor_user_id=user.user_id,
+            action=ACCOUNT_SELF_DEACTIVATED,
+        )
