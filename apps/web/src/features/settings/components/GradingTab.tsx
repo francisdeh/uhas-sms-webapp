@@ -17,22 +17,12 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { api, ApiError } from "@/lib/api/browser";
-import type { SchoolSettings, GradingBand, ScoreWeights } from "@/features/settings/types";
-
-// GES default bands — also defined in src/features/exams/utils.ts.
-// Duplicated here so the "Reset to GES standard" button works without a
-// server roundtrip.
-const GES_BANDS: GradingBand[] = [
-  { min: 90, max: 100, grade: "1", interpretation: "Highest" },
-  { min: 80, max: 89, grade: "2", interpretation: "Higher" },
-  { min: 70, max: 79, grade: "3", interpretation: "High" },
-  { min: 60, max: 69, grade: "4", interpretation: "High Average" },
-  { min: 55, max: 59, grade: "5", interpretation: "Average" },
-  { min: 50, max: 54, grade: "6", interpretation: "Lower Average" },
-  { min: 40, max: 49, grade: "7", interpretation: "Low" },
-  { min: 35, max: 39, grade: "8", interpretation: "Lower" },
-  { min: 0, max: 34, grade: "9", interpretation: "Lowest" },
-];
+import type {
+  SchoolSettings,
+  GradingBand,
+  GradingDefaults,
+  ScoreWeights,
+} from "@/features/settings/types";
 
 const WEIGHT_LABELS: { key: keyof ScoreWeights; label: string }[] = [
   { key: "exam", label: "End-of-Term Exam" },
@@ -42,7 +32,13 @@ const WEIGHT_LABELS: { key: keyof ScoreWeights; label: string }[] = [
   { key: "projectWork", label: "Project Work" },
 ];
 
-export function GradingTab({ settings }: { settings: SchoolSettings }) {
+export function GradingTab({
+  settings,
+  defaults,
+}: {
+  settings: SchoolSettings;
+  defaults: GradingDefaults;
+}) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [scale, setScale] = useState<"GES_STANDARD" | "CUSTOM">(
@@ -125,7 +121,7 @@ export function GradingTab({ settings }: { settings: SchoolSettings }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setBands(GES_BANDS)}
+                  onClick={() => setBands(defaults.gradingBands)}
                   className="text-xs"
                   type="button"
                 >

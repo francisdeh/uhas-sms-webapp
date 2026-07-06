@@ -96,6 +96,7 @@ class TestSuggestion:
             division_core_subjects=[],
             scores_for_student=[],
             exam_published=False,
+            fail_threshold=40,
         )
         assert result is None
 
@@ -105,6 +106,7 @@ class TestSuggestion:
             division_core_subjects=[],
             scores_for_student=[],
             exam_published=True,
+            fail_threshold=40,
         )
         assert result is not None
         assert result.suggested_decision == "graduate"
@@ -127,6 +129,7 @@ class TestSuggestion:
             division_core_subjects=subjects,
             scores_for_student=scores,
             exam_published=True,
+            fail_threshold=40,
         )
         assert result is not None
         assert result.suggested_decision == "repeat"
@@ -147,6 +150,7 @@ class TestSuggestion:
             division_core_subjects=subjects,
             scores_for_student=scores,
             exam_published=True,
+            fail_threshold=40,
         )
         assert result is not None
         assert result.suggested_decision == "promote"
@@ -166,6 +170,7 @@ class TestSuggestion:
                 ScoreForSuggestion(subject_id="a", total_score=20),
             ],
             exam_published=True,
+            fail_threshold=40,
         )
         assert result is not None
         assert result.suggested_decision == "promote"
@@ -180,6 +185,25 @@ class TestSuggestion:
             division_core_subjects=[CoreSubject(id=sub_id, name="Maths")],
             scores_for_student=[ScoreForSuggestion(subject_id=sub_id, total_score=25)],
             exam_published=True,
+            fail_threshold=40,
         )
         assert result is not None
         assert result.failed_core_subjects == 1
+
+    def test_respects_custom_fail_threshold(self) -> None:
+        # A school with pass_mark=50 should fail a 45 that the 40-point
+        # default would have let through.
+        subjects = [CoreSubject(id="a", name="Maths"), CoreSubject(id="b", name="English")]
+        scores = [
+            ScoreForSuggestion(subject_id="a", total_score=45),
+            ScoreForSuggestion(subject_id="b", total_score=45),
+        ]
+        result = compute_suggestion(
+            class_name="Primary 5",
+            division_core_subjects=subjects,
+            scores_for_student=scores,
+            exam_published=True,
+            fail_threshold=50,
+        )
+        assert result is not None
+        assert result.failed_core_subjects == 2

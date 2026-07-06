@@ -48,6 +48,12 @@ DEFAULT_GRADE_BANDS: Final[list[dict[str, Any]]] = [
 ]
 
 
+# ── Pass mark ─────────────────────────────────────────────────────────────────
+# Fallback when `schools.pass_mark` is unset. Consumed by the promotion
+# auto-suggest (a core subject scoring below this counts as failed).
+DEFAULT_PASS_MARK: Final = 40
+
+
 # ── Score weights ─────────────────────────────────────────────────────────────
 # Applies only to EndOfTerm. MidTerm ignores components and uses the
 # raw exam score at 100% (see compute._compute_total).

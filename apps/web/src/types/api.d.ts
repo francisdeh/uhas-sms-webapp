@@ -50,6 +50,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/school/grading-defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch the fixed GES-standard grading defaults
+         * @description Return the national GES-standard grading bands / weights / pass
+         *     mark — a process-level constant, not this school's saved config.
+         *
+         *     Backs the Settings > Grading "Reset to GES standard" control. Any
+         *     authenticated user may read it; the payload is identical for
+         *     everyone and non-sensitive, so it's cacheable — it only changes when
+         *     the constant ships in a new deploy.
+         */
+        get: operations["get_grading_defaults_school_grading_defaults_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/school": {
         parameters: {
             query?: never;
@@ -3337,6 +3363,22 @@ export interface components {
             interpretation: string;
         };
         /**
+         * GradingDefaultsRead
+         * @description The GES-standard grading config, independent of any school.
+         *
+         *     A process-level constant (from `app.features.exams.constants`), not a
+         *     DB read — this is the fixed national standard the Settings > Grading
+         *     "Reset to GES standard" button restores. Served so the frontend has
+         *     no hardcoded copy of the bands/weights to drift from the backend.
+         */
+        GradingDefaultsRead: {
+            /** Gradingbands */
+            gradingBands: components["schemas"]["GradingBand"][];
+            scoreWeights: components["schemas"]["ScoreWeights"];
+            /** Passmark */
+            passMark: number;
+        };
+        /**
          * GuardianChildrenResponse
          * @description Plain array on the wire — a guardian's child count is always small,
          *     unpaginated matches the rest of the API's small fixed-set responses.
@@ -5753,6 +5795,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SchoolPublicRead"];
+                };
+            };
+        };
+    };
+    get_grading_defaults_school_grading_defaults_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradingDefaultsRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

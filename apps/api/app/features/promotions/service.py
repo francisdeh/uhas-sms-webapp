@@ -37,6 +37,7 @@ from app.features.audit.actions import PROMOTION_APPROVED
 from app.features.audit.service import write_audit_log
 from app.features.classes.model import Class, ClassTeacher
 from app.features.enrollments.model import Enrollment
+from app.features.exams.constants import DEFAULT_PASS_MARK
 from app.features.notifications.audience import AllTeachersAudience
 from app.features.notifications.constants import (
     PROMOTION_SEASON_OPENED,
@@ -226,7 +227,14 @@ class PromotionsService:
             session.add(submission)
             await session.flush()
 
-        await _ensure_decisions_for_roster(session, school_id, submission, cls, year)
+        await _ensure_decisions_for_roster(
+            session,
+            school_id,
+            submission,
+            cls,
+            year,
+            pass_mark=school.pass_mark or DEFAULT_PASS_MARK,
+        )
         return submission
 
     @staticmethod
@@ -596,6 +604,8 @@ async def _ensure_decisions_for_roster(
     submission: PromotionSubmission,
     cls: Class,
     academic_year: str,
+    *,
+    pass_mark: int,
 ) -> None:
     """Insert one PromotionDecision per active student who doesn't
     already have one, prefilling the algorithmic suggestion."""
@@ -636,6 +646,7 @@ async def _ensure_decisions_for_roster(
                 for s in scores
             ],
             exam_published=exam_published,
+            fail_threshold=pass_mark,
         )
         initial_decision: DecisionKind = (
             suggestion.suggested_decision  # type: ignore[assignment]

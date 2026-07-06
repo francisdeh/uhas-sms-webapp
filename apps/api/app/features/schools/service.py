@@ -25,10 +25,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import NotFoundError
 from app.features.audit.actions import SCHOOL_SETTINGS_UPDATE
 from app.features.audit.service import write_audit_log
-from app.features.exams.constants import DEFAULT_GRADE_BANDS, DEFAULT_SCORE_WEIGHTS
+from app.features.exams.constants import (
+    DEFAULT_GRADE_BANDS,
+    DEFAULT_PASS_MARK,
+    DEFAULT_SCORE_WEIGHTS,
+)
 from app.features.schools.model import School
 from app.features.schools.repository import SchoolsRepository
-from app.features.schools.schema import GradingBand, SchoolRead, SchoolUpdate, ScoreWeights
+from app.features.schools.schema import (
+    GradingBand,
+    GradingDefaultsRead,
+    SchoolRead,
+    SchoolUpdate,
+    ScoreWeights,
+)
 
 
 def _dump(value: Any) -> Any:
@@ -100,6 +110,18 @@ class SchoolsService:
                 or [GradingBand(**band) for band in DEFAULT_GRADE_BANDS],
                 "score_weights": read.score_weights or ScoreWeights(**DEFAULT_SCORE_WEIGHTS),
             }
+        )
+
+    @staticmethod
+    def grading_defaults() -> GradingDefaultsRead:
+        """The fixed GES-standard grading config — a pure constant, no
+        DB access. Backs `GET /school/grading-defaults` so the frontend's
+        "Reset to GES standard" control has no hardcoded copy of its own.
+        """
+        return GradingDefaultsRead(
+            grading_bands=[GradingBand(**band) for band in DEFAULT_GRADE_BANDS],
+            score_weights=ScoreWeights(**DEFAULT_SCORE_WEIGHTS),
+            pass_mark=DEFAULT_PASS_MARK,
         )
 
     @staticmethod

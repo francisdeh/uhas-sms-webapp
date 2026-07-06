@@ -23,6 +23,8 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from pydantic.alias_generators import to_camel
 
+from app.features.exams.constants import DEFAULT_PASS_MARK
+
 # Wire-format config: Python attributes stay snake_case, JSON keys are
 # camelCase. `populate_by_name=True` keeps snake_case input accepted too
 # (test fixtures + CLI tools), but the canonical wire is camelCase so
@@ -120,7 +122,7 @@ class SchoolBase(BaseModel):
     grading_scale: GradingScale = "GES_STANDARD"
     grading_bands: list[GradingBand] | None = None
     score_weights: ScoreWeights | None = None
-    pass_mark: Annotated[int, Field(ge=0, le=100)] = 40
+    pass_mark: Annotated[int, Field(ge=0, le=100)] = DEFAULT_PASS_MARK
 
     # Communication
     email_from_name: Annotated[str | None, Field(default=None, max_length=255)]
@@ -244,3 +246,19 @@ class SchoolPublicRead(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
+
+
+class GradingDefaultsRead(BaseModel):
+    """The GES-standard grading config, independent of any school.
+
+    A process-level constant (from `app.features.exams.constants`), not a
+    DB read — this is the fixed national standard the Settings > Grading
+    "Reset to GES standard" button restores. Served so the frontend has
+    no hardcoded copy of the bands/weights to drift from the backend.
+    """
+
+    model_config = _CAMEL_CONFIG
+
+    grading_bands: list[GradingBand]
+    score_weights: ScoreWeights
+    pass_mark: int

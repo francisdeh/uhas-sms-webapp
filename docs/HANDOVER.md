@@ -365,7 +365,7 @@ Top picks (full list of 28 in [ENGINEERING-CONVENTIONS.md](ENGINEERING-CONVENTIO
 
 **`schools`** — the school. Single row today; multi-row when tenancy lands.
 - `id` (UUID PK), `slug` (globally unique), `name`, `academic_year`, `current_term`, `grading_scale`, `is_active`, `created_at`
-- **Settings columns**: `motto`, `address`, `phone`, `email`, `principal_name`, `logo_url`, `grading_bands` (JSONB), `score_weights` (JSONB), `pass_mark`, `email_from_name`, `email_reply_to`, `notification_defaults` (JSONB), `session_timeout_minutes`, `password_min_length`, `force_password_change_on_first_login`, `default_color_scheme`, `sidebar_accent_hex`
+- **Settings columns**: `motto`, `address`, `phone`, `email`, `principal_name`, `logo_url`, `grading_bands` (JSONB), `score_weights` (JSONB), `pass_mark`, `email_from_name`, `email_reply_to`, `notification_defaults` (JSONB), `password_min_length`, `force_password_change_on_first_login` (both display-only — not enforced by anything yet), `default_color_scheme`, `sidebar_accent_hex`. `session_timeout_minutes` was removed — Supabase Auth controls session expiry, not this app.
 
 **`school_terms`** — start/end dates per (school, year, term).
 - `id`, `school_id` → `schools.id`, `academic_year`, `term` (1/2/3), `start_date`, `end_date`; unique `(school_id, academic_year, term)`

@@ -111,6 +111,42 @@ async def test_get_school_without_school_claim_is_403(
     assert res.status_code == 403
 
 
+# ─── GET /school/grading-defaults ────────────────────────────────────────────
+
+
+async def test_grading_defaults_requires_auth(client: AsyncClient) -> None:
+    res = await client.get("/school/grading-defaults")
+    assert res.status_code == 401
+
+
+async def test_grading_defaults_returns_ges_standard(client: AsyncClient) -> None:
+    """The fixed national standard — a constant, independent of any
+    school row (no seed_school fixture needed)."""
+    res = await client.get("/school/grading-defaults", headers=auth_header(role="Teacher"))
+    assert res.status_code == 200
+    body = res.json()
+    assert len(body["gradingBands"]) == 9
+    assert body["gradingBands"][0] == {
+        "min": 90,
+        "max": 100,
+        "grade": "1",
+        "interpretation": "Highest",
+    }
+    assert body["scoreWeights"] == {
+        "exam": 60,
+        "cat1": 10,
+        "cat2": 10,
+        "groupWork": 10,
+        "projectWork": 10,
+    }
+    assert body["passMark"] == 40
+
+
+async def test_grading_defaults_is_cacheable(client: AsyncClient) -> None:
+    res = await client.get("/school/grading-defaults", headers=auth_header(role="Admin"))
+    assert res.headers["cache-control"] == "public, max-age=3600"
+
+
 # ─── Cross-scope guarantee ───────────────────────────────────────────────────
 
 
