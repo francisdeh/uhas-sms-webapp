@@ -11,6 +11,7 @@ from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
 from app.features.exams.constants import ClassReportStatus, ExamType
+from app.features.schools.schema import GradingBand
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
@@ -308,6 +309,11 @@ class ReportCardResponse(BaseModel):
     exam: ReportCardExam
     school: ReportCardSchool
     scores: list[ReportCardScoreRow]
+    # Resolved grade bands (school's custom bands, or the GES defaults if
+    # unset) — the same bands `compute_grade` used when these scores were
+    # last saved. Lets the printed grading-key legend match the school's
+    # actual configuration instead of hardcoding the default 9 bands.
+    grading_bands: list[GradingBand]
     aggregate: int | None = None
     class_teachers: list[str]
     class_teacher_remark: str | None = None

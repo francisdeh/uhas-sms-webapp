@@ -22,7 +22,7 @@ import {
   computeGrade,
   hasAnyComponentScore,
 } from "@/features/exams/utils";
-import type { Exam, Score } from "@/features/exams/types";
+import type { Exam, GradingBand, Score, ScoreWeights } from "@/features/exams/types";
 import { cn } from "@/lib/utils";
 
 type Row = {
@@ -42,6 +42,11 @@ interface ScoreEntryGridProps {
   subjectId: string;
   subjectName: string;
   initialRows: { studentId: string; studentName: string; score: Score | null }[];
+  // The school's actual (already-resolved) grading bands / score
+  // weights, so the live preview column matches what the server will
+  // compute + persist on save.
+  gradingBands: GradingBand[];
+  scoreWeights: ScoreWeights;
 }
 
 function toRow(r: { studentId: string; studentName: string; score: Score | null }): Row {
@@ -71,6 +76,8 @@ export function ScoreEntryGrid({
   subjectId,
   subjectName,
   initialRows,
+  gradingBands,
+  scoreWeights,
 }: ScoreEntryGridProps) {
   const [rows, setRows] = useState<Row[]>(() => initialRows.map(toRow));
   const upsertScores = useUpsertScores();
@@ -90,12 +97,12 @@ export function ScoreEntryGrid({
           examScore: parseScore(r.examScore),
         };
         const total = hasAnyComponentScore(components)
-          ? computeTotalScore(exam.type, components)
+          ? computeTotalScore(exam.type, components, scoreWeights)
           : null;
-        const graded = total != null ? computeGrade(total) : null;
+        const graded = total != null ? computeGrade(total, gradingBands) : null;
         return { ...r, total, grade: graded?.grade ?? null, interpretation: graded?.interpretation ?? null };
       }),
-    [rows, exam.type]
+    [rows, exam.type, scoreWeights, gradingBands]
   );
 
   function updateField(studentId: string, field: keyof Omit<Row, "studentId" | "studentName">, value: string) {

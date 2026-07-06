@@ -64,6 +64,11 @@ export interface paths {
          *     Any authenticated user with a valid school_id claim can read this —
          *     the settings drive UI everywhere (logo on every page, term on the
          *     dashboard, brand colours), not just the Admin Settings page.
+         *
+         *     Grading bands/score weights are resolved to the GES defaults when a
+         *     school hasn't customized either (see `SchoolsService.get_resolved`)
+         *     — every consumer of a live reading gets one real value from the
+         *     backend instead of guessing at its own copy.
          */
         get: operations["get_school_school_get"];
         put?: never;
@@ -4051,6 +4056,8 @@ export interface components {
             school: components["schemas"]["ReportCardSchool"];
             /** Scores */
             scores: components["schemas"]["ReportCardScoreRow"][];
+            /** Gradingbands */
+            gradingBands: components["schemas"]["GradingBand"][];
             /** Aggregate */
             aggregate?: number | null;
             /** Classteachers */
@@ -4362,11 +4369,6 @@ export interface components {
             emailReplyTo?: string | null;
             notificationDefaults?: components["schemas"]["NotificationDefaults"] | null;
             /**
-             * Sessiontimeoutminutes
-             * @default 480
-             */
-            sessionTimeoutMinutes: number;
-            /**
              * Passwordminlength
              * @default 8
              */
@@ -4473,12 +4475,6 @@ export interface components {
             /** Emailreplyto */
             emailReplyTo?: string | null;
             notificationDefaults?: components["schemas"]["NotificationDefaults"] | null;
-            /** Sessiontimeoutminutes */
-            sessionTimeoutMinutes?: number | null;
-            /** Passwordminlength */
-            passwordMinLength?: number | null;
-            /** Forcepasswordchangeonfirstlogin */
-            forcePasswordChangeOnFirstLogin?: boolean | null;
             /** Defaultcolorscheme */
             defaultColorScheme?: ("default" | "uhas") | null;
             /** Sidebaraccenthex */

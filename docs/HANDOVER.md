@@ -224,16 +224,16 @@ Grouped by domain. "Works" means reachable end-to-end through the current FastAP
 - 60s client polling
 
 ### Admin settings
-- Tabs: Identity / Calendar / Grading / Communication / Security / Branding
+- Live at `/admin/settings`. Tabs: Identity / Calendar / Grading / Communication / Security / Branding
 - School name, motto, logo (uploaded), address, contact, principal
 - Academic year + term date ranges
-- Grading bands + score component weights + pass mark
+- Grading bands + score component weights + pass mark — actually consumed: `compute.py` uses the school's real values on every score save (not hardcoded), and the score-entry live preview + report-card/PDF grading-key legend now read the same resolved bands/weights instead of a hardcoded copy
 - Email from-name + reply-to
 - Per-event notification defaults
-- Session timeout (minutes), password min length, force-change-on-first-login toggle
+- Password min length + force-change-on-first-login toggle: **displayed read-only, not editable** — neither is enforced by anything yet (change-password flow hardcodes its own minimum; new users always get `must_change_password=True`), so PATCH doesn't accept them rather than pretending they do something
+- Session timeout setting was removed entirely (not `schools`-persisted) — Supabase Auth controls actual session/token expiry, not this app
 - Default color scheme + sidebar accent hex
 - Every save writes an audit_log row
-- **The Admin Settings *page* to edit most of this is still on the roadmap** (Phase 3.5) — the backend schema + service layer already supports it; the UI to surface it doesn't fully exist yet.
 
 ### Outbound email
 - Provider-agnostic `apps/api/app/integrations/email/provider.py` — ported from the old TS `lib/email.ts` in Phase 3, same "log instead of fail when unconfigured" contract
@@ -485,12 +485,12 @@ Surface-level summary, business-logic gaps that are independent of the backend m
 | Report cards | Real PDF rendering ✅ done — still no KG variant, no conduct, no batch print | ~15 h | ~35–40 h |
 | Audit log filters | No user/target filter, no CSV export | — | ~6–10 h |
 | Calendar | List view only — no grid, no recurring | ~10 h | ~20–25 h |
-| Admin settings UI | Backend supports it; the page to edit most of it isn't built | ~11 h | — |
+| Admin settings UI | ✅ done — all 6 tabs live at `/admin/settings`, wired to real `schools` columns; grading bands/weights actually consumed by score computation + report cards | — | — |
 | Profile pages | Save Changes + Notification prefs ✅ done — 2FA, Sessions, Deactivate still UI-only | — | ~12 h |
 
 Rate limiting is done — see Phase 3.5 below. Batch report-card printing remains a separate, larger, explicitly-deferred piece of work (tracked in [FEATURE-ENHANCEMENTS.md](FEATURE-ENHANCEMENTS.md) §5).
 
-**Recommended priority order** — Phase 3.5 is half done (real report-card PDFs ✅, rate-limiting audit ✅; Admin Settings page and Profile page completion still open) — see the migration plan for sequencing, then **Phase 4** for the FRD requirement gaps.
+**Recommended priority order** — Phase 3.5 is nearly done (real report-card PDFs ✅, rate-limiting audit ✅, Admin Settings page ✅; three Profile-page sub-features — 2FA, Active Sessions, self-deactivation — still open) — see the migration plan for sequencing, then **Phase 4** for the FRD requirement gaps.
 
 ---
 
@@ -521,7 +521,7 @@ Full competitive ranking in [COMPETITIVE-ANALYSIS.md](COMPETITIVE-ANALYSIS.md). 
 
 **The current, single source of truth for sequencing is [v2/UHAS_Migration_Execution_Plan.md](../v2/UHAS_Migration_Execution_Plan.md)** — Phases 0–3 done, then:
 
-- **Phase 3.5 — Platform completion & admin polish**: real report-card PDF rendering ✅, rate-limiting audit ✅, Admin Settings page, Profile page completion.
+- **Phase 3.5 — Platform completion & admin polish**: real report-card PDF rendering ✅, rate-limiting audit ✅, Admin Settings page ✅, Profile page completion (Save Changes ✅, Notifications ✅; 2FA, Active Sessions, self-deactivation still open).
 - **Phase 4 — Close requirement gaps**: the 11 Common Core subjects, full Scheme-of-Learning template, named appointment slots, max-two-guardians + sibling links, report-card field additions.
 - **Phase 5 — Procurement features**: fee management (biggest revenue lever), real Hubtel SMS, Accountant role scoped to a real finance domain.
 - **Phase 6 — Depth & polish**: student/staff profile depth, leave management upgrade, audit-log filters, report-card polish.
@@ -597,4 +597,4 @@ No production accounts exist yet — this is a demo-phase build (§1).
 
 ## TL;DR for a fresh Claude session
 
-> "I'm working on UHAS SMS — a demo-phase school management system for a basic school in Ghana (KG → JHS 3), designed for ~350 students / ~50 staff at full scale. Five roles: Admin, Deputy Head (4 divisions), Teacher (with Unit Head flag), Parent, Accountant. Stack: Next.js 16 frontend (zero direct DB access) + FastAPI/SQLAlchemy/Alembic backend + Supabase (Postgres/Auth/Storage) + Inngest for background jobs. Went through a full backend migration off Drizzle/Firebase/Neon — that's Phases 0–3 done, tracked in `v2/UHAS_Migration_Execution_Plan.md`, which is the current roadmap (Phase 3.5 → 4 → 5 → 6 → 7). 510+ pytest tests on the backend, Vitest unit tests on the frontend; CI gates Railway deploys but Playwright E2E is currently disabled. Most features work end-to-end against real seed data; real report-card PDFs, the Admin Settings page, and fee management are the biggest near-term gaps. Conventions live in `docs/ENGINEERING-CONVENTIONS.md`. Hand me [task]."
+> "I'm working on UHAS SMS — a demo-phase school management system for a basic school in Ghana (KG → JHS 3), designed for ~350 students / ~50 staff at full scale. Five roles: Admin, Deputy Head (4 divisions), Teacher (with Unit Head flag), Parent, Accountant. Stack: Next.js 16 frontend (zero direct DB access) + FastAPI/SQLAlchemy/Alembic backend + Supabase (Postgres/Auth/Storage) + Inngest for background jobs. Went through a full backend migration off Drizzle/Firebase/Neon — that's Phases 0–3 done, tracked in `v2/UHAS_Migration_Execution_Plan.md`, which is the current roadmap (Phase 3.5 → 4 → 5 → 6 → 7). 540+ pytest tests on the backend, Vitest unit tests on the frontend; CI gates Railway deploys but Playwright E2E is currently disabled. Most features work end-to-end against real seed data; the remaining Profile-page sub-features (2FA, Active Sessions, self-deactivation) and fee management are the biggest near-term gaps. Conventions live in `docs/ENGINEERING-CONVENTIONS.md`. Hand me [task]."

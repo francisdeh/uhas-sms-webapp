@@ -68,9 +68,13 @@ async def get_school(
     Any authenticated user with a valid school_id claim can read this —
     the settings drive UI everywhere (logo on every page, term on the
     dashboard, brand colours), not just the Admin Settings page.
+
+    Grading bands/score weights are resolved to the GES defaults when a
+    school hasn't customized either (see `SchoolsService.get_resolved`)
+    — every consumer of a live reading gets one real value from the
+    backend instead of guessing at its own copy.
     """
-    row = await SchoolsService.get(session, school_id)
-    return SchoolRead.model_validate(row)
+    return await SchoolsService.get_resolved(session, school_id)
 
 
 @router.patch(

@@ -6,6 +6,25 @@ import {
   computeAggregate,
   hasAnyComponentScore,
 } from "./utils";
+import type { GradingBand, ScoreWeights } from "./types";
+
+// computeGrade/computeTotalScore take bands/weights as required params
+// (the real values come from the school's settings, resolved
+// server-side) — these fixtures are the GES standard, used here purely
+// to exercise the maths, not as a "default" the functions fall back to.
+const GES_BANDS: GradingBand[] = [
+  { min: 90, max: 100, grade: "1", interpretation: "Highest" },
+  { min: 80, max: 89, grade: "2", interpretation: "Higher" },
+  { min: 70, max: 79, grade: "3", interpretation: "High" },
+  { min: 60, max: 69, grade: "4", interpretation: "High Average" },
+  { min: 55, max: 59, grade: "5", interpretation: "Average" },
+  { min: 50, max: 54, grade: "6", interpretation: "Lower Average" },
+  { min: 40, max: 49, grade: "7", interpretation: "Low" },
+  { min: 35, max: 39, grade: "8", interpretation: "Lower" },
+  { min: 0, max: 34, grade: "9", interpretation: "Lowest" },
+];
+
+const EVEN_WEIGHTS: ScoreWeights = { exam: 60, cat1: 10, cat2: 10, groupWork: 10, projectWork: 10 };
 
 describe("computeGrade", () => {
   it.each([
@@ -28,56 +47,80 @@ describe("computeGrade", () => {
     [34, "9", "Lowest"],
     [0, "9", "Lowest"],
   ])("%i → grade %s (%s)", (total, grade, interpretation) => {
-    expect(computeGrade(total)).toEqual({ grade, interpretation });
+    expect(computeGrade(total, GES_BANDS)).toEqual({ grade, interpretation });
   });
 });
 
 describe("computeTotalScore", () => {
   it("MidTerm returns rounded examScore", () => {
-    expect(computeTotalScore("MidTerm", { examScore: 75 })).toBe(75);
-    expect(computeTotalScore("MidTerm", { examScore: 75.6 })).toBe(76);
+    expect(computeTotalScore("MidTerm", { examScore: 75 }, EVEN_WEIGHTS)).toBe(75);
+    expect(computeTotalScore("MidTerm", { examScore: 75.6 }, EVEN_WEIGHTS)).toBe(76);
   });
 
   it("MidTerm returns null when examScore missing", () => {
-    expect(computeTotalScore("MidTerm", { examScore: null })).toBeNull();
+    expect(computeTotalScore("MidTerm", { examScore: null }, EVEN_WEIGHTS)).toBeNull();
   });
 
   it("EndOfTerm returns null when all components missing", () => {
     expect(
-      computeTotalScore("EndOfTerm", {
-        cat1: null,
-        cat2: null,
-        projectWork: null,
-        groupWork: null,
-        examScore: null,
-      })
+      computeTotalScore(
+        "EndOfTerm",
+        {
+          cat1: null,
+          cat2: null,
+          projectWork: null,
+          groupWork: null,
+          examScore: null,
+        },
+        EVEN_WEIGHTS
+      )
     ).toBeNull();
   });
 
   it("EndOfTerm weights: 4×10% CAT + 60% exam", () => {
     // (10 + 10 + 10 + 10) × 0.1 = 4, exam 50 × 0.6 = 30 → 34
     expect(
-      computeTotalScore("EndOfTerm", {
-        cat1: 10,
-        cat2: 10,
-        projectWork: 10,
-        groupWork: 10,
-        examScore: 50,
-      })
+      computeTotalScore(
+        "EndOfTerm",
+        {
+          cat1: 10,
+          cat2: 10,
+          projectWork: 10,
+          groupWork: 10,
+          examScore: 50,
+        },
+        EVEN_WEIGHTS
+      )
     ).toBe(34);
   });
 
   it("EndOfTerm treats missing components as zero", () => {
     // exam alone, 100 × 0.6 = 60
     expect(
-      computeTotalScore("EndOfTerm", {
-        cat1: null,
-        cat2: null,
-        projectWork: null,
-        groupWork: null,
-        examScore: 100,
-      })
+      computeTotalScore(
+        "EndOfTerm",
+        {
+          cat1: null,
+          cat2: null,
+          projectWork: null,
+          groupWork: null,
+          examScore: 100,
+        },
+        EVEN_WEIGHTS
+      )
     ).toBe(60);
+  });
+
+  it("respects custom weights (not just the GES default split)", () => {
+    // exam 100% weight, everything else 0 → components ignored entirely
+    const examOnly: ScoreWeights = { exam: 100, cat1: 0, cat2: 0, groupWork: 0, projectWork: 0 };
+    expect(
+      computeTotalScore(
+        "EndOfTerm",
+        { cat1: 100, cat2: 100, projectWork: 100, groupWork: 100, examScore: 42 },
+        examOnly
+      )
+    ).toBe(42);
   });
 });
 

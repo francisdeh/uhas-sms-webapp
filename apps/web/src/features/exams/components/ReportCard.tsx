@@ -1,4 +1,3 @@
-import { GES_GRADES } from "@/features/exams/utils";
 import type { ReportCardData, ReportCardSubjectRow } from "@/features/exams/types";
 
 interface ReportCardProps {
@@ -129,14 +128,14 @@ export function ReportCard({ data }: ReportCardProps) {
       <table className="w-full border-collapse text-[11px]">
         <thead>
           <tr className="border-b border-black">
-            {GES_GRADES.map((band) => (
+            {data.gradingBands.map((band) => (
               <th key={band.grade} className="px-1 py-0.5 font-normal text-center">
                 {band.max}-{band.min}
               </th>
             ))}
           </tr>
           <tr className="border-b border-black bg-gray-100">
-            {GES_GRADES.map((band) => (
+            {data.gradingBands.map((band) => (
               <th key={band.grade} className="px-1 py-0.5 font-semibold text-center">
                 {band.interpretation}
               </th>
@@ -145,7 +144,7 @@ export function ReportCard({ data }: ReportCardProps) {
         </thead>
         <tbody>
           <tr>
-            {GES_GRADES.map((band) => (
+            {data.gradingBands.map((band) => (
               <td key={band.grade} className="px-1 py-0.5 text-center">
                 {band.grade}
               </td>

@@ -29,6 +29,7 @@ from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT, TEACHER
 from app.core.security import CurrentUser
 from app.features.classes.model import Class
 from app.features.exams.compute import compute_aggregate
+from app.features.exams.constants import DEFAULT_GRADE_BANDS
 from app.features.exams.model import Exam
 from app.features.exams.report_card_repo import ReportCardRepository
 from app.features.exams.schema import (
@@ -39,6 +40,7 @@ from app.features.exams.schema import (
     ReportCardStudent,
 )
 from app.features.schools.repository import SchoolsRepository
+from app.features.schools.schema import GradingBand
 from app.features.staff.repository import StaffRepository
 from app.features.students.model import Student
 
@@ -128,6 +130,9 @@ class ReportCardService:
             ),
             school=ReportCardSchool(id=school.id, name=school.name, logo_url=school.logo_url),
             scores=scores,
+            grading_bands=[
+                GradingBand(**band) for band in (school.grading_bands or DEFAULT_GRADE_BANDS)
+            ],
             aggregate=aggregate,
             class_teachers=class_teachers,
             class_teacher_remark=(remark.class_teacher_remark if remark else None),

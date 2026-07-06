@@ -48,7 +48,7 @@ export function GradingTab({ settings }: { settings: SchoolSettings }) {
   const [scale, setScale] = useState<"GES_STANDARD" | "CUSTOM">(
     (settings.gradingScale as "GES_STANDARD" | "CUSTOM") ?? "GES_STANDARD"
   );
-  const [bands, setBands] = useState<GradingBand[]>(settings.gradingBands ?? GES_BANDS);
+  const [bands, setBands] = useState<GradingBand[]>(settings.gradingBands);
   const [weights, setWeights] = useState<ScoreWeights>(settings.scoreWeights);
   const [passMark, setPassMark] = useState(String(settings.passMark));
 
