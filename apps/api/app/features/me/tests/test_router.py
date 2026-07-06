@@ -353,7 +353,9 @@ async def test_deactivate_me_flips_flag_bans_and_audits(
     assert fake_supabase.update_calls[0]["ban_duration"] == PERMANENT_BAN
 
     audit = await db_session.scalar(
-        select(AuditLog).where(AuditLog.action == "ACCOUNT_SELF_DEACTIVATED")
+        select(AuditLog).where(
+            AuditLog.action == "ACCOUNT_SELF_DEACTIVATED", AuditLog.target_id == TEACHER_USER
+        )
     )
     assert audit is not None
     assert audit.user_id == TEACHER_USER

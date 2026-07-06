@@ -49,5 +49,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return { supabaseResponse, user };
+  // Step-up need: a user with a verified TOTP factor who hasn't cleared
+  // it this session reads as currentLevel 'aal1' / nextLevel 'aal2'. The
+  // proxy uses this to force them through /verify-2fa before any
+  // dashboard. Only computed when authenticated — anon requests skip it.
+  let needsMfa = false;
+  if (user) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    needsMfa = aal?.currentLevel === "aal1" && aal?.nextLevel === "aal2";
+  }
+
+  return { supabaseResponse, user, needsMfa };
 }

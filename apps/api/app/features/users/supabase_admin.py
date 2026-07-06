@@ -66,6 +66,8 @@ class SupabaseAdminClient(Protocol):
         redirect_to: str,
     ) -> dict[str, Any]: ...
 
+    async def reset_mfa(self, user_id: UUID | str) -> int: ...
+
 
 class _NotConfiguredSupabaseAdminClient:
     """Stub for environments without a Supabase service-role key.
@@ -102,6 +104,9 @@ class _NotConfiguredSupabaseAdminClient:
         raise ServiceUnavailableError(self._MSG)
 
     async def invite_user_by_email(self, *, email: str, redirect_to: str) -> dict[str, Any]:
+        raise ServiceUnavailableError(self._MSG)
+
+    async def reset_mfa(self, user_id: UUID | str) -> int:
         raise ServiceUnavailableError(self._MSG)
 
 
@@ -192,6 +197,24 @@ class RealSupabaseAdminClient:
             if user is None:
                 raise ServiceUnavailableError("Supabase did not return an auth user.")
             return {"id": str(user.id), "email": user.email}
+
+        return await asyncio.to_thread(_run)
+
+    async def reset_mfa(self, user_id: UUID | str) -> int:
+        """Delete every MFA factor on a user — the admin lockout-recovery
+        path when a user loses their authenticator (Supabase has no
+        backup codes). Deleting a verified factor also logs the user out
+        of all sessions. Returns the number of factors removed."""
+
+        def _run() -> int:
+            factors = self._client.auth.admin.mfa.list_factors(cast(Any, {"user_id": str(user_id)}))
+            count = 0
+            for factor in factors:
+                self._client.auth.admin.mfa.delete_factor(
+                    cast(Any, {"id": factor.id, "user_id": str(user_id)})
+                )
+                count += 1
+            return count
 
         return await asyncio.to_thread(_run)
 

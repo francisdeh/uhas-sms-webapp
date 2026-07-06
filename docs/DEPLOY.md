@@ -34,6 +34,7 @@ Target stack: **Next.js + FastAPI on Railway** + **Supabase (Postgres, Auth, Sto
 - [ ] `apps/api`'s `CORS_ALLOW_ORIGINS` includes the `web` service's real URL — defaults to `http://localhost:3000` only.
 - [ ] Seed the 9 role-anchored accounts once real staff/guardian records exist (or adapt `apps/web/scripts/_seed-data/users.ts` with real emails first) — `pnpm seed:supabase` against the prod project (point `NEXT_PUBLIC_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` at prod when running it). For a real launch this is almost certainly the wrong shape — real staff self-register or get invited via the Admin UI instead; treat the seed script as a bootstrapping convenience for the very first Admin account only.
 - [ ] Production cookies are `secure` — enforced by `@supabase/ssr`'s cookie handling as long as the app is served over HTTPS. Railway provides HTTPS by default.
+- [ ] **TOTP MFA enabled** for the opt-in 2FA feature (Profile → Security) — Dashboard → Authentication → settings (Multi-Factor Authentication → enable TOTP enroll + verify). The local `supabase/config.toml` `[auth.mfa.totp]` flags only affect the local CLI stack; they do **not** propagate to the hosted project. Without this, users can't enrol and the login-time challenge never triggers. Note: MFA is a Supabase Pro-plan feature.
 
 ## 3. Supabase Storage
 

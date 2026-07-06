@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.errors import NotFoundError, ValidationError
 from app.core.roles import PARENT
-from app.features.audit.actions import AuditAction
+from app.features.audit.actions import USER_MFA_RESET, AuditAction
 from app.features.audit.service import write_audit_log
 from app.features.users.model import User
 from app.features.users.repository import JoinedRow, UsersRepository
@@ -244,3 +244,36 @@ class UsersService:
             after={"isActive": active},
         )
         return await UsersService._read_or_404(session, school_id, user_id)
+
+    @staticmethod
+    async def reset_mfa(
+        session: AsyncSession,
+        school_id: UUID | str,
+        user_id: UUID,
+        *,
+        supabase: SupabaseAdminClient,
+        actor_user_id: UUID | str,
+    ) -> int:
+        """Admin lockout recovery: delete all of a user's MFA factors.
+
+        Supabase has no backup codes, so a user who loses their
+        authenticator can only get back in by an admin clearing their
+        2FA. Deleting a verified factor also logs the user out of all
+        sessions (Supabase behaviour) — they then log in with just their
+        password and can re-enrol. Audit-logged as `USER_MFA_RESET`.
+        Returns the number of factors removed.
+        """
+        # 404 if the user isn't in this school — same scoping as every
+        # other admin action here.
+        await UsersService._get_or_404(session, school_id, user_id)
+        removed = await supabase.reset_mfa(user_id)
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=USER_MFA_RESET,
+            target_table="users",
+            target_id=user_id,
+            after={"factorsRemoved": removed},
+        )
+        return removed

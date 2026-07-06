@@ -90,11 +90,25 @@ export default function LoginForm() {
   const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
 
+  // Set when the just-authenticated user has TOTP enabled and must clear
+  // the 2nd factor before we let them into a dashboard. Holds the open
+  // challenge + the user we'll redirect once it's verified.
+  const [mfaChallenge, setMfaChallenge] = useState<{
+    factorId: string;
+    challengeId: string;
+    user: SupabaseUser;
+  } | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const kind = classify(identifier);
-  const stage: "identifier" | "otp" = otpSentTo ? "otp" : "identifier";
+  const stage: "identifier" | "otp" | "mfa" = mfaChallenge
+    ? "mfa"
+    : otpSentTo
+      ? "otp"
+      : "identifier";
 
   // Restore the last used identifier on mount.
   useEffect(() => {
@@ -128,6 +142,72 @@ export default function LoginForm() {
     router.refresh();
   }
 
+  /**
+   * Gate the just-authenticated user through TOTP if they've enrolled a
+   * factor. `getAuthenticatorAssuranceLevel` returns `currentLevel: 'aal1'`
+   * / `nextLevel: 'aal2'` exactly when a verified factor exists but hasn't
+   * been satisfied this session — the signal to challenge before letting
+   * them in. Otherwise proceed straight to the dashboard.
+   */
+  async function proceedAfterAuth(user: SupabaseUser) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal && aal.currentLevel === "aal1" && aal.nextLevel === "aal2") {
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      const factor = factors?.totp[0];
+      if (factorsError || !factor) {
+        toast.error("Two-factor is required but no verified factor was found.");
+        await supabase.auth.signOut();
+        return;
+      }
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: factor.id,
+      });
+      if (challengeError || !challenge) {
+        toast.error(challengeError?.message || "Couldn't start two-factor verification.");
+        await supabase.auth.signOut();
+        return;
+      }
+      setMfaCode("");
+      setMfaChallenge({ factorId: factor.id, challengeId: challenge.id, user });
+      return;
+    }
+    await applyAuthedUserOrSignOut(user);
+  }
+
+  async function handleVerifyMfa(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!mfaChallenge || mfaCode.length !== 6) {
+      setError("Enter the 6-digit code from your authenticator app.");
+      return;
+    }
+    setIsSubmitting(true);
+    const { error: verifyError } = await supabase.auth.mfa.verify({
+      factorId: mfaChallenge.factorId,
+      challengeId: mfaChallenge.challengeId,
+      code: mfaCode,
+    });
+    setIsSubmitting(false);
+    if (verifyError) {
+      toast.error(verifyError.message || "Incorrect code. Try again.");
+      return;
+    }
+    const { user } = mfaChallenge;
+    setMfaChallenge(null);
+    setMfaCode("");
+    await applyAuthedUserOrSignOut(user);
+  }
+
+  async function handleBackFromMfa() {
+    // Abandoning the challenge leaves an aal1 session; sign it out so the
+    // user starts clean (the proxy gate would otherwise bounce them here
+    // again on any dashboard navigation).
+    setMfaChallenge(null);
+    setMfaCode("");
+    setError(null);
+    await supabase.auth.signOut();
+  }
+
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -154,7 +234,7 @@ export default function LoginForm() {
       }
       return;
     }
-    if (data.user) await applyAuthedUserOrSignOut(data.user);
+    if (data.user) await proceedAfterAuth(data.user);
   }
 
   async function handleSendCode(e: React.FormEvent) {
@@ -208,7 +288,7 @@ export default function LoginForm() {
       }
       return;
     }
-    if (data.user) await applyAuthedUserOrSignOut(data.user);
+    if (data.user) await proceedAfterAuth(data.user);
   }
 
   function handleBackFromOtp() {
@@ -241,12 +321,18 @@ export default function LoginForm() {
             className="text-2xl font-bold tracking-tight"
             style={{ fontFamily: "var(--font-playfair)" }}
           >
-            {stage === "otp" ? "Enter verification code" : "Welcome back"}
+            {stage === "mfa"
+              ? "Two-step verification"
+              : stage === "otp"
+                ? "Enter verification code"
+                : "Welcome back"}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {stage === "otp"
-              ? `We sent a 6-digit code to ${otpSentTo}.`
-              : "Sign in to your account to continue."}
+            {stage === "mfa"
+              ? "Enter the 6-digit code from your authenticator app."
+              : stage === "otp"
+                ? `We sent a 6-digit code to ${otpSentTo}.`
+                : "Sign in to your account to continue."}
           </p>
         </div>
 
@@ -389,6 +475,46 @@ export default function LoginForm() {
               >
                 <ArrowLeft size={12} />
                 Use a different phone or email
+              </button>
+            </FieldGroup>
+          </form>
+        )}
+
+        {stage === "mfa" && (
+          <form onSubmit={handleVerifyMfa}>
+            <FieldGroup className="gap-5">
+              <Field>
+                <FieldLabel htmlFor="mfa">Authenticator code</FieldLabel>
+                <div className="flex justify-center">
+                  <InputOTP maxLength={6} value={mfaCode} onChange={(v) => setMfaCode(v)} autoFocus>
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+              </Field>
+
+              <Button
+                type="submit"
+                disabled={isSubmitting || mfaCode.length !== 6}
+                className="w-full h-10 mt-1 bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40"
+              >
+                {isSubmitting && <Loader2 size={15} className="animate-spin mr-2" />}
+                {isSubmitting ? "Verifying…" : "Verify and sign in"}
+              </Button>
+
+              <button
+                type="button"
+                onClick={handleBackFromMfa}
+                className="mx-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft size={12} />
+                Cancel and sign out
               </button>
             </FieldGroup>
           </form>

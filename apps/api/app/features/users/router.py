@@ -1,12 +1,13 @@
 """HTTP routes for admin user management.
 
-Five endpoints, all Admin-only:
+All Admin-only:
 
   GET    /users                 → paginated list (server-side q filter)
   POST   /users                 → create Supabase auth user + bridge row
   PATCH  /users/{id}            → update email + display_name
   POST   /users/{id}/activate   → reactivate (Supabase ban_duration=none)
   POST   /users/{id}/deactivate → disable (Supabase ban_duration=876600h)
+  POST   /users/{id}/reset-mfa  → clear the user's 2FA factors (lockout recovery)
 
 Role/linked_id changes go through a distinct admin flow so audit-log
 entries can track them separately from name/email edits.
@@ -24,6 +25,7 @@ from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, RequireAdmin
 from app.features.audit.actions import USER_DEACTIVATED, USER_REACTIVATED
 from app.features.users.schema import (
+    MfaResetResponse,
     UserCreate,
     UserRead,
     UsersListResponse,
@@ -127,3 +129,27 @@ async def activate_user(
         actor_user_id=admin.user_id,
         action=USER_REACTIVATED,
     )
+
+
+@router.post(
+    "/{user_id}/reset-mfa",
+    response_model=MfaResetResponse,
+    response_model_by_alias=True,
+)
+async def reset_user_mfa(
+    user_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    admin: RequireAdmin,
+    supabase: _SupabaseDep,
+) -> MfaResetResponse:
+    """Clear a user's 2FA factors — lockout recovery for a lost
+    authenticator (Supabase has no backup codes). Admin-only."""
+    removed = await UsersService.reset_mfa(
+        session,
+        school_id,
+        user_id,
+        supabase=supabase,
+        actor_user_id=admin.user_id,
+    )
+    return MfaResetResponse(factors_removed=removed)

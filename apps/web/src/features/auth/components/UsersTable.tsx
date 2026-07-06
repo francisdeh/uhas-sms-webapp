@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { UserX, UserCheck, Plus, Loader2, Pencil, Users, Activity, UserCog, ShieldCheck, Mail } from "lucide-react";
+import { UserX, UserCheck, Plus, Loader2, Pencil, Users, Activity, UserCog, ShieldCheck, Mail, KeyRound } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -99,6 +99,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [deactivateTarget, setDeactivateTarget] = useState<ManagedUser | null>(null);
+  const [resetMfaTarget, setResetMfaTarget] = useState<ManagedUser | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRole | "All">("All");
@@ -196,8 +197,26 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
     },
   });
 
+  const resetMfaMutation = useMutation({
+    mutationFn: (uid: string) => api.users.resetMfa(uid),
+    onSuccess: (result) => {
+      setResetMfaTarget(null);
+      toast.success(
+        result.factorsRemoved > 0
+          ? "2FA reset. The user has been signed out and can re-enrol after logging in."
+          : "This user had no 2FA enabled.",
+      );
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to reset 2FA.");
+    },
+  });
+
   const isPending =
-    toggleMutation.isPending || createMutation.isPending || updateMutation.isPending;
+    toggleMutation.isPending ||
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    resetMfaMutation.isPending;
 
   const total = users.length;
   const active = users.filter((u) => u.isActive).length;
@@ -328,6 +347,14 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
               title="Edit"
             >
               <Pencil size={13} />
+            </button>
+            <button
+              onClick={() => setResetMfaTarget(u)}
+              disabled={isPending}
+              title="Reset 2FA"
+              className="p-1.5 rounded-md text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30 transition-colors cursor-pointer disabled:opacity-40"
+            >
+              <KeyRound size={13} />
             </button>
             <button
               onClick={() => confirmDeactivate(u)}
@@ -470,6 +497,38 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
               }}
             >
               Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset 2FA Confirmation */}
+      <AlertDialog
+        open={!!resetMfaTarget}
+        onOpenChange={(open) => {
+          if (!open && !resetMfaMutation.isPending) setResetMfaTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset two-factor authentication?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This clears <strong>{resetMfaTarget?.displayName}</strong>&apos;s authenticator so they
+              can sign in with just their password (use this if they&apos;ve lost their device). It
+              signs them out of all sessions; they can set up 2FA again afterwards.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetMfaMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={resetMfaMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (resetMfaTarget) resetMfaMutation.mutate(resetMfaTarget.uid);
+              }}
+            >
+              {resetMfaMutation.isPending && <Loader2 size={14} className="mr-2 animate-spin" />}
+              Reset 2FA
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

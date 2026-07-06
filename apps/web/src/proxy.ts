@@ -42,7 +42,7 @@ export async function proxy(request: NextRequest) {
   // Always run the Supabase session refresh — even on public paths.
   // That way a soon-to-expire session gets refreshed during a /login
   // visit instead of expiring mid-form-submit.
-  const { supabaseResponse, user } = await updateSession(request);
+  const { supabaseResponse, user, needsMfa } = await updateSession(request);
 
   if (isPublic(pathname)) {
     return supabaseResponse;
@@ -66,6 +66,17 @@ export async function proxy(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("reason", "no_role");
     return NextResponse.redirect(loginUrl);
+  }
+
+  // 2FA step-up gate: a user with a verified factor who hasn't cleared
+  // it this session must finish at /verify-2fa before any dashboard.
+  // This is what makes 2FA un-bypassable — the login-form challenge
+  // handles the normal path, but an abandoned-then-direct-navigation
+  // aal1 session is caught here. Exempt /verify-2fa itself (else it
+  // redirects to itself) and /change-password (a first-login user
+  // hasn't enrolled yet, but keep it reachable regardless).
+  if (needsMfa && pathname !== "/verify-2fa") {
+    return NextResponse.redirect(new URL("/verify-2fa", request.url));
   }
 
   // Root → role dashboard.

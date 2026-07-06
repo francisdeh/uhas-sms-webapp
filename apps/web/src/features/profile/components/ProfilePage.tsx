@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, Shield, ShieldCheck, Monitor, Copy, CheckCheck, UserCircle, Bell as BellIcon, AlertTriangle } from "lucide-react";
+import { Loader2, Shield, Monitor, UserCircle, Bell as BellIcon, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
+import { TwoFactorCard } from "@/features/profile/components/TwoFactorCard";
 import { api, ApiError } from "@/lib/api/browser";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -235,12 +236,6 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
 }
 
 function SecurityTab() {
-  const [mfaEnabled] = useState(false);
-  const [showMfaSetup, setShowMfaSetup] = useState(false);
-  const [mfaStep, setMfaStep] = useState<"qr" | "verify" | "backup">("qr");
-  const [backupCodes] = useState(["ABCD-1234", "EFGH-5678", "IJKL-9012", "MNOP-3456", "QRST-7890", "UVWX-2345"]);
-  const [copied, setCopied] = useState(false);
-  const [totpCode, setTotpCode] = useState("");
   const [signOutOthersOpen, setSignOutOthersOpen] = useState(false);
   const [signingOutOthers, setSigningOutOthers] = useState(false);
 
@@ -287,12 +282,6 @@ function SecurityTab() {
     }
     toast.success("Password updated successfully.");
     reset();
-  }
-
-  function handleCopyBackupCodes() {
-    navigator.clipboard.writeText(backupCodes.join("\n"));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   async function handleSignOutOthers() {
@@ -343,81 +332,7 @@ function SecurityTab() {
         </CardContent>
       </Card>
 
-      <Card className={mfaEnabled ? "border-green-200 bg-green-50/30" : "border-amber-200 bg-amber-50/30"}>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <CardTitle className="text-base">Two-Factor Authentication</CardTitle>
-              <CardDescription>Add an extra layer of security to your account.</CardDescription>
-            </div>
-            {mfaEnabled ? (
-              <Badge className="bg-green-100 text-green-700 border border-green-300">
-                <ShieldCheck size={12} className="mr-1" /> Enabled
-              </Badge>
-            ) : (
-              <Badge className="bg-amber-100 text-amber-700 border border-amber-300">
-                <Shield size={12} className="mr-1" /> Not enabled
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {!mfaEnabled && !showMfaSetup && (
-            <Button
-              className="rounded-sm bg-amber-500 text-white hover:bg-amber-600"
-              onClick={() => { setShowMfaSetup(true); setMfaStep("qr"); }}
-            >
-              <ShieldCheck size={14} /> Enable Authenticator App
-            </Button>
-          )}
-
-          {showMfaSetup && mfaStep === "qr" && (
-            <div className="space-y-4 max-w-sm">
-              <p className="text-sm text-muted-foreground">Scan this QR code with your authenticator app.</p>
-              <div className="w-40 h-40 bg-muted rounded-lg flex items-center justify-center border border-border/60">
-                <p className="text-xs text-muted-foreground text-center px-3">QR code — 2FA setup coming soon</p>
-              </div>
-              <Button onClick={() => setMfaStep("verify")} className="bg-accent-orange text-white hover:bg-accent-orange/90">
-                I&apos;ve scanned the code
-              </Button>
-            </div>
-          )}
-
-          {showMfaSetup && mfaStep === "verify" && (
-            <div className="space-y-4 max-w-xs">
-              <p className="text-sm text-muted-foreground">Enter the 6-digit code from your authenticator app.</p>
-              <Input
-                placeholder="000000"
-                maxLength={6}
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
-                className="text-center text-lg tracking-widest rounded-md"
-              />
-              <Button disabled={totpCode.length !== 6} onClick={() => setMfaStep("backup")} className="bg-accent-orange text-white hover:bg-accent-orange/90">
-                Verify & Enable
-              </Button>
-            </div>
-          )}
-
-          {showMfaSetup && mfaStep === "backup" && (
-            <div className="space-y-4 max-w-sm">
-              <p className="text-sm text-muted-foreground">Save these backup codes somewhere safe.</p>
-              <div className="grid grid-cols-2 gap-1.5 p-3 bg-muted rounded-lg font-mono text-sm">
-                {backupCodes.map((code) => <span key={code}>{code}</span>)}
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleCopyBackupCodes}>
-                  {copied ? <CheckCheck size={13} className="mr-1" /> : <Copy size={13} className="mr-1" />}
-                  {copied ? "Copied" : "Copy codes"}
-                </Button>
-                <Button size="sm" onClick={() => { setShowMfaSetup(false); toast.success("MFA enabled."); }} className="bg-accent-orange text-white hover:bg-accent-orange/90">
-                  Done
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <TwoFactorCard />
 
       <Card>
         <CardHeader>
