@@ -44,17 +44,19 @@ export type SchoolSettings = {
   academicYear: string;
   currentTerm: number;
   terms: SchoolTerm[];
-  // Grading
+  // Grading — gradingBands/scoreWeights are always resolved (GES
+  // defaults or a custom override), never null; `gradingScale` is what
+  // tells the UI whether they've actually been customized.
   gradingScale: string;
-  gradingBands: GradingBand[] | null;
+  gradingBands: GradingBand[];
   scoreWeights: ScoreWeights;
   passMark: number;
   // Communication
   emailFromName: string | null;
   emailReplyTo: string | null;
   notificationDefaults: NotificationDefaults;
-  // Security
-  sessionTimeoutMinutes: number;
+  // Security — read-only today, not yet enforced by anything (see
+  // SecurityTab.tsx)
   passwordMinLength: number;
   forcePasswordChangeOnFirstLogin: boolean;
   // Branding

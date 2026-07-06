@@ -23,18 +23,9 @@ import type { SchoolSettings } from "@/features/settings/types";
 // API-shape types — already concrete (not `Record<string, unknown>`)
 // because the FastAPI side declares them as proper Pydantic sub-models.
 // Aliasing them here keeps the rest of the file readable.
-type ApiScoreWeights = NonNullable<components["schemas"]["SchoolRead"]["scoreWeights"]>;
 type ApiNotificationDefaults = NonNullable<
   components["schemas"]["SchoolRead"]["notificationDefaults"]
 >;
-
-const DEFAULT_SCORE_WEIGHTS: ApiScoreWeights = {
-  exam: 60,
-  cat1: 10,
-  cat2: 10,
-  groupWork: 10,
-  projectWork: 10,
-};
 
 const DEFAULT_NOTIFICATIONS: ApiNotificationDefaults = {
   onLessonPlanRejected: true,
@@ -68,13 +59,15 @@ export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {
       endDate: t.endDate,
     })),
     gradingScale: school.gradingScale ?? "GES_STANDARD",
-    gradingBands: school.gradingBands ?? null,
-    scoreWeights: school.scoreWeights ?? DEFAULT_SCORE_WEIGHTS,
+    // GET /school always resolves both to a concrete value (GES
+    // defaults or a custom override) — see `SchoolsService.get_resolved`.
+    // The OpenAPI type stays nullable because the underlying column is.
+    gradingBands: school.gradingBands!,
+    scoreWeights: school.scoreWeights!,
     passMark: school.passMark ?? 40,
     emailFromName: school.emailFromName ?? null,
     emailReplyTo: school.emailReplyTo ?? null,
     notificationDefaults: school.notificationDefaults ?? DEFAULT_NOTIFICATIONS,
-    sessionTimeoutMinutes: school.sessionTimeoutMinutes ?? 480,
     passwordMinLength: school.passwordMinLength ?? 8,
     forcePasswordChangeOnFirstLogin: school.forcePasswordChangeOnFirstLogin ?? true,
     defaultColorScheme: school.defaultColorScheme ?? "uhas",

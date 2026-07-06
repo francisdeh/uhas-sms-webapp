@@ -127,8 +127,9 @@ class SchoolBase(BaseModel):
     email_reply_to: EmailStr | None = None
     notification_defaults: NotificationDefaults | None = None
 
-    # Security
-    session_timeout_minutes: Annotated[int, Field(ge=15, le=1440)] = 480
+    # Security — read-only today (see SchoolUpdate docstring on this
+    # section): not yet wired to any actual enforcement, so PATCH
+    # doesn't accept them, but they're still surfaced for display.
     password_min_length: Annotated[int, Field(ge=6, le=64)] = 8
     force_password_change_on_first_login: bool = True
 
@@ -181,10 +182,11 @@ class SchoolUpdate(BaseModel):
     email_reply_to: EmailStr | None = None
     notification_defaults: NotificationDefaults | None = None
 
-    # Security
-    session_timeout_minutes: Annotated[int | None, Field(default=None, ge=15, le=1440)] = None
-    password_min_length: Annotated[int | None, Field(default=None, ge=6, le=64)] = None
-    force_password_change_on_first_login: bool | None = None
+    # No Security fields here — password_min_length and
+    # force_password_change_on_first_login aren't enforced by anything
+    # yet (see SchoolBase), so PATCH doesn't accept them; session_timeout
+    # was removed outright (Supabase Auth controls session expiry, not
+    # this app).
 
     # Branding
     default_color_scheme: ColorScheme | None = None

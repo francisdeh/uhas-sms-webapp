@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from weasyprint import HTML
 
 from app.core.security import CurrentUser
-from app.features.exams.constants import DEFAULT_GRADE_BANDS, MID_TERM
+from app.features.exams.constants import MID_TERM
 from app.features.exams.model import Exam, ReportCardPdfCache
 from app.features.exams.report_card_svc import ReportCardService
 from app.features.exams.schema import ReportCardResponse
@@ -76,7 +76,7 @@ def _render_html(data: ReportCardResponse, exam_created_at: datetime) -> str:
         month_year=exam_created_at.strftime("%B %Y").upper(),
         generated_date=datetime.now(UTC).strftime("%d/%m/%Y"),
         is_mid_term=data.exam.type == MID_TERM,
-        grade_bands=DEFAULT_GRADE_BANDS,
+        grade_bands=data.grading_bands,
         # Placeholders — the assembled ReportCardResponse doesn't carry
         # roll count or attendance yet. Matches the same gap already
         # shipped in the admin browser-print route.

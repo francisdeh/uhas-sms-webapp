@@ -21,10 +21,12 @@ export default async function ScoreEntryPage({ params }: PageProps) {
 
   let examRead;
   let schoolClass;
+  let school;
   try {
-    [examRead, schoolClass] = await Promise.all([
+    [examRead, schoolClass, school] = await Promise.all([
       api.exams.get(examId),
       api.classes.get(classId),
+      api.school.get(),
     ]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
@@ -107,6 +109,13 @@ export default async function ScoreEntryPage({ params }: PageProps) {
         subjectId={subjectId}
         subjectName={assignment.subjectName}
         initialRows={rows}
+        // GET /school always resolves these to a concrete value (GES
+        // defaults or a custom override) — the OpenAPI type is nullable
+        // because the underlying column is, not because this endpoint
+        // can actually return null for them. See
+        // `SchoolsService.get_resolved`.
+        gradingBands={school.gradingBands!}
+        scoreWeights={school.scoreWeights!}
       />
     </div>
   );

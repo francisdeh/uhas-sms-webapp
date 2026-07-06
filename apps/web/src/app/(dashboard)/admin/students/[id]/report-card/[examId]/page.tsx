@@ -84,6 +84,7 @@ export default async function AdminReportCardRoute({ params }: PageProps) {
     numberOnRoll: 0,
     coreRows: rows,
     electiveRows: [],
+    gradingBands: card.gradingBands,
     aggregate: card.aggregate ?? computeAggregate(rows),
     attendance: { attended: 0, total: 0 },
     classTeacherNames: card.classTeachers,

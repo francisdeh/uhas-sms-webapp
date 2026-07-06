@@ -25,9 +25,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import NotFoundError
 from app.features.audit.actions import SCHOOL_SETTINGS_UPDATE
 from app.features.audit.service import write_audit_log
+from app.features.exams.constants import DEFAULT_GRADE_BANDS, DEFAULT_SCORE_WEIGHTS
 from app.features.schools.model import School
 from app.features.schools.repository import SchoolsRepository
-from app.features.schools.schema import SchoolUpdate
+from app.features.schools.schema import GradingBand, SchoolRead, SchoolUpdate, ScoreWeights
 
 
 def _dump(value: Any) -> Any:
@@ -75,6 +76,31 @@ class SchoolsService:
         if row is None:
             raise NotFoundError(f"School {school_id!r} not found.")
         return row
+
+    @staticmethod
+    async def get_resolved(session: AsyncSession, school_id: UUID | str) -> SchoolRead:
+        """Read shape for `GET /school` with grading defaults always
+        resolved — never null, even for a school that hasn't customized
+        either.
+
+        `grading_scale` already tells consumers "customized or not"
+        independently of whether `grading_bands`/`score_weights` are set,
+        so resolving them here loses no information. Without this, every
+        frontend consumer of a live (non-report-card) reading of these
+        two fields would need its own copy of the GES defaults just to
+        have *something* to compute with — exactly the kind of
+        duplicated-value drift risk `ReportCardResponse.grading_bands`
+        was fixed to avoid (see `report_card_svc.py`).
+        """
+        row = await SchoolsService.get(session, school_id)
+        read = SchoolRead.model_validate(row)
+        return read.model_copy(
+            update={
+                "grading_bands": read.grading_bands
+                or [GradingBand(**band) for band in DEFAULT_GRADE_BANDS],
+                "score_weights": read.score_weights or ScoreWeights(**DEFAULT_SCORE_WEIGHTS),
+            }
+        )
 
     @staticmethod
     async def get_public(session: AsyncSession) -> School:

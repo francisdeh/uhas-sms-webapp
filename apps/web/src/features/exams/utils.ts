@@ -1,30 +1,30 @@
-import type { ExamType, Score, ScoreInput } from "./types";
+import type { ExamType, GradingBand, Score, ScoreInput, ScoreWeights } from "./types";
 
-export const GES_GRADES: { min: number; max: number; grade: string; interpretation: string }[] = [
-  { min: 90, max: 100, grade: "1", interpretation: "Highest" },
-  { min: 80, max: 89,  grade: "2", interpretation: "Higher" },
-  { min: 70, max: 79,  grade: "3", interpretation: "High" },
-  { min: 60, max: 69,  grade: "4", interpretation: "High Average" },
-  { min: 55, max: 59,  grade: "5", interpretation: "Average" },
-  { min: 50, max: 54,  grade: "6", interpretation: "Lower Average" },
-  { min: 40, max: 49,  grade: "7", interpretation: "Low" },
-  { min: 35, max: 39,  grade: "8", interpretation: "Lower" },
-  { min: 0,  max: 34,  grade: "9", interpretation: "Lowest" },
-];
-
-export function computeGrade(total: number): { grade: string; interpretation: string } {
-  const band =
-    GES_GRADES.find((g) => total >= g.min && total <= g.max) ??
-    GES_GRADES[GES_GRADES.length - 1];
+// Both bands and weights are required, not defaulted — the school's
+// real values (GES defaults or a custom override) are always resolved
+// server-side by `GET /school` (see `SchoolsService.get_resolved` in
+// `apps/api/app/features/schools/service.py`), so every caller here
+// already has a concrete value to pass. No frontend copy of "what the
+// GES defaults actually are" to keep in sync with the backend's.
+export function computeGrade(
+  total: number,
+  bands: GradingBand[]
+): { grade: string; interpretation: string } {
+  const band = bands.find((g) => total >= g.min && total <= g.max) ?? bands[bands.length - 1];
   return { grade: band.grade, interpretation: band.interpretation };
 }
 
-// Placeholder end-of-term weighting: 60% exam + 4x10% components.
-// Mid-term ranks on the raw exam score (100% weight).
+// End-of-term weighting defaults to 60% exam + 4x10% components, but a
+// school can customize this via Settings > Grading (`weights` param) —
+// mirrors the server-side computation in
+// `apps/api/app/features/exams/compute.py`, which is what actually
+// persists `totalScore` on save; this is only ever a live preview.
+// Mid-term ranks on the raw exam score (100% weight) regardless.
 // Returns null if no scores have been entered for this row.
 export function computeTotalScore(
   examType: ExamType,
-  components: Pick<ScoreInput, "cat1" | "cat2" | "projectWork" | "groupWork" | "examScore">
+  components: Pick<ScoreInput, "cat1" | "cat2" | "projectWork" | "groupWork" | "examScore">,
+  weights: ScoreWeights
 ): number | null {
   if (examType === "MidTerm") {
     return components.examScore == null ? null : Math.round(components.examScore);
@@ -42,11 +42,12 @@ export function computeTotalScore(
   }
 
   const weighted =
-    (cat1 ?? 0) * 0.1 +
-    (cat2 ?? 0) * 0.1 +
-    (projectWork ?? 0) * 0.1 +
-    (groupWork ?? 0) * 0.1 +
-    (examScore ?? 0) * 0.6;
+    ((cat1 ?? 0) * weights.cat1 +
+      (cat2 ?? 0) * weights.cat2 +
+      (projectWork ?? 0) * weights.projectWork +
+      (groupWork ?? 0) * weights.groupWork +
+      (examScore ?? 0) * weights.exam) /
+    100;
 
   return Math.round(weighted);
 }

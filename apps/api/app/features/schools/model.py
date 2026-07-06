@@ -62,7 +62,6 @@ class School(Base):
     notification_defaults: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Security tab
-    session_timeout_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True, default=480)
     password_min_length: Mapped[int | None] = mapped_column(Integer, nullable=True, default=8)
     force_password_change_on_first_login: Mapped[bool | None] = mapped_column(
         Boolean, nullable=True, default=True

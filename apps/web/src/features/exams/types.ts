@@ -2,6 +2,26 @@ import type { Student } from "@/features/students/types";
 
 export type ExamType = "MidTerm" | "EndOfTerm";
 
+// One row of the school's grade-band table + the score-component
+// weighting — mirrors `apps/api/app/features/schools/schema.py`'s
+// `GradingBand`/`ScoreWeights`. Duplicated locally (rather than
+// imported from features/settings) to keep exams' domain shapes
+// self-contained; same precedent as GradingTab.tsx's local GES_BANDS copy.
+export type GradingBand = {
+  min: number;
+  max: number;
+  grade: string;
+  interpretation: string;
+};
+
+export type ScoreWeights = {
+  exam: number;
+  cat1: number;
+  cat2: number;
+  groupWork: number;
+  projectWork: number;
+};
+
 export type Exam = {
   id: string;
   schoolId: string;
@@ -106,6 +126,7 @@ export type ReportCardData = {
   numberOnRoll: number;
   coreRows: ReportCardSubjectRow[];
   electiveRows: ReportCardSubjectRow[];
+  gradingBands: GradingBand[];
   aggregate: number | null;
   attendance: { attended: number; total: number };
   classTeacherNames: string[];
