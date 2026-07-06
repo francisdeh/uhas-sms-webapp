@@ -51,12 +51,6 @@ const passwordSchema = z
 type ProfileValues = z.infer<typeof profileSchema>;
 type PasswordValues = z.infer<typeof passwordSchema>;
 
-const MOCK_SESSIONS = [
-  { id: "s1", device: "MacBook Pro", browser: "Chrome 124", lastSeen: "Just now", current: true },
-  { id: "s2", device: "iPhone 15", browser: "Safari 17", lastSeen: "2 hours ago", current: false },
-  { id: "s3", device: "Windows PC", browser: "Edge 123", lastSeen: "3 days ago", current: false },
-];
-
 interface ProfilePageProps {
   user: SessionUser;
   currentPhotoUrl?: string | null;
@@ -247,6 +241,8 @@ function SecurityTab() {
   const [backupCodes] = useState(["ABCD-1234", "EFGH-5678", "IJKL-9012", "MNOP-3456", "QRST-7890", "UVWX-2345"]);
   const [copied, setCopied] = useState(false);
   const [totpCode, setTotpCode] = useState("");
+  const [signOutOthersOpen, setSignOutOthersOpen] = useState(false);
+  const [signingOutOthers, setSigningOutOthers] = useState(false);
 
   const {
     register,
@@ -297,6 +293,20 @@ function SecurityTab() {
     navigator.clipboard.writeText(backupCodes.join("\n"));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleSignOutOthers() {
+    setSigningOutOthers(true);
+    // `scope: 'others'` revokes every other session's refresh token but
+    // leaves this one intact — so no redirect, the user stays put.
+    const { error } = await createSupabaseClient().auth.signOut({ scope: "others" });
+    setSigningOutOthers(false);
+    setSignOutOthersOpen(false);
+    if (error) {
+      toast.error(error.message || "Could not sign out other sessions.");
+      return;
+    }
+    toast.success("Signed out of all other devices.");
   }
 
   return (
@@ -412,29 +422,55 @@ function SecurityTab() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Active Sessions</CardTitle>
-          <CardDescription>Devices currently signed in to your account.</CardDescription>
+          <CardDescription>
+            Signed in on a shared or public computer? Sign out of all other sessions. You&apos;ll
+            stay signed in on this device.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-1">
-            {MOCK_SESSIONS.map((session) => (
-              <div key={session.id} className={`flex items-center gap-3 py-2.5 px-3 rounded-lg border-b border-border/30 last:border-0 ${session.current ? "bg-green-50/60 border border-green-200 rounded-lg" : ""}`}>
-                <Monitor size={16} className={session.current ? "text-green-600 shrink-0" : "text-muted-foreground shrink-0"} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{session.device}</p>
-                  <p className="text-xs text-muted-foreground">{session.browser} · {session.lastSeen}</p>
-                </div>
-                {session.current ? (
-                  <Badge className="text-xs bg-green-100 text-green-700 border border-green-300">Current</Badge>
-                ) : (
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-red-400 hover:text-red-600 hover:bg-red-50">
-                    Revoke
-                  </Button>
-                )}
-              </div>
-            ))}
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg bg-green-50/60 border border-green-200">
+            <Monitor size={16} className="text-green-600 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">This device</p>
+              <p className="text-xs text-muted-foreground">Currently active</p>
+            </div>
+            <Badge className="text-xs bg-green-100 text-green-700 border border-green-300">
+              Current
+            </Badge>
           </div>
+          <Button variant="outline" size="sm" onClick={() => setSignOutOthersOpen(true)}>
+            Sign out other devices
+          </Button>
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={signOutOthersOpen}
+        onOpenChange={(o) => !signingOutOthers && setSignOutOthersOpen(o)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out other devices?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This signs you out everywhere except this device. Anyone signed in on another
+              browser or device will need to log in again. You&apos;ll stay signed in here.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={signingOutOthers}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleSignOutOthers();
+              }}
+              disabled={signingOutOthers}
+            >
+              {signingOutOthers && <Loader2 size={14} className="mr-2 animate-spin" />}
+              Sign out other devices
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
