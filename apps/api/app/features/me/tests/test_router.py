@@ -14,6 +14,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.audit.model import AuditLog
 from app.features.guardians.model import Guardian
 from app.features.me.tests.conftest import (
     ADMIN_STAFF,
@@ -27,7 +28,8 @@ from app.features.me.tests.conftest import (
     auth_header,
 )
 from app.features.staff.model import Staff
-from app.features.users.model import UserPreferences
+from app.features.users.model import User, UserPreferences
+from app.features.users.supabase_admin import PERMANENT_BAN
 
 
 async def test_get_me_admin_linked_staff(client: AsyncClient, seed: None) -> None:
@@ -324,3 +326,75 @@ async def test_patch_me_preferences_works_without_a_linked_row(
     )
     assert res.status_code == 200, res.text
     assert res.json()["emailOnLessonPlanRejected"] is False
+
+
+# ─── POST /me/deactivate — self-service deactivation ────────────────────────
+
+
+async def test_deactivate_me_flips_flag_bans_and_audits(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    res = await client.post(
+        "/me/deactivate",
+        headers=auth_header(role="Teacher", user_id=TEACHER_USER, linked_id=TEACHER_STAFF),
+    )
+    assert res.status_code == 204, res.text
+
+    user = await db_session.get(User, TEACHER_USER)
+    assert user is not None
+    assert user.is_active is False
+
+    # Supabase ban issued for the caller's own uid, permanent duration.
+    assert len(fake_supabase.update_calls) == 1
+    assert fake_supabase.update_calls[0]["user_id"] == TEACHER_USER
+    assert fake_supabase.update_calls[0]["ban_duration"] == PERMANENT_BAN
+
+    audit = await db_session.scalar(
+        select(AuditLog).where(AuditLog.action == "ACCOUNT_SELF_DEACTIVATED")
+    )
+    assert audit is not None
+    assert audit.user_id == TEACHER_USER
+    assert audit.target_id == TEACHER_USER
+    assert audit.after == {"isActive": False}
+
+
+async def test_deactivate_me_admin_is_forbidden(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    res = await client.post("/me/deactivate", headers=auth_header())  # Admin
+    assert res.status_code == 403
+
+    user = await db_session.get(User, ADMIN_USER)
+    assert user is not None
+    assert user.is_active is True  # unchanged
+    assert fake_supabase.update_calls == []  # no ban issued
+
+
+async def test_deactivate_me_leaves_linked_staff_row_active(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    """Deactivation flips the `users` bridge row only — the linked
+    `staff.is_active` stays as-is, mirroring admin-side deactivation."""
+    res = await client.post(
+        "/me/deactivate",
+        headers=auth_header(role="Teacher", user_id=TEACHER_USER, linked_id=TEACHER_STAFF),
+    )
+    assert res.status_code == 204, res.text
+
+    staff = await db_session.get(Staff, TEACHER_STAFF)
+    assert staff is not None
+    assert staff.is_active is True
+
+
+async def test_deactivate_me_requires_auth(client: AsyncClient, seed: None) -> None:
+    res = await client.post("/me/deactivate")
+    assert res.status_code == 401

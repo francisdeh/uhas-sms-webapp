@@ -5,8 +5,10 @@ from __future__ import annotations
 from uuid import UUID
 
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.audit.model import AuditLog
 from app.features.guardians.model import Guardian
 from app.features.schools.model import School
 from app.features.staff.model import Staff
@@ -403,6 +405,11 @@ async def test_deactivate_flips_is_active(
     assert str(call["user_id"]) == str(row.id)
     assert call["ban_duration"] == "876600h"
 
+    audit = await db_session.scalar(select(AuditLog).where(AuditLog.action == "USER_DEACTIVATED"))
+    assert audit is not None
+    assert audit.target_id == row.id
+    assert audit.after == {"isActive": False}
+
 
 async def test_activate_flips_is_active_true(
     client: AsyncClient,
@@ -440,6 +447,11 @@ async def test_activate_flips_is_active_true(
 
     call = fake_supabase.update_calls[0]
     assert call["ban_duration"] == "none"
+
+    audit = await db_session.scalar(select(AuditLog).where(AuditLog.action == "USER_REACTIVATED"))
+    assert audit is not None
+    assert audit.target_id == row.id
+    assert audit.after == {"isActive": True}
 
 
 async def test_patch_email(

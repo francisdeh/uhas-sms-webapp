@@ -103,12 +103,15 @@ export default function LoginForm() {
     if (saved) setIdentifier(saved);
   }, []);
 
-  // Surface proxy.ts redirect reasons (e.g., role not configured).
+  // Surface proxy.ts redirect reasons (e.g., role not configured) and
+  // the post-self-deactivation redirect.
   useEffect(() => {
     const reason = searchParams.get("reason");
     if (reason === "no_role") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setError("Your account is signed in but isn't fully set up. Contact your administrator.");
+    } else if (searchParams.get("deactivated") === "1") {
+      setError("Your account has been deactivated. Contact your administrator to reactivate it.");
     }
   }, [searchParams]);
 

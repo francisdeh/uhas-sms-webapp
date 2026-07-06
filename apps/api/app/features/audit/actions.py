@@ -4,10 +4,12 @@ Every audited mutation references one of these — the constants make
 typos impossible and the `AuditAction` Literal type drives autocomplete
 + exhaustiveness in switch / match constructs.
 
-Keep this in sync with the TS-side equivalent at
-[apps/web/src/lib/audit-log.ts](../../../../web/src/lib/audit-log.ts).
-Both layers write into the same `audit_log` table, so a typo on
-either side produces silent drift in queries that filter by action.
+The TS side keeps a *curated subset* of these for its audit-log filter
+UI at
+[apps/web/src/features/audit-log/types.ts](../../../../web/src/features/audit-log/types.ts)
+(labels + filter pills). Add a new action there too if it should be
+filterable / nicely labelled in the admin audit-log view; rows for an
+action absent from that subset still render, just without a label.
 """
 
 from __future__ import annotations
@@ -26,6 +28,12 @@ PROMOTION_APPROVED: Final = "PROMOTION_APPROVED"
 SCHOOL_SETTINGS_UPDATE: Final = "SCHOOL_SETTINGS_UPDATE"
 SCHOOL_TERMS_UPSERT: Final = "SCHOOL_TERMS_UPSERT"
 CLASS_REPORT_HOS_COMMENT_UPDATED: Final = "CLASS_REPORT_HOS_COMMENT_UPDATED"
+# Account activation state. USER_* are admin-initiated (admin toggling
+# another account); ACCOUNT_SELF_DEACTIVATED is a user deactivating
+# their own account from the Profile page.
+USER_DEACTIVATED: Final = "USER_DEACTIVATED"
+USER_REACTIVATED: Final = "USER_REACTIVATED"
+ACCOUNT_SELF_DEACTIVATED: Final = "ACCOUNT_SELF_DEACTIVATED"
 
 AuditAction = Literal[
     "EXAM_PUBLISH",
@@ -37,6 +45,9 @@ AuditAction = Literal[
     "SCHOOL_SETTINGS_UPDATE",
     "SCHOOL_TERMS_UPSERT",
     "CLASS_REPORT_HOS_COMMENT_UPDATED",
+    "USER_DEACTIVATED",
+    "USER_REACTIVATED",
+    "ACCOUNT_SELF_DEACTIVATED",
 ]
 """All audit_log.action values the API writes. Add new actions here
 *and* on the TS side before introducing them."""

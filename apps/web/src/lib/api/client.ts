@@ -968,6 +968,9 @@ export function createApiClient(getAuthToken: TokenGetter) {
           method: "PATCH",
           body: JSON.stringify(payload),
         }),
+      /** Deactivate the caller's own account (non-Admin only; 403 for Admins). */
+      deactivate: () =>
+        apiFetch<void>(getAuthToken, "/me/deactivate", { method: "POST" }),
     },
     shell: {
       /** Sidebar badge counts (today: lesson-plans-pending-review). */
