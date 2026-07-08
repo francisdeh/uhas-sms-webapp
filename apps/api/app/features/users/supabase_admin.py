@@ -41,8 +41,10 @@ class SupabaseAdminClient(Protocol):
     async def create_user(
         self,
         *,
-        email: str,
+        email: str | None = None,
         password: str,
+        phone: str | None = None,
+        phone_confirm: bool = False,
         app_metadata: dict[str, Any],
         user_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
@@ -52,6 +54,8 @@ class SupabaseAdminClient(Protocol):
         user_id: UUID | str,
         *,
         email: str | None = None,
+        phone: str | None = None,
+        phone_confirm: bool = False,
         ban_duration: str | None = None,
         app_metadata: dict[str, Any] | None = None,
         user_metadata: dict[str, Any] | None = None,
@@ -82,8 +86,10 @@ class _NotConfiguredSupabaseAdminClient:
     async def create_user(
         self,
         *,
-        email: str,
+        email: str | None = None,
         password: str,
+        phone: str | None = None,
+        phone_confirm: bool = False,
         app_metadata: dict[str, Any],
         user_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -94,6 +100,8 @@ class _NotConfiguredSupabaseAdminClient:
         user_id: UUID | str,
         *,
         email: str | None = None,
+        phone: str | None = None,
+        phone_confirm: bool = False,
         ban_duration: str | None = None,
         app_metadata: dict[str, Any] | None = None,
         user_metadata: dict[str, Any] | None = None,
@@ -126,24 +134,26 @@ class RealSupabaseAdminClient:
     async def create_user(
         self,
         *,
-        email: str,
+        email: str | None = None,
         password: str,
+        phone: str | None = None,
+        phone_confirm: bool = False,
         app_metadata: dict[str, Any],
         user_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         def _run() -> dict[str, Any]:
-            resp = self._client.auth.admin.create_user(
-                cast(
-                    Any,
-                    {
-                        "email": email,
-                        "password": password,
-                        "email_confirm": True,
-                        "app_metadata": app_metadata,
-                        "user_metadata": user_metadata or {},
-                    },
-                )
-            )
+            payload: dict[str, Any] = {
+                "password": password,
+                "app_metadata": app_metadata,
+                "user_metadata": user_metadata or {},
+            }
+            if email is not None:
+                payload["email"] = email
+                payload["email_confirm"] = True
+            if phone is not None:
+                payload["phone"] = phone
+                payload["phone_confirm"] = phone_confirm
+            resp = self._client.auth.admin.create_user(cast(Any, payload))
             user = getattr(resp, "user", None)
             if user is None:
                 raise ServiceUnavailableError("Supabase did not return an auth user.")
@@ -156,6 +166,8 @@ class RealSupabaseAdminClient:
         user_id: UUID | str,
         *,
         email: str | None = None,
+        phone: str | None = None,
+        phone_confirm: bool = False,
         ban_duration: str | None = None,
         app_metadata: dict[str, Any] | None = None,
         user_metadata: dict[str, Any] | None = None,
@@ -163,6 +175,9 @@ class RealSupabaseAdminClient:
         payload: dict[str, Any] = {}
         if email is not None:
             payload["email"] = email
+        if phone is not None:
+            payload["phone"] = phone
+            payload["phone_confirm"] = phone_confirm
         if ban_duration is not None:
             payload["ban_duration"] = ban_duration
         if app_metadata is not None:

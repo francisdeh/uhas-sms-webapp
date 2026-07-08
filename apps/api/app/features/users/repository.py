@@ -110,6 +110,15 @@ class UsersRepository:
         return row
 
     @staticmethod
+    async def find_by_linked_id(
+        session: AsyncSession, school_id: UUID | str, linked_id: UUID | str
+    ) -> User | None:
+        """The existing login (if any) for a staff/guardian row — backs the
+        one-login-per-person guard."""
+        stmt = select(User).where(and_(User.linked_id == linked_id, User.school_id == school_id))
+        return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
     async def find_staff_in_school(
         session: AsyncSession, school_id: UUID | str, staff_id: UUID
     ) -> Staff | None:

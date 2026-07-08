@@ -52,7 +52,7 @@ export const DIVISIONS: Division[] = ["KG", "Lower Primary", "Upper Primary", "J
 
 export type ManagedUser = {
   uid: string;
-  email: string;
+  email: string | null;
   displayName: string;
   role: UserRole;
   linkedId: string;

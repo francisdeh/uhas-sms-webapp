@@ -101,5 +101,5 @@ class AuditRepository:
                 s = staff_by_id[str(u.linked_id)]
                 out[str(u.id)] = f"{s.first_name} {s.last_name}"
             else:
-                out[str(u.id)] = u.email
+                out[str(u.id)] = u.email or str(u.id)
         return out

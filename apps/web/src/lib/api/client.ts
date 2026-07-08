@@ -215,6 +215,14 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           `/guardians/${id}/children`,
         ),
+      /** Provision a login for a guardian (email invite and/or phone-OTP),
+       *  sourced from the guardian's stored email/phone. */
+      createLogin: (id: string) =>
+        apiFetch<components["schemas"]["UserRead"]>(
+          getAuthToken,
+          `/guardians/${id}/login`,
+          { method: "POST" },
+        ),
     },
     students: {
       list: (

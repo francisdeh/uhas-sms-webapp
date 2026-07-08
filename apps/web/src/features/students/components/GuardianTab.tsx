@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, Star, Users } from "lucide-react";
+import { Plus, Trash2, Loader2, Star, Users, KeyRound, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -53,7 +53,7 @@ interface GuardianTabProps {
 export function GuardianTab({ studentId, basePath }: GuardianTabProps) {
   const guardians = useStudentGuardians(studentId);
   const siblings = useStudentSiblings(studentId);
-  const { add, update, remove } = useGuardianLinkMutations(studentId);
+  const { add, update, remove, createLogin } = useGuardianLinkMutations(studentId);
 
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState(() => emptyGuardianDraft(false));
@@ -108,6 +108,15 @@ export function GuardianTab({ studentId, basePath }: GuardianTabProps) {
                         <Star size={10} className="mr-0.5" /> Primary
                       </Badge>
                     )}
+                    {g.hasLogin ? (
+                      <Badge variant="secondary" className="text-[10px]">
+                        <Check size={10} className="mr-0.5" /> Has login
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        No login
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {[g.phone, g.email, g.slug].filter(Boolean).join(" · ")}
@@ -153,6 +162,27 @@ export function GuardianTab({ studentId, basePath }: GuardianTabProps) {
                     }
                   >
                     Make primary
+                  </Button>
+                )}
+                {!g.hasLogin && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={createLogin.isPending}
+                    onClick={() => createLogin.mutate(g.id)}
+                    title={
+                      g.phone || g.email
+                        ? "Provision a login (phone-OTP and/or email invite)"
+                        : "Add a phone or email to this guardian first"
+                    }
+                    className="text-brand"
+                  >
+                    {createLogin.isPending && createLogin.variables === g.id ? (
+                      <Loader2 size={13} className="mr-1.5 animate-spin" />
+                    ) : (
+                      <KeyRound size={13} className="mr-1.5" />
+                    )}
+                    Create login
                   </Button>
                 )}
               </div>

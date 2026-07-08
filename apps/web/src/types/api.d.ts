@@ -325,6 +325,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/guardians/{guardian_id}/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Provision a login for a guardian (email invite and/or phone-OTP) */
+        post: operations["create_guardian_login_guardians__guardian_id__login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/students": {
         parameters: {
             query?: never;
@@ -2650,7 +2667,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED";
+            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED";
             /** Targettable */
             targetTable?: string | null;
             /** Targetid */
@@ -5470,6 +5487,11 @@ export interface components {
              * @default false
              */
             isPrimary: boolean;
+            /**
+             * Haslogin
+             * @default false
+             */
+            hasLogin: boolean;
             /** Phone */
             phone?: string | null;
             /** Email */
@@ -5940,13 +5962,16 @@ export interface components {
          *     user before the linked staff/guardian record exists — the UI's
          *     invite flow allows this. When present, the service enforces that
          *     the target row exists in the caller's school.
+         *
+         *     Email is optional for the Parent role — a guardian may have only a
+         *     phone (SMS-OTP login). Every other role, and a Parent with no phone,
+         *     still requires an email.
          */
         UserCreate: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
             /** Displayname */
             displayName: string;
             /**
@@ -5968,7 +5993,7 @@ export interface components {
              */
             id: string;
             /** Email */
-            email: string;
+            email?: string | null;
             /**
              * Role
              * @enum {string}
@@ -6722,6 +6747,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GuardianChildrenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_guardian_login_guardians__guardian_id__login_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                guardian_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
                 };
             };
             /** @description Validation Error */
@@ -10775,7 +10833,7 @@ export interface operations {
     list_audit_events_audit_log_get: {
         parameters: {
             query?: {
-                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED") | null;
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED") | null;
                 /** @description Inclusive lower bound (YYYY-MM-DD). */
                 from?: string | null;
                 /** @description Inclusive upper bound (YYYY-MM-DD). */

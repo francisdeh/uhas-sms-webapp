@@ -86,6 +86,7 @@ export type GuardianLink = {
   name: string;
   relationship: string;
   isPrimary: boolean;
+  hasLogin: boolean;
   phone?: string | null;
   email?: string | null;
 };

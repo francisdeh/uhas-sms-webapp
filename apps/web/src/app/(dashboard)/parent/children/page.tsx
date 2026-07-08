@@ -6,7 +6,7 @@ import { formatDate } from "@/lib/dates";
 import { getApi } from "@/lib/api/server";
 import Link from "next/link";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { GraduationCap, CalendarCheck, FileText } from "lucide-react";
+import { GraduationCap, CalendarCheck, FileText, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,11 @@ export default async function ParentChildrenPage() {
   const { items: childRows } = await api.guardians.children(guardianId);
   if (childRows.length === 0) notFound();
 
-  const children = childRows.map((s) => ({
+  const guardianLists = await Promise.all(
+    childRows.map((s) => api.students.guardians(s.id)),
+  );
+
+  const children = childRows.map((s, i) => ({
     student: {
       id: s.id,
       slug: s.slug,
@@ -47,6 +51,7 @@ export default async function ParentChildrenPage() {
       photoUrl: s.photoUrl,
     },
     className: s.className ?? "",
+    guardians: guardianLists[i],
   }));
 
   return (
@@ -59,7 +64,7 @@ export default async function ParentChildrenPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {children.map(({ student, className }) => (
+        {children.map(({ student, className, guardians }) => (
           <Card key={student.id}>
             <CardContent className="pt-5 space-y-4">
               <div className="flex items-start gap-3">
@@ -113,6 +118,32 @@ export default async function ParentChildrenPage() {
               <div className="flex items-center gap-2 pt-1 border-t border-border/40">
                 <GraduationCap size={12} className="text-muted-foreground" />
                 <span className="text-xs text-muted-foreground flex-1">{student.nationality ?? "—"} · {student.religion ?? "—"}</span>
+              </div>
+
+              <div className="pt-1 border-t border-border/40">
+                <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <Users size={12} /> Guardians
+                </p>
+                <ul className="space-y-1">
+                  {guardians.map((g) => {
+                    const isYou = g.id === guardianId;
+                    return (
+                      <li key={g.id} className="text-sm flex items-center justify-between gap-2">
+                        <span>
+                          {isYou ? "You" : g.name}
+                          <span className="ml-1.5 text-xs text-muted-foreground">
+                            {g.relationship}
+                          </span>
+                        </span>
+                        {!isYou && (g.phone || g.email) && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            {g.phone || g.email}
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
 
               <div className="flex gap-2">

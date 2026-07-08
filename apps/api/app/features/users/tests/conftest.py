@@ -71,8 +71,10 @@ class FakeSupabaseAdminClient:
     async def create_user(
         self,
         *,
-        email: str,
+        email: str | None = None,
         password: str,
+        phone: str | None = None,
+        phone_confirm: bool = False,
         app_metadata: dict[str, Any],
         user_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -81,6 +83,8 @@ class FakeSupabaseAdminClient:
             {
                 "email": email,
                 "password": password,
+                "phone": phone,
+                "phone_confirm": phone_confirm,
                 "app_metadata": app_metadata,
                 "user_metadata": user_metadata,
                 "returned_id": uid,
@@ -93,6 +97,8 @@ class FakeSupabaseAdminClient:
         user_id: UUID | str,
         *,
         email: str | None = None,
+        phone: str | None = None,
+        phone_confirm: bool = False,
         ban_duration: str | None = None,
         app_metadata: dict[str, Any] | None = None,
         user_metadata: dict[str, Any] | None = None,
@@ -101,6 +107,8 @@ class FakeSupabaseAdminClient:
             {
                 "user_id": user_id,
                 "email": email,
+                "phone": phone,
+                "phone_confirm": phone_confirm,
                 "ban_duration": ban_duration,
                 "app_metadata": app_metadata,
                 "user_metadata": user_metadata,

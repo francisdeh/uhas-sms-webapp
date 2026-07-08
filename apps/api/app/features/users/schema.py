@@ -11,13 +11,14 @@ stay snake_case.
 
 from __future__ import annotations
 
+from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
-from app.core.roles import Role
+from app.core.roles import PARENT, Role
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
@@ -32,7 +33,7 @@ class UserRead(BaseModel):
     model_config = _CAMEL_CONFIG
 
     id: UUID
-    email: str
+    email: str | None = None
     role: Role
     linked_id: UUID | None = None
     slug: str | None = None
@@ -48,14 +49,28 @@ class UserCreate(BaseModel):
     user before the linked staff/guardian record exists — the UI's
     invite flow allows this. When present, the service enforces that
     the target row exists in the caller's school.
+
+    Email is optional for the Parent role — a guardian may have only a
+    phone (SMS-OTP login). Every other role, and a Parent with no phone,
+    still requires an email.
     """
 
     model_config = _CAMEL_CONFIG
 
-    email: EmailStr
+    email: EmailStr | None = None
+    phone: str | None = Field(None, max_length=50)
     display_name: str = Field(..., min_length=1, max_length=255)
     role: Role
     linked_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def _identifier_required(self) -> Self:
+        if self.role == PARENT:
+            if not self.email and not self.phone:
+                raise ValueError("A Parent login needs at least an email or a phone.")
+        elif not self.email:
+            raise ValueError("An email is required for this role.")
+        return self
 
 
 class UserUpdate(BaseModel):

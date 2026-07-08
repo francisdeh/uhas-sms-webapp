@@ -24,6 +24,7 @@ from app.features.schools.model import School
 from app.features.staff.model import Staff
 from app.features.students.model import Student, StudentGuardian
 from app.features.students.tests.conftest import CLASS_UUID, SCHOOL_UUID, auth_header
+from app.features.users.model import User
 
 STUDENT_A = UUID("55555555-5555-4555-8555-555555555a01")
 STUDENT_B = UUID("55555555-5555-4555-8555-555555555a02")
@@ -332,3 +333,72 @@ async def test_teacher_cannot_read(client: AsyncClient, seed_links: None) -> Non
         headers=auth_header(role="Teacher"),
     )
     assert res.status_code == 403
+
+
+# ─── Parent co-guardian access + hasLogin ────────────────────────────────────
+
+
+async def _link(client: AsyncClient, student: UUID, guardian: UUID) -> None:
+    res = await client.post(
+        f"/students/{student}/guardians",
+        json={"relation": "Mother", "guardianId": str(guardian)},
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 201, res.text
+
+
+async def test_parent_can_read_own_childs_co_guardians(
+    client: AsyncClient, seed_links: None
+) -> None:
+    await _link(client, STUDENT_A, GUARDIAN_EXISTING)
+    # The parent IS this guardian → may see the child's guardian list.
+    res = await client.get(
+        f"/students/{STUDENT_A}/guardians",
+        headers=auth_header(role="Parent", linked_id=str(GUARDIAN_EXISTING)),
+    )
+    assert res.status_code == 200
+    assert [g["id"] for g in res.json()] == [str(GUARDIAN_EXISTING)]
+
+
+async def test_parent_cannot_read_unrelated_childs_guardians(
+    client: AsyncClient, seed_links: None
+) -> None:
+    await _link(client, STUDENT_A, GUARDIAN_EXISTING)
+    # Same parent, but STUDENT_B is not their child.
+    res = await client.get(
+        f"/students/{STUDENT_B}/guardians",
+        headers=auth_header(role="Parent", linked_id=str(GUARDIAN_EXISTING)),
+    )
+    assert res.status_code == 403
+
+
+async def test_parent_still_cannot_read_siblings(client: AsyncClient, seed_links: None) -> None:
+    await _link(client, STUDENT_A, GUARDIAN_EXISTING)
+    res = await client.get(
+        f"/students/{STUDENT_A}/siblings",
+        headers=auth_header(role="Parent", linked_id=str(GUARDIAN_EXISTING)),
+    )
+    assert res.status_code == 403
+
+
+async def test_has_login_reflected(
+    client: AsyncClient, db_session: AsyncSession, seed_links: None
+) -> None:
+    await _link(client, STUDENT_A, GUARDIAN_EXISTING)
+    before = await client.get(f"/students/{STUDENT_A}/guardians", headers=auth_header(role="Admin"))
+    assert before.json()[0]["hasLogin"] is False
+
+    # A bridge row linking this guardian → hasLogin flips true.
+    db_session.add(
+        User(
+            id=UUID("55555555-5555-4555-8555-5555555550f1"),
+            school_id=SCHOOL_UUID,
+            email="haslogin@example.com",
+            role="Parent",
+            linked_id=GUARDIAN_EXISTING,
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+    after = await client.get(f"/students/{STUDENT_A}/guardians", headers=auth_header(role="Admin"))
+    assert after.json()[0]["hasLogin"] is True

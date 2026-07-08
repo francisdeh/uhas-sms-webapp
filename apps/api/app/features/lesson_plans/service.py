@@ -461,7 +461,7 @@ async def _fan_out_review_notification(
         ),
     )
 
-    if decision == REJECTED:
+    if decision == REJECTED and teacher_user.email:
         await _emit_rejection_email(
             session,
             school_id,
