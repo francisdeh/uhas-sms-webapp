@@ -6,6 +6,7 @@ import { getClassById } from "@/features/classes/queries/get-class-by-id";
 import { getApi } from "@/lib/api/server";
 import { ApiError } from "@/lib/api/client";
 import { ClassReportSubmitForm } from "@/features/exams/components/ClassReportSubmitForm";
+import { ScoreCompletenessPanel } from "@/features/exams/components/ScoreCompletenessPanel";
 import type { ClassReportSubmission } from "@/features/exams/types";
 
 interface PageProps {
@@ -48,12 +49,13 @@ export default async function ClassReportSubmitPage({ params }: PageProps) {
     );
   }
 
-  const [rosterRes, classReport] = await Promise.all([
+  const [rosterRes, classReport, completeness] = await Promise.all([
     api.classes.enrollments(classId, { status: "Active", size: 200 }),
     api.classReports.get(examId, classId).catch((err) => {
       if (err instanceof ApiError && err.status === 404) return null;
       throw err;
     }),
+    api.classReports.scoreCompleteness(examId, classId),
   ]);
 
   const roster = rosterRes.items
@@ -98,6 +100,7 @@ export default async function ClassReportSubmitPage({ params }: PageProps) {
       >
         <ArrowLeft size={14} className="mr-1" /> Back to class reports
       </Link>
+      <ScoreCompletenessPanel rows={completeness.subjects} rosterCount={completeness.rosterCount} />
       <ClassReportSubmitForm
         exam={{ ...exam, publishedAt: exam.publishedAt ?? null, createdAt: exam.createdAt ?? "" }}
         classId={classId}

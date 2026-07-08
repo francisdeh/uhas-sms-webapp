@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
-from app.features.exams.constants import ClassReportStatus, ExamType
+from app.features.exams.constants import ClassReportStatus, ExamType, ScoreEntryStatus
 from app.features.schools.schema import GradingBand
 
 _CAMEL_CONFIG = ConfigDict(
@@ -237,6 +237,37 @@ class ClassReportListResponse(BaseModel):
     model_config = _CAMEL_CONFIG
 
     items: list[ClassReportListItem]
+
+
+# ─── Score-entry completeness ────────────────────────────────────────────────
+
+
+class ScoreCompletenessRow(BaseModel):
+    """One subject of a class: how many of the roster the subject teacher
+    has graded for this exam, so a class teacher can chase what's missing."""
+
+    model_config = _CAMEL_CONFIG
+
+    subject_id: UUID
+    subject_name: str
+    teacher_id: UUID | None = None
+    teacher_name: str | None = None  # null → subject assigned no teacher
+    entered_count: int
+    roster_count: int
+    status: ScoreEntryStatus
+
+
+class ScoreCompletenessResponse(BaseModel):
+    """`GET /exams/{id}/score-completeness/{class_id}` — per-subject score-
+    entry status for one class + exam."""
+
+    model_config = _CAMEL_CONFIG
+
+    exam_id: UUID
+    class_id: UUID
+    class_name: str
+    roster_count: int
+    subjects: list[ScoreCompletenessRow]
 
 
 # ─── Report card ─────────────────────────────────────────────────────────────

@@ -43,6 +43,7 @@ from app.features.exams.schema import (
     ExamUpdate,
     HosCommentUpdate,
     ReportCardResponse,
+    ScoreCompletenessResponse,
     ScoreRead,
     ScoresGridResponse,
     ScoresUpsertRequest,
@@ -374,6 +375,30 @@ async def get_class_report(
         actor_staff_id=user.linked_id,
     )
     return _to_class_report_read(report, cls, exam_id, roster)
+
+
+@router.get(
+    "/{exam_id}/score-completeness/{class_id}",
+    response_model=ScoreCompletenessResponse,
+    response_model_by_alias=True,
+)
+async def get_score_completeness(
+    exam_id: UUID,
+    class_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> ScoreCompletenessResponse:
+    """Per-subject score-entry status for a class + exam — lets the class
+    teacher see which subject teachers haven't entered scores yet."""
+    return await ClassReportsService.score_completeness(
+        session,
+        school_id=school_id,
+        exam_id=exam_id,
+        class_id=class_id,
+        actor_role=user.role or "",
+        actor_staff_id=user.linked_id,
+    )
 
 
 @router.put(

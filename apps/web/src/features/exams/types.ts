@@ -133,3 +133,15 @@ export type ReportCardData = {
   classTeacherRemark: string | null;
   headOfSchoolComment: string | null;
 };
+
+export type ScoreEntryStatus = "not_started" | "partial" | "complete";
+
+export type ScoreCompletenessRow = {
+  subjectId: string;
+  subjectName: string;
+  teacherId?: string | null;
+  teacherName?: string | null;
+  enteredCount: number;
+  rosterCount: number;
+  status: ScoreEntryStatus;
+};

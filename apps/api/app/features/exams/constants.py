@@ -30,6 +30,14 @@ CLASS_REPORT_SUBMITTED: Final = "submitted"
 
 ClassReportStatus = Literal["draft", "submitted"]
 
+# ── Score-entry completeness ──────────────────────────────────────────────────
+# Per (class, subject, exam): how much of the roster has a graded score.
+NOT_STARTED: Final = "not_started"  # 0 graded
+PARTIAL: Final = "partial"  # some, not all
+COMPLETE: Final = "complete"  # every active student graded
+
+ScoreEntryStatus = Literal["not_started", "partial", "complete"]
+
 
 # ── Grade bands ───────────────────────────────────────────────────────────────
 # Ordered highest → lowest. `min` and `max` are inclusive; ranges cover

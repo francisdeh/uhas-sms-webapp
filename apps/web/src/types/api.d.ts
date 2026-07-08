@@ -961,6 +961,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/exams/{exam_id}/score-completeness/{class_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Score Completeness
+         * @description Per-subject score-entry status for a class + exam — lets the class
+         *     teacher see which subject teachers haven't entered scores yet.
+         */
+        get: operations["get_score_completeness_exams__exam_id__score_completeness__class_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/exams/{exam_id}/class-reports/{class_id}/draft": {
         parameters: {
             query?: never;
@@ -4573,6 +4594,56 @@ export interface components {
             defaultColorScheme?: ("default" | "uhas") | null;
             /** Sidebaraccenthex */
             sidebarAccentHex?: string | null;
+        };
+        /**
+         * ScoreCompletenessResponse
+         * @description `GET /exams/{id}/score-completeness/{class_id}` — per-subject score-
+         *     entry status for one class + exam.
+         */
+        ScoreCompletenessResponse: {
+            /**
+             * Examid
+             * Format: uuid
+             */
+            examId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /** Classname */
+            className: string;
+            /** Rostercount */
+            rosterCount: number;
+            /** Subjects */
+            subjects: components["schemas"]["ScoreCompletenessRow"][];
+        };
+        /**
+         * ScoreCompletenessRow
+         * @description One subject of a class: how many of the roster the subject teacher
+         *     has graded for this exam, so a class teacher can chase what's missing.
+         */
+        ScoreCompletenessRow: {
+            /**
+             * Subjectid
+             * Format: uuid
+             */
+            subjectId: string;
+            /** Subjectname */
+            subjectName: string;
+            /** Teacherid */
+            teacherId?: string | null;
+            /** Teachername */
+            teacherName?: string | null;
+            /** Enteredcount */
+            enteredCount: number;
+            /** Rostercount */
+            rosterCount: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_started" | "partial" | "complete";
         };
         /**
          * ScoreInput
@@ -8306,6 +8377,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClassReportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_score_completeness_exams__exam_id__score_completeness__class_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoreCompletenessResponse"];
                 };
             };
             /** @description Validation Error */
