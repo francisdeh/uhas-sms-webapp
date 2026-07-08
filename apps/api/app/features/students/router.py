@@ -9,12 +9,16 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.deps import CurrentSchoolIdDep, RequireAdmin
+from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
 from app.features.classes.model import Class
+from app.features.guardians.model import Guardian
 from app.features.students.model import Student
 from app.features.students.schema import (
+    SiblingRead,
     StudentCreate,
+    StudentGuardianAddRequest,
     StudentGuardianRead,
+    StudentGuardianUpdateRequest,
     StudentRead,
     StudentsListResponse,
     StudentUpdate,
@@ -22,6 +26,20 @@ from app.features.students.schema import (
 from app.features.students.service import StudentsService
 
 router = APIRouter(prefix="/students", tags=["students"])
+
+
+def _guardian_to_read(
+    guardian: Guardian, relation: str | None, is_primary: bool
+) -> StudentGuardianRead:
+    return StudentGuardianRead(
+        id=guardian.id,
+        slug=guardian.slug,
+        name=f"{guardian.first_name} {guardian.last_name}".strip(),
+        relationship=relation or "Guardian",
+        is_primary=is_primary,
+        phone=guardian.phone,
+        email=guardian.email,
+    )
 
 
 def _to_read(student: Student, cls: Class | None) -> StudentRead:
@@ -98,6 +116,105 @@ async def get_student_guardian(
         phone=guardian.phone,
         email=guardian.email,
     )
+
+
+@router.get(
+    "/{student_id}/guardians",
+    response_model=list[StudentGuardianRead],
+    response_model_by_alias=True,
+    summary="All guardians linked to a student",
+)
+async def list_student_guardians(
+    student_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> list[StudentGuardianRead]:
+    rows = await StudentsService.list_guardians(session, school_id, student_id, user=user)
+    return [_guardian_to_read(g, rel, primary) for g, rel, primary in rows]
+
+
+@router.post(
+    "/{student_id}/guardians",
+    response_model=list[StudentGuardianRead],
+    response_model_by_alias=True,
+    status_code=status.HTTP_201_CREATED,
+    summary="Link an existing guardian or create + link a new one",
+)
+async def add_student_guardian(
+    student_id: UUID,
+    payload: StudentGuardianAddRequest,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> list[StudentGuardianRead]:
+    rows = await StudentsService.add_guardian(
+        session, school_id, student_id, payload, actor_user_id=user.user_id
+    )
+    return [_guardian_to_read(g, rel, primary) for g, rel, primary in rows]
+
+
+@router.patch(
+    "/{student_id}/guardians/{guardian_id}",
+    response_model=list[StudentGuardianRead],
+    response_model_by_alias=True,
+    summary="Edit a student↔guardian link (relation, primary)",
+)
+async def update_student_guardian(
+    student_id: UUID,
+    guardian_id: UUID,
+    payload: StudentGuardianUpdateRequest,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> list[StudentGuardianRead]:
+    rows = await StudentsService.update_guardian_link(
+        session, school_id, student_id, guardian_id, payload
+    )
+    return [_guardian_to_read(g, rel, primary) for g, rel, primary in rows]
+
+
+@router.delete(
+    "/{student_id}/guardians/{guardian_id}",
+    response_model=list[StudentGuardianRead],
+    response_model_by_alias=True,
+    summary="Unlink a guardian from a student (guardian record kept)",
+)
+async def remove_student_guardian(
+    student_id: UUID,
+    guardian_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> list[StudentGuardianRead]:
+    rows = await StudentsService.remove_guardian(
+        session, school_id, student_id, guardian_id, actor_user_id=user.user_id
+    )
+    return [_guardian_to_read(g, rel, primary) for g, rel, primary in rows]
+
+
+@router.get(
+    "/{student_id}/siblings",
+    response_model=list[SiblingRead],
+    response_model_by_alias=True,
+    summary="Students who share a guardian with this student",
+)
+async def list_student_siblings(
+    student_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> list[SiblingRead]:
+    rows = await StudentsService.list_siblings(session, school_id, student_id, user=user)
+    return [
+        SiblingRead(
+            id=s.id,
+            slug=s.slug,
+            name=f"{s.first_name} {s.last_name}".strip(),
+            class_name=c.name if c else None,
+        )
+        for s, c in rows
+    ]
 
 
 @router.post(

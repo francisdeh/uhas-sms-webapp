@@ -33,10 +33,7 @@ export default async function DeputyHeadStudentDetailPage({
     notFound();
   }
 
-  const [classesPage, guardian] = await Promise.all([
-    api.classes.list({ division, size: 200 }),
-    api.students.guardian(id),
-  ]);
+  const classesPage = await api.classes.list({ division, size: 200 });
 
   const student: Student = {
     id: studentRead.id,
@@ -65,16 +62,7 @@ export default async function DeputyHeadStudentDetailPage({
     division: c.division,
   }));
 
-  const guardianProfile = guardian
-    ? {
-        id: guardian.id,
-        slug: guardian.slug,
-        name: guardian.name,
-        relationship: guardian.relationship,
-        phone: guardian.phone ?? undefined,
-        email: guardian.email ?? undefined,
-      }
-    : null;
-
-  return <StudentDetail student={student} classes={classes} guardian={guardianProfile} />;
+  return (
+    <StudentDetail student={student} classes={classes} basePath="/deputy-head/students" />
+  );
 }

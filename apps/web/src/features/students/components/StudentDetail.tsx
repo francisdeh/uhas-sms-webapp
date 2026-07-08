@@ -44,9 +44,10 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { api, ApiError } from "@/lib/api/browser";
-import type { Student, ClassRecord, GuardianProfile } from "@/features/students/types";
+import type { Student, ClassRecord } from "@/features/students/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { StudentIdCard } from "./StudentIdCard";
+import { GuardianTab } from "./GuardianTab";
 import { cn } from "@/lib/utils";
 
 const DIVISION_BADGE: Record<Student["division"], string> = {
@@ -93,7 +94,9 @@ type TransferFormValues = z.infer<typeof transferSchema>;
 interface Props {
   student: Student;
   classes: ClassRecord[];
-  guardian: GuardianProfile | null;
+  /** Base path for the student list/detail routes (admin vs deputy-head),
+   *  used for sibling profile links. */
+  basePath: string;
 }
 
 function InfoRow({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
@@ -105,7 +108,7 @@ function InfoRow({ label, value, mono }: { label: string; value?: string | null;
   );
 }
 
-export default function StudentDetail({ student, classes, guardian }: Props) {
+export default function StudentDetail({ student, classes, basePath }: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -373,22 +376,10 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
             <motion.div key="guardian" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
               <Card className="rounded-t-none border-t-0">
                 <CardHeader>
-                  <CardTitle className="text-base">Guardian Information</CardTitle>
+                  <CardTitle className="text-base">Guardians &amp; Siblings</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {guardian ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <InfoRow label="Name" value={guardian.name} />
-                      <InfoRow label="Relationship" value={guardian.relationship} />
-                      <InfoRow label="Phone" value={guardian.phone} />
-                      <InfoRow label="Email" value={guardian.email} />
-                      <InfoRow label="Guardian ID" value={guardian.slug} mono />
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No guardian has been linked to this student.
-                    </p>
-                  )}
+                  <GuardianTab studentId={student.id} basePath={basePath} />
                 </CardContent>
               </Card>
             </motion.div>

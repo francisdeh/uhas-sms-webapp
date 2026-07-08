@@ -273,6 +273,45 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           `/students/${studentId}/guardian`,
         ),
+      /** All guardians linked to a student. */
+      guardians: (studentId: string) =>
+        apiFetch<components["schemas"]["StudentGuardianRead"][]>(
+          getAuthToken,
+          `/students/${studentId}/guardians`,
+        ),
+      /** Link an existing guardian or create + link a new one. Returns the
+       *  student's full guardian list. */
+      addGuardian: (
+        studentId: string,
+        payload: components["schemas"]["StudentGuardianAddRequest"],
+      ) =>
+        apiFetch<components["schemas"]["StudentGuardianRead"][]>(
+          getAuthToken,
+          `/students/${studentId}/guardians`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      updateGuardianLink: (
+        studentId: string,
+        guardianId: string,
+        payload: components["schemas"]["StudentGuardianUpdateRequest"],
+      ) =>
+        apiFetch<components["schemas"]["StudentGuardianRead"][]>(
+          getAuthToken,
+          `/students/${studentId}/guardians/${guardianId}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      removeGuardian: (studentId: string, guardianId: string) =>
+        apiFetch<components["schemas"]["StudentGuardianRead"][]>(
+          getAuthToken,
+          `/students/${studentId}/guardians/${guardianId}`,
+          { method: "DELETE" },
+        ),
+      /** Students who share a guardian with this student. */
+      siblings: (studentId: string) =>
+        apiFetch<components["schemas"]["SiblingRead"][]>(
+          getAuthToken,
+          `/students/${studentId}/siblings`,
+        ),
     },
     subjects: {
       list: (

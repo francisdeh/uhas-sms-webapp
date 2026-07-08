@@ -30,6 +30,11 @@ import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field
 import { ApiError } from "@/lib/api/browser";
 import { useStudentMutations } from "@/features/students/hooks/use-students";
 import type { ClassRecord } from "@/features/students/types";
+import {
+  GuardianField,
+  emptyGuardianDraft,
+  draftToPayload,
+} from "@/features/students/components/GuardianField";
 
 const schema = z.object({
   firstName: z.string().min(2, { message: "Must be at least 2 characters" }),
@@ -88,8 +93,18 @@ export default function StudentRegistrationForm({
   });
 
   const { create } = useStudentMutations();
+  const [guardian, setGuardian] = useState(() => emptyGuardianDraft(true));
 
   async function onSubmit(values: FormValues) {
+    const guardianPayload = draftToPayload(guardian);
+    if (!guardianPayload) {
+      toast.error(
+        guardian.mode === "link"
+          ? "Select a guardian to link, or switch to add a new one."
+          : "Enter the guardian's name and at least a phone or email.",
+      );
+      return;
+    }
     try {
       const row = await create.mutateAsync({
         firstName: values.firstName,
@@ -103,6 +118,7 @@ export default function StudentRegistrationForm({
         religion: values.religion || null,
         photoUrl: values.photoUrl?.trim() ? values.photoUrl : null,
         classId: values.classId,
+        guardians: [guardianPayload],
       });
       toast.success(`Student registered — ID: ${row.slug}`);
       router.push(listHref);
@@ -244,6 +260,21 @@ export default function StudentRegistrationForm({
 
               <Separator />
 
+              {/* Guardian (required — at least one) */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  Guardian
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Add the student&apos;s primary guardian — create a new one or link an
+                  existing guardian (which links siblings together). A second guardian can
+                  be added later from the student&apos;s profile.
+                </p>
+                <GuardianField value={guardian} onChange={setGuardian} showPrimary={false} />
+              </div>
+
+              <Separator />
+
               {/* Optional Information */}
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground -mb-1">
                 Optional Information
@@ -251,7 +282,7 @@ export default function StudentRegistrationForm({
 
               {/* Full-width: Phone */}
               <Field>
-                <FieldLabel htmlFor="phone">Parent/Guardian Phone</FieldLabel>
+                <FieldLabel htmlFor="phone">Student Phone</FieldLabel>
                 <Input
                   id="phone"
                   type="tel"
