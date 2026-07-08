@@ -161,6 +161,105 @@ class StudentsRepository:
         return [(s, c) for s, c in result]
 
     @staticmethod
+    async def list_guardians(
+        session: AsyncSession, school_id: UUID | str, student_id: UUID | str
+    ) -> list[tuple[Guardian, str | None, bool]]:
+        """All guardians linked to a student — `(Guardian, relation,
+        is_primary)`, primaries first then by surname."""
+        stmt = (
+            select(Guardian, StudentGuardian.relation, StudentGuardian.is_primary)
+            .join(StudentGuardian, StudentGuardian.guardian_id == Guardian.id)
+            .where(
+                and_(
+                    StudentGuardian.student_id == student_id,
+                    Guardian.school_id == school_id,
+                )
+            )
+            .order_by(desc(StudentGuardian.is_primary), asc(Guardian.last_name))
+        )
+        rows = (await session.execute(stmt)).all()
+        return [(g, rel, bool(primary)) for g, rel, primary in rows]
+
+    @staticmethod
+    async def get_link(
+        session: AsyncSession, student_id: UUID | str, guardian_id: UUID | str
+    ) -> StudentGuardian | None:
+        stmt = select(StudentGuardian).where(
+            and_(
+                StudentGuardian.student_id == student_id,
+                StudentGuardian.guardian_id == guardian_id,
+            )
+        )
+        return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    async def count_guardians(session: AsyncSession, student_id: UUID | str) -> int:
+        stmt = select(func.count()).where(StudentGuardian.student_id == student_id)
+        return int((await session.execute(stmt)).scalar_one() or 0)
+
+    @staticmethod
+    async def clear_primary_flags(
+        session: AsyncSession, student_id: UUID | str, *, except_guardian_id: UUID | str
+    ) -> None:
+        """Unset `is_primary` on every OTHER guardian of the student — keeps
+        at most one primary (display-only marker)."""
+        links = (
+            (
+                await session.execute(
+                    select(StudentGuardian).where(
+                        and_(
+                            StudentGuardian.student_id == student_id,
+                            StudentGuardian.guardian_id != except_guardian_id,
+                            StudentGuardian.is_primary.is_(True),
+                        )
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for link in links:
+            link.is_primary = False
+
+    @staticmethod
+    async def list_siblings(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        *,
+        academic_year: str,
+    ) -> list[tuple[Student, Class | None]]:
+        """Students who share at least one guardian with `student_id`,
+        excluding the student itself, deduped, with current-year class."""
+        shared_guardian_ids = select(StudentGuardian.guardian_id).where(
+            StudentGuardian.student_id == student_id
+        )
+        stmt = (
+            select(Student, Class)
+            .distinct()
+            .join(StudentGuardian, StudentGuardian.student_id == Student.id)
+            .outerjoin(
+                Enrollment,
+                and_(
+                    Enrollment.student_id == Student.id,
+                    Enrollment.academic_year == academic_year,
+                    Enrollment.status == ACTIVE,
+                ),
+            )
+            .outerjoin(Class, Class.id == Enrollment.class_id)
+            .where(
+                and_(
+                    StudentGuardian.guardian_id.in_(shared_guardian_ids),
+                    Student.id != student_id,
+                    Student.school_id == school_id,
+                )
+            )
+            .order_by(asc(Student.last_name), asc(Student.id))
+        )
+        rows = (await session.execute(stmt)).all()
+        return [(s, c) for s, c in rows]
+
+    @staticmethod
     async def get_primary_guardian(
         session: AsyncSession, school_id: UUID | str, student_id: UUID | str
     ) -> tuple[Any, str | None] | None:

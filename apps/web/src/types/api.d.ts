@@ -378,6 +378,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/students/{student_id}/guardians": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All guardians linked to a student */
+        get: operations["list_student_guardians_students__student_id__guardians_get"];
+        put?: never;
+        /** Link an existing guardian or create + link a new one */
+        post: operations["add_student_guardian_students__student_id__guardians_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{student_id}/guardians/{guardian_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unlink a guardian from a student (guardian record kept) */
+        delete: operations["remove_student_guardian_students__student_id__guardians__guardian_id__delete"];
+        options?: never;
+        head?: never;
+        /** Edit a student↔guardian link (relation, primary) */
+        patch: operations["update_student_guardian_students__student_id__guardians__guardian_id__patch"];
+        trace?: never;
+    };
+    "/students/{student_id}/siblings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Students who share a guardian with this student */
+        get: operations["list_student_siblings_students__student_id__siblings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/students/{student_id}/activate": {
         parameters: {
             query?: never;
@@ -2597,7 +2650,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET";
+            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED";
             /** Targettable */
             targetTable?: string | null;
             /** Targetid */
@@ -4916,6 +4969,23 @@ export interface components {
             comment: string;
         };
         /**
+         * SiblingRead
+         * @description A student who shares at least one guardian with the subject student.
+         */
+        SiblingRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Classname */
+            className?: string | null;
+        };
+        /**
          * SmsLogListResponse
          * @description Newest-first, filterable by category. See `app.core.pagination.Paginated`.
          */
@@ -5318,6 +5388,8 @@ export interface components {
          *     `class_id` triggers the initial Enrollment row. `dob` and `gender`
          *     are required on create (the report card needs them) even though
          *     they're optional in `StudentBase` for read-shape flexibility.
+         *     `guardians` links (or creates) the student's guardians in the same
+         *     transaction — registration captures at least one.
          */
         StudentCreate: {
             /** Firstname */
@@ -5351,11 +5423,35 @@ export interface components {
              * Format: uuid
              */
             classId: string;
+            /** Guardians */
+            guardians?: components["schemas"]["StudentGuardianAddRequest"][];
+        };
+        /**
+         * StudentGuardianAddRequest
+         * @description Attach a guardian to a student — either link an existing guardian
+         *     (`guardian_id`) or create a new one (`new_guardian`), never both.
+         *     Used by `POST /students/{id}/guardians` and inline in `StudentCreate`.
+         */
+        StudentGuardianAddRequest: {
+            /**
+             * Relation
+             * @enum {string}
+             */
+            relation: "Mother" | "Father" | "Guardian" | "Grandparent" | "Aunt" | "Uncle" | "Other";
+            /**
+             * Isprimary
+             * @default false
+             */
+            isPrimary: boolean;
+            /** Guardianid */
+            guardianId?: string | null;
+            newGuardian?: components["schemas"]["GuardianCreate"] | null;
         };
         /**
          * StudentGuardianRead
          * @description One linked guardian, as seen from the student side — includes the
-         *     `relation` field that lives on the `student_guardians` join row.
+         *     `relation` + `is_primary` fields that live on the `student_guardians`
+         *     join row.
          */
         StudentGuardianRead: {
             /**
@@ -5369,10 +5465,25 @@ export interface components {
             name: string;
             /** Relationship */
             relationship: string;
+            /**
+             * Isprimary
+             * @default false
+             */
+            isPrimary: boolean;
             /** Phone */
             phone?: string | null;
             /** Email */
             email?: string | null;
+        };
+        /**
+         * StudentGuardianUpdateRequest
+         * @description Edit an existing student↔guardian link — relation and/or primary.
+         */
+        StudentGuardianUpdateRequest: {
+            /** Relation */
+            relation?: ("Mother" | "Father" | "Guardian" | "Grandparent" | "Aunt" | "Uncle" | "Other") | null;
+            /** Isprimary */
+            isPrimary?: boolean | null;
         };
         /**
          * StudentHit
@@ -6786,6 +6897,181 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentGuardianRead"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_student_guardians_students__student_id__guardians_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentGuardianRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_student_guardian_students__student_id__guardians_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentGuardianAddRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentGuardianRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_student_guardian_students__student_id__guardians__guardian_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+                guardian_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentGuardianRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_student_guardian_students__student_id__guardians__guardian_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+                guardian_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentGuardianUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentGuardianRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_student_siblings_students__student_id__siblings_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiblingRead"][];
                 };
             };
             /** @description Validation Error */
@@ -10489,7 +10775,7 @@ export interface operations {
     list_audit_events_audit_log_get: {
         parameters: {
             query?: {
-                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET") | null;
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED") | null;
                 /** @description Inclusive lower bound (YYYY-MM-DD). */
                 from?: string | null;
                 /** @description Inclusive upper bound (YYYY-MM-DD). */

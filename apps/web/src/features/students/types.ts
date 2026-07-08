@@ -66,3 +66,33 @@ export type GuardianProfile = {
   phone?: string;
   email?: string;
 };
+
+// Mirrors app/features/guardians/constants.py RELATION_TYPES.
+export const RELATION_TYPES = [
+  "Mother",
+  "Father",
+  "Guardian",
+  "Grandparent",
+  "Aunt",
+  "Uncle",
+  "Other",
+] as const;
+
+export type RelationType = (typeof RELATION_TYPES)[number];
+
+export type GuardianLink = {
+  id: string;
+  slug: string;
+  name: string;
+  relationship: string;
+  isPrimary: boolean;
+  phone?: string | null;
+  email?: string | null;
+};
+
+export type Sibling = {
+  id: string;
+  slug: string;
+  name: string;
+  className?: string | null;
+};

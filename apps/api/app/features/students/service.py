@@ -20,18 +20,28 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
-from app.core.roles import PARENT
+from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT
 from app.core.security import CurrentUser
 from app.core.slug import insert_with_sequential_slug
-from app.features.audit.actions import STUDENT_EDIT
+from app.features.audit.actions import GUARDIAN_LINKED, GUARDIAN_UNLINKED, STUDENT_EDIT
 from app.features.audit.service import write_audit_log
 from app.features.classes.model import Class
 from app.features.enrollments.constants import ACTIVE
 from app.features.enrollments.model import Enrollment
+from app.features.guardians.model import Guardian
+from app.features.guardians.service import GuardiansService
 from app.features.schools.repository import SchoolsRepository
-from app.features.students.model import Student
+from app.features.staff.repository import StaffRepository
+from app.features.students.model import Student, StudentGuardian
 from app.features.students.repository import StudentsRepository
-from app.features.students.schema import StudentCreate, StudentUpdate
+from app.features.students.schema import (
+    StudentCreate,
+    StudentGuardianAddRequest,
+    StudentGuardianUpdateRequest,
+    StudentUpdate,
+)
+
+MAX_GUARDIANS_PER_STUDENT = 2
 
 
 async def _academic_year(session: AsyncSession, school_id: UUID | str) -> str:
@@ -52,6 +62,24 @@ def _slug_prefix_for_year(academic_year: str) -> str:
     """
     start_year = academic_year.split("/", 1)[0]
     return f"UHAS-{start_year}-"
+
+
+async def _assert_can_view_student(
+    session: AsyncSession,
+    school_id: UUID | str,
+    user: CurrentUser,
+    cls: Class | None,
+) -> None:
+    """Read gate for a student's guardian/sibling data: Admin sees any;
+    a Deputy Head only within their own division. (Teacher/parent access
+    is a later slice.)"""
+    if user.role == ADMIN:
+        return
+    if user.role == DEPUTY_HEAD and user.linked_id and cls is not None:
+        staff = await StaffRepository.get_by_id(session, school_id, user.linked_id)
+        if staff and staff.division == cls.division:
+            return
+    raise ForbiddenError("You may only view students in your own division.")
 
 
 class StudentsService:
@@ -162,6 +190,10 @@ class StudentsService:
         )
         session.add(enrollment)
         await session.flush()
+
+        for guardian_req in payload.guardians:
+            await StudentsService._attach_guardian(session, school_id, student.id, guardian_req)
+
         return student, cls
 
     @staticmethod
@@ -199,6 +231,151 @@ class StudentsService:
             )
         await session.flush()
         return student, cls
+
+    # ── Guardian links ───────────────────────────────────────────────────────
+
+    @staticmethod
+    async def _attach_guardian(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        req: StudentGuardianAddRequest,
+    ) -> Guardian:
+        """Link an existing guardian or create + link a new one. Enforces
+        the max-two cap and keeps at most one primary. No audit — callers
+        that need it wrap this."""
+        count = await StudentsRepository.count_guardians(session, student_id)
+        if count >= MAX_GUARDIANS_PER_STUDENT:
+            raise ConflictError("A student can have at most two guardians.")
+
+        if req.guardian_id is not None:
+            guardian = await GuardiansService.get(session, school_id, req.guardian_id)
+            if await StudentsRepository.get_link(session, student_id, guardian.id):
+                raise ConflictError("This guardian is already linked to the student.")
+        else:
+            assert req.new_guardian is not None  # guaranteed by the schema validator
+            guardian = await GuardiansService.create(session, school_id, req.new_guardian)
+
+        session.add(
+            StudentGuardian(
+                student_id=student_id,
+                guardian_id=guardian.id,
+                relation=req.relation,
+                is_primary=req.is_primary,
+            )
+        )
+        await session.flush()
+        if req.is_primary:
+            await StudentsRepository.clear_primary_flags(
+                session, student_id, except_guardian_id=guardian.id
+            )
+            await session.flush()
+        return guardian
+
+    @staticmethod
+    async def list_guardians(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        *,
+        user: CurrentUser,
+    ) -> list[tuple[Guardian, str | None, bool]]:
+        _student, cls = await StudentsService.get(session, school_id, student_id)
+        await _assert_can_view_student(session, school_id, user, cls)
+        return await StudentsRepository.list_guardians(session, school_id, student_id)
+
+    @staticmethod
+    async def add_guardian(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        payload: StudentGuardianAddRequest,
+        *,
+        actor_user_id: UUID | str,
+    ) -> list[tuple[Guardian, str | None, bool]]:
+        await StudentsService.get(session, school_id, student_id)  # 404 if missing
+        guardian = await StudentsService._attach_guardian(session, school_id, student_id, payload)
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=GUARDIAN_LINKED,
+            target_table="student_guardians",
+            target_id=student_id,
+            before=None,
+            after={
+                "guardianId": str(guardian.id),
+                "relation": payload.relation,
+                "isPrimary": payload.is_primary,
+            },
+        )
+        return await StudentsRepository.list_guardians(session, school_id, student_id)
+
+    @staticmethod
+    async def update_guardian_link(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        guardian_id: UUID | str,
+        payload: StudentGuardianUpdateRequest,
+    ) -> list[tuple[Guardian, str | None, bool]]:
+        await StudentsService.get(session, school_id, student_id)  # 404 if missing
+        link = await StudentsRepository.get_link(session, student_id, guardian_id)
+        if link is None:
+            raise NotFoundError("This guardian is not linked to the student.")
+        if payload.relation is not None:
+            link.relation = payload.relation
+        if payload.is_primary is not None:
+            link.is_primary = payload.is_primary
+        await session.flush()
+        if payload.is_primary:
+            await StudentsRepository.clear_primary_flags(
+                session, student_id, except_guardian_id=guardian_id
+            )
+            await session.flush()
+        return await StudentsRepository.list_guardians(session, school_id, student_id)
+
+    @staticmethod
+    async def remove_guardian(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        guardian_id: UUID | str,
+        *,
+        actor_user_id: UUID | str,
+    ) -> list[tuple[Guardian, str | None, bool]]:
+        await StudentsService.get(session, school_id, student_id)  # 404 if missing
+        link = await StudentsRepository.get_link(session, student_id, guardian_id)
+        if link is None:
+            raise NotFoundError("This guardian is not linked to the student.")
+        await session.delete(link)
+        await session.flush()
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=GUARDIAN_UNLINKED,
+            target_table="student_guardians",
+            target_id=student_id,
+            before={"guardianId": str(guardian_id)},
+            after=None,
+        )
+        return await StudentsRepository.list_guardians(session, school_id, student_id)
+
+    @staticmethod
+    async def list_siblings(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        *,
+        user: CurrentUser,
+    ) -> list[tuple[Student, Class | None]]:
+        _student, cls = await StudentsService.get(session, school_id, student_id)
+        await _assert_can_view_student(session, school_id, user, cls)
+        year = await _academic_year(session, school_id)
+        return await StudentsRepository.list_siblings(
+            session, school_id, student_id, academic_year=year
+        )
 
     @staticmethod
     async def set_active(

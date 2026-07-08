@@ -14,14 +14,16 @@ the read fields.
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
 from app.core.school_structure import Division
+from app.features.guardians.constants import RelationType
+from app.features.guardians.schema import GuardianCreate
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
@@ -47,17 +49,48 @@ class StudentBase(BaseModel):
     religion: str | None = Field(None, max_length=100)
 
 
+class StudentGuardianAddRequest(BaseModel):
+    """Attach a guardian to a student — either link an existing guardian
+    (`guardian_id`) or create a new one (`new_guardian`), never both.
+    Used by `POST /students/{id}/guardians` and inline in `StudentCreate`."""
+
+    model_config = _CAMEL_CONFIG
+
+    relation: RelationType
+    is_primary: bool = False
+    guardian_id: UUID | None = None
+    new_guardian: GuardianCreate | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_source(self) -> Self:
+        if (self.guardian_id is None) == (self.new_guardian is None):
+            raise ValueError("Provide exactly one of guardianId or newGuardian.")
+        return self
+
+
+class StudentGuardianUpdateRequest(BaseModel):
+    """Edit an existing student↔guardian link — relation and/or primary."""
+
+    model_config = _CAMEL_CONFIG
+
+    relation: RelationType | None = None
+    is_primary: bool | None = None
+
+
 class StudentCreate(StudentBase):
     """Inbound payload for `POST /students`.
 
     `class_id` triggers the initial Enrollment row. `dob` and `gender`
     are required on create (the report card needs them) even though
     they're optional in `StudentBase` for read-shape flexibility.
+    `guardians` links (or creates) the student's guardians in the same
+    transaction — registration captures at least one.
     """
 
     class_id: UUID
     dob: date
     gender: Gender
+    guardians: list[StudentGuardianAddRequest] = Field(default_factory=list)
 
 
 class StudentUpdate(BaseModel):
@@ -108,7 +141,8 @@ class GuardianChildrenResponse(BaseModel):
 
 class StudentGuardianRead(BaseModel):
     """One linked guardian, as seen from the student side — includes the
-    `relation` field that lives on the `student_guardians` join row."""
+    `relation` + `is_primary` fields that live on the `student_guardians`
+    join row."""
 
     model_config = _CAMEL_CONFIG
 
@@ -116,5 +150,17 @@ class StudentGuardianRead(BaseModel):
     slug: str
     name: str
     relationship: str
+    is_primary: bool = False
     phone: str | None = None
     email: str | None = None
+
+
+class SiblingRead(BaseModel):
+    """A student who shares at least one guardian with the subject student."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    slug: str
+    name: str
+    class_name: str | None = None

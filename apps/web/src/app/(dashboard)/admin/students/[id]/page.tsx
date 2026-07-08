@@ -52,10 +52,5 @@ export default async function AdminStudentDetailPage({
     createdAt: studentRead.createdAt ?? new Date().toISOString(),
   };
 
-  // GAP: no `api.students.guardians(id)` endpoint yet — StudentRead
-  // doesn't include a guardians array. Passing null keeps the detail
-  // view rendering; the guardian card just shows the empty state.
-  const guardian = null;
-
-  return <StudentDetail student={student} classes={classes} guardian={guardian} />;
+  return <StudentDetail student={student} classes={classes} basePath="/admin/students" />;
 }
