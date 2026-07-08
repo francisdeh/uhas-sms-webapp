@@ -2129,7 +2129,7 @@ export interface components {
              * Preferredslot
              * @enum {string}
              */
-            preferredSlot: "morning" | "afternoon" | "after_school";
+            preferredSlot: "snack" | "lunch" | "after_school";
             /** Reason */
             reason?: string | null;
         };
@@ -2179,7 +2179,7 @@ export interface components {
              * Preferredslot
              * @enum {string}
              */
-            preferredSlot: "morning" | "afternoon" | "after_school";
+            preferredSlot: "snack" | "lunch" | "after_school";
             /** Reason */
             reason?: string | null;
             /**

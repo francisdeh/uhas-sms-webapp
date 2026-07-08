@@ -52,7 +52,7 @@ const schema = z.object({
   studentId: z.string().min(1, { message: "Pick a child" }),
   teacherId: z.string().min(1, { message: "Pick a teacher" }),
   preferredDate: z.string().min(1, { message: "Pick a date" }),
-  preferredSlot: z.enum(["morning", "afternoon", "after_school"]),
+  preferredSlot: z.enum(["snack", "lunch", "after_school"]),
   reason: z.string().min(5, { message: "Add a short reason" }),
 });
 
@@ -89,7 +89,7 @@ export function ParentAppointmentsView({
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      preferredSlot: "morning",
+      preferredSlot: "snack",
       studentId: childOptions[0]?.id ?? "",
       teacherId: "",
       preferredDate: "",
@@ -111,7 +111,7 @@ export function ParentAppointmentsView({
       });
       setCreateOpen(false);
       form.reset({
-        preferredSlot: "morning",
+        preferredSlot: "snack",
         studentId: childOptions[0]?.id ?? "",
         teacherId: "",
         preferredDate: "",
@@ -311,8 +311,8 @@ export function ParentAppointmentsView({
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="morning">{SLOT_LABELS.morning}</SelectItem>
-                          <SelectItem value="afternoon">{SLOT_LABELS.afternoon}</SelectItem>
+                          <SelectItem value="snack">{SLOT_LABELS.snack}</SelectItem>
+                          <SelectItem value="lunch">{SLOT_LABELS.lunch}</SelectItem>
                           <SelectItem value="after_school">{SLOT_LABELS.after_school}</SelectItem>
                         </SelectContent>
                       </Select>
