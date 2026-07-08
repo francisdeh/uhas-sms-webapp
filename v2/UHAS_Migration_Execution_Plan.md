@@ -138,7 +138,7 @@ Port in dependency order. Each domain is a vertical slice: `repository.py` → `
 - Enforce **max-two guardians** + independent logins; surface **all guardians** + **sibling** links in the UI.
 - Report card additions: **vacation/reopening dates**, **full-report** option, **staff-children filter**, **other-name** field.
 - **Parent-facing published calendar** view.
-- **Class-teacher view** of subject teachers with missing midterm/EoT records.
+- **Class-teacher view** of subject teachers with missing midterm/EoT records ✅ done — `GET /exams/{id}/score-completeness/{classId}` returns per-subject entered/roster counts + status (not_started / partial / complete) + the subject teacher's name (or "unassigned"); a "Score entry status" panel sits on the class-report page (`teacher/class-reports/[examId]/[classId]`) where the class teacher assembles the report. Pure new read, no schema change; gated to class teacher / Admin / own-division Deputy (reuses the class-report gate). Design: `docs/superpowers/specs/2026-07-08-missing-scores-view-design.md`.
 
 **Done when:** each item in the Feature Status Register's "Partial" list is reconciled to its requirement.
 
@@ -173,6 +173,7 @@ Prioritised by what UHAS hits first (from the Feature Enhancements doc):
 5. Report card polish: KG observational variant, conduct/co-curricular, class-average comparison, **batch print**, **email-to-parent** on publish.
 6. **First-login onboarding checklist** — after a prod bootstrap (which seeds only the school row + config + subjects), the admin logs into a fresh instance and must configure the rest. A first-login checklist that walks the Admin through the remaining setup (school identity/branding, grading tweaks, academic year + term dates, create classes, invite staff) turns an empty instance into a guided setup. Optionally a lighter first-login checklist for other roles for any per-user setup (e.g. enable 2FA, set notification prefs). Complements the dev-vs-prod seed split (§8 follow-up).
 7. **"Powered by SimplifyDLabs" attribution** — developer/agency wording + link in the relevant places (login-page footer, dashboard footer/about). Small branding item; slot in alongside the Phase 7 brand-verification pass.
+8. **Appointment email + SMS + notification preferences** — in-app notifications for appointments already exist (`appointment_requested` to the teacher on create, `appointment_decided` to the guardian on respond). The gaps: (a) **email** delivery for those events (today the only real email path is the lesson-plan-rejection Inngest job), (b) **SMS** delivery (the SMS scaffolding — `sms_log` + `SmsProvider` interface, Hubtel stubbed — exists but has no appointment trigger; parents may prefer SMS for a confirmed/declined meeting), and (c) a **per-user preference** to opt in/out per channel — extend the existing `user_preferences` table (which holds only `email_on_lesson_plan_rejected` today, built to grow) with appointment flags, gated the same way (school default + per-user flag). More broadly, this is the general pattern of "in-app + email + SMS, each with per-user prefs, for each notification kind" — appointments are the first ask; announcements/results/leave could follow.
 
 **Done when:** the chosen depth items are shipped; remaining ones are explicitly deferred.
 

@@ -151,6 +151,32 @@ class ScoresRepository:
         return [(s, subject, scores.get(s.id)) for s in students]
 
     @staticmethod
+    async def graded_counts_by_subject(
+        session: AsyncSession,
+        *,
+        exam_id: UUID | str,
+        student_ids: list[UUID],
+    ) -> dict[UUID, int]:
+        """For one exam + a class roster, count how many students have a
+        *graded* score (`total_score IS NOT NULL`) per subject. A saved-
+        but-blank row doesn't count as entered. Subjects with no graded
+        rows are simply absent from the returned dict."""
+        if not student_ids:
+            return {}
+        stmt = (
+            select(Score.subject_id, func.count())
+            .where(
+                and_(
+                    Score.exam_id == exam_id,
+                    Score.student_id.in_(student_ids),
+                    Score.total_score.is_not(None),
+                )
+            )
+            .group_by(Score.subject_id)
+        )
+        return {subject_id: count for subject_id, count in (await session.execute(stmt)).all()}
+
+    @staticmethod
     async def list_for_ranking(
         session: AsyncSession,
         *,

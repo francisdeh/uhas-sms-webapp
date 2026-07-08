@@ -37,12 +37,22 @@ from app.core.roles import ADMIN, DEPUTY_HEAD, TEACHER
 from app.features.audit.actions import CLASS_REPORT_HOS_COMMENT_UPDATED
 from app.features.audit.service import write_audit_log
 from app.features.classes.model import Class
-from app.features.classes.repository import ClassesRepository
+from app.features.classes.repository import ClassesRepository, ClassSubjectsRepository
 from app.features.exams.class_reports_repo import ClassReportsRepository
-from app.features.exams.constants import CLASS_REPORT_DRAFT, CLASS_REPORT_SUBMITTED
+from app.features.exams.constants import (
+    CLASS_REPORT_DRAFT,
+    CLASS_REPORT_SUBMITTED,
+    COMPLETE,
+    NOT_STARTED,
+    PARTIAL,
+)
 from app.features.exams.model import ClassReportSubmission, Exam, StudentReportRemark
-from app.features.exams.repository import ExamsRepository
-from app.features.exams.schema import RemarkInput
+from app.features.exams.repository import ExamsRepository, ScoresRepository
+from app.features.exams.schema import (
+    RemarkInput,
+    ScoreCompletenessResponse,
+    ScoreCompletenessRow,
+)
 from app.features.staff.repository import StaffRepository
 from app.features.students.model import Student
 
@@ -105,6 +115,63 @@ class ClassReportsService:
             academic_year=cls.academic_year,
         )
         return report, cls, roster
+
+    @staticmethod
+    async def score_completeness(
+        session: AsyncSession,
+        *,
+        school_id: UUID | str,
+        exam_id: UUID | str,
+        class_id: UUID | str,
+        actor_role: str,
+        actor_staff_id: UUID | str | None,
+    ) -> ScoreCompletenessResponse:
+        """Per-subject score-entry status for one class + exam, so a class
+        teacher can see which subject teachers still owe scores. Same
+        visibility gate as the class-report detail (class teacher / Admin /
+        own-division Deputy)."""
+        exam = await _load_exam(session, school_id, exam_id)
+        cls = await _load_class(session, school_id, class_id)
+        await _assert_can_view_class(session, school_id, actor_role, actor_staff_id, cls)
+
+        roster = await ScoresRepository.list_class_roster(session, cls.id, exam.academic_year)
+        roster_ids = [s.id for s in roster]
+        roster_count = len(roster_ids)
+
+        expected = await ClassSubjectsRepository.list_for_class(session, cls.id)
+        counts = await ScoresRepository.graded_counts_by_subject(
+            session, exam_id=exam.id, student_ids=roster_ids
+        )
+
+        rows: list[ScoreCompletenessRow] = []
+        for _cs, subject, teacher in expected:
+            entered = counts.get(subject.id, 0)
+            if entered == 0:
+                status = NOT_STARTED
+            elif roster_count > 0 and entered >= roster_count:
+                status = COMPLETE
+            else:
+                status = PARTIAL
+            teacher_name = f"{teacher.first_name} {teacher.last_name}".strip() if teacher else ""
+            rows.append(
+                ScoreCompletenessRow(
+                    subject_id=subject.id,
+                    subject_name=subject.name,
+                    teacher_id=teacher.id if teacher else None,
+                    teacher_name=teacher_name or None,
+                    entered_count=entered,
+                    roster_count=roster_count,
+                    status=status,
+                )
+            )
+
+        return ScoreCompletenessResponse(
+            exam_id=exam.id,
+            class_id=cls.id,
+            class_name=cls.name,
+            roster_count=roster_count,
+            subjects=rows,
+        )
 
     # ─── Write paths ────────────────────────────────────────────────────
 

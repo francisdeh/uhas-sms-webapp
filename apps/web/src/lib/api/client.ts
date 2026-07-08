@@ -1062,6 +1062,13 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           `/exams/${examId}/class-reports/${classId}`,
         ),
+      /** Per-subject score-entry status for a class + exam — which subject
+       *  teachers still owe scores. Same gate as the class-report detail. */
+      scoreCompleteness: (examId: string, classId: string) =>
+        apiFetch<components["schemas"]["ScoreCompletenessResponse"]>(
+          getAuthToken,
+          `/exams/${examId}/score-completeness/${classId}`,
+        ),
       /** Upsert draft — class teacher only. Remarks payload is
        *  authoritative: anything not in the array is deleted. */
       saveDraft: (
