@@ -86,7 +86,7 @@ async def _make_body(**overrides: object) -> dict[str, object]:
         "studentId": str(STUDENT_UUID),
         "teacherId": str(TEACHER_STAFF),
         "preferredDate": _future(),
-        "preferredSlot": "morning",
+        "preferredSlot": "snack",
         "reason": "Progress check-in",
     }
     body.update(overrides)

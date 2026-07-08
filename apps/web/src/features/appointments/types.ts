@@ -1,10 +1,10 @@
 export type AppointmentStatus = "pending" | "confirmed" | "declined" | "cancelled";
-export type AppointmentSlot = "morning" | "afternoon" | "after_school";
+export type AppointmentSlot = "snack" | "lunch" | "after_school";
 
 export const SLOT_LABELS: Record<AppointmentSlot, string> = {
-  morning: "Morning (before 11:00)",
-  afternoon: "Afternoon (12:00–14:00)",
-  after_school: "After school (15:00–17:00)",
+  snack: "Snack (10:00–10:20)",
+  lunch: "Lunch (12:20–13:05)",
+  after_school: "After School (15:05–15:45)",
 };
 
 export type Appointment = {
