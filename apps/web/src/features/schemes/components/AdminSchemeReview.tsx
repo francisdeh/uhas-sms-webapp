@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useAcknowledgeScheme } from "@/features/schemes/hooks/use-schemes";
 import type { Scheme } from "@/features/schemes/types";
 import { SchemeStatusPill } from "./SchemeStatusPill";
+import { SchemeCommentThread } from "./SchemeCommentThread";
 
 interface AdminSchemeReviewProps {
   reviewerId: string;
@@ -26,7 +27,6 @@ export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeRe
   const [actingId, setActingId] = useState<string | null>(null);
   const acknowledge = useAcknowledgeScheme();
   const isPending = acknowledge.isPending;
-  void reviewerId; // derived from JWT server-side now
 
   async function handleAcknowledge(scheme: Scheme) {
     setActingId(scheme.id);
@@ -109,33 +109,39 @@ export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeRe
                           />
                         </div>
                       )}
-                      <div>
+                      <SchemeCommentThread
+                        schemeId={scheme.id}
+                        comments={scheme.comments}
+                        currentStaffId={reviewerId}
+                        canComment
+                      />
+                      <div className="border-t border-border/60 pt-3">
                         <p className="text-xs font-medium text-muted-foreground mb-1">
-                          Comment (optional)
+                          Acknowledgement note (optional)
                         </p>
                         <Textarea
                           rows={2}
-                          placeholder="Optional note to the teacher…"
+                          placeholder="Optional note recorded with your acknowledgement…"
                           value={comments[scheme.id] ?? ""}
                           onChange={(e) =>
                             setComments((prev) => ({ ...prev, [scheme.id]: e.target.value }))
                           }
                           className="resize-none"
                         />
-                      </div>
-                      <div className="flex justify-end">
-                        <Button
-                          size="sm"
-                          onClick={() => handleAcknowledge(scheme)}
-                          disabled={isPending && actingId === scheme.id}
-                        >
-                          {isPending && actingId === scheme.id ? (
-                            <Loader2 size={13} className="animate-spin mr-1.5" />
-                          ) : (
-                            <Check size={13} className="mr-1.5" />
-                          )}
-                          Acknowledge
-                        </Button>
+                        <div className="flex justify-end mt-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleAcknowledge(scheme)}
+                            disabled={isPending && actingId === scheme.id}
+                          >
+                            {isPending && actingId === scheme.id ? (
+                              <Loader2 size={13} className="animate-spin mr-1.5" />
+                            ) : (
+                              <Check size={13} className="mr-1.5" />
+                            )}
+                            Acknowledge
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -156,26 +162,45 @@ export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeRe
             description="Schemes you've signed off on will appear here."
           />
         ) : (
-          recent.map((scheme) => (
-            <Card key={scheme.id}>
-              <CardContent className="py-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium">{scheme.title}</p>
-                    <SchemeStatusPill status={scheme.status} />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {scheme.teacherName} · {scheme.className} · {scheme.subjectName}
-                  </p>
-                </div>
-                {scheme.reviewedByName && (
-                  <Badge variant="secondary" className="text-[10px]">
-                    by {scheme.reviewedByName}
-                  </Badge>
-                )}
-              </CardContent>
-            </Card>
-          ))
+          recent.map((scheme) => {
+            const isOpen = openId === scheme.id;
+            return (
+              <Card key={scheme.id}>
+                <CardContent className="py-3">
+                  <button
+                    type="button"
+                    onClick={() => toggle(scheme.id)}
+                    className="w-full flex items-center justify-between gap-3 text-left"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium">{scheme.title}</p>
+                        <SchemeStatusPill status={scheme.status} />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {scheme.teacherName} · {scheme.className} · {scheme.subjectName}
+                      </p>
+                    </div>
+                    {scheme.reviewedByName && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        by {scheme.reviewedByName}
+                      </Badge>
+                    )}
+                  </button>
+                  {isOpen && (
+                    <div className="mt-3 border-t border-border/60 pt-3">
+                      <SchemeCommentThread
+                        schemeId={scheme.id}
+                        comments={scheme.comments}
+                        currentStaffId={reviewerId}
+                        canComment
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </section>
 

@@ -81,6 +81,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
           { label: "Classes", href: "/deputy-head/classes", icon: School },
           { label: "Attendance", href: "/deputy-head/attendance", icon: ClipboardCheck },
           { label: "Lesson Plans", href: "/deputy-head/lesson-plans", icon: BookOpen },
+          { label: "Schemes", href: "/deputy-head/schemes", icon: ClipboardList },
           { label: "Promotions", href: "/deputy-head/promotions", icon: ArrowUpRight },
         ],
       },

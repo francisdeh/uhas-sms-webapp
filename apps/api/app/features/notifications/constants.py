@@ -22,6 +22,7 @@ LESSON_PLAN_REVIEWED: Final = "lesson_plan_reviewed"
 LESSON_PLAN_ADVANCED: Final = "lesson_plan_advanced"
 SCHEME_SUBMITTED: Final = "scheme_submitted"
 SCHEME_ACKNOWLEDGED: Final = "scheme_acknowledged"
+SCHEME_COMMENTED: Final = "scheme_commented"
 
 # ─── Announcements ──────────────────────────────────────────────────────────
 ANNOUNCEMENT_POSTED: Final = "announcement_posted"
@@ -52,6 +53,7 @@ NotificationKind = Literal[
     "lesson_plan_advanced",
     "scheme_submitted",
     "scheme_acknowledged",
+    "scheme_commented",
     "announcement_posted",
     "attendance_absent",
     "results_published",

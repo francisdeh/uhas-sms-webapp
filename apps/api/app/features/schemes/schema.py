@@ -53,6 +53,26 @@ class SchemeAcknowledgeRequest(BaseModel):
     comment: str | None = None
 
 
+class SchemeCommentRequest(BaseModel):
+    """`POST /schemes/{id}/comments` — author or reviewer adds to the thread."""
+
+    model_config = _CAMEL_CONFIG
+
+    body: str = Field(..., min_length=1)
+
+
+class SchemeCommentRead(BaseModel):
+    """One entry in a scheme's comment thread, with author display fields."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    author_id: UUID
+    author_name: str
+    body: str
+    created_at: datetime | None = None
+
+
 class SchemeRead(BaseModel):
     """Read shape includes joined display fields."""
 
@@ -76,13 +96,13 @@ class SchemeRead(BaseModel):
     file_url: str | None = None
     content: str | None = None
     status: SchemeStatus
-    reviewer_comment: str | None = None
     reviewed_by_id: UUID | None = None
     reviewed_by_name: str | None = None
     reviewed_at: datetime | None = None
     submitted_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    comments: list[SchemeCommentRead] = Field(default_factory=list)
 
 
 class SchemesListResponse(Paginated[SchemeRead]):

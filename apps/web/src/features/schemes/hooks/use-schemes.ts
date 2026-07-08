@@ -45,6 +45,10 @@ type AcknowledgeVars = {
   id: string;
   payload: components["schemas"]["SchemeAcknowledgeRequest"];
 };
+type CommentVars = {
+  id: string;
+  payload: components["schemas"]["SchemeCommentRequest"];
+};
 
 export function useCreateScheme() {
   const qc = useQueryClient();
@@ -88,6 +92,17 @@ export function useAcknowledgeScheme() {
     mutationFn: ({ id, payload }) => api.schemes.acknowledge(id, payload),
     onSuccess: () => {
       toast.success("Scheme acknowledged.");
+      qc.invalidateQueries({ queryKey: KEYS.root });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
+export function useCommentOnScheme() {
+  const qc = useQueryClient();
+  return useMutation<Data, ApiError, CommentVars>({
+    mutationFn: ({ id, payload }) => api.schemes.comment(id, payload),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.root });
     },
     onError: (err) => toast.error(err.message),

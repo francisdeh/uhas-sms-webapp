@@ -22,11 +22,12 @@ from app.features.classes.repository import ClassesRepository
 from app.features.notifications.audience import UnitHeadOfDivisionAudience
 from app.features.notifications.constants import (
     SCHEME_ACKNOWLEDGED,
+    SCHEME_COMMENTED,
     SCHEME_SUBMITTED,
 )
 from app.features.notifications.service import NotificationsService, NotifyPayload
 from app.features.schemes.constants import ACKNOWLEDGED, DRAFT, SUBMITTED
-from app.features.schemes.model import Scheme
+from app.features.schemes.model import Scheme, SchemeComment
 from app.features.schemes.repository import SchemesRepository
 from app.features.schemes.schema import (
     SchemeAcknowledgeRequest,
@@ -189,10 +190,15 @@ class SchemesService:
         )
 
         row.status = ACKNOWLEDGED
-        row.reviewer_comment = payload.comment
         row.reviewed_by_id = actor_staff_id  # type: ignore[assignment]
         row.reviewed_at = _now()
         row.updated_at = _now()
+        # The acknowledge note joins the thread (attributed + kept), rather
+        # than overwriting a single column.
+        if payload.comment and actor_staff_id is not None:
+            await SchemesRepository.insert_comment(
+                session, scheme_id=row.id, author_id=actor_staff_id, body=payload.comment
+            )
         await session.flush()
 
         # Notify the submitting teacher.
@@ -218,6 +224,78 @@ class SchemesService:
         return await SchemesService.get(session, school_id, scheme_id)
 
     @staticmethod
+    async def list_comments(
+        session: AsyncSession, scheme_id: UUID | str
+    ) -> list[tuple[SchemeComment, Staff]]:
+        return await SchemesRepository.list_comments_for_scheme(session, scheme_id)
+
+    @staticmethod
+    async def add_comment(
+        session: AsyncSession,
+        school_id: UUID | str,
+        scheme_id: UUID | str,
+        body: str,
+        *,
+        actor_staff_id: UUID | str | None,
+        actor_role: str,
+    ) -> tuple[Scheme, Staff, Subject, Class, Staff | None]:
+        """Append a comment to a scheme's thread. Permitted for the scheme's
+        author (teacher) or a reviewer (Admin / Deputy of the class's
+        division / Unit-Head teacher of that division), once the scheme is
+        submitted or acknowledged. Notifies the other side."""
+        row, teacher, _sub, cls, _rev = await SchemesService.get(session, school_id, scheme_id)
+        if row.status not in (SUBMITTED, ACKNOWLEDGED):
+            raise ValidationError("Comments open once a scheme has been submitted.")
+        if actor_staff_id is None:
+            raise ForbiddenError("You are not allowed to comment on this scheme.")
+
+        is_author = str(row.teacher_id) == str(actor_staff_id)
+        if not is_author and not await _is_reviewer(
+            session,
+            school_id,
+            actor_staff_id=actor_staff_id,
+            actor_role=actor_role,
+            class_division=cls.division,
+        ):
+            raise ForbiddenError("You are not allowed to comment on this scheme.")
+
+        await SchemesRepository.insert_comment(
+            session, scheme_id=row.id, author_id=actor_staff_id, body=body
+        )
+
+        if is_author:
+            # Teacher replied — nudge the division's Unit Heads.
+            await NotificationsService.notify_audience(
+                session,
+                school_id,
+                UnitHeadOfDivisionAudience(division=cls.division),
+                NotifyPayload(
+                    kind=SCHEME_COMMENTED,
+                    title="New scheme comment",
+                    body=f"{teacher.first_name} {teacher.last_name} commented on {row.title}.",
+                    link="/teacher/schemes",
+                ),
+            )
+        else:
+            # Reviewer commented — nudge the submitting teacher.
+            teacher_user = await NotificationsService.find_user_for_linked(
+                session, school_id, row.teacher_id
+            )
+            if teacher_user is not None:
+                await NotificationsService.notify_user(
+                    session,
+                    school_id,
+                    user_id=teacher_user.id,
+                    payload=NotifyPayload(
+                        kind=SCHEME_COMMENTED,
+                        title="New scheme comment",
+                        body=f"A reviewer commented on {row.title} for {cls.name}.",
+                        link="/teacher/schemes",
+                    ),
+                )
+        return await SchemesService.get(session, school_id, scheme_id)
+
+    @staticmethod
     async def soft_delete(
         session: AsyncSession,
         school_id: UUID | str,
@@ -234,6 +312,27 @@ class SchemesService:
         await session.flush()
 
 
+async def _is_reviewer(
+    session: AsyncSession,
+    school_id: UUID | str,
+    *,
+    actor_staff_id: UUID | str | None,
+    actor_role: str,
+    class_division: str,
+) -> bool:
+    """Whether the actor may review this scheme: Admin (any division),
+    Deputy Head of the class's division, or a Unit-Head teacher of it."""
+    if actor_role == ADMIN:
+        return True
+    if actor_role == DEPUTY_HEAD and actor_staff_id:
+        staff = await StaffRepository.get_by_id(session, school_id, actor_staff_id)
+        return bool(staff and staff.division == class_division)
+    if actor_role == TEACHER and actor_staff_id:
+        staff = await StaffRepository.get_by_id(session, school_id, actor_staff_id)
+        return bool(staff and staff.is_unit_head and staff.unit_head_of == class_division)
+    return False
+
+
 async def _assert_can_acknowledge(
     session: AsyncSession,
     school_id: UUID | str,
@@ -242,16 +341,14 @@ async def _assert_can_acknowledge(
     actor_role: str,
     class_division: str,
 ) -> None:
-    if actor_role == ADMIN:
+    if await _is_reviewer(
+        session,
+        school_id,
+        actor_staff_id=actor_staff_id,
+        actor_role=actor_role,
+        class_division=class_division,
+    ):
         return
     if actor_role == DEPUTY_HEAD:
-        if actor_staff_id:
-            staff = await StaffRepository.get_by_id(session, school_id, actor_staff_id)
-            if staff and staff.division == class_division:
-                return
         raise ForbiddenError("Deputy Head can only acknowledge schemes in their own division.")
-    if actor_role == TEACHER and actor_staff_id:
-        staff = await StaffRepository.get_by_id(session, school_id, actor_staff_id)
-        if staff and staff.is_unit_head and staff.unit_head_of == class_division:
-            return
     raise ForbiddenError("Only a Unit Head, Deputy Head, or Admin can acknowledge schemes.")

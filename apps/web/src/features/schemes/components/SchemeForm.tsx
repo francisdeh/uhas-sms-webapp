@@ -40,6 +40,7 @@ import {
 } from "@/features/schemes/hooks/use-schemes";
 import { SCHEME_TYPE_LABELS, type Scheme } from "@/features/schemes/types";
 import { SchemeStatusPill } from "./SchemeStatusPill";
+import { SchemeCommentThread } from "./SchemeCommentThread";
 
 const schema = z
   .object({
@@ -182,12 +183,17 @@ export function SchemeForm({
         {existing && <SchemeStatusPill status={existing.status} />}
       </div>
 
-      {existing?.reviewerComment && (
-        <Alert>
-          <AlertDescription>
-            <strong>Head of School ({existing.reviewedByName}):</strong> {existing.reviewerComment}
-          </AlertDescription>
-        </Alert>
+      {existing && existing.status !== "draft" && (
+        <Card>
+          <CardContent className="py-4">
+            <SchemeCommentThread
+              schemeId={existing.id}
+              comments={existing.comments}
+              currentStaffId={existing.teacherId}
+              canComment
+            />
+          </CardContent>
+        </Card>
       )}
 
       {locked && (

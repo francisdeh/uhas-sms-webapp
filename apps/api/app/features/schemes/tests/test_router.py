@@ -12,6 +12,7 @@ from app.features.schemes.tests.conftest import (
     DEPUTY_OTHER_UUID,
     DEPUTY_UUID,
     SUBJECT_UUID,
+    TEACHER_UUID,
     UNIT_HEAD_UUID,
     auth_header,
 )
@@ -125,8 +126,10 @@ async def test_unit_head_can_acknowledge(
     assert res.status_code == 200
     body = res.json()
     assert body["status"] == "acknowledged"
-    assert body["reviewerComment"] == "Approved."
     assert body["reviewedById"] == str(UNIT_HEAD_UUID)
+    # The acknowledge note joins the thread, attributed to the reviewer.
+    assert [c["body"] for c in body["comments"]] == ["Approved."]
+    assert body["comments"][0]["authorId"] == str(UNIT_HEAD_UUID)
 
 
 async def test_non_unit_head_teacher_cannot_acknowledge(
@@ -239,3 +242,131 @@ async def test_list_defaults_to_own_for_teacher(
         headers=auth_header(role="Teacher", linked_id=str(UNIT_HEAD_UUID)),
     )
     assert other.json()["total"] == 0
+
+
+async def _submit(client: AsyncClient) -> str:
+    scheme_id = await _create_scheme(client)
+    await client.post(f"/schemes/{scheme_id}/submit", headers=auth_header(role="Teacher"))
+    return scheme_id
+
+
+async def test_thread_preserves_multiple_attributed_ordered_comments(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_subject: Subject,
+    seed_staff: tuple[Staff, Staff, Staff, Staff],
+) -> None:
+    _ = (seed_school, seed_class, seed_subject, seed_staff)
+    scheme_id = await _submit(client)
+
+    # Reviewer opens the thread, then the author replies.
+    r1 = await client.post(
+        f"/schemes/{scheme_id}/comments",
+        json={"body": "Please expand week 3."},
+        headers=auth_header(role="Teacher", linked_id=str(UNIT_HEAD_UUID)),
+    )
+    assert r1.status_code == 201
+    r2 = await client.post(
+        f"/schemes/{scheme_id}/comments",
+        json={"body": "Done, updated."},
+        headers=auth_header(role="Teacher"),
+    )
+    assert r2.status_code == 201
+
+    thread = r2.json()["comments"]
+    assert [c["body"] for c in thread] == ["Please expand week 3.", "Done, updated."]
+    assert [c["authorId"] for c in thread] == [str(UNIT_HEAD_UUID), str(TEACHER_UUID)]
+
+
+async def test_deputy_own_division_can_comment(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_subject: Subject,
+    seed_staff: tuple[Staff, Staff, Staff, Staff],
+) -> None:
+    _ = (seed_school, seed_class, seed_subject, seed_staff)
+    scheme_id = await _submit(client)
+    res = await client.post(
+        f"/schemes/{scheme_id}/comments",
+        json={"body": "Looks good."},
+        headers=auth_header(role="DeputyHead", linked_id=str(DEPUTY_UUID)),
+    )
+    assert res.status_code == 201
+
+
+async def test_deputy_wrong_division_cannot_comment(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_subject: Subject,
+    seed_staff: tuple[Staff, Staff, Staff, Staff],
+) -> None:
+    _ = (seed_school, seed_class, seed_subject, seed_staff)
+    scheme_id = await _submit(client)
+    res = await client.post(
+        f"/schemes/{scheme_id}/comments",
+        json={"body": "Not my division."},
+        headers=auth_header(role="DeputyHead", linked_id=str(DEPUTY_OTHER_UUID)),
+    )
+    assert res.status_code == 403
+
+
+async def test_unrelated_teacher_cannot_comment(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_subject: Subject,
+    seed_staff: tuple[Staff, Staff, Staff, Staff],
+) -> None:
+    _ = (seed_school, seed_class, seed_subject, seed_staff)
+    scheme_id = await _submit(client)
+    # A plain teacher who is neither the author nor a unit head.
+    res = await client.post(
+        f"/schemes/{scheme_id}/comments",
+        json={"body": "Butting in."},
+        headers=auth_header(role="Teacher", linked_id=str(DEPUTY_OTHER_UUID)),
+    )
+    assert res.status_code == 403
+
+
+async def test_cannot_comment_on_draft(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_subject: Subject,
+    seed_staff: tuple[Staff, Staff, Staff, Staff],
+) -> None:
+    _ = (seed_school, seed_class, seed_subject, seed_staff)
+    scheme_id = await _create_scheme(client)  # not submitted
+    res = await client.post(
+        f"/schemes/{scheme_id}/comments",
+        json={"body": "Too early."},
+        headers=auth_header(role="Teacher"),
+    )
+    assert res.status_code == 400
+
+
+async def test_author_can_comment_after_acknowledged(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_subject: Subject,
+    seed_staff: tuple[Staff, Staff, Staff, Staff],
+) -> None:
+    _ = (seed_school, seed_class, seed_subject, seed_staff)
+    scheme_id = await _submit(client)
+    await client.post(
+        f"/schemes/{scheme_id}/acknowledge",
+        json={"comment": "Acknowledged."},
+        headers=auth_header(role="Admin", linked_id=None),
+    )
+    # Thread stays open after acknowledgement for follow-up.
+    res = await client.post(
+        f"/schemes/{scheme_id}/comments",
+        json={"body": "Thanks for the review."},
+        headers=auth_header(role="Teacher"),
+    )
+    assert res.status_code == 201
+    assert res.json()["comments"][-1]["body"] == "Thanks for the review."

@@ -1268,6 +1268,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/schemes/{scheme_id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Comment On Scheme */
+        post: operations["comment_on_scheme_schemes__scheme_id__comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assignments": {
         parameters: {
             query?: never;
@@ -3987,7 +4004,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_sent_back" | "assignment_created" | "appointment_requested" | "appointment_decided";
+            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "scheme_commented" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_sent_back" | "assignment_created" | "appointment_requested" | "appointment_decided";
             /** Title */
             title: string;
             /** Body */
@@ -4272,6 +4289,36 @@ export interface components {
             comment?: string | null;
         };
         /**
+         * SchemeCommentRead
+         * @description One entry in a scheme's comment thread, with author display fields.
+         */
+        SchemeCommentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Authorid
+             * Format: uuid
+             */
+            authorId: string;
+            /** Authorname */
+            authorName: string;
+            /** Body */
+            body: string;
+            /** Createdat */
+            createdAt?: string | null;
+        };
+        /**
+         * SchemeCommentRequest
+         * @description `POST /schemes/{id}/comments` — author or reviewer adds to the thread.
+         */
+        SchemeCommentRequest: {
+            /** Body */
+            body: string;
+        };
+        /**
          * SchemeCreate
          * @description Teacher creates; status starts as `draft`. Teacher ID comes from
          *     the caller's JWT `linked_id`.
@@ -4368,8 +4415,6 @@ export interface components {
              * @enum {string}
              */
             status: "draft" | "submitted" | "acknowledged";
-            /** Reviewercomment */
-            reviewerComment?: string | null;
             /** Reviewedbyid */
             reviewedById?: string | null;
             /** Reviewedbyname */
@@ -4382,6 +4427,8 @@ export interface components {
             createdAt?: string | null;
             /** Updatedat */
             updatedAt?: string | null;
+            /** Comments */
+            comments?: components["schemas"]["SchemeCommentRead"][];
         };
         /**
          * SchemeUpdate
@@ -9171,6 +9218,43 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    comment_on_scheme_schemes__scheme_id__comments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                scheme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchemeCommentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

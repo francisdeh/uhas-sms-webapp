@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from app.features.classes.model import Class
-from app.features.schemes.model import Scheme
+from app.features.schemes.model import Scheme, SchemeComment
 from app.features.staff.model import Staff
 from app.features.subjects.model import Subject
 
@@ -95,3 +95,30 @@ class SchemesRepository:
         )
         row = (await session.execute(stmt)).first()
         return (row[0], row[1], row[2], row[3], row[4]) if row else None
+
+    @staticmethod
+    async def insert_comment(
+        session: AsyncSession,
+        *,
+        scheme_id: UUID | str,
+        author_id: UUID | str,
+        body: str,
+    ) -> SchemeComment:
+        """Append one comment to a scheme's thread. Never overwrites."""
+        comment = SchemeComment(scheme_id=scheme_id, author_id=author_id, body=body)
+        session.add(comment)
+        await session.flush()
+        return comment
+
+    @staticmethod
+    async def list_comments_for_scheme(
+        session: AsyncSession, scheme_id: UUID | str
+    ) -> list[tuple[SchemeComment, Staff]]:
+        """The full thread for one scheme, oldest first, with author staff."""
+        stmt = (
+            select(SchemeComment, Staff)
+            .join(Staff, Staff.id == SchemeComment.author_id)
+            .where(SchemeComment.scheme_id == scheme_id)
+            .order_by(SchemeComment.created_at.asc())
+        )
+        return [(c, s) for c, s in (await session.execute(stmt)).all()]
