@@ -94,24 +94,46 @@
       <p class="info-row"><span class="label">DATE:</span> {{ generated_date }}</p>
       <p class="info-row"><span class="label">AGGREGATE:</span> {{ data.aggregate if data.aggregate is not none else "—" }}</p>
     </div>
+    {% if data.vacation_date or data.reopening_date %}
+    <div class="info-grid">
+      <p class="info-row"><span class="label">VACATION:</span> {{ data.vacation_date.strftime("%d/%m/%Y") if data.vacation_date else "—" }}</p>
+      <p class="info-row"><span class="label">REOPENING:</span> {{ data.reopening_date.strftime("%d/%m/%Y") if data.reopening_date else "—" }}</p>
+      <p class="info-row"></p>
+    </div>
+    {% endif %}
   </div>
 
+  {% set ncols = 10 if full else 5 %}
   <table class="scores-table">
     <thead>
       <tr>
-        <th style="width: 40%">SUBJECTS</th>
-        <th class="center" style="width: 18%">{{ "EXAM SCORE [100]" if is_mid_term else "TOTAL SCORE [100]" }}</th>
-        <th class="center" style="width: 14%">SUBJECT POSITION</th>
-        <th class="center" style="width: 10%">GRADE</th>
-        <th class="center" style="width: 18%">INTERPRETATION</th>
+        <th style="width: {{ '22%' if full else '40%' }}">SUBJECTS</th>
+        {% if full %}
+        <th class="center">CAT 1</th>
+        <th class="center">CAT 2</th>
+        <th class="center">PROJECT</th>
+        <th class="center">GROUP</th>
+        <th class="center">EXAM</th>
+        {% endif %}
+        <th class="center" style="width: {{ '10%' if full else '18%' }}">{{ "EXAM SCORE [100]" if is_mid_term else "TOTAL SCORE [100]" }}</th>
+        <th class="center" style="width: {{ '10%' if full else '14%' }}">SUBJECT POSITION</th>
+        <th class="center" style="width: {{ '8%' if full else '10%' }}">GRADE</th>
+        <th class="center" style="width: {{ '12%' if full else '18%' }}">INTERPRETATION</th>
       </tr>
     </thead>
     <tbody>
-      <tr class="section-header"><td colspan="5">CORE SUBJECTS</td></tr>
+      <tr class="section-header"><td colspan="{{ ncols }}">CORE SUBJECTS</td></tr>
       {% if data.scores %}
         {% for row in data.scores %}
         <tr>
           <td>{{ row.subject_name }}</td>
+          {% if full %}
+          <td class="center">{{ row.cat1 if row.cat1 is not none else "" }}</td>
+          <td class="center">{{ row.cat2 if row.cat2 is not none else "" }}</td>
+          <td class="center">{{ row.project_work if row.project_work is not none else "" }}</td>
+          <td class="center">{{ row.group_work if row.group_work is not none else "" }}</td>
+          <td class="center">{{ row.exam_score if row.exam_score is not none else "" }}</td>
+          {% endif %}
           <td class="center">{{ row.total_score if row.total_score is not none else "" }}</td>
           <td class="center">{{ row.subject_position if row.subject_position is not none else "" }}</td>
           <td class="center">{{ row.grade if row.grade is not none else "" }}</td>
@@ -119,7 +141,7 @@
         </tr>
         {% endfor %}
       {% else %}
-        <tr class="empty-row"><td colspan="5">No subjects in this section</td></tr>
+        <tr class="empty-row"><td colspan="{{ ncols }}">No subjects in this section</td></tr>
       {% endif %}
       <!--
         GAP (matches apps/web/src/app/(dashboard)/admin/students/[id]/report-card/[examId]/page.tsx):
@@ -127,8 +149,8 @@
         everything is bucketed as Core above, Elective always empty.
         Fix both once the API exposes a category field.
       -->
-      <tr class="section-header"><td colspan="5">ELECTIVE SUBJECTS</td></tr>
-      <tr class="empty-row"><td colspan="5">No subjects in this section</td></tr>
+      <tr class="section-header"><td colspan="{{ ncols }}">ELECTIVE SUBJECTS</td></tr>
+      <tr class="empty-row"><td colspan="{{ ncols }}">No subjects in this section</td></tr>
     </tbody>
   </table>
 

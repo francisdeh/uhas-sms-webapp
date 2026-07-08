@@ -1117,11 +1117,12 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           `/students/${studentId}/report-card${buildQuery({ examId })}`,
         ),
-      /** Real PDF of one student's report card, one exam. */
-      reportCardPdf: (studentId: string, examId: string) =>
+      /** Real PDF of one student's report card, one exam. `full` adds the
+       *  CAT/project/group/exam component-score columns. */
+      reportCardPdf: (studentId: string, examId: string, full = false) =>
         apiFetchBlob(
           getAuthToken,
-          `/students/${studentId}/report-card/pdf${buildQuery({ examId })}`,
+          `/students/${studentId}/report-card/pdf${buildQuery({ examId, full: full || undefined })}`,
         ),
       /** Aggregate present/absent/late/excused counts for a date range. */
       attendanceSummary: (

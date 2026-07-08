@@ -539,8 +539,15 @@ async def get_student_report_card_pdf(
     user: CurrentUserDep,
     storage: Annotated[StorageClient, Depends(get_storage_client)],
     exam_id: Annotated[UUID, Query(alias="examId")],
+    full: Annotated[bool, Query()] = False,
 ) -> RedirectResponse:
     url = await ReportCardPdfService.get_or_render(
-        session, school_id, user, student_id=student_id, exam_id=exam_id, storage=storage
+        session,
+        school_id,
+        user,
+        student_id=student_id,
+        exam_id=exam_id,
+        storage=storage,
+        full=full,
     )
     return RedirectResponse(url)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Self
 from uuid import UUID
 
@@ -349,3 +349,9 @@ class ReportCardResponse(BaseModel):
     class_teachers: list[str]
     class_teacher_remark: str | None = None
     head_of_school_comment: str | None = None
+    # Term boundary dates, sourced from `school_terms`: vacation = the
+    # exam term's end date; reopening = the next term's start date (term 3
+    # rolls to next academic year's term 1). Null when the term row or its
+    # date isn't set — the card omits the line rather than failing.
+    vacation_date: date | None = None
+    reopening_date: date | None = None
