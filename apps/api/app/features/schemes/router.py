@@ -6,6 +6,7 @@ POST   /schemes                           → create (Teacher, uses linked_id)
 PATCH  /schemes/{id}                      → edit (owning teacher, draft only)
 POST   /schemes/{id}/submit               → submit (owning teacher, draft only)
 POST   /schemes/{id}/acknowledge          → acknowledge (Unit Head/Deputy/Admin)
+POST   /schemes/{id}/comments             → add to thread (author or reviewer)
 DELETE /schemes/{id}                      → soft delete (owning teacher, draft only)
 """
 
@@ -23,9 +24,11 @@ from app.core.errors import ForbiddenError
 from app.core.roles import ADMIN, DEPUTY_HEAD
 from app.features.classes.model import Class
 from app.features.schemes.constants import SchemeStatus
-from app.features.schemes.model import Scheme
+from app.features.schemes.model import Scheme, SchemeComment
 from app.features.schemes.schema import (
     SchemeAcknowledgeRequest,
+    SchemeCommentRead,
+    SchemeCommentRequest,
     SchemeCreate,
     SchemeRead,
     SchemesListResponse,
@@ -46,6 +49,7 @@ def _to_read(
     subject: Subject,
     cls: Class,
     reviewer: Staff | None,
+    comments: list[tuple[SchemeComment, Staff]] | None = None,
 ) -> SchemeRead:
     return SchemeRead(
         id=scheme.id,
@@ -66,13 +70,22 @@ def _to_read(
         file_url=scheme.file_url,
         content=scheme.content,
         status=scheme.status,
-        reviewer_comment=scheme.reviewer_comment,
         reviewed_by_id=scheme.reviewed_by_id,
         reviewed_by_name=(f"{reviewer.first_name} {reviewer.last_name}" if reviewer else None),
         reviewed_at=scheme.reviewed_at,
         submitted_at=scheme.submitted_at,
         created_at=scheme.created_at,
         updated_at=scheme.updated_at,
+        comments=[
+            SchemeCommentRead(
+                id=comment.id,
+                author_id=comment.author_id,
+                author_name=f"{author.first_name} {author.last_name}",
+                body=comment.body,
+                created_at=comment.created_at,
+            )
+            for comment, author in (comments or [])
+        ],
     )
 
 
@@ -128,7 +141,8 @@ async def get_scheme(
         not user.linked_id or str(user.linked_id) != str(scheme.teacher_id)
     ):
         raise ForbiddenError("You may only view your own schemes.")
-    return _to_read(scheme, teacher, subject, cls, reviewer)
+    comments = await SchemesService.list_comments(session, scheme_id)
+    return _to_read(scheme, teacher, subject, cls, reviewer, comments)
 
 
 @router.post(
@@ -206,7 +220,33 @@ async def acknowledge_scheme(
         actor_staff_id=user.linked_id,
         actor_role=user.role or "",
     )
-    return _to_read(scheme, teacher, subject, cls, reviewer)
+    comments = await SchemesService.list_comments(session, scheme_id)
+    return _to_read(scheme, teacher, subject, cls, reviewer, comments)
+
+
+@router.post(
+    "/{scheme_id}/comments",
+    response_model=SchemeRead,
+    response_model_by_alias=True,
+    status_code=status.HTTP_201_CREATED,
+)
+async def comment_on_scheme(
+    scheme_id: UUID,
+    payload: SchemeCommentRequest,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> SchemeRead:
+    scheme, teacher, subject, cls, reviewer = await SchemesService.add_comment(
+        session,
+        school_id,
+        scheme_id,
+        payload.body,
+        actor_staff_id=user.linked_id,
+        actor_role=user.role or "",
+    )
+    comments = await SchemesService.list_comments(session, scheme_id)
+    return _to_read(scheme, teacher, subject, cls, reviewer, comments)
 
 
 @router.delete(

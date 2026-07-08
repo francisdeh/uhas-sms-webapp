@@ -627,6 +627,15 @@ export function createApiClient(getAuthToken: TokenGetter) {
           `/schemes/${id}/acknowledge`,
           { method: "POST", body: JSON.stringify(payload) },
         ),
+      comment: (
+        id: string,
+        payload: components["schemas"]["SchemeCommentRequest"],
+      ) =>
+        apiFetch<components["schemas"]["SchemeRead"]>(
+          getAuthToken,
+          `/schemes/${id}/comments`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
       delete: (id: string) =>
         apiFetch<void>(getAuthToken, `/schemes/${id}`, { method: "DELETE" }),
     },

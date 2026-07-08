@@ -8,6 +8,14 @@ export const SCHEME_TYPE_LABELS: Record<SchemeType, string> = {
   learning: "Scheme of Learning",
 };
 
+export type SchemeComment = {
+  id: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string | null;
+};
+
 export type Scheme = {
   id: string;
   schoolId: string;
@@ -25,13 +33,13 @@ export type Scheme = {
   fileUrl: string | null;
   content: string | null;
   status: SchemeStatus;
-  reviewerComment: string | null;
   reviewedById: string | null;
   reviewedByName: string | null;
   reviewedAt: string | null;
   submittedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  comments: SchemeComment[];
 };
 
 export type CreateSchemeInput = {
