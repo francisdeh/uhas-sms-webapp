@@ -279,9 +279,18 @@ class StudentsService:
         student_id: UUID | str,
         *,
         user: CurrentUser,
-    ) -> list[tuple[Guardian, str | None, bool]]:
+    ) -> list[tuple[Guardian, str | None, bool, bool]]:
         _student, cls = await StudentsService.get(session, school_id, student_id)
-        await _assert_can_view_student(session, school_id, user, cls)
+        # A parent may see the co-guardians of their own child — allowed
+        # when their linked guardian is one of the student's guardians.
+        # (Siblings stay Admin/Deputy-only; that's a Phase 6 parent item.)
+        parent_linked = (
+            user.role == PARENT
+            and user.linked_id is not None
+            and await StudentsRepository.get_link(session, student_id, user.linked_id) is not None
+        )
+        if not parent_linked:
+            await _assert_can_view_student(session, school_id, user, cls)
         return await StudentsRepository.list_guardians(session, school_id, student_id)
 
     @staticmethod
@@ -292,7 +301,7 @@ class StudentsService:
         payload: StudentGuardianAddRequest,
         *,
         actor_user_id: UUID | str,
-    ) -> list[tuple[Guardian, str | None, bool]]:
+    ) -> list[tuple[Guardian, str | None, bool, bool]]:
         await StudentsService.get(session, school_id, student_id)  # 404 if missing
         guardian = await StudentsService._attach_guardian(session, school_id, student_id, payload)
         await write_audit_log(
@@ -318,7 +327,7 @@ class StudentsService:
         student_id: UUID | str,
         guardian_id: UUID | str,
         payload: StudentGuardianUpdateRequest,
-    ) -> list[tuple[Guardian, str | None, bool]]:
+    ) -> list[tuple[Guardian, str | None, bool, bool]]:
         await StudentsService.get(session, school_id, student_id)  # 404 if missing
         link = await StudentsRepository.get_link(session, student_id, guardian_id)
         if link is None:
@@ -343,7 +352,7 @@ class StudentsService:
         guardian_id: UUID | str,
         *,
         actor_user_id: UUID | str,
-    ) -> list[tuple[Guardian, str | None, bool]]:
+    ) -> list[tuple[Guardian, str | None, bool, bool]]:
         await StudentsService.get(session, school_id, student_id)  # 404 if missing
         link = await StudentsRepository.get_link(session, student_id, guardian_id)
         if link is None:

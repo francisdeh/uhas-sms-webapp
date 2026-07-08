@@ -16,15 +16,16 @@ same convention.
 
 from __future__ import annotations
 
+import secrets
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.errors import NotFoundError, ValidationError
+from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.roles import PARENT
-from app.features.audit.actions import USER_MFA_RESET, AuditAction
+from app.features.audit.actions import USER_CREATED, USER_MFA_RESET, AuditAction
 from app.features.audit.service import write_audit_log
 from app.features.users.model import User
 from app.features.users.repository import JoinedRow, UsersRepository
@@ -125,35 +126,131 @@ class UsersService:
         payload: UserCreate,
         *,
         supabase: SupabaseAdminClient,
+        actor_user_id: UUID | str,
     ) -> UserRead:
-        await UsersService._validate_link(session, school_id, payload.role, payload.linked_id)
-
-        redirect_to = _invite_redirect_url()
-        created = await supabase.invite_user_by_email(email=payload.email, redirect_to=redirect_to)
-        auth_uid = UUID(str(created["id"]))
-        await supabase.update_user_by_id(
-            auth_uid,
-            app_metadata={
-                "role": payload.role,
-                "school_id": str(school_id),
-                "linked_id": str(payload.linked_id) if payload.linked_id else None,
-            },
-            user_metadata={
-                "display_name": payload.display_name,
-                "must_change_password": True,
-            },
+        return await UsersService.provision_login(
+            session,
+            school_id,
+            role=payload.role,
+            linked_id=payload.linked_id,
+            email=payload.email,
+            phone=payload.phone,
+            display_name=payload.display_name,
+            supabase=supabase,
+            actor_user_id=actor_user_id,
         )
+
+    @staticmethod
+    async def provision_guardian_login(
+        session: AsyncSession,
+        school_id: UUID | str,
+        guardian_id: UUID,
+        *,
+        supabase: SupabaseAdminClient,
+        actor_user_id: UUID | str,
+    ) -> UserRead:
+        """Provision a Parent login for a guardian, sourcing the login's
+        email/phone from the guardian record itself."""
+        guardian = await UsersRepository.find_guardian_in_school(session, school_id, guardian_id)
+        if guardian is None:
+            raise NotFoundError(f"Guardian {guardian_id!r} not found.")
+        return await UsersService.provision_login(
+            session,
+            school_id,
+            role=PARENT,
+            linked_id=guardian_id,
+            email=guardian.email,
+            phone=guardian.phone,
+            display_name=f"{guardian.first_name} {guardian.last_name}".strip(),
+            supabase=supabase,
+            actor_user_id=actor_user_id,
+        )
+
+    @staticmethod
+    async def provision_login(
+        session: AsyncSession,
+        school_id: UUID | str,
+        *,
+        role: str,
+        linked_id: UUID | None,
+        email: str | None,
+        phone: str | None,
+        display_name: str,
+        supabase: SupabaseAdminClient,
+        actor_user_id: UUID | str,
+    ) -> UserRead:
+        """Create a Supabase auth user + local bridge row. Provisions
+        whatever identifiers exist: an email sends an invite (password set
+        via the link); a phone is set + confirmed so SMS-OTP works; both
+        when both are present. A phone-only login skips the invite entirely
+        and uses `create_user` with an unused random password."""
+        await UsersService._validate_link(session, school_id, role, linked_id)
+
+        if linked_id is not None:
+            existing = await UsersRepository.find_by_linked_id(session, school_id, linked_id)
+            if existing is not None:
+                raise ConflictError("This person already has a login.")
+
+        if not email and not phone:
+            raise ValidationError("A phone or email is required to create a login.")
+
+        app_metadata = {
+            "role": role,
+            "school_id": str(school_id),
+            "linked_id": str(linked_id) if linked_id else None,
+        }
+
+        if email:
+            created = await supabase.invite_user_by_email(
+                email=email, redirect_to=_invite_redirect_url()
+            )
+            auth_uid = UUID(str(created["id"]))
+            await supabase.update_user_by_id(
+                auth_uid,
+                phone=phone,
+                phone_confirm=bool(phone),
+                app_metadata=app_metadata,
+                user_metadata={"display_name": display_name, "must_change_password": True},
+            )
+            must_change_password = True
+        else:
+            # Phone-only: no inbox to invite, so create the user directly
+            # with a confirmed phone. The random password is never used —
+            # the guardian signs in via SMS-OTP.
+            created = await supabase.create_user(
+                password=secrets.token_urlsafe(24),
+                phone=phone,
+                phone_confirm=True,
+                app_metadata=app_metadata,
+                user_metadata={"display_name": display_name, "must_change_password": False},
+            )
+            auth_uid = UUID(str(created["id"]))
+            must_change_password = False
+
         school_uuid = school_id if isinstance(school_id, UUID) else UUID(str(school_id))
         row = User(
             id=auth_uid,
             school_id=school_uuid,
-            email=payload.email,
-            role=payload.role,
-            linked_id=payload.linked_id,
+            email=email,
+            role=role,
+            linked_id=linked_id,
             is_active=True,
-            must_change_password=True,
+            must_change_password=must_change_password,
         )
         await UsersRepository.insert(session, row)
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=USER_CREATED,
+            target_table="users",
+            target_id=auth_uid,
+            after={
+                "role": role,
+                "linkedId": str(linked_id) if linked_id else None,
+                "via": "email" if email else "phone",
+            },
+        )
         return await UsersService._read_or_404(session, school_id, auth_uid)
 
     @staticmethod

@@ -19,6 +19,7 @@ from app.features.enrollments.constants import ACTIVE
 from app.features.enrollments.model import Enrollment
 from app.features.guardians.model import Guardian
 from app.features.students.model import Student, StudentGuardian
+from app.features.users.model import User
 
 
 class StudentsRepository:
@@ -163,12 +164,19 @@ class StudentsRepository:
     @staticmethod
     async def list_guardians(
         session: AsyncSession, school_id: UUID | str, student_id: UUID | str
-    ) -> list[tuple[Guardian, str | None, bool]]:
+    ) -> list[tuple[Guardian, str | None, bool, bool]]:
         """All guardians linked to a student — `(Guardian, relation,
-        is_primary)`, primaries first then by surname."""
+        is_primary, has_login)`, primaries first then by surname.
+        `has_login` is true when a `users` row links this guardian."""
         stmt = (
-            select(Guardian, StudentGuardian.relation, StudentGuardian.is_primary)
+            select(
+                Guardian,
+                StudentGuardian.relation,
+                StudentGuardian.is_primary,
+                User.id.isnot(None),
+            )
             .join(StudentGuardian, StudentGuardian.guardian_id == Guardian.id)
+            .outerjoin(User, User.linked_id == Guardian.id)
             .where(
                 and_(
                     StudentGuardian.student_id == student_id,
@@ -178,7 +186,7 @@ class StudentsRepository:
             .order_by(desc(StudentGuardian.is_primary), asc(Guardian.last_name))
         )
         rows = (await session.execute(stmt)).all()
-        return [(g, rel, bool(primary)) for g, rel, primary in rows]
+        return [(g, rel, bool(primary), bool(has_login)) for g, rel, primary, has_login in rows]
 
     @staticmethod
     async def get_link(

@@ -40,6 +40,9 @@ USER_MFA_RESET: Final = "USER_MFA_RESET"
 # A guardian was linked to / unlinked from a student (relationship change).
 GUARDIAN_LINKED: Final = "GUARDIAN_LINKED"
 GUARDIAN_UNLINKED: Final = "GUARDIAN_UNLINKED"
+# A login (Supabase auth user + bridge row) was provisioned for a
+# staff member or guardian.
+USER_CREATED: Final = "USER_CREATED"
 
 AuditAction = Literal[
     "EXAM_PUBLISH",
@@ -57,6 +60,7 @@ AuditAction = Literal[
     "USER_MFA_RESET",
     "GUARDIAN_LINKED",
     "GUARDIAN_UNLINKED",
+    "USER_CREATED",
 ]
 """All audit_log.action values the API writes. Add new actions here
 *and* on the TS side before introducing them."""

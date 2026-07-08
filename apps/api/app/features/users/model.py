@@ -30,7 +30,8 @@ class User(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
     school_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("schools.id"), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Nullable: a phone-only guardian login (SMS-OTP) has no email.
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(50), nullable=False)
     linked_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
     is_active: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)

@@ -9,7 +9,7 @@ export default async function AdminUsersPage() {
   // UsersTable renders avatars from initials when photoUrl is missing.
   const users: ManagedUser[] = resp.items.map((u) => ({
     uid: u.id,
-    email: u.email,
+    email: u.email ?? null,
     displayName: u.displayName,
     role: u.role,
     linkedId: u.linkedId ?? "",

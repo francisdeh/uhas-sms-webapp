@@ -25,8 +25,13 @@ from app.features.guardians.service import GuardiansService
 from app.features.students.model import Student
 from app.features.students.schema import GuardianChildrenResponse, StudentRead
 from app.features.students.service import StudentsService
+from app.features.users.schema import UserRead
+from app.features.users.service import UsersService
+from app.features.users.supabase_admin import SupabaseAdminClient, get_supabase_admin_client
 
 router = APIRouter(prefix="/guardians", tags=["guardians"])
+
+_SupabaseDep = Annotated[SupabaseAdminClient, Depends(get_supabase_admin_client)]
 
 
 def _to_student_read(student: Student, cls: Class | None) -> StudentRead:
@@ -101,6 +106,25 @@ async def create_guardian(
 ) -> GuardianRead:
     row = await GuardiansService.create(session, school_id, payload)
     return GuardianRead.model_validate(row)
+
+
+@router.post(
+    "/{guardian_id}/login",
+    response_model=UserRead,
+    response_model_by_alias=True,
+    status_code=status.HTTP_201_CREATED,
+    summary="Provision a login for a guardian (email invite and/or phone-OTP)",
+)
+async def create_guardian_login(
+    guardian_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+    supabase: _SupabaseDep,
+) -> UserRead:
+    return await UsersService.provision_guardian_login(
+        session, school_id, guardian_id, supabase=supabase, actor_user_id=user.user_id
+    )
 
 
 @router.patch("/{guardian_id}", response_model=GuardianRead, response_model_by_alias=True)

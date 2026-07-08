@@ -29,7 +29,7 @@ router = APIRouter(prefix="/students", tags=["students"])
 
 
 def _guardian_to_read(
-    guardian: Guardian, relation: str | None, is_primary: bool
+    guardian: Guardian, relation: str | None, is_primary: bool, has_login: bool
 ) -> StudentGuardianRead:
     return StudentGuardianRead(
         id=guardian.id,
@@ -37,6 +37,7 @@ def _guardian_to_read(
         name=f"{guardian.first_name} {guardian.last_name}".strip(),
         relationship=relation or "Guardian",
         is_primary=is_primary,
+        has_login=has_login,
         phone=guardian.phone,
         email=guardian.email,
     )
@@ -131,7 +132,7 @@ async def list_student_guardians(
     user: CurrentUserDep,
 ) -> list[StudentGuardianRead]:
     rows = await StudentsService.list_guardians(session, school_id, student_id, user=user)
-    return [_guardian_to_read(g, rel, primary) for g, rel, primary in rows]
+    return [_guardian_to_read(g, rel, primary, has_login) for g, rel, primary, has_login in rows]
 
 
 @router.post(
@@ -151,7 +152,7 @@ async def add_student_guardian(
     rows = await StudentsService.add_guardian(
         session, school_id, student_id, payload, actor_user_id=user.user_id
     )
-    return [_guardian_to_read(g, rel, primary) for g, rel, primary in rows]
+    return [_guardian_to_read(g, rel, primary, has_login) for g, rel, primary, has_login in rows]
 
 
 @router.patch(
@@ -171,7 +172,7 @@ async def update_student_guardian(
     rows = await StudentsService.update_guardian_link(
         session, school_id, student_id, guardian_id, payload
     )
-    return [_guardian_to_read(g, rel, primary) for g, rel, primary in rows]
+    return [_guardian_to_read(g, rel, primary, has_login) for g, rel, primary, has_login in rows]
 
 
 @router.delete(
@@ -190,7 +191,7 @@ async def remove_student_guardian(
     rows = await StudentsService.remove_guardian(
         session, school_id, student_id, guardian_id, actor_user_id=user.user_id
     )
-    return [_guardian_to_read(g, rel, primary) for g, rel, primary in rows]
+    return [_guardian_to_read(g, rel, primary, has_login) for g, rel, primary, has_login in rows]
 
 
 @router.get(

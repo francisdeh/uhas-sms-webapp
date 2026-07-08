@@ -62,11 +62,18 @@ const AVATAR_GRADIENT: Record<UserRole, string> = {
 type FormState = {
   displayName: string;
   email: string;
+  phone: string;
   role: UserRole;
   linkedId: string;
 };
 
-const EMPTY_FORM: FormState = { displayName: "", email: "", role: "Teacher", linkedId: "" };
+const EMPTY_FORM: FormState = {
+  displayName: "",
+  email: "",
+  phone: "",
+  role: "Teacher",
+  linkedId: "",
+};
 
 function StatCard({
   label,
@@ -150,7 +157,8 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
   const createMutation = useMutation({
     mutationFn: (payload: FormState) =>
       api.users.create({
-        email: payload.email,
+        email: payload.email || null,
+        phone: payload.phone || null,
         displayName: payload.displayName,
         role: payload.role,
         linkedId: payload.linkedId || null,
@@ -160,7 +168,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
         ...prev,
         {
           uid: created.id,
-          email: created.email,
+          email: created.email ?? null,
           displayName: created.displayName,
           role: created.role as UserRole,
           linkedId: created.linkedId ?? "",
@@ -238,7 +246,13 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
 
   function openEdit(user: ManagedUser) {
     setEditingUser(user);
-    setForm({ displayName: user.displayName, email: user.email, role: user.role, linkedId: user.linkedId });
+    setForm({
+      displayName: user.displayName,
+      email: user.email ?? "",
+      phone: "",
+      role: user.role,
+      linkedId: user.linkedId,
+    });
     setDialogView("form");
     setDialogOpen(true);
   }
@@ -263,9 +277,13 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
     e.preventDefault();
     if (editingUser) {
       updateMutation.mutate({ uid: editingUser.uid, payload: form });
-    } else {
-      createMutation.mutate(form);
+      return;
     }
+    if (isParentRole && !form.email.trim() && !form.phone.trim()) {
+      toast.error("A parent login needs at least an email or a phone.");
+      return;
+    }
+    createMutation.mutate(form);
   }
 
   const columns: ColumnDef<ManagedUser>[] = [
@@ -292,7 +310,9 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">{u.displayName}</p>
-              <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {u.email ?? "Phone login"}
+              </p>
             </div>
           </div>
         );
@@ -560,14 +580,32 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
                   </Field>
                   {!editingUser && (
                     <Field>
-                      <FieldLabel>Email</FieldLabel>
+                      <FieldLabel>
+                        Email{isParentRole && <span className="text-muted-foreground"> (optional)</span>}
+                      </FieldLabel>
                       <Input
-                        required
+                        required={!isParentRole}
                         type="email"
                         placeholder="k.boateng@uhas.edu.gh"
                         value={form.email}
                         onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                       />
+                    </Field>
+                  )}
+                  {!editingUser && isParentRole && (
+                    <Field>
+                      <FieldLabel>
+                        Phone <span className="text-muted-foreground">(for SMS-OTP login)</span>
+                      </FieldLabel>
+                      <Input
+                        type="tel"
+                        placeholder="+233 24 000 0000"
+                        value={form.phone}
+                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        A parent can sign in by phone (OTP) and/or email. Provide at least one.
+                      </p>
                     </Field>
                   )}
                   <div className="grid grid-cols-2 gap-3">
@@ -641,8 +679,17 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
                 </div>
                 <DialogTitle className="text-center">Account created</DialogTitle>
                 <DialogDescription className="text-center">
-                  We&apos;ve emailed <strong>{inviteName}</strong> an invite at{" "}
-                  <strong>{inviteEmail}</strong> to set their password and log in.
+                  {inviteEmail ? (
+                    <>
+                      We&apos;ve emailed <strong>{inviteName}</strong> an invite at{" "}
+                      <strong>{inviteEmail}</strong> to set their password and log in.
+                    </>
+                  ) : (
+                    <>
+                      <strong>{inviteName}</strong> can now sign in with their phone number
+                      using a one-time code (OTP).
+                    </>
+                  )}
                 </DialogDescription>
               </DialogHeader>
               <Button variant="ink" className="w-full py-2 h-auto text-sm" onClick={closeDialog}>

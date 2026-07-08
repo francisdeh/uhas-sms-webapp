@@ -67,10 +67,12 @@ async def create_user(
     payload: UserCreate,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    _admin: RequireAdmin,
+    admin: RequireAdmin,
     supabase: _SupabaseDep,
 ) -> UserRead:
-    return await UsersService.create(session, school_id, payload, supabase=supabase)
+    return await UsersService.create(
+        session, school_id, payload, supabase=supabase, actor_user_id=admin.user_id
+    )
 
 
 @router.patch("/{user_id}", response_model=UserRead, response_model_by_alias=True)

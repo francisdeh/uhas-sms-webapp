@@ -69,5 +69,18 @@ export function useGuardianLinkMutations(studentId: string) {
     onError,
   });
 
-  return { add, update, remove };
+  const createLogin = useMutation({
+    mutationFn: (guardianId: string) => api.guardians.createLogin(guardianId),
+    onSuccess: (user) => {
+      toast.success(
+        user.email
+          ? `Login created — invite sent to ${user.email}.`
+          : "Login created — the guardian can sign in with their phone (OTP).",
+      );
+      invalidate();
+    },
+    onError,
+  });
+
+  return { add, update, remove, createLogin };
 }
