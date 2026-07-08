@@ -131,7 +131,7 @@ Port in dependency order. Each domain is a vertical slice: `repository.py` → `
 
 **Goal:** the system matches the school's refined requirements.
 
-- Seed the **11 Common Core subjects** (Science, Social Studies, Computing, Career Technology, Creative Arts & Design, RME, Ewe, French, Mathematics, English, Music).
+- Seed the **11 Common Core subjects** ✅ done — the school's confirmed curriculum is seeded per division (KG 7, Lower Primary 9, Upper Primary 9 [same as Lower], JHS 11) in `apps/api/app/scripts/seed/academic.py`, names verbatim, all `category="Core"`. Design: `docs/superpowers/specs/2026-07-08-common-core-subjects-design.md`. *(Note: the subject list is reference data a prod deploy also needs — surfaced the dev-vs-prod seed-strategy split as a follow-up.)*
 - Build the **full Scheme of Learning** template (dedicated table, 17 fields) with upload alternative.
 - Replace appointment slot field with **named slots** (Snack 10:00–10:20, Lunch 12:20–13:05, After School 15:05–15:45) + teacher comment.
 - Add **Head/Deputy comments** on schemes and lesson notes (comments table).

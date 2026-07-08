@@ -42,11 +42,48 @@ _CLASSES: tuple[tuple[str, str, Division, int, str], ...] = (
 
 STUDENTS_PER_CLASS = 10
 
+# The school's confirmed curriculum (product owner, Phase 4). Subjects
+# are division-scoped, so a same-named subject in two divisions is two
+# rows. Lower + Upper Primary share one list ("Primary"). Names are
+# verbatim — they print on report cards. All Core for now; no electives
+# were distinguished.
+_PRIMARY_SUBJECTS: tuple[str, ...] = (
+    "English Language",
+    "Mathematics",
+    "Science",
+    "Religious and Moral Education",
+    "Computing",
+    "Ewe",
+    "French",
+    "Creative Arts and Design",
+    "History",
+)
+
 _SUBJECTS_BY_DIVISION: dict[Division, tuple[str, ...]] = {
-    "KG": ("Numeracy", "Literacy", "Creative Arts"),
-    "Lower Primary": ("Mathematics", "English Language", "Science", "Religious & Moral Education"),
-    "Upper Primary": ("Mathematics", "English Language", "Science", "Social Studies"),
-    "JHS": ("Mathematics", "English Language", "Integrated Science", "Social Studies", "R.M.E."),
+    "KG": (
+        "Numeracy",
+        "Literacy",
+        "Creative Arts",
+        "Our World and Our People",
+        "French",
+        "Ewe",
+        "Computing",
+    ),
+    "Lower Primary": _PRIMARY_SUBJECTS,
+    "Upper Primary": _PRIMARY_SUBJECTS,
+    "JHS": (
+        "English Language",
+        "Mathematics",
+        "Science",
+        "Religious and Moral Education",
+        "Computing",
+        "Ewe",
+        "French",
+        "Career Technology",
+        "Social Studies",
+        "Creative Arts and Design",
+        "Music",
+    ),
 }
 
 # JHS runs subject specialists rather than one class teacher covering everything.
