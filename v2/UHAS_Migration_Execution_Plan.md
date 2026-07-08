@@ -171,6 +171,8 @@ Prioritised by what UHAS hits first (from the Feature Enhancements doc):
 3. Leave management (balances, types, documents, substitute) — monthly staff use.
 4. Staff profile depth (hire date, qualifications, subject expertise, documents).
 5. Report card polish: KG observational variant, conduct/co-curricular, class-average comparison, **batch print**, **email-to-parent** on publish.
+6. **First-login onboarding checklist** — after a prod bootstrap (which seeds only the school row + config + subjects), the admin logs into a fresh instance and must configure the rest. A first-login checklist that walks the Admin through the remaining setup (school identity/branding, grading tweaks, academic year + term dates, create classes, invite staff) turns an empty instance into a guided setup. Optionally a lighter first-login checklist for other roles for any per-user setup (e.g. enable 2FA, set notification prefs). Complements the dev-vs-prod seed split (§8 follow-up).
+7. **"Powered by SimplifyDLabs" attribution** — developer/agency wording + link in the relevant places (login-page footer, dashboard footer/about). Small branding item; slot in alongside the Phase 7 brand-verification pass.
 
 **Done when:** the chosen depth items are shipped; remaining ones are explicitly deferred.
 

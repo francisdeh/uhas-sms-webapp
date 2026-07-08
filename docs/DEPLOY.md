@@ -21,7 +21,12 @@ Target stack: **Next.js + FastAPI on Railway** + **Supabase (Postgres, Auth, Sto
   uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
   ```
   Safe to run on every deploy — a no-op when the schema is already current.
-- [ ] **No demo-data seed script runs against prod.** `apps/api/app/scripts/seed/` (`uv run python -m app.scripts.seed`) is dev/demo-only and hard-refuses (`SystemExit`) when `ENV=production`. Real school data (staff, students, classes, …) goes in through the Admin UI once the app is live — there's no bulk-import path yet.
+- [ ] **Bootstrap the reference data — run once after `alembic upgrade head` on a fresh deploy:**
+  ```bash
+  uv run python -m app.scripts.seed_reference
+  ```
+  Creates the single-tenant **school row + config** (which has no create UI) and bulk-loads the **subject curriculum** (36 rows). It is **idempotent** (insert-if-absent — never truncates, never modifies existing rows), so it's safe to run against a live DB and safe to re-run. After this, set the academic year + term dates in Settings → Calendar and create classes via `/admin/classes/new` (both have UI). Subjects can be edited/added at `/admin/subjects`.
+- [ ] **The demo-data seed never runs against prod.** `apps/api/app/scripts/seed/` (`uv run python -m app.scripts.seed`) truncates every table and injects fake staff/students/scores — it's dev-only and hard-refuses (`SystemExit`) when `ENV=production`. (It shares the same reference definitions as `seed_reference`, so dev and prod can't drift.) Remaining real school data goes in through the Admin UI — there's no bulk-import path yet.
 
 ## 2. Supabase Auth
 
