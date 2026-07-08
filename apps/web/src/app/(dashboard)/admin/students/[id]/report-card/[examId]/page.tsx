@@ -90,6 +90,8 @@ export default async function AdminReportCardRoute({ params }: PageProps) {
     classTeacherNames: card.classTeachers,
     classTeacherRemark: card.classTeacherRemark ?? null,
     headOfSchoolComment: card.headOfSchoolComment ?? null,
+    vacationDate: card.vacationDate ?? null,
+    reopeningDate: card.reopeningDate ?? null,
   };
 
   return (

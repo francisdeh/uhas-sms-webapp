@@ -109,6 +109,14 @@ class ReportCardService:
         if school is None:
             raise NotFoundError(f"School {school_id!r} not found.")
 
+        this_term = await ReportCardRepository.find_term(
+            session, school_id=school_id, academic_year=exam.academic_year, term=exam.term
+        )
+        next_year, next_term = _next_term(exam.academic_year, exam.term)
+        following_term = await ReportCardRepository.find_term(
+            session, school_id=school_id, academic_year=next_year, term=next_term
+        )
+
         return ReportCardResponse(
             student=ReportCardStudent(
                 id=student.id,
@@ -137,7 +145,21 @@ class ReportCardService:
             class_teachers=class_teachers,
             class_teacher_remark=(remark.class_teacher_remark if remark else None),
             head_of_school_comment=(report.head_of_school_comment if report else None),
+            vacation_date=(this_term.end_date if this_term else None),
+            reopening_date=(following_term.start_date if following_term else None),
         )
+
+
+def _next_term(academic_year: str, term: int) -> tuple[str, int]:
+    """The (academic_year, term) that follows this one. Terms 1 and 2 stay
+    in the same year; term 3 rolls to term 1 of the next academic year
+    (`"2025/2026"` → `"2026/2027"`). Reopening date comes from this term's
+    start."""
+    if term < 3:
+        return academic_year, term + 1
+    start, end = academic_year.split("/")
+    next_year = f"{int(start) + 1}/{int(end) + 1}"
+    return next_year, 1
 
 
 async def _assert_can_view(

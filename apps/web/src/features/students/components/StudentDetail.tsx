@@ -65,6 +65,7 @@ const AVATAR_GRADIENT: Record<Student["division"], string> = {
 
 const editSchema = z.object({
   firstName: z.string().min(2, { message: "Min 2 characters" }),
+  middleName: z.string().optional(),
   lastName: z.string().min(2, { message: "Min 2 characters" }),
   dob: z.string().refine((v) => {
     const d = new Date(v);
@@ -114,6 +115,7 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
     resolver: zodResolver(editSchema),
     defaultValues: {
       firstName: student.firstName,
+      middleName: student.middleName ?? "",
       lastName: student.lastName,
       dob: student.dob,
       gender: student.gender,
@@ -134,6 +136,7 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
     mutationFn: (data: EditFormValues) =>
       api.students.update(student.id, {
         firstName: data.firstName,
+        middleName: data.middleName?.trim() ? data.middleName.trim() : null,
         lastName: data.lastName,
         dob: data.dob,
         gender: data.gender,
@@ -279,6 +282,9 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <InfoRow label="First Name" value={student.firstName} />
+                    {student.middleName && (
+                      <InfoRow label="Other Name(s)" value={student.middleName} />
+                    )}
                     <InfoRow label="Last Name" value={student.lastName} />
                     <InfoRow label="Date of Birth" value={formatStudentDate(student.dob)} />
                     <InfoRow label="Gender" value={student.gender} />
@@ -419,6 +425,11 @@ export default function StudentDetail({ student, classes, guardian }: Props) {
                 <FieldLabel htmlFor="firstName">First Name</FieldLabel>
                 <Input id="firstName" {...editForm.register("firstName")} />
                 <FieldError errors={[editForm.formState.errors.firstName]} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="middleName">Other Name(s)</FieldLabel>
+                <Input id="middleName" {...editForm.register("middleName")} />
+                <FieldError errors={[editForm.formState.errors.middleName]} />
               </Field>
               <Field>
                 <FieldLabel htmlFor="lastName">Last Name</FieldLabel>

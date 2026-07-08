@@ -4198,6 +4198,10 @@ export interface components {
             classTeacherRemark?: string | null;
             /** Headofschoolcomment */
             headOfSchoolComment?: string | null;
+            /** Vacationdate */
+            vacationDate?: string | null;
+            /** Reopeningdate */
+            reopeningDate?: string | null;
         };
         /**
          * ReportCardSchool
@@ -8620,6 +8624,7 @@ export interface operations {
         parameters: {
             query: {
                 examId: string;
+                full?: boolean;
             };
             header?: {
                 authorization?: string | null;

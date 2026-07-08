@@ -33,6 +33,7 @@ import type { ClassRecord } from "@/features/students/types";
 
 const schema = z.object({
   firstName: z.string().min(2, { message: "Must be at least 2 characters" }),
+  middleName: z.string().optional(),
   lastName: z.string().min(2, { message: "Must be at least 2 characters" }),
   dob: z
     .string()
@@ -92,6 +93,7 @@ export default function StudentRegistrationForm({
     try {
       const row = await create.mutateAsync({
         firstName: values.firstName,
+        middleName: values.middleName?.trim() ? values.middleName.trim() : null,
         lastName: values.lastName,
         dob: values.dob,
         gender: values.gender,
@@ -139,6 +141,17 @@ export default function StudentRegistrationForm({
                   {...register("firstName")}
                 />
                 <FieldError errors={[errors.firstName]} />
+              </Field>
+
+              {/* Full-width: Other Name(s) */}
+              <Field>
+                <FieldLabel htmlFor="middleName">Other Name(s)</FieldLabel>
+                <Input
+                  id="middleName"
+                  placeholder="e.g. Nana Yaa (optional)"
+                  {...register("middleName")}
+                />
+                <FieldError errors={[errors.middleName]} />
               </Field>
 
               {/* Full-width: Last Name */}

@@ -132,7 +132,11 @@ export type ReportCardData = {
   classTeacherNames: string[];
   classTeacherRemark: string | null;
   headOfSchoolComment: string | null;
+  vacationDate: string | null;
+  reopeningDate: string | null;
 };
+
+export type ReportCardVariant = "summary" | "full";
 
 export type ScoreEntryStatus = "not_started" | "partial" | "complete";
 

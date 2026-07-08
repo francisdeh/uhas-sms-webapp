@@ -50,8 +50,12 @@ def report_card_storage_path(*, school_id: str, exam_id: str, student_id: str) -
     return f"report-cards/{school_id}/{exam_id}/{student_id}.pdf"
 
 
-def _content_hash(data: ReportCardResponse) -> str:
+def _content_hash(data: ReportCardResponse, *, full: bool) -> str:
     payload = data.model_dump(mode="json")
+    # `full` is a rendering choice over identical data, so it must enter
+    # the hash — otherwise a summary render would be served for a full
+    # request (and vice-versa) from the single cache row.
+    payload["_full"] = full
     serialized = json.dumps(payload, sort_keys=True)
     return hashlib.sha256(serialized.encode()).hexdigest()
 
@@ -62,7 +66,7 @@ def _report_title(exam_type: str, term: int) -> str:
     return f"END OF TERM REPORT — TERM {term}"
 
 
-def _render_html(data: ReportCardResponse, exam_created_at: datetime) -> str:
+def _render_html(data: ReportCardResponse, exam_created_at: datetime, *, full: bool) -> str:
     template = _env.get_template("report_card.html")
     full_name = " ".join(
         part
@@ -72,6 +76,7 @@ def _render_html(data: ReportCardResponse, exam_created_at: datetime) -> str:
     return template.render(
         data=data,
         full_name=full_name,
+        full=full,
         title=_report_title(data.exam.type, data.exam.term),
         month_year=exam_created_at.strftime("%B %Y").upper(),
         generated_date=datetime.now(UTC).strftime("%d/%m/%Y"),
@@ -96,21 +101,22 @@ class ReportCardPdfService:
         student_id: UUID,
         exam_id: UUID,
         storage: StorageClient,
+        full: bool = False,
     ) -> str:
         """Returns a signed URL for this student's report-card PDF.
 
         Renders + uploads a fresh copy only if the underlying data
-        changed since the last render (see module docstring) — auth
-        and existence checks are inherited entirely from
-        `ReportCardService.get`, called unconditionally on every
-        request so a cache hit never skips authorization.
+        (or the `full` breakdown flag) changed since the last render
+        (see module docstring) — auth and existence checks are inherited
+        entirely from `ReportCardService.get`, called unconditionally on
+        every request so a cache hit never skips authorization.
         """
         school_uuid = school_id if isinstance(school_id, UUID) else UUID(str(school_id))
 
         data = await ReportCardService.get(
             session, school_id, user, student_id=student_id, exam_id=exam_id
         )
-        content_hash = _content_hash(data)
+        content_hash = _content_hash(data, full=full)
 
         cache_row = await session.get(ReportCardPdfCache, (school_uuid, exam_id, student_id))
         if cache_row is not None and cache_row.content_hash == content_hash:
@@ -120,7 +126,7 @@ class ReportCardPdfService:
         exam_created_at = (
             exam_row.created_at if exam_row and exam_row.created_at else datetime.now(UTC)
         )
-        html = _render_html(data, exam_created_at)
+        html = _render_html(data, exam_created_at, full=full)
         pdf_bytes = HTML(string=html).write_pdf()
 
         path = report_card_storage_path(

@@ -157,6 +157,48 @@ async def test_score_change_busts_the_cache(
     assert second_hash != first_hash
 
 
+async def test_full_flag_renders_a_distinct_pdf(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+    fake_storage: FakeStorageClient,
+) -> None:
+    """`full=true` (component breakdown) is a different render of the same
+    data — it must not serve the cached summary PDF, and switching back is
+    a cache hit again."""
+    exam = await _seed_exam(db_session)
+    await _seed_score(
+        db_session,
+        exam_id=exam.id,
+        student_id=STUDENT_A_UUID,
+        subject_id=SUBJECT_UUID,
+        total=88,
+        grade="2",
+        interpretation="Higher",
+    )
+
+    summary = await client.get(_url(STUDENT_A_UUID, exam.id), headers=auth_header(role="Admin"))
+    assert summary.status_code in (302, 307)
+    assert len(fake_storage.uploads) == 1
+    summary_hash = (await _cache_row(db_session, exam.id, STUDENT_A_UUID)).content_hash  # type: ignore[union-attr]
+
+    full = await client.get(
+        f"{_url(STUDENT_A_UUID, exam.id)}&full=true", headers=auth_header(role="Admin")
+    )
+    assert full.status_code in (302, 307)
+    # Different variant → re-render, and a distinct content hash.
+    assert len(fake_storage.uploads) == 2
+    full_hash = (await _cache_row(db_session, exam.id, STUDENT_A_UUID)).content_hash  # type: ignore[union-attr]
+    assert full_hash != summary_hash
+
+    again = await client.get(
+        f"{_url(STUDENT_A_UUID, exam.id)}&full=true", headers=auth_header(role="Admin")
+    )
+    assert again.status_code in (302, 307)
+    # Same variant, unchanged data → cache hit, no new upload.
+    assert len(fake_storage.uploads) == 2
+
+
 async def test_parent_cannot_fetch_pdf_for_unpublished_exam(
     client: AsyncClient,
     db_session: AsyncSession,

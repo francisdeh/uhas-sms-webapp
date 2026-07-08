@@ -26,6 +26,7 @@ from app.features.exams.model import (
     Score,
     StudentReportRemark,
 )
+from app.features.school_terms.model import SchoolTerm
 from app.features.staff.model import Staff
 from app.features.students.model import Student, StudentGuardian
 from app.features.subjects.model import Subject
@@ -106,6 +107,27 @@ class ReportCardRepository:
                 )
             )
         ]
+
+    @staticmethod
+    async def find_term(
+        session: AsyncSession,
+        *,
+        school_id: UUID | str,
+        academic_year: str,
+        term: int,
+    ) -> SchoolTerm | None:
+        """The `school_terms` row for one (school, year, term), or None if
+        the school hasn't set that term's calendar. Drives the report
+        card's vacation (this term's end) + reopening (next term's start)
+        dates."""
+        stmt = select(SchoolTerm).where(
+            and_(
+                SchoolTerm.school_id == school_id,
+                SchoolTerm.academic_year == academic_year,
+                SchoolTerm.term == term,
+            )
+        )
+        return (await session.execute(stmt)).scalar_one_or_none()
 
     @staticmethod
     async def list_class_teachers(session: AsyncSession, *, class_id: UUID | str) -> list[Staff]:

@@ -10,6 +10,7 @@ with other suites — brief pinned that range for this feature.
 
 from __future__ import annotations
 
+from datetime import date
 from uuid import UUID
 
 import pytest_asyncio
@@ -39,6 +40,7 @@ from app.features.exams.tests.conftest import (
     _seed_score,
     auth_header,
 )
+from app.features.school_terms.model import SchoolTerm
 
 # `seed_actors` is a pytest fixture — conftest.py fixtures are
 # auto-discovered by parameter name, no import needed.
@@ -392,6 +394,108 @@ async def test_report_includes_per_student_remark_when_present(
     )
     assert res.status_code == 200, res.text
     assert res.json()["classTeacherRemark"] == "Excellent progress this term."
+
+
+# ─── Vacation + reopening dates (from school_terms) ──────────────────────────
+
+
+async def _seed_term(
+    db_session: AsyncSession,
+    *,
+    academic_year: str,
+    term: int,
+    start: date,
+    end: date,
+) -> None:
+    db_session.add(
+        SchoolTerm(
+            school_id=SCHOOL_UUID,
+            academic_year=academic_year,
+            term=term,
+            start_date=start,
+            end_date=end,
+        )
+    )
+    await db_session.flush()
+
+
+async def test_vacation_and_reopening_from_school_terms(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    """Vacation = this term's end date; reopening = the next term's start."""
+    exam = await _seed_exam(db_session)  # term 2, 2025/2026
+    await _seed_term(
+        db_session,
+        academic_year="2025/2026",
+        term=2,
+        start=date(2026, 1, 6),
+        end=date(2026, 4, 10),
+    )
+    await _seed_term(
+        db_session,
+        academic_year="2025/2026",
+        term=3,
+        start=date(2026, 5, 5),
+        end=date(2026, 8, 1),
+    )
+    res = await client.get(_url(STUDENT_A_UUID, exam.id), headers=auth_header(role="Admin"))
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["vacationDate"] == "2026-04-10"
+    assert body["reopeningDate"] == "2026-05-05"
+
+
+async def test_term_three_reopening_rolls_to_next_year(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    """Term 3's reopening comes from term 1 of the NEXT academic year."""
+    exam = Exam(
+        school_id=SCHOOL_UUID,
+        name="Term 3 End of Term",
+        type="EndOfTerm",
+        term=3,
+        academic_year="2025/2026",
+        is_published=True,
+    )
+    db_session.add(exam)
+    await db_session.flush()
+    await _seed_term(
+        db_session,
+        academic_year="2025/2026",
+        term=3,
+        start=date(2026, 5, 5),
+        end=date(2026, 8, 1),
+    )
+    await _seed_term(
+        db_session,
+        academic_year="2026/2027",
+        term=1,
+        start=date(2026, 9, 8),
+        end=date(2026, 12, 18),
+    )
+    res = await client.get(_url(STUDENT_A_UUID, exam.id), headers=auth_header(role="Admin"))
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["vacationDate"] == "2026-08-01"
+    assert body["reopeningDate"] == "2026-09-08"
+
+
+async def test_dates_null_when_terms_unset(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    """No school_terms rows → both date fields are null, no crash."""
+    exam = await _seed_exam(db_session)
+    res = await client.get(_url(STUDENT_A_UUID, exam.id), headers=auth_header(role="Admin"))
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["vacationDate"] is None
+    assert body["reopeningDate"] is None
 
 
 # ─── Errors ──────────────────────────────────────────────────────────────────

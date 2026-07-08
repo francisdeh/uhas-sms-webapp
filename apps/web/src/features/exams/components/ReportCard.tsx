@@ -1,7 +1,14 @@
-import type { ReportCardData, ReportCardSubjectRow } from "@/features/exams/types";
+import { formatDate } from "@/lib/dates";
+import type {
+  ReportCardData,
+  ReportCardSubjectRow,
+  ReportCardVariant,
+} from "@/features/exams/types";
 
 interface ReportCardProps {
   data: ReportCardData;
+  /** "full" adds the CAT/project/group/exam component columns. */
+  variant?: ReportCardVariant;
 }
 
 function fullName(firstName: string, middleName: string | undefined, lastName: string): string {
@@ -22,8 +29,10 @@ function reportTitle(reportType: string, term: number): string {
   return `END OF TERM REPORT — TERM ${term}`;
 }
 
-export function ReportCard({ data }: ReportCardProps) {
+export function ReportCard({ data, variant = "summary" }: ReportCardProps) {
   const isMid = isMidTerm(data.exam.type);
+  const full = variant === "full";
+  const colSpan = full ? 10 : 5;
   const title = reportTitle(data.exam.type, data.exam.term);
   const monthYear = formatExamMonth(data.exam.createdAt);
 
@@ -57,31 +66,53 @@ export function ReportCard({ data }: ReportCardProps) {
           <InfoRow label="DATE" value={new Date().toLocaleDateString("en-GB")} />
           <InfoRow label="AGGREGATE" value={data.aggregate != null ? String(data.aggregate) : "—"} />
         </div>
+        {(data.vacationDate || data.reopeningDate) && (
+          <div className="grid grid-cols-3 gap-x-6">
+            <InfoRow
+              label="VACATION"
+              value={data.vacationDate ? formatDate(data.vacationDate, "dd/MM/yyyy") : "—"}
+            />
+            <InfoRow
+              label="REOPENING"
+              value={data.reopeningDate ? formatDate(data.reopeningDate, "dd/MM/yyyy") : "—"}
+            />
+            <span />
+          </div>
+        )}
       </div>
 
       {/* Scores table */}
       <table className="w-full border-collapse border border-black text-sm mb-5">
         <thead>
           <tr>
-            <th className="border border-black p-1.5 text-left w-[40%]">SUBJECTS</th>
-            <th className="border border-black p-1.5 text-center w-[18%]">{isMid ? "EXAM SCORE [100]" : "TOTAL SCORE [100]"}</th>
-            <th className="border border-black p-1.5 text-center w-[14%]">SUBJECT POSITION</th>
-            <th className="border border-black p-1.5 text-center w-[10%]">GRADE</th>
-            <th className="border border-black p-1.5 text-center w-[18%]">INTERPRETATION</th>
+            <th className={`border border-black p-1.5 text-left ${full ? "w-[22%]" : "w-[40%]"}`}>SUBJECTS</th>
+            {full && (
+              <>
+                <th className="border border-black p-1.5 text-center">CAT 1</th>
+                <th className="border border-black p-1.5 text-center">CAT 2</th>
+                <th className="border border-black p-1.5 text-center">PROJECT</th>
+                <th className="border border-black p-1.5 text-center">GROUP</th>
+                <th className="border border-black p-1.5 text-center">EXAM</th>
+              </>
+            )}
+            <th className={`border border-black p-1.5 text-center ${full ? "w-[10%]" : "w-[18%]"}`}>{isMid ? "EXAM SCORE [100]" : "TOTAL SCORE [100]"}</th>
+            <th className={`border border-black p-1.5 text-center ${full ? "w-[10%]" : "w-[14%]"}`}>SUBJECT POSITION</th>
+            <th className={`border border-black p-1.5 text-center ${full ? "w-[8%]" : "w-[10%]"}`}>GRADE</th>
+            <th className={`border border-black p-1.5 text-center ${full ? "w-[12%]" : "w-[18%]"}`}>INTERPRETATION</th>
           </tr>
         </thead>
         <tbody>
-          <SectionHeader label="CORE SUBJECTS" />
+          <SectionHeader label="CORE SUBJECTS" colSpan={colSpan} />
           {data.coreRows.length === 0 ? (
-            <EmptyRow />
+            <EmptyRow colSpan={colSpan} />
           ) : (
-            data.coreRows.map((row) => <ScoreRow key={row.subjectId} row={row} />)
+            data.coreRows.map((row) => <ScoreRow key={row.subjectId} row={row} full={full} />)
           )}
-          <SectionHeader label="ELECTIVE SUBJECTS" />
+          <SectionHeader label="ELECTIVE SUBJECTS" colSpan={colSpan} />
           {data.electiveRows.length === 0 ? (
-            <EmptyRow />
+            <EmptyRow colSpan={colSpan} />
           ) : (
-            data.electiveRows.map((row) => <ScoreRow key={row.subjectId} row={row} />)
+            data.electiveRows.map((row) => <ScoreRow key={row.subjectId} row={row} full={full} />)
           )}
         </tbody>
       </table>
@@ -166,20 +197,29 @@ function InfoRow({ label, value, wide }: { label: string; value: string; wide?: 
   );
 }
 
-function SectionHeader({ label }: { label: string }) {
+function SectionHeader({ label, colSpan }: { label: string; colSpan: number }) {
   return (
     <tr>
-      <td colSpan={5} className="border border-black p-1.5 text-center font-bold">
+      <td colSpan={colSpan} className="border border-black p-1.5 text-center font-bold">
         {label}
       </td>
     </tr>
   );
 }
 
-function ScoreRow({ row }: { row: ReportCardSubjectRow }) {
+function ScoreRow({ row, full }: { row: ReportCardSubjectRow; full: boolean }) {
   return (
     <tr>
       <td className="border border-black p-1.5">{row.subjectName}</td>
+      {full && (
+        <>
+          <td className="border border-black p-1.5 text-center">{row.cat1 ?? ""}</td>
+          <td className="border border-black p-1.5 text-center">{row.cat2 ?? ""}</td>
+          <td className="border border-black p-1.5 text-center">{row.projectWork ?? ""}</td>
+          <td className="border border-black p-1.5 text-center">{row.groupWork ?? ""}</td>
+          <td className="border border-black p-1.5 text-center">{row.examScore ?? ""}</td>
+        </>
+      )}
       <td className="border border-black p-1.5 text-center">{row.totalScore ?? ""}</td>
       <td className="border border-black p-1.5 text-center">{row.subjectPosition ?? ""}</td>
       <td className="border border-black p-1.5 text-center">{row.grade ?? ""}</td>
@@ -188,10 +228,10 @@ function ScoreRow({ row }: { row: ReportCardSubjectRow }) {
   );
 }
 
-function EmptyRow() {
+function EmptyRow({ colSpan }: { colSpan: number }) {
   return (
     <tr>
-      <td colSpan={5} className="border border-black p-3 text-center text-xs text-gray-500 italic">
+      <td colSpan={colSpan} className="border border-black p-3 text-center text-xs text-gray-500 italic">
         No subjects in this section
       </td>
     </tr>

@@ -6,8 +6,10 @@ import { ArrowLeft, Printer, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { ReportCard } from "./ReportCard";
-import type { ReportCardData } from "@/features/exams/types";
+import type { ReportCardData, ReportCardVariant } from "@/features/exams/types";
 import { api, ApiError } from "@/lib/api/browser";
 
 interface ReportCardPageProps {
@@ -26,6 +28,8 @@ export function ReportCardPage({
   unpublishedNotice,
 }: ReportCardPageProps) {
   const [downloading, setDownloading] = useState(false);
+  const [variant, setVariant] = useState<ReportCardVariant>("summary");
+  const full = variant === "full";
 
   useEffect(() => {
     document.body.classList.add("print-mode-report-card");
@@ -37,7 +41,7 @@ export function ReportCardPage({
   async function handleDownload() {
     setDownloading(true);
     try {
-      const blob = await api.studentViews.reportCardPdf(studentId, examId);
+      const blob = await api.studentViews.reportCardPdf(studentId, examId, full);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -60,7 +64,17 @@ export function ReportCardPage({
         >
           <ArrowLeft size={14} className="mr-1" /> Back
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="full-report"
+              checked={full}
+              onCheckedChange={(checked) => setVariant(checked ? "full" : "summary")}
+            />
+            <Label htmlFor="full-report" className="text-sm text-muted-foreground cursor-pointer">
+              Show score breakdown
+            </Label>
+          </div>
           <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
             {downloading ? (
               <Loader2 size={13} className="mr-1.5 animate-spin" />
@@ -85,7 +99,7 @@ export function ReportCardPage({
 
       <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 print:overflow-visible print:mx-0 print:px-0">
         <div className="min-w-[640px] sm:min-w-0 mx-auto">
-          <ReportCard data={data} />
+          <ReportCard data={data} variant={variant} />
         </div>
       </div>
     </div>
