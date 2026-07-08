@@ -16,17 +16,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.roles import ACCOUNTANT, ADMIN, DEPUTY_HEAD, TEACHER
 from app.core.school_structure import Division
-from app.features.exams.constants import DEFAULT_GRADE_BANDS, DEFAULT_SCORE_WEIGHTS
 from app.features.guardians.model import Guardian
 from app.features.school_terms.model import SchoolTerm
-from app.features.schools.model import School
 from app.features.staff.model import Staff
 from app.features.users.model import User
 from app.scripts.seed.det import det
 from app.scripts.seed.names import full_name
+from app.scripts.seed.reference import ACADEMIC_YEAR, SCHOOL_ID, ensure_school
 
-ACADEMIC_YEAR = "2025/2026"
-SCHOOL_ID = det("school-uhas-001")
+# ACADEMIC_YEAR / SCHOOL_ID are re-exported from reference.py so callers
+# that import them from here (e.g. academic.py historically) keep working.
+__all__ = ["ACADEMIC_YEAR", "SCHOOL_ID", "IdentityResult", "seed_identity"]
 
 # One SeedUser per Supabase Auth test account (apps/web/scripts/_seed-data/users.ts).
 # Keep the uid/email/role/linked_id values in sync with that file — the FastAPI
@@ -102,34 +102,10 @@ class IdentityResult:
 
 
 async def seed_identity(session: AsyncSession) -> IdentityResult:
-    session.add(
-        School(
-            id=SCHOOL_ID,
-            slug="school-uhas-001",
-            name="UHAS Basic School",
-            academic_year=ACADEMIC_YEAR,
-            current_term=2,
-            grading_scale="GES_STANDARD",
-            is_active=True,
-            motto="Knowledge, Character, Service",
-            address="Ho, Volta Region, Ghana",
-            phone="+233200000000",
-            email="info@uhas.edu.gh",
-            principal_name="Mawuli Agbenyega",
-            grading_bands=DEFAULT_GRADE_BANDS,
-            score_weights=DEFAULT_SCORE_WEIGHTS,
-            pass_mark=40,
-            notification_defaults={
-                "onLessonPlanRejected": True,
-                "onAnnouncementPosted": True,
-                "onResultsPublished": True,
-            },
-        )
-    )
-    # No relationship() exists anywhere in this codebase (every FK is a plain
-    # mapped_column), so the ORM can't infer cross-table insert ordering —
-    # flush the school before anything that FKs to it.
-    await session.flush()
+    # The school row + config is reference data — created via the shared
+    # idempotent helper so dev and the prod bootstrap can't diverge. In
+    # the demo seed the table was just truncated, so this always inserts.
+    await ensure_school(session)
 
     session.add_all(
         [

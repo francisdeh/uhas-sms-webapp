@@ -21,9 +21,9 @@ from app.features.classes.model import Class, ClassSubject, ClassTeacher
 from app.features.enrollments.constants import ACTIVE
 from app.features.enrollments.model import Enrollment
 from app.features.students.model import Student, StudentGuardian
-from app.features.subjects.model import Subject
-from app.scripts.seed.identity import ACADEMIC_YEAR, IdentityResult
+from app.scripts.seed.identity import IdentityResult
 from app.scripts.seed.names import full_name
+from app.scripts.seed.reference import ACADEMIC_YEAR, SUBJECTS_BY_DIVISION, ensure_subjects
 
 # (name, slug, division, birth_year, class_teacher_slug)
 _CLASSES: tuple[tuple[str, str, Division, int, str], ...] = (
@@ -41,50 +41,6 @@ _CLASSES: tuple[tuple[str, str, Division, int, str], ...] = (
 )
 
 STUDENTS_PER_CLASS = 10
-
-# The school's confirmed curriculum (product owner, Phase 4). Subjects
-# are division-scoped, so a same-named subject in two divisions is two
-# rows. Lower + Upper Primary share one list ("Primary"). Names are
-# verbatim — they print on report cards. All Core for now; no electives
-# were distinguished.
-_PRIMARY_SUBJECTS: tuple[str, ...] = (
-    "English Language",
-    "Mathematics",
-    "Science",
-    "Religious and Moral Education",
-    "Computing",
-    "Ewe",
-    "French",
-    "Creative Arts and Design",
-    "History",
-)
-
-_SUBJECTS_BY_DIVISION: dict[Division, tuple[str, ...]] = {
-    "KG": (
-        "Numeracy",
-        "Literacy",
-        "Creative Arts",
-        "Our World and Our People",
-        "French",
-        "Ewe",
-        "Computing",
-    ),
-    "Lower Primary": _PRIMARY_SUBJECTS,
-    "Upper Primary": _PRIMARY_SUBJECTS,
-    "JHS": (
-        "English Language",
-        "Mathematics",
-        "Science",
-        "Religious and Moral Education",
-        "Computing",
-        "Ewe",
-        "French",
-        "Career Technology",
-        "Social Studies",
-        "Creative Arts and Design",
-        "Music",
-    ),
-}
 
 # JHS runs subject specialists rather than one class teacher covering everything.
 _JHS_SUBJECT_TEACHERS = ("STAFF-004", "STAFF-005", "STAFF-015")
@@ -114,27 +70,9 @@ async def seed_academic(session: AsyncSession, identity: IdentityResult) -> Acad
     # the next phase adds rows that FK to it.
     school_id = identity.school_id
 
-    # Phase 1: subjects + classes (both FK only to schools, already flushed
-    # by seed_identity).
-    subject_ids: dict[str, UUID] = {}
-    for division, names in _SUBJECTS_BY_DIVISION.items():
-        for name in names:
-            key = f"{division}:{name}"
-            if key in subject_ids:
-                continue
-            subject_id = uuid4()
-            subject_ids[key] = subject_id
-            slug = name.upper().replace(" ", "-").replace(".", "").replace("&", "AND")
-            session.add(
-                Subject(
-                    id=subject_id,
-                    slug=f"{slug}-{division.upper().replace(' ', '')}",
-                    school_id=school_id,
-                    name=name,
-                    division=division,
-                    category="Core",
-                )
-            )
+    # Phase 1: subjects (reference data — shared idempotent helper) + classes.
+    # Both FK only to schools, already flushed by seed_identity.
+    subject_ids = await ensure_subjects(session, school_id)
 
     class_ids: dict[str, UUID] = {}
     rosters: dict[str, ClassRoster] = {}
@@ -169,7 +107,7 @@ async def seed_academic(session: AsyncSession, identity: IdentityResult) -> Acad
                 class_id=roster.class_id, staff_id=roster.teacher_staff_id, is_primary=True
             )
         )
-        subject_names = _SUBJECTS_BY_DIVISION[roster.division]
+        subject_names = SUBJECTS_BY_DIVISION[roster.division]
         for i, subject_name in enumerate(subject_names):
             teacher_slug_for_subject = (
                 _JHS_SUBJECT_TEACHERS[i % len(_JHS_SUBJECT_TEACHERS)]
