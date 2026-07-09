@@ -24,7 +24,7 @@ from app.core.errors import ForbiddenError
 from app.core.roles import ADMIN, DEPUTY_HEAD
 from app.features.classes.model import Class
 from app.features.schemes.constants import SchemeStatus
-from app.features.schemes.model import Scheme, SchemeComment
+from app.features.schemes.model import Scheme, SchemeComment, SchemeWeeklyEntry
 from app.features.schemes.schema import (
     SchemeAcknowledgeRequest,
     SchemeCommentRead,
@@ -33,6 +33,9 @@ from app.features.schemes.schema import (
     SchemeRead,
     SchemesListResponse,
     SchemeUpdate,
+    SchemeWeeklyEntryAddRequest,
+    SchemeWeeklyEntryRead,
+    SchemeWeeklyEntryUpdateRequest,
 )
 from app.features.schemes.service import SchemesService
 from app.features.staff.model import Staff
@@ -50,6 +53,7 @@ def _to_read(
     cls: Class,
     reviewer: Staff | None,
     comments: list[tuple[SchemeComment, Staff]] | None = None,
+    entries: list[SchemeWeeklyEntry] | None = None,
 ) -> SchemeRead:
     return SchemeRead(
         id=scheme.id,
@@ -86,7 +90,38 @@ def _to_read(
             )
             for comment, author in (comments or [])
         ],
+        entries=[
+            SchemeWeeklyEntryRead(
+                id=entry.id,
+                week=entry.week,
+                strand=entry.strand,
+                sub_strand=entry.sub_strand,
+                content_standard=entry.content_standard,
+                indicators=entry.indicators,
+                resources=entry.resources,
+                resource_file_urls=entry.resource_file_urls or [],
+                created_at=entry.created_at,
+                updated_at=entry.updated_at,
+            )
+            for entry in (entries or [])
+        ],
     )
+
+
+async def _full_scheme_read(
+    session: AsyncSession,
+    school_id: UUID | str,
+    scheme_id: UUID | str,
+) -> SchemeRead:
+    """Re-fetch a scheme with its full comments + entries — the shape
+    every entry mutation returns, so the client always has a complete,
+    current picture rather than just the touched sub-resource."""
+    scheme, teacher, subject, cls, reviewer = await SchemesService.get(
+        session, school_id, scheme_id
+    )
+    comments = await SchemesService.list_comments(session, scheme_id)
+    entries = await SchemesService.list_weekly_entries(session, scheme_id)
+    return _to_read(scheme, teacher, subject, cls, reviewer, comments, entries)
 
 
 @router.get("", response_model=SchemesListResponse, response_model_by_alias=True)
@@ -142,7 +177,8 @@ async def get_scheme(
     ):
         raise ForbiddenError("You may only view your own schemes.")
     comments = await SchemesService.list_comments(session, scheme_id)
-    return _to_read(scheme, teacher, subject, cls, reviewer, comments)
+    entries = await SchemesService.list_weekly_entries(session, scheme_id)
+    return _to_read(scheme, teacher, subject, cls, reviewer, comments, entries)
 
 
 @router.post(
@@ -247,6 +283,71 @@ async def comment_on_scheme(
     )
     comments = await SchemesService.list_comments(session, scheme_id)
     return _to_read(scheme, teacher, subject, cls, reviewer, comments)
+
+
+@router.post(
+    "/{scheme_id}/entries",
+    response_model=SchemeRead,
+    response_model_by_alias=True,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add one week's row to a Scheme of Learning's structured template",
+)
+async def add_scheme_weekly_entry(
+    scheme_id: UUID,
+    payload: SchemeWeeklyEntryAddRequest,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> SchemeRead:
+    if not user.linked_id:
+        raise ForbiddenError("Cannot edit a scheme without a staff identity.")
+    await SchemesService.add_weekly_entry(
+        session, school_id, scheme_id, payload, actor_staff_id=user.linked_id
+    )
+    return await _full_scheme_read(session, school_id, scheme_id)
+
+
+@router.patch(
+    "/{scheme_id}/entries/{entry_id}",
+    response_model=SchemeRead,
+    response_model_by_alias=True,
+    summary="Edit one week's row",
+)
+async def update_scheme_weekly_entry(
+    scheme_id: UUID,
+    entry_id: UUID,
+    payload: SchemeWeeklyEntryUpdateRequest,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> SchemeRead:
+    if not user.linked_id:
+        raise ForbiddenError("Cannot edit a scheme without a staff identity.")
+    await SchemesService.update_weekly_entry(
+        session, school_id, scheme_id, entry_id, payload, actor_staff_id=user.linked_id
+    )
+    return await _full_scheme_read(session, school_id, scheme_id)
+
+
+@router.delete(
+    "/{scheme_id}/entries/{entry_id}",
+    response_model=SchemeRead,
+    response_model_by_alias=True,
+    summary="Remove one week's row",
+)
+async def remove_scheme_weekly_entry(
+    scheme_id: UUID,
+    entry_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> SchemeRead:
+    if not user.linked_id:
+        raise ForbiddenError("Cannot edit a scheme without a staff identity.")
+    await SchemesService.remove_weekly_entry(
+        session, school_id, scheme_id, entry_id, actor_staff_id=user.linked_id
+    )
+    return await _full_scheme_read(session, school_id, scheme_id)
 
 
 @router.delete(

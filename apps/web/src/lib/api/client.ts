@@ -688,6 +688,32 @@ export function createApiClient(getAuthToken: TokenGetter) {
         ),
       delete: (id: string) =>
         apiFetch<void>(getAuthToken, `/schemes/${id}`, { method: "DELETE" }),
+      /** Add one week's row to a Scheme of Learning's structured template. */
+      addEntry: (
+        id: string,
+        payload: components["schemas"]["SchemeWeeklyEntryAddRequest"],
+      ) =>
+        apiFetch<components["schemas"]["SchemeRead"]>(
+          getAuthToken,
+          `/schemes/${id}/entries`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      updateEntry: (
+        id: string,
+        entryId: string,
+        payload: components["schemas"]["SchemeWeeklyEntryUpdateRequest"],
+      ) =>
+        apiFetch<components["schemas"]["SchemeRead"]>(
+          getAuthToken,
+          `/schemes/${id}/entries/${entryId}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      removeEntry: (id: string, entryId: string) =>
+        apiFetch<components["schemas"]["SchemeRead"]>(
+          getAuthToken,
+          `/schemes/${id}/entries/${entryId}`,
+          { method: "DELETE" },
+        ),
     },
     assignments: {
       /** Paginated list. Parents MUST pass `forStudentIds` — ownership

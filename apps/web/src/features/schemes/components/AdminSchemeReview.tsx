@@ -11,9 +11,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAcknowledgeScheme } from "@/features/schemes/hooks/use-schemes";
-import type { Scheme } from "@/features/schemes/types";
+import { LEARNING, WORK, type Scheme } from "@/features/schemes/types";
 import { SchemeStatusPill } from "./SchemeStatusPill";
 import { SchemeCommentThread } from "./SchemeCommentThread";
+import { SchemeWeeklyEntries } from "./SchemeWeeklyEntries";
 
 interface AdminSchemeReviewProps {
   reviewerId: string;
@@ -80,7 +81,7 @@ export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeRe
                         <p className="text-sm font-medium">{scheme.title}</p>
                         <SchemeStatusPill status={scheme.status} />
                         <Badge variant="secondary" className="text-[10px]">
-                          {scheme.type === "work" ? "SoW" : "SoL"}
+                          {scheme.type === WORK ? "SoW" : "SoL"}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -108,6 +109,13 @@ export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeRe
                             variant="inline"
                           />
                         </div>
+                      )}
+                      {scheme.type === LEARNING && (
+                        <SchemeWeeklyEntries
+                          schemeId={scheme.id}
+                          entries={scheme.entries}
+                          canEdit={false}
+                        />
                       )}
                       <SchemeCommentThread
                         schemeId={scheme.id}
@@ -188,7 +196,14 @@ export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeRe
                     )}
                   </button>
                   {isOpen && (
-                    <div className="mt-3 border-t border-border/60 pt-3">
+                    <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
+                      {scheme.type === LEARNING && (
+                        <SchemeWeeklyEntries
+                          schemeId={scheme.id}
+                          entries={scheme.entries}
+                          canEdit={false}
+                        />
+                      )}
                       <SchemeCommentThread
                         schemeId={scheme.id}
                         comments={scheme.comments}

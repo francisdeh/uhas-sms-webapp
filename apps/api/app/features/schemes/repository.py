@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from app.features.classes.model import Class
-from app.features.schemes.model import Scheme, SchemeComment
+from app.features.schemes.model import Scheme, SchemeComment, SchemeWeeklyEntry
 from app.features.staff.model import Staff
 from app.features.subjects.model import Subject
 
@@ -122,3 +122,51 @@ class SchemesRepository:
             .order_by(SchemeComment.created_at.asc())
         )
         return [(c, s) for c, s in (await session.execute(stmt)).all()]
+
+    @staticmethod
+    async def list_weekly_entries(
+        session: AsyncSession, scheme_id: UUID | str
+    ) -> list[SchemeWeeklyEntry]:
+        """All weekly entries for a scheme, ordered by week."""
+        stmt = (
+            select(SchemeWeeklyEntry)
+            .where(SchemeWeeklyEntry.scheme_id == scheme_id)
+            .order_by(asc(SchemeWeeklyEntry.week))
+        )
+        return list((await session.execute(stmt)).scalars().all())
+
+    @staticmethod
+    async def get_weekly_entry(
+        session: AsyncSession, scheme_id: UUID | str, entry_id: UUID | str
+    ) -> SchemeWeeklyEntry | None:
+        stmt = select(SchemeWeeklyEntry).where(
+            and_(SchemeWeeklyEntry.id == entry_id, SchemeWeeklyEntry.scheme_id == scheme_id)
+        )
+        return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    async def find_weekly_entry_by_week(
+        session: AsyncSession, scheme_id: UUID | str, week: int
+    ) -> SchemeWeeklyEntry | None:
+        stmt = select(SchemeWeeklyEntry).where(
+            and_(SchemeWeeklyEntry.scheme_id == scheme_id, SchemeWeeklyEntry.week == week)
+        )
+        return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    async def count_weekly_entries(session: AsyncSession, scheme_id: UUID | str) -> int:
+        stmt = select(func.count()).where(SchemeWeeklyEntry.scheme_id == scheme_id)
+        return int((await session.execute(stmt)).scalar_one() or 0)
+
+    @staticmethod
+    async def insert_weekly_entry(
+        session: AsyncSession, entry: SchemeWeeklyEntry
+    ) -> SchemeWeeklyEntry:
+        session.add(entry)
+        await session.flush()
+        return entry
+
+    @staticmethod
+    async def delete_weekly_entry(session: AsyncSession, entry: SchemeWeeklyEntry) -> None:
+        await session.delete(entry)
+        await session.flush()

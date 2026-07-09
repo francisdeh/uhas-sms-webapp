@@ -1,4 +1,5 @@
-"""SQLAlchemy models for `schemes` and their comment thread.
+"""SQLAlchemy models for `schemes`, their comment thread, and Scheme of
+Learning's structured weekly entries.
 
 Column set matches the Drizzle baseline; state + reviewer auth in the
 service. Soft-delete via `deleted_at`.
@@ -7,6 +8,11 @@ service. Soft-delete via `deleted_at`.
 its reviewers (Head of School / Deputy / Unit-Head) each append rows,
 attributed + time-stamped. It replaced the single overwriting
 `reviewer_comment` column that lost history and identity.
+
+`scheme_weekly_entries` is Scheme of Learning's structured content —
+one row per week, confirmed against a real sample template rather than
+the aspirational 17-field spec in the FRD. `type="work"` schemes never
+have entries; they keep using `Scheme.content`.
 """
 
 from __future__ import annotations
@@ -15,6 +21,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -66,4 +73,30 @@ class SchemeComment(Base):
     # transaction still get strictly increasing, orderable timestamps.
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime, server_default=func.clock_timestamp(), nullable=True
+    )
+
+
+class SchemeWeeklyEntry(Base):
+    """One week's row in a Scheme of Learning's structured template.
+    Only `week` is required — a teacher can save a partially-filled
+    week and return to it. `resource_file_urls` is a JSON list of
+    storage paths (zero or more attached files), not a relational child
+    table — there's no per-file metadata to justify one."""
+
+    __tablename__ = "scheme_weekly_entries"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, server_default=func.gen_random_uuid())
+    scheme_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("schemes.id"), nullable=False)
+    week: Mapped[int] = mapped_column(Integer, nullable=False)
+    strand: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sub_strand: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_standard: Mapped[str | None] = mapped_column(Text, nullable=True)
+    indicators: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resources: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resource_file_urls: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime, server_default=func.now(), nullable=True
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime, server_default=func.now(), nullable=True
     )

@@ -21,5 +21,10 @@ ACKNOWLEDGED: Final = "acknowledged"
 SchemeStatus = Literal["draft", "submitted", "acknowledged"]
 
 # `work` = Scheme of Work; `learning` = Scheme of Learning. The two live
-# on the same table because they share every other column.
+# on the same table because they share every other column. Only
+# `learning` has structured weekly entries (`scheme_weekly_entries`);
+# `work` keeps using the free-text `content` column.
+WORK: Final = "work"
+LEARNING: Final = "learning"
+
 SchemeType = Literal["work", "learning"]

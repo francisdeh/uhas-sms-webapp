@@ -32,5 +32,17 @@ export function toScheme(s: components["schemas"]["SchemeRead"]): Scheme {
       body: c.body,
       createdAt: c.createdAt ?? null,
     })),
+    entries: (s.entries ?? []).map((e) => ({
+      id: e.id,
+      week: e.week,
+      strand: e.strand ?? null,
+      subStrand: e.subStrand ?? null,
+      contentStandard: e.contentStandard ?? null,
+      indicators: e.indicators ?? null,
+      resources: e.resources ?? null,
+      resourceFileUrls: e.resourceFileUrls ?? [],
+      createdAt: e.createdAt ?? null,
+      updatedAt: e.updatedAt ?? null,
+    })),
   };
 }

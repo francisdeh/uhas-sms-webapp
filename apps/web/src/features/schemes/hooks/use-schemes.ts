@@ -49,6 +49,16 @@ type CommentVars = {
   id: string;
   payload: components["schemas"]["SchemeCommentRequest"];
 };
+type AddEntryVars = {
+  id: string;
+  payload: components["schemas"]["SchemeWeeklyEntryAddRequest"];
+};
+type UpdateEntryVars = {
+  id: string;
+  entryId: string;
+  payload: components["schemas"]["SchemeWeeklyEntryUpdateRequest"];
+};
+type RemoveEntryVars = { id: string; entryId: string };
 
 export function useCreateScheme() {
   const qc = useQueryClient();
@@ -103,6 +113,42 @@ export function useCommentOnScheme() {
   return useMutation<Data, ApiError, CommentVars>({
     mutationFn: ({ id, payload }) => api.schemes.comment(id, payload),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.root });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
+export function useAddSchemeEntry() {
+  const qc = useQueryClient();
+  return useMutation<Data, ApiError, AddEntryVars>({
+    mutationFn: ({ id, payload }) => api.schemes.addEntry(id, payload),
+    onSuccess: () => {
+      toast.success("Week added.");
+      qc.invalidateQueries({ queryKey: KEYS.root });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
+export function useUpdateSchemeEntry() {
+  const qc = useQueryClient();
+  return useMutation<Data, ApiError, UpdateEntryVars>({
+    mutationFn: ({ id, entryId, payload }) => api.schemes.updateEntry(id, entryId, payload),
+    onSuccess: () => {
+      toast.success("Week updated.");
+      qc.invalidateQueries({ queryKey: KEYS.root });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
+export function useRemoveSchemeEntry() {
+  const qc = useQueryClient();
+  return useMutation<Data, ApiError, RemoveEntryVars>({
+    mutationFn: ({ id, entryId }) => api.schemes.removeEntry(id, entryId),
+    onSuccess: () => {
+      toast.success("Week removed.");
       qc.invalidateQueries({ queryKey: KEYS.root });
     },
     onError: (err) => toast.error(err.message),
