@@ -11,12 +11,16 @@ from httpx import AsyncClient
 from app.features.fees.tests.conftest import (
     ACADEMIC_YEAR,
     CLASS_JHS1_UUID,
+    GUARDIAN_UUID,
+    OTHER_GUARDIAN_UUID,
     STUDENT1_UUID,
     STUDENT_JHS2_UUID,
     auth_header,
 )
 
-pytestmark = pytest.mark.usefixtures("seed_school", "seed_classes", "seed_staff", "seed_students")
+pytestmark = pytest.mark.usefixtures(
+    "seed_school", "seed_classes", "seed_staff", "seed_students", "seed_guardians"
+)
 
 
 def _school_fee_item(**overrides: Any) -> dict[str, Any]:
@@ -346,3 +350,62 @@ async def _assign_one(client: AsyncClient, *, student_id: object) -> str:
     assign = await client.post(f"/fees/items/{item_id}/assign", headers=auth_header())
     match = next(lf for lf in assign.json()["learnerFees"] if lf["studentId"] == str(student_id))
     return str(match["id"])
+
+
+async def test_parent_sees_only_own_children_with_correct_totals(client: AsyncClient) -> None:
+    create = await client.post("/fees/items", json=_school_fee_item(), headers=auth_header())
+    item_id = create.json()["id"]
+    assign = await client.post(f"/fees/items/{item_id}/assign", headers=auth_header())
+    student1_lf = next(
+        lf for lf in assign.json()["learnerFees"] if lf["studentId"] == str(STUDENT1_UUID)
+    )
+    await client.post(
+        f"/fees/learner-fees/{student1_lf['id']}/payments",
+        json={"amountMinor": 2000, "method": "momo", "reference": "MOMO999"},
+        headers=auth_header(),
+    )
+
+    resp = await client.get(
+        "/fees/my-children",
+        headers=auth_header(role="Parent", linked_id=GUARDIAN_UUID),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert len(body["children"]) == 2  # student1 + student2, not student_jhs2
+
+    child1 = next(c for c in body["children"] if c["studentId"] == str(STUDENT1_UUID))
+    assert child1["totalOwedMinor"] == 5000
+    assert child1["totalOutstandingMinor"] == 3000
+    assert len(child1["fees"]) == 1
+    assert child1["fees"][0]["balanceMinor"] == 3000
+    assert len(child1["fees"][0]["payments"]) == 1
+    payment = child1["fees"][0]["payments"][0]
+    assert payment["amountMinor"] == 2000
+    assert payment["method"] == "momo"
+    assert "receiptFileUrls" not in payment
+    assert "recordedById" not in payment
+    assert "recordedByName" not in payment
+    assert "reference" not in payment
+
+    student_ids = {c["studentId"] for c in body["children"]}
+    assert str(STUDENT_JHS2_UUID) not in student_ids
+
+
+async def test_parent_cannot_see_other_guardians_children(client: AsyncClient) -> None:
+    create = await client.post("/fees/items", json=_school_fee_item(), headers=auth_header())
+    item_id = create.json()["id"]
+    await client.post(f"/fees/items/{item_id}/assign", headers=auth_header())
+
+    resp = await client.get(
+        "/fees/my-children",
+        headers=auth_header(role="Parent", linked_id=OTHER_GUARDIAN_UUID),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert len(body["children"]) == 1
+    assert body["children"][0]["studentId"] == str(STUDENT_JHS2_UUID)
+
+
+async def test_non_parent_cannot_use_my_children_endpoint(client: AsyncClient) -> None:
+    resp = await client.get("/fees/my-children", headers=auth_header(role="Teacher"))
+    assert resp.status_code == 403

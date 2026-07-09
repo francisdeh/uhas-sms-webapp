@@ -15,6 +15,7 @@ import {
   Calendar,
   ArrowUpRight,
   History,
+  Wallet,
 } from "lucide-react";
 import type { UserRole, SessionUser } from "@/features/auth/types";
 import type { NavGroup, ShellConfig } from "./types";
@@ -146,6 +147,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
           { label: "Attendance", href: "/parent/attendance", icon: ClipboardList },
           { label: "Assignments", href: "/parent/assignments", icon: BookOpen },
           { label: "Results", href: "/parent/results", icon: FileText },
+          { label: "Fees", href: "/parent/fees", icon: Wallet },
           { label: "Announcements", href: "/parent/announcements", icon: Bell },
           { label: "Appointments", href: "/parent/appointments", icon: Calendar },
           { label: "Calendar", href: "/parent/calendar", icon: Calendar },

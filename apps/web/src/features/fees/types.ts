@@ -113,3 +113,32 @@ export type RecordPaymentInput = {
   paidAt?: string;
   receiptFileUrls?: string[];
 };
+
+// Parent-facing shapes — deliberately narrower than FeePayment/LearnerFee:
+// no recordedBy*, no receiptFileUrls. Mirrors app/features/fees/schema.py's
+// Parent* read models.
+export type ParentFeePayment = {
+  id: string;
+  amountMinor: number;
+  method: PaymentMethod;
+  paidAt: string;
+};
+
+export type ParentLearnerFee = {
+  id: string;
+  feeItemName: string;
+  amountMinor: number;
+  status: LearnerFeeStatus;
+  balanceMinor: number;
+  dueDate: string | null;
+  payments: ParentFeePayment[];
+};
+
+export type ChildFees = {
+  studentId: string;
+  studentFirstName: string;
+  studentLastName: string;
+  totalOwedMinor: number;
+  totalOutstandingMinor: number;
+  fees: ParentLearnerFee[];
+};

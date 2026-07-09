@@ -156,10 +156,10 @@ Port in dependency order. Each domain is a vertical slice: `repository.py` → `
 Decomposed into sequential slices (each its own spec + PR):
 
 - ✅ **Slice 1 — Fee tracking core** (`docs/superpowers/specs/2026-07-09-fee-tracking-core-design.md`): `RequireAccountant` dep; `fee_items` → `learner_fees` → `fee_payments` (no gateway tables); bulk-assign a fee item to its scope's roster (school/division/class) with individual edit/waive/exclude after; Accountant records payments with multiple optional receipt-file uploads (no receipt generation — the Accountant uploads what they already collected); balances/arrears list; Accountant dashboard overview (`/accountant`) + fee-items/roster/balances pages (`/accountant/fee-items`, `/accountant/fee-items/[id]`, `/accountant/balances`). Service-layer auth only, consistent with every other domain (no RLS this slice — see Risk Register).
-- ⬜ **Slice 2 — Parent fee view:** outstanding balances per ward.
+- ✅ **Slice 2 — Parent fee view** (`docs/superpowers/specs/2026-07-09-parent-fee-view-design.md`): `GET /fees/my-children` — a Parent's own children (resolved via the existing `StudentsService.list_for_guardian` ownership check, no new pattern) with per-child total owed/outstanding, a per-fee breakdown, and payment history. Deliberately narrower response schemas (`Parent*Read`) than the Accountant-facing ones — no recorder identity, no receipt files. `/parent/fees`, a pure Server Component (fully read-only, no client JS needed).
 - ⬜ **Slice 3 — Fee reminder SMS** via Hubtel (Inngest scheduled + on-demand — this codebase's first cron-triggered job; needs a real `HubtelSmsProvider`, today only a stub).
 
-**Done when:** an accountant can define fees, assign them, record a payment (✅ done in Slice 1), and a parent receives an SMS reminder and sees their balance (Slices 2–3).
+**Done when:** an accountant can define fees, assign them, record a payment (✅ Slice 1), and a parent receives an SMS reminder (Slice 3) and sees their balance (✅ Slice 2).
 
 ---
 

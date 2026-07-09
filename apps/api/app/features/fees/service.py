@@ -14,8 +14,10 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from app.core.roles import PARENT
 from app.core.school_structure import DIVISIONS
+from app.core.security import CurrentUser
 from app.features.classes.repository import ClassesRepository
 from app.features.fees.constants import (
     OUTSTANDING,
@@ -28,13 +30,17 @@ from app.features.fees.constants import (
 from app.features.fees.model import FeeItem, FeePayment, LearnerFee
 from app.features.fees.repository import FeesRepository
 from app.features.fees.schema import (
+    ChildFeesRead,
     FeeItemCreate,
     FeeItemUpdate,
     FeePaymentCreate,
     LearnerFeeUpdate,
+    ParentFeePaymentRead,
+    ParentLearnerFeeRead,
 )
 from app.features.staff.model import Staff
 from app.features.students.model import Student
+from app.features.students.service import StudentsService
 
 
 def _now() -> datetime:
@@ -272,6 +278,75 @@ class FeesService:
     @staticmethod
     async def summary(session: AsyncSession, school_id: UUID | str) -> tuple[int, int, int, int]:
         return await FeesRepository.summary(session, school_id, today=_now().date())
+
+    # ── parent view ──────────────────────────────────────────────────────
+
+    @staticmethod
+    async def my_children_fees(
+        session: AsyncSession, school_id: UUID | str, *, user: CurrentUser
+    ) -> list[ChildFeesRead]:
+        """A Parent's own children's fee balances + payment history — no
+        recorder identity, no receipt files (see `ParentFeePaymentRead`
+        docstring). Every other role is refused; there's no legitimate
+        reason for Admin/Accountant/Teacher to hit this specific view
+        (they already have the full picture via the other endpoints)."""
+        if user.role != PARENT or not user.linked_id:
+            raise ForbiddenError("Only a parent can view this.")
+
+        children = await StudentsService.list_for_guardian(
+            session, school_id, user.linked_id, user=user
+        )
+        student_ids = [student.id for student, _cls in children]
+        rows = await FeesRepository.list_learner_fees_for_students(session, school_id, student_ids)
+
+        learner_fee_ids = [lf.id for lf, _st, _fi in rows]
+        payments = await FeesRepository.list_payments_for_learner_fees(session, learner_fee_ids)
+        payments_by_learner_fee: dict[UUID, list[FeePayment]] = {}
+        for payment in payments:
+            payments_by_learner_fee.setdefault(payment.learner_fee_id, []).append(payment)
+
+        rows_by_student: dict[UUID, list[tuple[LearnerFee, FeeItem]]] = {}
+        for lf, st, fi in rows:
+            rows_by_student.setdefault(st.id, []).append((lf, fi))
+
+        result: list[ChildFeesRead] = []
+        for student, _cls in children:
+            student_rows = rows_by_student.get(student.id, [])
+            fees = [
+                ParentLearnerFeeRead(
+                    id=lf.id,
+                    fee_item_name=fi.name,
+                    amount_minor=lf.amount_minor,
+                    status=lf.status,
+                    balance_minor=lf.balance_minor,
+                    due_date=lf.due_date,
+                    payments=[
+                        ParentFeePaymentRead(
+                            id=p.id,
+                            amount_minor=p.amount_minor,
+                            method=p.method,
+                            paid_at=p.paid_at,
+                        )
+                        for p in payments_by_learner_fee.get(lf.id, [])
+                    ],
+                )
+                for lf, fi in student_rows
+            ]
+            result.append(
+                ChildFeesRead(
+                    student_id=student.id,
+                    student_first_name=student.first_name,
+                    student_last_name=student.last_name,
+                    total_owed_minor=sum(lf.amount_minor for lf, _fi in student_rows),
+                    total_outstanding_minor=sum(
+                        lf.balance_minor
+                        for lf, _fi in student_rows
+                        if lf.status in (OUTSTANDING, PARTIAL)
+                    ),
+                    fees=fees,
+                )
+            )
+        return result
 
 
 def _recompute_balance_and_status(row: LearnerFee, total_paid: int) -> None:

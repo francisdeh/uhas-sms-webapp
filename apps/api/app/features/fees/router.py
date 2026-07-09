@@ -2,7 +2,9 @@
 
 Every route requires `RequireAccountant` (Accountant or Admin) — this
 is the finance domain, no per-user ownership fork like most other
-features have.
+features have — except `/fees/my-children`, which is the one
+Parent-facing exception (plain `CurrentUserDep`, role checked in the
+service, matching the rest of this codebase's parent-endpoint pattern).
 
 GET    /fees/summary                             → dashboard aggregates
 POST   /fees/items                              → create a fee item
@@ -17,6 +19,7 @@ PATCH  /fees/learner-fees/{id}                   → edit amount/due date
 POST   /fees/learner-fees/{id}/waive             → waive
 DELETE /fees/learner-fees/{id}                   → exclude (soft delete, no payments yet)
 POST   /fees/learner-fees/{id}/payments          → record a payment
+GET    /fees/my-children                         → Parent: own children's balances + history
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.deps import CurrentSchoolIdDep, RequireAccountant
+from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAccountant
 from app.core.errors import ForbiddenError
 from app.features.classes.repository import ClassesRepository
 from app.features.fees.constants import LearnerFeeStatus
@@ -45,6 +48,7 @@ from app.features.fees.schema import (
     LearnerFeeRead,
     LearnerFeesListResponse,
     LearnerFeeUpdate,
+    MyChildrenFeesResponse,
 )
 from app.features.fees.service import FeesService
 from app.features.staff.model import Staff
@@ -346,3 +350,17 @@ async def record_payment(
         session, school_id, learner_fee_id, payload, actor_staff_id=user.linked_id
     )
     return _learner_fee_read(row, student, item, payments)
+
+
+@router.get(
+    "/my-children",
+    response_model=MyChildrenFeesResponse,
+    response_model_by_alias=True,
+)
+async def get_my_children_fees(
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> MyChildrenFeesResponse:
+    children = await FeesService.my_children_fees(session, school_id, user=user)
+    return MyChildrenFeesResponse(children=children)

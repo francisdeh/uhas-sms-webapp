@@ -1,5 +1,13 @@
 import type { components } from "@/types/api";
-import type { FeeItem, FeePayment, FeesSummary, LearnerFee } from "./types";
+import type {
+  ChildFees,
+  FeeItem,
+  FeePayment,
+  FeesSummary,
+  LearnerFee,
+  ParentFeePayment,
+  ParentLearnerFee,
+} from "./types";
 
 export function toFeeItem(f: components["schemas"]["FeeItemRead"]): FeeItem {
   return {
@@ -59,5 +67,41 @@ export function toFeesSummary(s: components["schemas"]["FeesSummary"]): FeesSumm
     totalCollectedMinor: s.totalCollectedMinor,
     overdueCount: s.overdueCount,
     activeFeeItemsCount: s.activeFeeItemsCount,
+  };
+}
+
+export function toParentFeePayment(
+  p: components["schemas"]["ParentFeePaymentRead"],
+): ParentFeePayment {
+  return {
+    id: p.id,
+    amountMinor: p.amountMinor,
+    method: p.method,
+    paidAt: p.paidAt,
+  };
+}
+
+export function toParentLearnerFee(
+  l: components["schemas"]["ParentLearnerFeeRead"],
+): ParentLearnerFee {
+  return {
+    id: l.id,
+    feeItemName: l.feeItemName,
+    amountMinor: l.amountMinor,
+    status: l.status,
+    balanceMinor: l.balanceMinor,
+    dueDate: l.dueDate ?? null,
+    payments: (l.payments ?? []).map(toParentFeePayment),
+  };
+}
+
+export function toChildFees(c: components["schemas"]["ChildFeesRead"]): ChildFees {
+  return {
+    studentId: c.studentId,
+    studentFirstName: c.studentFirstName,
+    studentLastName: c.studentLastName,
+    totalOwedMinor: c.totalOwedMinor,
+    totalOutstandingMinor: c.totalOutstandingMinor,
+    fees: (c.fees ?? []).map(toParentLearnerFee),
   };
 }
