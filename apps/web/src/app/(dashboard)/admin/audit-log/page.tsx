@@ -8,14 +8,26 @@ import { AuditEventRow } from "@/features/audit-log/components/AuditEventRow";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { AuditAction } from "@/features/audit-log/types";
-import { AUDIT_ACTION_LABELS, PAGE_SIZE, type AuditFilters } from "@/features/audit-log/types";
+import {
+  AUDIT_ACTION_LABELS,
+  AUDIT_TARGET_TABLES,
+  PAGE_SIZE,
+  type AuditFilters,
+} from "@/features/audit-log/types";
 import type { AuditEventView } from "@/features/audit-log/types";
 
 const VALID_ACTIONS = new Set(Object.keys(AUDIT_ACTION_LABELS));
+const VALID_TARGET_TABLES = new Set<string>(AUDIT_TARGET_TABLES);
 
 function parseFilters(raw: { [k: string]: string | string[] | undefined }): AuditFilters {
   const action = typeof raw.action === "string" && VALID_ACTIONS.has(raw.action)
     ? (raw.action as AuditAction)
+    : "all";
+
+  const userId = typeof raw.userId === "string" && raw.userId ? raw.userId : "all";
+
+  const targetTable = typeof raw.targetTable === "string" && VALID_TARGET_TABLES.has(raw.targetTable)
+    ? raw.targetTable
     : "all";
 
   const today = new Date();
@@ -34,12 +46,14 @@ function parseFilters(raw: { [k: string]: string | string[] | undefined }): Audi
   const pageRaw = typeof raw.page === "string" ? parseInt(raw.page, 10) : 1;
   const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
 
-  return { action, from, to, page };
+  return { action, userId, targetTable, from, to, page };
 }
 
 function buildHref(filters: AuditFilters, page: number): string {
   const params = new URLSearchParams();
   if (filters.action !== "all") params.set("action", filters.action);
+  if (filters.userId !== "all") params.set("userId", filters.userId);
+  if (filters.targetTable !== "all") params.set("targetTable", filters.targetTable);
   params.set("from", filters.from);
   params.set("to", filters.to);
   if (page > 1) params.set("page", String(page));
@@ -57,13 +71,18 @@ export default async function AdminAuditLogPage({
   const raw = await searchParams;
   const filters = parseFilters(raw);
   const api = await getApi();
-  const listing = await api.auditLog.list({
-    action: filters.action !== "all" ? filters.action : undefined,
-    from: filters.from,
-    to: filters.to,
-    page: filters.page,
-    size: PAGE_SIZE,
-  });
+  const [listing, actors] = await Promise.all([
+    api.auditLog.list({
+      action: filters.action !== "all" ? filters.action : undefined,
+      userId: filters.userId !== "all" ? filters.userId : undefined,
+      targetTable: filters.targetTable !== "all" ? filters.targetTable : undefined,
+      from: filters.from,
+      to: filters.to,
+      page: filters.page,
+      size: PAGE_SIZE,
+    }),
+    api.auditLog.actors(),
+  ]);
   // Adapt the FastAPI shape to the existing `AuditEventView` the row
   // component expects. The row is display-only, so this is a pure
   // rename — no computed fields drop or add.
@@ -93,7 +112,7 @@ export default async function AdminAuditLogPage({
 
       <Card>
         <CardContent className="py-4 space-y-4">
-          <AuditLogFilters filters={filters} />
+          <AuditLogFilters filters={filters} actors={actors} />
         </CardContent>
       </Card>
 

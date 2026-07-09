@@ -1127,6 +1127,9 @@ export function createApiClient(getAuthToken: TokenGetter) {
       list: (
         params: {
           action?: string;
+          userId?: string;
+          targetTable?: string;
+          targetId?: string;
           from?: string;
           to?: string;
           page?: number;
@@ -1137,6 +1140,22 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           `/audit-log${buildQuery(params)}`,
         ),
+      /** Distinct actors who've appeared in this school's log — the
+       *  user-filter dropdown's option set. */
+      actors: () =>
+        apiFetch<components["schemas"]["AuditActorRead"][]>(getAuthToken, "/audit-log/actors"),
+      /** CSV of every row matching the same filters as `list` (no
+       *  pagination — every matching row, not just one page). */
+      exportCsv: (
+        params: {
+          action?: string;
+          userId?: string;
+          targetTable?: string;
+          targetId?: string;
+          from?: string;
+          to?: string;
+        } = {},
+      ) => apiFetchBlob(getAuthToken, `/audit-log/export${buildQuery(params)}`),
     },
     appointments: {
       /** Own list — Parent sees their requests, Teacher sees their
