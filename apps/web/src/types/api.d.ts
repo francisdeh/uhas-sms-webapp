@@ -2018,6 +2018,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-log/actors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Distinct actors who've appeared in this school's audit log — the user-filter dropdown */
+        get: operations["list_audit_actors_audit_log_actors_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit-log/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** CSV of every row matching the same filters as the list endpoint */
+        get: operations["export_audit_events_audit_log_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reports/school": {
         parameters: {
             query?: never;
@@ -2902,6 +2936,21 @@ export interface components {
             page: number;
             /** Size */
             size: number;
+        };
+        /**
+         * AuditActorRead
+         * @description One entry in the actor-filter dropdown — only users who've
+         *     actually appeared in this school's audit log, not the full staff/
+         *     guardian directory.
+         */
+        AuditActorRead: {
+            /**
+             * Userid
+             * Format: uuid
+             */
+            userId: string;
+            /** Name */
+            name: string;
         };
         /**
          * AuditEventRead
@@ -11865,6 +11914,9 @@ export interface operations {
         parameters: {
             query?: {
                 action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED") | null;
+                userId?: string | null;
+                targetTable?: string | null;
+                targetId?: string | null;
                 /** @description Inclusive lower bound (YYYY-MM-DD). */
                 from?: string | null;
                 /** @description Inclusive upper bound (YYYY-MM-DD). */
@@ -11887,6 +11939,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditEventsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_audit_actors_audit_log_actors_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditActorRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_audit_events_audit_log_export_get: {
+        parameters: {
+            query?: {
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED") | null;
+                userId?: string | null;
+                targetTable?: string | null;
+                targetId?: string | null;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

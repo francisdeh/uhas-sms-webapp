@@ -47,3 +47,14 @@ class AuditEventRead(BaseModel):
 
 class AuditEventsListResponse(Paginated[AuditEventRead]):
     """Newest-first filtered page."""
+
+
+class AuditActorRead(BaseModel):
+    """One entry in the actor-filter dropdown — only users who've
+    actually appeared in this school's audit log, not the full staff/
+    guardian directory."""
+
+    model_config = _CAMEL_CONFIG
+
+    user_id: UUID
+    name: str

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, desc, func, select
@@ -28,21 +29,16 @@ from app.features.users.model import User
 
 class AuditRepository:
     @staticmethod
-    async def list_for_school(
-        session: AsyncSession,
+    def _where_clause(
         school_id: UUID | str,
         *,
-        action: str | None = None,
-        created_from: datetime | None = None,
-        created_to: datetime | None = None,
-        page: int = 1,
-        size: int = 50,
-    ) -> tuple[list[AuditLog], int]:
-        """Newest-first filtered page + total count for the paginator.
-
-        `action=None` includes every action. `created_from` and
-        `created_to` are inclusive DateTimes; callers translate their
-        YYYY-MM-DD input to the correct time bounds (00:00 → 23:59)."""
+        action: str | None,
+        created_from: datetime | None,
+        created_to: datetime | None,
+        user_id: UUID | str | None,
+        target_table: str | None,
+        target_id: UUID | str | None,
+    ) -> Any:
         where = [AuditLog.school_id == school_id]
         if action:
             where.append(AuditLog.action == action)
@@ -50,7 +46,42 @@ class AuditRepository:
             where.append(AuditLog.created_at >= created_from)
         if created_to is not None:
             where.append(AuditLog.created_at <= created_to)
-        where_clause = and_(*where)
+        if user_id is not None:
+            where.append(AuditLog.user_id == user_id)
+        if target_table:
+            where.append(AuditLog.target_table == target_table)
+        if target_id is not None:
+            where.append(AuditLog.target_id == target_id)
+        return and_(*where)
+
+    @staticmethod
+    async def list_for_school(
+        session: AsyncSession,
+        school_id: UUID | str,
+        *,
+        action: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+        user_id: UUID | str | None = None,
+        target_table: str | None = None,
+        target_id: UUID | str | None = None,
+        page: int = 1,
+        size: int = 50,
+    ) -> tuple[list[AuditLog], int]:
+        """Newest-first filtered page + total count for the paginator.
+
+        Every filter is optional and additive. `created_from`/`created_to`
+        are inclusive DateTimes; callers translate their YYYY-MM-DD input
+        to the correct time bounds (00:00 → 23:59)."""
+        where_clause = AuditRepository._where_clause(
+            school_id,
+            action=action,
+            created_from=created_from,
+            created_to=created_to,
+            user_id=user_id,
+            target_table=target_table,
+            target_id=target_id,
+        )
 
         total = int(
             (
@@ -69,6 +100,43 @@ class AuditRepository:
         )
         rows = list((await session.execute(stmt)).scalars())
         return rows, total
+
+    @staticmethod
+    async def list_all_matching(
+        session: AsyncSession,
+        school_id: UUID | str,
+        *,
+        action: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+        user_id: UUID | str | None = None,
+        target_table: str | None = None,
+        target_id: UUID | str | None = None,
+    ) -> list[AuditLog]:
+        """Every matching row, unpaginated — for CSV export. Same filters
+        as `list_for_school`, deliberately kept as a separate method
+        rather than an unbounded `size` on that one, so the 200-row page
+        cap can't be bypassed by accident from the list endpoint."""
+        where_clause = AuditRepository._where_clause(
+            school_id,
+            action=action,
+            created_from=created_from,
+            created_to=created_to,
+            user_id=user_id,
+            target_table=target_table,
+            target_id=target_id,
+        )
+        stmt = select(AuditLog).where(where_clause).order_by(desc(AuditLog.created_at))
+        return list((await session.execute(stmt)).scalars())
+
+    @staticmethod
+    async def list_distinct_actor_ids(session: AsyncSession, school_id: UUID | str) -> list[UUID]:
+        """Every `user_id` that has ever appeared in this school's audit
+        log — the actor-filter dropdown's option set, so it only ever
+        shows people who've actually done something (not every staff/
+        guardian in the directory)."""
+        stmt = select(AuditLog.user_id).where(AuditLog.school_id == school_id).distinct()
+        return list((await session.execute(stmt)).scalars())
 
     @staticmethod
     async def resolve_actor_names(
