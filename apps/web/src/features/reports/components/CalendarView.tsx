@@ -173,7 +173,7 @@ export function CalendarView({ events, authorId, canManage }: CalendarViewProps)
                       <p className="text-sm text-muted-foreground mt-1.5">{e.description}</p>
                     )}
                   </div>
-                  {canManage && (
+                  {canManage && !e.isSynthetic && (
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -206,7 +206,7 @@ export function CalendarView({ events, authorId, canManage }: CalendarViewProps)
                       {formatRange(e.startDate, e.endDate)}
                     </p>
                   </div>
-                  {canManage && (
+                  {canManage && !e.isSynthetic && (
                     <Button
                       variant="ghost"
                       size="icon-sm"
