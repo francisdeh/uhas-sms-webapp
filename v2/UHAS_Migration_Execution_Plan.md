@@ -151,15 +151,15 @@ Port in dependency order. Each domain is a vertical slice: `repository.py` → `
 
 **Goal:** deliver the school's active ask — fees and parent SMS.
 
-- **Accountant role** scoped to the finance domain (RLS: fee tables only).
-- **Fee management:** fee items → learner fees → payments; assign/include/exclude learners; balances and arrears; receipts.
-- **Parent fee view:** outstanding balances per ward.
-- **Fee reminder SMS** via Hubtel (Inngest scheduled + on-demand).
-- **Online payment (only if confirmed):** payment-gateway integration (Paystack or Hubtel pay), webhook reconciliation into `fee_payments`, idempotency via `payment_gateway_events`. If payment stays at the bursar, this stays dormant and tracking still works.
+> **Decision gate closed:** parents will not pay online — payment stays at the school (Accountant records it after collection). This removes the payment-gateway portion from scope entirely, permanently, not just deferred. `payment_gateway_events` / `PaymentProvider` are not built.
 
-**Done when:** an accountant can define fees, assign them, record a payment, and a parent receives an SMS reminder and sees their balance.
+Decomposed into sequential slices (each its own spec + PR):
 
-> **Decision gate:** confirm with Mawuli/school whether the system processes payment before building the gateway portion. The tracking + SMS portion proceeds regardless.
+- ✅ **Slice 1 — Fee tracking core** (`docs/superpowers/specs/2026-07-09-fee-tracking-core-design.md`): `RequireAccountant` dep; `fee_items` → `learner_fees` → `fee_payments` (no gateway tables); bulk-assign a fee item to its scope's roster (school/division/class) with individual edit/waive/exclude after; Accountant records payments with multiple optional receipt-file uploads (no receipt generation — the Accountant uploads what they already collected); balances/arrears list; Accountant dashboard overview (`/accountant`) + fee-items/roster/balances pages (`/accountant/fee-items`, `/accountant/fee-items/[id]`, `/accountant/balances`). Service-layer auth only, consistent with every other domain (no RLS this slice — see Risk Register).
+- ⬜ **Slice 2 — Parent fee view:** outstanding balances per ward.
+- ⬜ **Slice 3 — Fee reminder SMS** via Hubtel (Inngest scheduled + on-demand — this codebase's first cron-triggered job; needs a real `HubtelSmsProvider`, today only a stub).
+
+**Done when:** an accountant can define fees, assign them, record a payment (✅ done in Slice 1), and a parent receives an SMS reminder and sees their balance (Slices 2–3).
 
 ---
 
@@ -206,7 +206,7 @@ Prioritised by what UHAS hits first (from the Feature Enhancements doc):
 | Phone-login decision reverses after build | Medium | Confirm with Mawuli **before** Phase 1; keep guardian email column as fallback |
 | Score weight wiring was silently defaulting | Medium | Verify + test during Phase 2 exams port |
 | RLS misconfiguration leaks cross-scope data | Low–Med | Dedicated RLS tests; service layer as primary guard |
-| Fee/payment scope grows (gateway, reconciliation) | Medium | Decision gate before gateway work; tracking-only path is independent |
+| RLS still unenforced anywhere in the codebase (fee tables included) | Low–Med | Deferred as a dedicated future hardening slice, not bundled into fee tracking; service-layer auth matches every other domain today |
 | Lost test coverage during port | Medium | Tests travel with each domain; no domain "done" without pytest |
 | Solo bandwidth / timeline slip | High | Phase boundaries are shippable; cut Phase 6 depth items first if needed |
 
@@ -215,9 +215,8 @@ Prioritised by what UHAS hits first (from the Feature Enhancements doc):
 ## 13. Dependencies & Decisions Needed Before Starting
 
 - **Confirm parent phone-login** with Mawuli (affects Phase 1 directly).
-- **Confirm fee payment handling** — system-processed vs bursar (affects Phase 5 scope).
-- **Hubtel account + sender ID** registered (needed by Phase 3).
-- **Payment provider** chosen if online payment is confirmed (Paystack vs Hubtel pay).
+- ✅ **Fee payment handling confirmed:** bursar-collected, not system-processed. Payment-gateway work is out of scope permanently, not just deferred.
+- **Hubtel account + sender ID** registered (needed by Phase 3, and by Phase 5 Slice 3's fee-reminder SMS).
 - **ORM confirmation** — SQLAlchemy 2.0 + Alembic recommended (Backend Architecture §5.1).
 - **Scheme of Learning** — dedicated table (recommended) vs extending lesson_plans.
 

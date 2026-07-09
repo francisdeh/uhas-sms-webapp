@@ -154,13 +154,17 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
     ],
   },
   Accountant: {
-    // Phase 5 builds out the finance nav. For now, only the dashboard
-    // landing exists; the role + auth surface is enough to support
-    // login flows + integration tests in Phase 1.
     label: "Accountant",
     navGroups: [
       {
         items: [{ label: "Overview", href: "/accountant", icon: LayoutDashboard }],
+      },
+      {
+        groupLabel: "Finance",
+        items: [
+          { label: "Fee items", href: "/accountant/fee-items", icon: ClipboardList },
+          { label: "Balances", href: "/accountant/balances", icon: BarChart2 },
+        ],
       },
     ],
   },

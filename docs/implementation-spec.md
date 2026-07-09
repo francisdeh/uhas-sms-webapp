@@ -314,7 +314,7 @@ Tests are written **per feature, as each module's mock data is swapped out for r
 - **Report card templates** — KG format TBD (school to provide template); Primary + JHS to use standard GES layout
 - **Results publishing** — Head of School reviews → Admin publishes (Deputy Heads cannot publish)
 - **Timetable** — deferred to Phase 2
-- **Fee management, payroll, medical, counselling** — explicitly out of MVP scope
+- **Payroll, medical, counselling** — explicitly out of MVP scope. Fee management was out of the original MVP but is now underway — see `v2/UHAS_Migration_Execution_Plan.md` §9 (Phase 5) and the README's Development Phases table.
 
 ---
 
@@ -514,6 +514,9 @@ Sequencing comes from [docs/COMPETITIVE-ANALYSIS.md](COMPETITIVE-ANALYSIS.md), w
 Without these two, every conversation against SchoolPad ends with "but does it handle fees?" / "but does it text parents?".
 
 #### 1. **Fee management** — ~40–60 h, single PR
+
+> Superseded by the actual build: see `v2/UHAS_Migration_Execution_Plan.md` §9 (Phase 5) and the README's Development Phases table. Tracking core (fee items, learner assignment, Accountant-recorded payments) is done; the Paystack/pay-now plan below was evaluated and explicitly declined — parents pay at the school, not through the app — so that part won't be built.
+
 - Fee structures table: `fee_structures (id, school_id, class_id, term, year, item, amount)`
 - Per-student-per-term invoice generation (`fee_invoices` + `fee_invoice_lines`)
 - Pay-now → **Paystack** hosted checkout (Ghana MoMo + card + bank transfer)
@@ -525,6 +528,9 @@ Without these two, every conversation against SchoolPad ends with "but does it h
 - Unblocks: justifies subscription bump from €3,000 → ~€3,800–4,200/year
 
 #### 2. **SMS gateway** — ~10–15 h, single PR
+
+> Superseded by the actual build: `apps/api/app/features/sms/` (Hubtel chosen, `SmsProvider` interface, `sms_log` table, Inngest fan-out job) exists since Phase 3, with a stub provider — a real `HubtelSmsProvider` + fee-reminder trigger is Phase 5 Slice 3.
+
 - Provider plug: **mNotify** (Ghana-local, MoMo top-ups) or **Hubtel** (broader)
 - `src/lib/sms.ts` mirroring the `src/lib/email.ts` pattern (provider-agnostic, env-gated, logs in dev)
 - Trigger SMS for: absence today, fee reminder, results published, urgent announcement
@@ -719,9 +725,10 @@ This is a real product decision, not a tech change. Don't pre-build.
 ### Out-of-MVP-scope (won't build unless explicitly requested)
 
 - Timetable management
-- Fee management, payroll, medical records, counselling notes
+- Payroll, medical records, counselling notes
 - Public-facing school website / admissions portal
-- SMS gateway (separate from email — different vendor, different cost model)
+
+Fee management and the SMS gateway were originally listed here as out-of-scope; both are now underway/built — see `v2/UHAS_Migration_Execution_Plan.md` §9 (Phase 5) and the README's Development Phases table.
 
 ---
 

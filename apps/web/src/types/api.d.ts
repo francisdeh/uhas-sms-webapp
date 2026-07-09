@@ -2157,6 +2157,163 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/fees/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Fees Summary */
+        get: operations["get_fees_summary_fees_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fees/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Fee Items */
+        get: operations["list_fee_items_fees_items_get"];
+        put?: never;
+        /** Create Fee Item */
+        post: operations["create_fee_item_fees_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fees/items/{fee_item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Fee Item */
+        get: operations["get_fee_item_fees_items__fee_item_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Fee Item */
+        patch: operations["update_fee_item_fees_items__fee_item_id__patch"];
+        trace?: never;
+    };
+    "/fees/items/{fee_item_id}/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign Fee Item */
+        post: operations["assign_fee_item_fees_items__fee_item_id__assign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fees/items/{fee_item_id}/learner-fees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Learner Fees For Fee Item */
+        get: operations["list_learner_fees_for_fee_item_fees_items__fee_item_id__learner_fees_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fees/learner-fees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Learner Fees */
+        get: operations["list_learner_fees_fees_learner_fees_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fees/learner-fees/{learner_fee_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Learner Fee */
+        get: operations["get_learner_fee_fees_learner_fees__learner_fee_id__get"];
+        put?: never;
+        post?: never;
+        /** Exclude Learner Fee */
+        delete: operations["exclude_learner_fee_fees_learner_fees__learner_fee_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Learner Fee */
+        patch: operations["update_learner_fee_fees_learner_fees__learner_fee_id__patch"];
+        trace?: never;
+    };
+    "/fees/learner-fees/{learner_fee_id}/waive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Waive Learner Fee */
+        post: operations["waive_learner_fee_fees_learner_fees__learner_fee_id__waive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/fees/learner-fees/{learner_fee_id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Payment */
+        post: operations["record_payment_fees_learner_fees__learner_fee_id__payments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/inngest": {
         parameters: {
             query?: never;
@@ -3525,6 +3682,167 @@ export interface components {
             /** Size */
             size: number;
         };
+        /**
+         * FeeItemAssignResponse
+         * @description Result of bulk-assigning a fee item to its scope's roster.
+         */
+        FeeItemAssignResponse: {
+            /** Createdcount */
+            createdCount: number;
+            /** Alreadyassignedcount */
+            alreadyAssignedCount: number;
+            /** Learnerfees */
+            learnerFees?: components["schemas"]["LearnerFeeRead"][];
+        };
+        /** FeeItemCreate */
+        FeeItemCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "school" | "division" | "class";
+            /** Scoperef */
+            scopeRef?: string | null;
+            /** Academicyear */
+            academicYear: string;
+            /** Term */
+            term?: number | null;
+            /** Amountminor */
+            amountMinor: number;
+        };
+        /** FeeItemRead */
+        FeeItemRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /** Name */
+            name: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "school" | "division" | "class";
+            /** Scoperef */
+            scopeRef?: string | null;
+            /** Scopedisplay */
+            scopeDisplay: string;
+            /** Academicyear */
+            academicYear: string;
+            /** Term */
+            term?: number | null;
+            /** Amountminor */
+            amountMinor: number;
+            /** Isactive */
+            isActive: boolean;
+            /** Createdat */
+            createdAt?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
+        };
+        /** FeeItemUpdate */
+        FeeItemUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Amountminor */
+            amountMinor?: number | null;
+            /** Isactive */
+            isActive?: boolean | null;
+        };
+        /**
+         * FeeItemsListResponse
+         * @description Paged list of fee items.
+         */
+        FeeItemsListResponse: {
+            /** Items */
+            items: components["schemas"]["FeeItemRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+        };
+        /**
+         * FeePaymentCreate
+         * @description `POST /fees/learner-fees/{id}/payments` — Accountant records a
+         *     payment already collected. `paid_at` defaults to now when omitted.
+         */
+        FeePaymentCreate: {
+            /** Amountminor */
+            amountMinor: number;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "cash" | "momo" | "bank" | "cheque";
+            /** Reference */
+            reference?: string | null;
+            /** Paidat */
+            paidAt?: string | null;
+            /** Receiptfileurls */
+            receiptFileUrls?: string[];
+        };
+        /** FeePaymentRead */
+        FeePaymentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Learnerfeeid
+             * Format: uuid
+             */
+            learnerFeeId: string;
+            /** Amountminor */
+            amountMinor: number;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "cash" | "momo" | "bank" | "cheque";
+            /** Reference */
+            reference?: string | null;
+            /** Receiptfileurls */
+            receiptFileUrls?: string[];
+            /**
+             * Recordedbyid
+             * Format: uuid
+             */
+            recordedById: string;
+            /** Recordedbyname */
+            recordedByName: string;
+            /**
+             * Paidat
+             * Format: date-time
+             */
+            paidAt: string;
+            /** Createdat */
+            createdAt?: string | null;
+        };
+        /**
+         * FeesSummary
+         * @description Aggregate figures for the Accountant dashboard overview.
+         */
+        FeesSummary: {
+            /** Totaloutstandingminor */
+            totalOutstandingMinor: number;
+            /** Totalcollectedminor */
+            totalCollectedMinor: number;
+            /** Overduecount */
+            overdueCount: number;
+            /** Activefeeitemscount */
+            activeFeeItemsCount: number;
+        };
         /** GenderBreakdown */
         GenderBreakdown: {
             /** Male */
@@ -3685,6 +4003,80 @@ export interface components {
         HosCommentUpdate: {
             /** Hoscomment */
             hosComment?: string | null;
+        };
+        /** LearnerFeeRead */
+        LearnerFeeRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schoolid
+             * Format: uuid
+             */
+            schoolId: string;
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /** Studentfirstname */
+            studentFirstName: string;
+            /** Studentlastname */
+            studentLastName: string;
+            /** Studentslug */
+            studentSlug: string;
+            /**
+             * Feeitemid
+             * Format: uuid
+             */
+            feeItemId: string;
+            /** Feeitemname */
+            feeItemName: string;
+            /** Amountminor */
+            amountMinor: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "outstanding" | "partial" | "paid" | "waived";
+            /** Balanceminor */
+            balanceMinor: number;
+            /** Duedate */
+            dueDate?: string | null;
+            /** Createdat */
+            createdAt?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
+            /** Payments */
+            payments?: components["schemas"]["FeePaymentRead"][];
+        };
+        /**
+         * LearnerFeeUpdate
+         * @description Edit an individual learner's assignment — amount override or due
+         *     date. Waiving and excluding are separate, more explicit actions
+         *     (`POST .../waive`, `DELETE`) rather than status transitions here.
+         */
+        LearnerFeeUpdate: {
+            /** Amountminor */
+            amountMinor?: number | null;
+            /** Duedate */
+            dueDate?: string | null;
+        };
+        /**
+         * LearnerFeesListResponse
+         * @description Paged list — the balances/arrears view.
+         */
+        LearnerFeesListResponse: {
+            /** Items */
+            items: components["schemas"]["LearnerFeeRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
         };
         /**
          * LeaveRequestCreate
@@ -11492,6 +11884,453 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SmsLogListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_fees_summary_fees_summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeesSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_fee_items_fees_items_get: {
+        parameters: {
+            query?: {
+                academicYear?: string | null;
+                term?: number | null;
+                isActive?: boolean | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeeItemsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_fee_item_fees_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeeItemCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeeItemRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_fee_item_fees_items__fee_item_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                fee_item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeeItemRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_fee_item_fees_items__fee_item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                fee_item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeeItemUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeeItemRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_fee_item_fees_items__fee_item_id__assign_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                fee_item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeeItemAssignResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_learner_fees_for_fee_item_fees_items__fee_item_id__learner_fees_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                fee_item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearnerFeeRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_learner_fees_fees_learner_fees_get: {
+        parameters: {
+            query?: {
+                status?: ("outstanding" | "partial" | "paid" | "waived") | null;
+                studentId?: string | null;
+                feeItemId?: string | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearnerFeesListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_learner_fee_fees_learner_fees__learner_fee_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                learner_fee_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearnerFeeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exclude_learner_fee_fees_learner_fees__learner_fee_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                learner_fee_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_learner_fee_fees_learner_fees__learner_fee_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                learner_fee_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LearnerFeeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearnerFeeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    waive_learner_fee_fees_learner_fees__learner_fee_id__waive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                learner_fee_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearnerFeeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_payment_fees_learner_fees__learner_fee_id__payments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                learner_fee_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeePaymentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearnerFeeRead"];
                 };
             };
             /** @description Validation Error */

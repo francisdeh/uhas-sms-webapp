@@ -27,7 +27,7 @@ from typing import Annotated
 from fastapi import Depends, Header
 
 from app.core.errors import ForbiddenError, UnauthorizedError
-from app.core.roles import ADMIN, DEPUTY_HEAD
+from app.core.roles import ACCOUNTANT, ADMIN, DEPUTY_HEAD
 from app.core.security import CurrentUser, verify_supabase_jwt
 
 
@@ -68,16 +68,11 @@ def require_role(*allowed_roles: str) -> Callable[[CurrentUser], CurrentUser]:
     mismatch, distinct from UnauthorizedError (→ 401) for missing/bad
     tokens.
 
-    Prefer the `RequireAdmin` / `RequireAdminOrDeputy` aliases below over
-    hand-writing `Depends(require_role(...))` — this constructor is the
-    building block, not the intended call site. When a new combination
-    (e.g. `RequireAccountant`) is needed, add it alongside them so the
-    role names route through `app.core.roles` constants.
-
-    Example (building a new alias):
-
-        from app.core.roles import ACCOUNTANT
-        RequireAccountant = Annotated[CurrentUser, Depends(require_role(ACCOUNTANT))]
+    Prefer the `RequireAdmin` / `RequireAdminOrDeputy` / `RequireAccountant`
+    aliases below over hand-writing `Depends(require_role(...))` — this
+    constructor is the building block, not the intended call site. When a
+    new combination is needed, add it alongside them so the role names
+    route through `app.core.roles` constants.
     """
     allowed = frozenset(allowed_roles)
 
@@ -102,6 +97,10 @@ RequireAdmin = Annotated[CurrentUser, Depends(require_role(ADMIN))]
 
 RequireAdminOrDeputy = Annotated[CurrentUser, Depends(require_role(ADMIN, DEPUTY_HEAD))]
 """Endpoint that Admins + Deputy Heads can hit (division-scoped admin work)."""
+
+RequireAccountant = Annotated[CurrentUser, Depends(require_role(ADMIN, ACCOUNTANT))]
+"""Endpoint that Accountants (or Admin, who can see everything) can hit —
+the finance domain: fee items, learner fees, payments."""
 
 
 def get_current_school_id(user: CurrentUserDep) -> str:

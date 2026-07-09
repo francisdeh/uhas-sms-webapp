@@ -55,6 +55,7 @@ from app.features.exams.router import (
 from app.features.exams.router import (
     students_router as student_exams_router,
 )
+from app.features.fees.router import router as fees_router
 from app.features.guardians.router import router as guardians_router
 from app.features.health.jobs import HEALTH_JOBS
 from app.features.health.router import router as health_router
@@ -179,6 +180,7 @@ def create_app() -> FastAPI:
     app.include_router(search_router)
     app.include_router(users_router)
     app.include_router(sms_router)
+    app.include_router(fees_router)
 
     # ── Background jobs (Inngest) ────────────────────────────────────────
     # Each feature's `jobs/__init__.py` exports its own list; collect them

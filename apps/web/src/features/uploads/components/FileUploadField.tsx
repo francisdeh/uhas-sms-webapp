@@ -6,7 +6,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { uploadFile, buildStoragePath } from "@/lib/supabase/storage";
 
-type Kind = "lesson-plans/file" | "schemes/file" | "schemes/resource" | "assignments/file";
+type Kind =
+  | "lesson-plans/file"
+  | "schemes/file"
+  | "schemes/resource"
+  | "assignments/file"
+  | "fees/receipt";
 
 type Props = {
   ownerId: string;
@@ -16,9 +21,13 @@ type Props = {
   disabled?: boolean;
   label?: string;
   accept?: string;
+  /** Client-side size cap in MB. Defaults to 20 — receipts pass 5. */
+  maxSizeMb?: number;
+  /** Helper text under the button. Defaults to the PDF/DOC/XLS copy. */
+  hint?: string;
 };
 
-const MAX_BYTES = 20 * 1024 * 1024;
+const DEFAULT_MAX_SIZE_MB = 20;
 // Must match the `documents` bucket's `allowed_mime_types` in
 // supabase/config.toml — anything else passes this client-side picker
 // but gets rejected by Supabase Storage after the upload starts.
@@ -36,6 +45,8 @@ export function FileUploadField({
   disabled,
   label = "Attachment",
   accept = DEFAULT_ACCEPT,
+  maxSizeMb = DEFAULT_MAX_SIZE_MB,
+  hint = "PDF / DOC / XLS, max 20 MB",
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -43,8 +54,8 @@ export function FileUploadField({
   const [originalName, setOriginalName] = useState<string | null>(null);
 
   async function handleFile(file: File) {
-    if (file.size > MAX_BYTES) {
-      toast.error("File must be under 20 MB.");
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      toast.error(`File must be under ${maxSizeMb} MB.`);
       return;
     }
     setIsUploading(true);
@@ -133,9 +144,7 @@ export function FileUploadField({
               </>
             )}
           </Button>
-          <p className="text-[10px] text-muted-foreground">
-            PDF / DOC / XLS, max 20 MB
-          </p>
+          <p className="text-[10px] text-muted-foreground">{hint}</p>
         </div>
       )}
     </div>
