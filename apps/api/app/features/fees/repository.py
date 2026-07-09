@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, datetime
 from uuid import UUID
 
@@ -220,6 +221,34 @@ class FeesRepository:
         return rows, total
 
     @staticmethod
+    async def list_learner_fees_for_students(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_ids: Sequence[UUID | str],
+    ) -> list[tuple[LearnerFee, Student, FeeItem]]:
+        """Every non-deleted `learner_fees` row for an explicit set of
+        students — the parent-facing query. Deliberately separate from
+        `list_learner_fees_for_school` (which scans the whole school)
+        so a parent-facing caller can never accidentally see another
+        family's fees by omitting a filter."""
+        if not student_ids:
+            return []
+        stmt = (
+            select(LearnerFee, Student, FeeItem)
+            .join(Student, Student.id == LearnerFee.student_id)
+            .join(FeeItem, FeeItem.id == LearnerFee.fee_item_id)
+            .where(
+                and_(
+                    LearnerFee.school_id == school_id,
+                    LearnerFee.deleted_at.is_(None),
+                    LearnerFee.student_id.in_(student_ids),
+                )
+            )
+            .order_by(asc(Student.last_name), asc(Student.first_name), asc(LearnerFee.created_at))
+        )
+        return [(lf, st, fi) for lf, st, fi in (await session.execute(stmt)).all()]
+
+    @staticmethod
     async def soft_delete_learner_fee(
         session: AsyncSession, row: LearnerFee, *, when: datetime
     ) -> None:
@@ -245,6 +274,21 @@ class FeesRepository:
             .order_by(asc(FeePayment.paid_at))
         )
         return [(p, s) for p, s in (await session.execute(stmt)).all()]
+
+    @staticmethod
+    async def list_payments_for_learner_fees(
+        session: AsyncSession, learner_fee_ids: Sequence[UUID | str]
+    ) -> list[FeePayment]:
+        """Batch variant of `list_payments_for_learner_fee`, no `Staff`
+        join — the parent-facing caller doesn't need who recorded it."""
+        if not learner_fee_ids:
+            return []
+        stmt = (
+            select(FeePayment)
+            .where(FeePayment.learner_fee_id.in_(learner_fee_ids))
+            .order_by(asc(FeePayment.paid_at))
+        )
+        return list((await session.execute(stmt)).scalars().all())
 
     @staticmethod
     async def sum_paid_for_learner_fee(session: AsyncSession, learner_fee_id: UUID | str) -> int:

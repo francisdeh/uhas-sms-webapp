@@ -2314,6 +2314,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/fees/my-children": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Children Fees */
+        get: operations["get_my_children_fees_fees_my_children_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/inngest": {
         parameters: {
             query?: never;
@@ -2973,6 +2990,24 @@ export interface components {
             page: number;
             /** Size */
             size: number;
+        };
+        /** ChildFeesRead */
+        ChildFeesRead: {
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /** Studentfirstname */
+            studentFirstName: string;
+            /** Studentlastname */
+            studentLastName: string;
+            /** Totalowedminor */
+            totalOwedMinor: number;
+            /** Totaloutstandingminor */
+            totalOutstandingMinor: number;
+            /** Fees */
+            fees?: components["schemas"]["ParentLearnerFeeRead"][];
         };
         /**
          * ClassCreate
@@ -4460,6 +4495,11 @@ export interface components {
             /** Factorsremoved */
             factorsRemoved: number;
         };
+        /** MyChildrenFeesResponse */
+        MyChildrenFeesResponse: {
+            /** Children */
+            children?: components["schemas"]["ChildFeesRead"][];
+        };
         /**
          * NavBadges
          * @description Counts the sidebar renders next to menu entries.
@@ -4566,6 +4606,55 @@ export interface components {
             /** Decidedcount */
             decidedCount: number;
             submission?: components["schemas"]["SubmissionRead"] | null;
+        };
+        /**
+         * ParentFeePaymentRead
+         * @description A payment as a parent sees it — deliberately narrower than
+         *     `FeePaymentRead`: no `recordedBy*` (Accountant-internal) and no
+         *     `receiptFileUrls` (the Accountant's proof-of-payment, not the
+         *     parent's document).
+         */
+        ParentFeePaymentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Amountminor */
+            amountMinor: number;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "cash" | "momo" | "bank" | "cheque";
+            /**
+             * Paidat
+             * Format: date-time
+             */
+            paidAt: string;
+        };
+        /** ParentLearnerFeeRead */
+        ParentLearnerFeeRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Feeitemname */
+            feeItemName: string;
+            /** Amountminor */
+            amountMinor: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "outstanding" | "partial" | "paid" | "waived";
+            /** Balanceminor */
+            balanceMinor: number;
+            /** Duedate */
+            dueDate?: string | null;
+            /** Payments */
+            payments?: components["schemas"]["ParentFeePaymentRead"][];
         };
         /** PscClassRow */
         PscClassRow: {
@@ -12331,6 +12420,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LearnerFeeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_children_fees_fees_my_children_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyChildrenFeesResponse"];
                 };
             };
             /** @description Validation Error */

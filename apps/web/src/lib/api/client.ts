@@ -811,6 +811,13 @@ export function createApiClient(getAuthToken: TokenGetter) {
           `/fees/learner-fees/${id}/payments`,
           { method: "POST", body: JSON.stringify(payload) },
         ),
+      /** Parent-only: the caller's own children's fee balances +
+       *  payment history. Ownership resolved server-side from the JWT. */
+      myChildren: () =>
+        apiFetch<components["schemas"]["MyChildrenFeesResponse"]>(
+          getAuthToken,
+          "/fees/my-children",
+        ),
     },
     assignments: {
       /** Paginated list. Parents MUST pass `forStudentIds` — ownership

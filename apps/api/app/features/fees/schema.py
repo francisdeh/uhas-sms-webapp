@@ -143,3 +143,46 @@ class FeesSummary(BaseModel):
     total_collected_minor: int
     overdue_count: int
     active_fee_items_count: int
+
+
+class ParentFeePaymentRead(BaseModel):
+    """A payment as a parent sees it — deliberately narrower than
+    `FeePaymentRead`: no `recordedBy*` (Accountant-internal) and no
+    `receiptFileUrls` (the Accountant's proof-of-payment, not the
+    parent's document)."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    amount_minor: int
+    method: PaymentMethod
+    paid_at: datetime
+
+
+class ParentLearnerFeeRead(BaseModel):
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    fee_item_name: str
+    amount_minor: int
+    status: LearnerFeeStatus
+    balance_minor: int
+    due_date: date | None = None
+    payments: list[ParentFeePaymentRead] = Field(default_factory=list)
+
+
+class ChildFeesRead(BaseModel):
+    model_config = _CAMEL_CONFIG
+
+    student_id: UUID
+    student_first_name: str
+    student_last_name: str
+    total_owed_minor: int
+    total_outstanding_minor: int
+    fees: list[ParentLearnerFeeRead] = Field(default_factory=list)
+
+
+class MyChildrenFeesResponse(BaseModel):
+    model_config = _CAMEL_CONFIG
+
+    children: list[ChildFeesRead] = Field(default_factory=list)

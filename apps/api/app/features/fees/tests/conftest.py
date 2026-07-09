@@ -23,9 +23,10 @@ from app.core.config import settings
 from app.core.db import engine, get_session
 from app.features.classes.model import Class
 from app.features.enrollments.model import Enrollment
+from app.features.guardians.model import Guardian
 from app.features.schools.model import School
 from app.features.staff.model import Staff
-from app.features.students.model import Student
+from app.features.students.model import Student, StudentGuardian
 from app.main import app
 
 SCHOOL_UUID = UUID("facade00-face-4ace-8ace-facade000001")
@@ -40,6 +41,9 @@ TEACHER_UUID = UUID("facade00-face-4ace-8ace-facade000203")
 STUDENT1_UUID = UUID("facade00-face-4ace-8ace-facade000301")
 STUDENT2_UUID = UUID("facade00-face-4ace-8ace-facade000302")
 STUDENT_JHS2_UUID = UUID("facade00-face-4ace-8ace-facade000303")
+
+GUARDIAN_UUID = UUID("facade00-face-4ace-8ace-facade000401")
+OTHER_GUARDIAN_UUID = UUID("facade00-face-4ace-8ace-facade000402")
 
 USER_UUID = UUID("00000000-0000-0000-0000-0000000000fa")
 
@@ -194,6 +198,43 @@ async def seed_students(
     )
     await db_session.flush()
     return {"student1": student1, "student2": student2, "student_jhs2": student_jhs2}
+
+
+@pytest_asyncio.fixture
+async def seed_guardians(
+    db_session: AsyncSession, seed_students: dict[str, Student]
+) -> dict[str, Guardian]:
+    """One guardian with two children (student1, student2) — for the
+    multi-child aggregation tests — and a second guardian with a child
+    (student_jhs2) the first guardian must never see."""
+    guardian = Guardian(
+        id=GUARDIAN_UUID,
+        slug="GUARDIAN-FEE-001",
+        school_id=SCHOOL_UUID,
+        first_name="Ama",
+        last_name="Mensah",
+    )
+    other_guardian = Guardian(
+        id=OTHER_GUARDIAN_UUID,
+        slug="GUARDIAN-FEE-002",
+        school_id=SCHOOL_UUID,
+        first_name="Kojo",
+        last_name="Asante",
+    )
+    db_session.add_all([guardian, other_guardian])
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            StudentGuardian(student_id=STUDENT1_UUID, guardian_id=GUARDIAN_UUID, is_primary=True),
+            StudentGuardian(student_id=STUDENT2_UUID, guardian_id=GUARDIAN_UUID, is_primary=True),
+            StudentGuardian(
+                student_id=STUDENT_JHS2_UUID, guardian_id=OTHER_GUARDIAN_UUID, is_primary=True
+            ),
+        ]
+    )
+    await db_session.flush()
+    return {"guardian": guardian, "other_guardian": other_guardian}
 
 
 @pytest_asyncio.fixture
