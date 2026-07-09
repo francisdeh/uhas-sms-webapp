@@ -448,6 +448,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/students/{student_id}/medical": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A student's medical info — Admin/Deputy/teacher/own-parent only */
+        get: operations["get_student_medical_students__student_id__medical_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edit a student's medical info — Admin or the student's own parent */
+        patch: operations["update_student_medical_students__student_id__medical_patch"];
+        trace?: never;
+    };
+    "/students/{student_id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A student's uploaded documents — Admin/Deputy/own-parent only */
+        get: operations["list_student_documents_students__student_id__documents_get"];
+        put?: never;
+        /** Upload a document for a student — Admin only */
+        post: operations["add_student_document_students__student_id__documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{student_id}/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a student's document — Admin only */
+        delete: operations["remove_student_document_students__student_id__documents__document_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/students/{student_id}/activate": {
         parameters: {
             query?: never;
@@ -6046,6 +6099,52 @@ export interface components {
             guardians?: components["schemas"]["StudentGuardianAddRequest"][];
         };
         /**
+         * StudentDocumentCreate
+         * @description `POST /students/{id}/documents` — Admin/Deputy only.
+         */
+        StudentDocumentCreate: {
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "Birth Certificate" | "Ghana Card" | "Immunization Record" | "Transfer Letter" | "Passport Photo" | "Other";
+            /** Otherlabel */
+            otherLabel?: string | null;
+            /** Storagepath */
+            storagePath: string;
+        };
+        /** StudentDocumentRead */
+        StudentDocumentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "Birth Certificate" | "Ghana Card" | "Immunization Record" | "Transfer Letter" | "Passport Photo" | "Other";
+            /** Otherlabel */
+            otherLabel?: string | null;
+            /** Storagepath */
+            storagePath: string;
+            /**
+             * Uploadedbyid
+             * Format: uuid
+             */
+            uploadedById: string;
+            /** Uploadedbyname */
+            uploadedByName: string;
+            /** Createdat */
+            createdAt?: string | null;
+        };
+        /**
          * StudentGuardianAddRequest
          * @description Attach a guardian to a student — either link an existing guardian
          *     (`guardian_id`) or create a new one (`new_guardian`), never both.
@@ -6134,12 +6233,52 @@ export interface components {
             class?: string | null;
         };
         /**
+         * StudentMedicalRead
+         * @description `GET /students/{id}/medical` — gated separately from the base
+         *     student read (see `StudentRead` docstring): Admin, Deputy (own
+         *     division), Teacher (teaches the student), or the student's own
+         *     parent.
+         */
+        StudentMedicalRead: {
+            /** Bloodtype */
+            bloodType?: ("A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-" | "Unknown") | null;
+            /** Medicalnotes */
+            medicalNotes?: string | null;
+            /** Emergencycontactname */
+            emergencyContactName?: string | null;
+            /** Emergencycontactphone */
+            emergencyContactPhone?: string | null;
+        };
+        /**
+         * StudentMedicalUpdate
+         * @description `PATCH /students/{id}/medical` — Admin or the student's own
+         *     parent. Separate from `StudentUpdate` since it has a different
+         *     access gate (a parent may edit this but nothing else on the
+         *     student record).
+         */
+        StudentMedicalUpdate: {
+            /** Bloodtype */
+            bloodType?: ("A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-" | "Unknown") | null;
+            /** Medicalnotes */
+            medicalNotes?: string | null;
+            /** Emergencycontactname */
+            emergencyContactName?: string | null;
+            /** Emergencycontactphone */
+            emergencyContactPhone?: string | null;
+        };
+        /**
          * StudentRead
          * @description Read shape — student row + the joined current-year enrollment.
          *
          *     `class_id` / `class_name` / `division` come from the enrollments
          *     table. They're `None` for students who have no active enrollment
          *     in the current academic year (inactive students, mid-promotion).
+         *
+         *     Deliberately excludes medical info: `GET /students/{id}` has no
+         *     role/ownership gate (any authenticated user in the school can fetch
+         *     any student), so anything sensitive lives behind its own gated
+         *     endpoint instead — see `StudentMedicalRead` / `GET
+         *     /students/{id}/medical`.
          */
         StudentRead: {
             /** Firstname */
@@ -7739,6 +7878,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiblingRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_student_medical_students__student_id__medical_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentMedicalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_student_medical_students__student_id__medical_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentMedicalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentMedicalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_student_documents_students__student_id__documents_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentDocumentRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_student_document_students__student_id__documents_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentDocumentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentDocumentRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_student_document_students__student_id__documents__document_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                student_id: string;
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentDocumentRead"][];
                 };
             };
             /** @description Validation Error */

@@ -162,6 +162,12 @@ export default async function ParentChildrenPage() {
                   Results
                 </Link>
               </div>
+              <Link
+                href={`/parent/children/${student.id}`}
+                className="flex items-center gap-1.5 justify-center rounded-lg border border-border/60 px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                Full profile — siblings, medical info, documents
+              </Link>
             </CardContent>
           </Card>
         ))}

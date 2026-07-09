@@ -45,6 +45,12 @@ class Student(Base):
     nationality: Mapped[str | None] = mapped_column(String(100), nullable=True)
     religion: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)
+    # Medical info (Phase 6 item 1) — deliberately unstructured beyond
+    # blood_type: a nurse/teacher reads medical_notes, doesn't query it.
+    blood_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    medical_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    emergency_contact_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    emergency_contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime, server_default=func.now(), nullable=True
     )
@@ -61,3 +67,24 @@ class StudentGuardian(Base):
     is_primary: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=False)
 
     __table_args__ = (PrimaryKeyConstraint("student_id", "guardian_id"),)
+
+
+class StudentDocument(Base):
+    """One uploaded document (birth certificate, Ghana Card, etc.) for a
+    student. A child table rather than a JSONB path array — each file
+    needs its own label and an accountable uploader (front-office
+    function), which a bare array can't carry."""
+
+    __tablename__ = "student_documents"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, server_default=func.gen_random_uuid())
+    school_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("schools.id"), nullable=False)
+    student_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("students.id"), nullable=False)
+    label: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Only set when label="Other" — the free-text description.
+    other_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    uploaded_by_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("staff.id"), nullable=False)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime, server_default=func.now(), nullable=True
+    )

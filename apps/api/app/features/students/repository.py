@@ -18,7 +18,8 @@ from app.features.classes.model import Class
 from app.features.enrollments.constants import ACTIVE
 from app.features.enrollments.model import Enrollment
 from app.features.guardians.model import Guardian
-from app.features.students.model import Student, StudentGuardian
+from app.features.staff.model import Staff
+from app.features.students.model import Student, StudentDocument, StudentGuardian
 from app.features.users.model import User
 
 
@@ -306,6 +307,39 @@ class StudentsRepository:
         )
         row = (await session.execute(stmt)).first()
         return (row[0], row[1]) if row else None
+
+    @staticmethod
+    async def list_documents(
+        session: AsyncSession, student_id: UUID | str
+    ) -> list[tuple[StudentDocument, Staff]]:
+        stmt = (
+            select(StudentDocument, Staff)
+            .join(Staff, Staff.id == StudentDocument.uploaded_by_id)
+            .where(StudentDocument.student_id == student_id)
+            .order_by(desc(StudentDocument.created_at))
+        )
+        rows = (await session.execute(stmt)).all()
+        return [(d, s) for d, s in rows]
+
+    @staticmethod
+    async def get_document(
+        session: AsyncSession, school_id: UUID | str, document_id: UUID | str
+    ) -> StudentDocument | None:
+        stmt = select(StudentDocument).where(
+            and_(StudentDocument.id == document_id, StudentDocument.school_id == school_id)
+        )
+        return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    async def insert_document(session: AsyncSession, document: StudentDocument) -> StudentDocument:
+        session.add(document)
+        await session.flush()
+        return document
+
+    @staticmethod
+    async def delete_document(session: AsyncSession, document: StudentDocument) -> None:
+        await session.delete(document)
+        await session.flush()
 
     @staticmethod
     async def find_class(

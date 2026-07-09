@@ -7,7 +7,16 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { TriangleAlert, Printer, Loader2, UserCircle, BookOpen, Phone, Users } from "lucide-react";
+import {
+  TriangleAlert,
+  Printer,
+  Loader2,
+  UserCircle,
+  BookOpen,
+  Phone,
+  Users,
+  HeartPulse,
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +57,8 @@ import type { Student, ClassRecord } from "@/features/students/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { StudentIdCard } from "./StudentIdCard";
 import { GuardianTab } from "./GuardianTab";
+import { MedicalInfoCard } from "./MedicalInfoCard";
+import { StudentDocumentsCard } from "./StudentDocumentsCard";
 import { cn } from "@/lib/utils";
 
 const DIVISION_BADGE: Record<Student["division"], string> = {
@@ -110,6 +121,7 @@ function InfoRow({ label, value, mono }: { label: string; value?: string | null;
 
 export default function StudentDetail({ student, classes, basePath }: Props) {
   const router = useRouter();
+  const isAdmin = basePath === "/admin/students";
   const [editOpen, setEditOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [confirmTransfer, setConfirmTransfer] = useState(false);
@@ -272,6 +284,9 @@ export default function StudentDetail({ student, classes, basePath }: Props) {
             <TabsTrigger value="guardian" className="cursor-pointer px-4">
               <Users size={15} />Guardian
             </TabsTrigger>
+            <TabsTrigger value="health" className="cursor-pointer px-4">
+              <HeartPulse size={15} />Health &amp; Docs
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -382,6 +397,21 @@ export default function StudentDetail({ student, classes, basePath }: Props) {
                   <GuardianTab studentId={student.id} basePath={basePath} />
                 </CardContent>
               </Card>
+            </motion.div>
+          </AnimatePresence>
+        </TabsContent>
+
+        <TabsContent value="health">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key="health"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
+              className="rounded-t-none border border-t-0 border-border/60 bg-card dark:bg-slate-800/60 rounded-b-xl p-4 space-y-4"
+            >
+              <MedicalInfoCard studentId={student.id} canEdit={isAdmin} />
+              <StudentDocumentsCard studentId={student.id} canManage={isAdmin} />
             </motion.div>
           </AnimatePresence>
         </TabsContent>

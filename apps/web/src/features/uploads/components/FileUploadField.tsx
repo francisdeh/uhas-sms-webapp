@@ -11,7 +11,8 @@ type Kind =
   | "schemes/file"
   | "schemes/resource"
   | "assignments/file"
-  | "fees/receipt";
+  | "fees/receipt"
+  | "students/document";
 
 type Props = {
   ownerId: string;
