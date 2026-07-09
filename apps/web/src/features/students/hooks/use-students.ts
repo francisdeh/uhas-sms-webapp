@@ -24,6 +24,7 @@ type ListParams = {
   size?: number;
   division?: string;
   activeOnly?: boolean;
+  staffChild?: boolean;
 };
 
 export const studentKeys = {

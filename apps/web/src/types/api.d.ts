@@ -3539,7 +3539,13 @@ export interface components {
             /** Items */
             items: components["schemas"]["StudentRead"][];
         };
-        /** GuardianCreate */
+        /**
+         * GuardianCreate
+         * @description `staff_id` tags this guardian record as staff-backed — the staff
+         *     member is also this student's guardian. `GuardiansService.create`
+         *     reuses any existing guardian for that staff member rather than
+         *     creating a duplicate.
+         */
         GuardianCreate: {
             /** Firstname */
             firstName: string;
@@ -3549,6 +3555,8 @@ export interface components {
             email?: string | null;
             /** Phone */
             phone?: string | null;
+            /** Staffid */
+            staffId?: string | null;
         };
         /** GuardianRead */
         GuardianRead: {
@@ -3572,6 +3580,8 @@ export interface components {
              * Format: uuid
              */
             schoolId: string;
+            /** Staffid */
+            staffId?: string | null;
         };
         /** GuardianUpdate */
         GuardianUpdate: {
@@ -5492,6 +5502,11 @@ export interface components {
              * @default false
              */
             hasLogin: boolean;
+            /**
+             * Isstaff
+             * @default false
+             */
+            isStaff: boolean;
             /** Phone */
             phone?: string | null;
             /** Email */
@@ -6591,6 +6606,7 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
+                staffId?: string | null;
                 page?: number;
                 size?: number;
             };
@@ -6801,6 +6817,7 @@ export interface operations {
                 size?: number;
                 division?: string | null;
                 activeOnly?: boolean;
+                staffChild?: boolean;
             };
             header?: {
                 authorization?: string | null;

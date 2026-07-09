@@ -152,6 +152,7 @@ class StudentGuardianRead(BaseModel):
     relationship: str
     is_primary: bool = False
     has_login: bool = False
+    is_staff: bool = False
     phone: str | None = None
     email: str | None = None
 

@@ -17,10 +17,13 @@ class GuardiansRepository:
         school_id: UUID | str,
         *,
         q: str | None = None,
+        staff_id: UUID | str | None = None,
         page: int = 1,
         size: int = 50,
     ) -> tuple[list[Guardian], int]:
         where = [Guardian.school_id == school_id]
+        if staff_id is not None:
+            where.append(Guardian.staff_id == staff_id)
         if q:
             like = f"%{q}%"
             where.append(
@@ -75,6 +78,18 @@ class GuardiansRepository:
         if not clauses:
             return None
         stmt = select(Guardian).where(and_(Guardian.school_id == school_id, or_(*clauses)))
+        return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    async def find_by_staff_id(
+        session: AsyncSession, school_id: UUID | str, staff_id: UUID | str
+    ) -> Guardian | None:
+        """The existing staff-backed guardian for this staff member, if
+        any — backs the find-or-reuse flow so picking the same staff
+        member twice never creates a duplicate guardian identity."""
+        stmt = select(Guardian).where(
+            and_(Guardian.school_id == school_id, Guardian.staff_id == staff_id)
+        )
         return (await session.execute(stmt)).scalar_one_or_none()
 
     @staticmethod

@@ -13,6 +13,7 @@ import {
   UserMinus,
   BarChart3,
   GraduationCap,
+  Briefcase,
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -73,12 +74,14 @@ export default function StudentsTable({
   listHref,
 }: StudentsTableProps) {
   const router = useRouter();
+  const [staffChildFilter, setStaffChildFilter] = useState(false);
   // FastAPI is now the source of truth. When a `division` prop is given
   // (deputy-head pages), the server filters; otherwise the client toggles
-  // a local divisionFilter for visual filtering only.
+  // a local divisionFilter for visual filtering only. `staffChild` is a
+  // real server-side filter — toggling it re-fetches.
   const { data } = useStudentsList(
-    { division, size: 100 },
-    { initialData },
+    { division, size: 100, staffChild: staffChildFilter || undefined },
+    { initialData: staffChildFilter ? undefined : initialData },
   );
   const mutations = useStudentMutations();
   const isPending =
@@ -371,6 +374,21 @@ export default function StudentsTable({
               </button>
             ))}
           </div>
+
+          <div className="w-px h-4 bg-border/60 hidden sm:block" />
+
+          <button
+            onClick={() => setStaffChildFilter((v) => !v)}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer border",
+              staffChildFilter
+                ? "bg-accent-orange text-white border-accent-orange"
+                : "bg-transparent text-muted-foreground border-border/60 hover:border-border hover:text-foreground"
+            )}
+          >
+            <Briefcase size={12} />
+            Staff children only
+          </button>
         </div>
 
         <DataTable

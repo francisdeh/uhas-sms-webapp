@@ -6,11 +6,12 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import ConflictError, NotFoundError
+from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.slug import insert_with_sequential_slug, per_school_slug_resolver
 from app.features.guardians.model import Guardian
 from app.features.guardians.repository import GuardiansRepository
 from app.features.guardians.schema import GuardianCreate, GuardianUpdate
+from app.features.staff.repository import StaffRepository
 
 
 class GuardiansService:
@@ -20,11 +21,12 @@ class GuardiansService:
         school_id: UUID | str,
         *,
         q: str | None = None,
+        staff_id: UUID | str | None = None,
         page: int = 1,
         size: int = 50,
     ) -> tuple[list[Guardian], int]:
         return await GuardiansRepository.list_for_school(
-            session, school_id, q=q, page=page, size=size
+            session, school_id, q=q, staff_id=staff_id, page=page, size=size
         )
 
     @staticmethod
@@ -42,10 +44,27 @@ class GuardiansService:
         school_id: UUID | str,
         payload: GuardianCreate,
     ) -> Guardian:
+        if payload.staff_id is not None:
+            staff = await StaffRepository.get_by_id(session, school_id, payload.staff_id)
+            if staff is None:
+                raise ValidationError("staffId must reference a staff member in this school.")
+            # Reuse — a staff member has exactly one guardian identity,
+            # shared across however many of their children are enrolled.
+            existing_for_staff = await GuardiansRepository.find_by_staff_id(
+                session, school_id, payload.staff_id
+            )
+            if existing_for_staff is not None:
+                return existing_for_staff
+
         existing = await GuardiansRepository.find_by_email_or_phone(
             session, school_id, email=payload.email, phone=payload.phone
         )
         if existing:
+            if payload.staff_id is not None:
+                raise ConflictError(
+                    "This staff member's contact info is already used by another guardian "
+                    "record — link that guardian manually, or resolve the conflicting record."
+                )
             raise ConflictError("A guardian with this email or phone already exists.")
 
         return await insert_with_sequential_slug(
@@ -61,6 +80,7 @@ class GuardiansService:
                 last_name=payload.last_name,
                 email=payload.email,
                 phone=payload.phone,
+                staff_id=payload.staff_id,
             ),
         )
 
