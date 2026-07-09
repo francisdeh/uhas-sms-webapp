@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Badge } from "@/components/ui/badge";
+import { BuiltByAttribution } from "@/components/BuiltByAttribution";
 import type { NavGroup, ShellConfig } from "@/features/shell/types";
 import type { SessionUser } from "@/features/auth/types";
 import { getShellConfig } from "@/features/shell/role-config";
@@ -219,6 +220,12 @@ function SidebarContent({
           </AnimatePresence>
         </Link>
       </div>
+
+      {!collapsed && (
+        <p className="px-3 pb-2 text-center text-[10px] text-muted-foreground/50">
+          <BuiltByAttribution />
+        </p>
+      )}
     </div>
     </>
   );

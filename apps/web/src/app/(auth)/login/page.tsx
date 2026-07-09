@@ -6,6 +6,7 @@ import { getPublicSchoolBranding } from "@/features/settings/queries/get-public-
 import { ROLE_DASHBOARD } from "@/features/auth/types";
 import LoginForm from "@/features/auth/components/LoginForm";
 import ParticlesBg from "@/components/ParticlesBg";
+import { BuiltByAttribution } from "@/components/BuiltByAttribution";
 
 const features = [
   { icon: GraduationCap, label: "Student & staff records" },
@@ -97,7 +98,8 @@ export default async function LoginPage() {
 
         {/* Bottom: footer note */}
         <p className="relative z-10 text-white/25 text-xs">
-          © {new Date().getFullYear()} {settings.name} · Management System v1
+          © {new Date().getFullYear()} {settings.name} · Management System v1 ·{" "}
+          <BuiltByAttribution />
         </p>
       </div>
 
