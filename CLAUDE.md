@@ -89,6 +89,7 @@ apps/web/src/features/<name>/
 | DeputyHead | `/deputy-head` | One division (KG / Lower Primary / Upper Primary / JHS) |
 | Teacher | `/teacher` | Own classes only |
 | Parent | `/parent` | Own child(ren) only |
+| Accountant | `/accountant` | Finance domain only (fee items, learner fees, payments) — no access to scores, lesson plans, or attendance |
 
 **Unit Head** is not a separate login role — it's a flag (`isUnitHead`) on a staff/teacher record, with `unitHeadOf` storing the division they head. Unit Heads log in as Teachers and see additional sections in their dashboard (e.g. Department view, lesson-plan reviews for their unit). Unit Heads are subject to change — Admin/Deputy can toggle the flag.
 
@@ -195,7 +196,7 @@ Used for score calculation in `features/exams/`. Bands and interpretations come 
 
 - Don't use Firestore — the database is PostgreSQL. The SRS mentioned Firestore but that decision was superseded, and Firebase itself (Auth + Storage) was later replaced by Supabase in the Strategy A migration.
 - Don't add timetable features — explicitly deferred to a later phase.
-- Don't add fee management, payroll, medical, or counselling features — out of MVP scope.
+- Don't add payroll, medical, or counselling features — out of MVP scope. (Fee management — fee items, learner fees, payments, Accountant role, fee-reminder SMS — is in scope as of Phase 5; see [v2/UHAS_Migration_Execution_Plan.md](v2/UHAS_Migration_Execution_Plan.md) §9.)
 - Don't add a Next.js API route handler, and don't write Drizzle/raw-SQL DB access in `apps/web/` — all data access is a call through `apps/web/src/lib/api/{server,browser}.ts` to `apps/api/`. If it needs a new endpoint, add it in `apps/api/`.
 - Don't add `"use client"` to layouts or pages that don't need it.
 - Don't skip `school_id` filtering in any FastAPI query.

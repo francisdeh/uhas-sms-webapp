@@ -715,6 +715,103 @@ export function createApiClient(getAuthToken: TokenGetter) {
           { method: "DELETE" },
         ),
     },
+    fees: {
+      summary: () =>
+        apiFetch<components["schemas"]["FeesSummary"]>(
+          getAuthToken,
+          "/fees/summary",
+        ),
+      listItems: (
+        params: {
+          academicYear?: string;
+          term?: number;
+          isActive?: boolean;
+          page?: number;
+          size?: number;
+        } = {},
+      ) =>
+        apiFetch<components["schemas"]["FeeItemsListResponse"]>(
+          getAuthToken,
+          `/fees/items${buildQuery(params)}`,
+        ),
+      getItem: (id: string) =>
+        apiFetch<components["schemas"]["FeeItemRead"]>(
+          getAuthToken,
+          `/fees/items/${id}`,
+        ),
+      createItem: (payload: components["schemas"]["FeeItemCreate"]) =>
+        apiFetch<components["schemas"]["FeeItemRead"]>(
+          getAuthToken,
+          "/fees/items",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      updateItem: (
+        id: string,
+        payload: components["schemas"]["FeeItemUpdate"],
+      ) =>
+        apiFetch<components["schemas"]["FeeItemRead"]>(
+          getAuthToken,
+          `/fees/items/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      assignItem: (id: string) =>
+        apiFetch<components["schemas"]["FeeItemAssignResponse"]>(
+          getAuthToken,
+          `/fees/items/${id}/assign`,
+          { method: "POST" },
+        ),
+      listLearnerFeesForItem: (id: string) =>
+        apiFetch<components["schemas"]["LearnerFeeRead"][]>(
+          getAuthToken,
+          `/fees/items/${id}/learner-fees`,
+        ),
+      listLearnerFees: (
+        params: {
+          status?: string;
+          studentId?: string;
+          feeItemId?: string;
+          page?: number;
+          size?: number;
+        } = {},
+      ) =>
+        apiFetch<components["schemas"]["LearnerFeesListResponse"]>(
+          getAuthToken,
+          `/fees/learner-fees${buildQuery(params)}`,
+        ),
+      getLearnerFee: (id: string) =>
+        apiFetch<components["schemas"]["LearnerFeeRead"]>(
+          getAuthToken,
+          `/fees/learner-fees/${id}`,
+        ),
+      updateLearnerFee: (
+        id: string,
+        payload: components["schemas"]["LearnerFeeUpdate"],
+      ) =>
+        apiFetch<components["schemas"]["LearnerFeeRead"]>(
+          getAuthToken,
+          `/fees/learner-fees/${id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      waiveLearnerFee: (id: string) =>
+        apiFetch<components["schemas"]["LearnerFeeRead"]>(
+          getAuthToken,
+          `/fees/learner-fees/${id}/waive`,
+          { method: "POST" },
+        ),
+      excludeLearnerFee: (id: string) =>
+        apiFetch<void>(getAuthToken, `/fees/learner-fees/${id}`, {
+          method: "DELETE",
+        }),
+      recordPayment: (
+        id: string,
+        payload: components["schemas"]["FeePaymentCreate"],
+      ) =>
+        apiFetch<components["schemas"]["LearnerFeeRead"]>(
+          getAuthToken,
+          `/fees/learner-fees/${id}/payments`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+    },
     assignments: {
       /** Paginated list. Parents MUST pass `forStudentIds` — ownership
        *  verified server-side; results are always published-only for
