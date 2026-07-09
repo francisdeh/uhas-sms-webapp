@@ -3877,6 +3877,8 @@ export interface components {
             overdueCount: number;
             /** Activefeeitemscount */
             activeFeeItemsCount: number;
+            /** Lastremindersentat */
+            lastReminderSentAt?: string | null;
         };
         /** GenderBreakdown */
         GenderBreakdown: {
@@ -4080,6 +4082,8 @@ export interface components {
             balanceMinor: number;
             /** Duedate */
             dueDate?: string | null;
+            /** Lastremindersentat */
+            lastReminderSentAt?: string | null;
             /** Createdat */
             createdAt?: string | null;
             /** Updatedat */
@@ -4551,7 +4555,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "scheme_commented" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_sent_back" | "assignment_created" | "appointment_requested" | "appointment_decided";
+            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "scheme_commented" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_sent_back" | "assignment_created" | "appointment_requested" | "appointment_decided" | "fee_reminder";
             /** Title */
             title: string;
             /** Body */

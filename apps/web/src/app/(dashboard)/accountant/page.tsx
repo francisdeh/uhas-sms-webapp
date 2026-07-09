@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlertTriangle, ClipboardList, Wallet, Landmark, ArrowRight } from "lucide-react";
+import { AlertTriangle, ClipboardList, Wallet, Landmark, ArrowRight, BellRing } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi } from "@/lib/api/server";
 import { toFeesSummary } from "@/features/fees/mappers";
 import { formatCedis } from "@/lib/currency";
+import { formatDateTime } from "@/lib/dates";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default async function AccountantPage() {
@@ -45,8 +46,14 @@ export default async function AccountantPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold">Accountant — Welcome, {user.displayName}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
+        <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
           A snapshot of fee balances across the school.
+          <span className="inline-flex items-center gap-1 text-muted-foreground/80">
+            <BellRing size={12} />
+            {summary.lastReminderSentAt
+              ? `Reminders last sent ${formatDateTime(summary.lastReminderSentAt)}.`
+              : "No reminders sent yet."}
+          </span>
         </p>
       </div>
 

@@ -150,6 +150,18 @@ class Settings(BaseSettings):
         default=None,
         description="Outside production, every email goes here instead of the real recipient.",
     )
+
+    # ── Outbound SMS ──────────────────────────────────────────────────────
+    # Same "missing config isn't an error" contract as email above —
+    # `get_sms_provider()` falls back to the no-op `StubSmsProvider` when
+    # any of these three are unset, so every environment runs the same
+    # code path. No Hubtel account exists yet; these stay unset until one
+    # is registered.
+    hubtel_client_id: str | None = Field(default=None)
+    hubtel_client_secret: str | None = Field(default=None)
+    hubtel_sender_id: str | None = Field(
+        default=None, description='Approved Hubtel sender name, e.g. "UHAS".'
+    )
     app_url: str = Field(
         default="http://localhost:3000",
         description="Base URL for links embedded in outbound email (the Next.js app).",

@@ -115,6 +115,7 @@ class LearnerFeeRead(BaseModel):
     status: LearnerFeeStatus
     balance_minor: int
     due_date: date | None = None
+    last_reminder_sent_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     payments: list[FeePaymentRead] = Field(default_factory=list)
@@ -143,6 +144,7 @@ class FeesSummary(BaseModel):
     total_collected_minor: int
     overdue_count: int
     active_fee_items_count: int
+    last_reminder_sent_at: datetime | None = None
 
 
 class ParentFeePaymentRead(BaseModel):

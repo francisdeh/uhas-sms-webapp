@@ -87,6 +87,12 @@ export function LearnerFeesTable({
       cell: ({ row }) => (row.original.dueDate ? formatDate(row.original.dueDate) : "—"),
     },
     {
+      accessorKey: "lastReminderSentAt",
+      header: "Last reminded",
+      cell: ({ row }) =>
+        row.original.lastReminderSentAt ? formatDate(row.original.lastReminderSentAt) : "—",
+    },
+    {
       id: "actions",
       header: "",
       cell: ({ row }) => {

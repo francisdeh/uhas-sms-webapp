@@ -55,6 +55,7 @@ export function toLearnerFee(l: components["schemas"]["LearnerFeeRead"]): Learne
     status: l.status,
     balanceMinor: l.balanceMinor,
     dueDate: l.dueDate ?? null,
+    lastReminderSentAt: l.lastReminderSentAt ?? null,
     createdAt: l.createdAt ?? null,
     updatedAt: l.updatedAt ?? null,
     payments: (l.payments ?? []).map(toFeePayment),
@@ -67,6 +68,7 @@ export function toFeesSummary(s: components["schemas"]["FeesSummary"]): FeesSumm
     totalCollectedMinor: s.totalCollectedMinor,
     overdueCount: s.overdueCount,
     activeFeeItemsCount: s.activeFeeItemsCount,
+    lastReminderSentAt: s.lastReminderSentAt ?? null,
   };
 }
 

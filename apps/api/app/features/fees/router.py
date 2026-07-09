@@ -110,6 +110,7 @@ def _learner_fee_read(
         status=row.status,
         balance_minor=row.balance_minor,
         due_date=row.due_date,
+        last_reminder_sent_at=row.last_reminder_sent_at,
         created_at=row.created_at,
         updated_at=row.updated_at,
         payments=[_payment_read(p, s) for p, s in (payments or [])],
@@ -136,12 +137,14 @@ async def get_fees_summary(
         total_collected,
         overdue_count,
         active_fee_items_count,
+        last_reminder_sent_at,
     ) = await FeesService.summary(session, school_id)
     return FeesSummary(
         total_outstanding_minor=total_outstanding,
         total_collected_minor=total_collected,
         overdue_count=overdue_count,
         active_fee_items_count=active_fee_items_count,
+        last_reminder_sent_at=last_reminder_sent_at,
     )
 
 
