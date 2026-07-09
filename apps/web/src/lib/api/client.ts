@@ -187,7 +187,9 @@ export function createApiClient(getAuthToken: TokenGetter) {
         ),
     },
     guardians: {
-      list: (params: { q?: string; page?: number; size?: number } = {}) =>
+      list: (
+        params: { q?: string; staffId?: string; page?: number; size?: number } = {},
+      ) =>
         apiFetch<components["schemas"]["GuardiansListResponse"]>(
           getAuthToken,
           `/guardians${buildQuery(params)}`,
@@ -232,6 +234,7 @@ export function createApiClient(getAuthToken: TokenGetter) {
           size?: number;
           division?: string;
           activeOnly?: boolean;
+          staffChild?: boolean;
         } = {},
       ) =>
         apiFetch<components["schemas"]["StudentsListResponse"]>(

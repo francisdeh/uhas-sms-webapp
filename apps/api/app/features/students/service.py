@@ -93,6 +93,7 @@ class StudentsService:
         size: int = 50,
         division: str | None = None,
         active_only: bool = False,
+        staff_child: bool = False,
     ) -> tuple[list[tuple[Student, Class | None]], int]:
         year = await _academic_year(session, school_id)
         return await StudentsRepository.list_for_school(
@@ -104,6 +105,7 @@ class StudentsService:
             size=size,
             division=division,
             active_only=active_only,
+            staff_child=staff_child,
         )
 
     @staticmethod

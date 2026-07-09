@@ -34,12 +34,19 @@ class StudentsRepository:
         size: int = 50,
         division: str | None = None,
         active_only: bool = False,
+        staff_child: bool = False,
     ) -> tuple[list[tuple[Student, Class | None]], int]:
         """Return ((Student, Class | None) rows, total).
 
         Left-joins the current-year Active enrollment + class. Students
         without an active enrollment for the year still appear (Class is
         NULL) — unless `division` is set, which forces the join.
+
+        `staff_child=True` additionally joins `student_guardians` →
+        `guardians` and keeps only students with a staff-backed guardian.
+        A student can have up to two staff-backed guardians, so that join
+        can fan out a row — `.distinct()` on both the rows and count
+        queries keeps pagination correct.
         """
         base: Any = (
             select(Student, Class)
@@ -53,12 +60,37 @@ class StudentsRepository:
             )
             .outerjoin(Class, Class.id == Enrollment.class_id)
         )
+        count_base: Any = (
+            select(func.count(func.distinct(Student.id)))
+            .select_from(Student)
+            .outerjoin(
+                Enrollment,
+                and_(
+                    Enrollment.student_id == Student.id,
+                    Enrollment.academic_year == academic_year,
+                    Enrollment.status == ACTIVE,
+                ),
+            )
+            .outerjoin(Class, Class.id == Enrollment.class_id)
+        )
+
+        if staff_child:
+            base = (
+                base.distinct()
+                .join(StudentGuardian, StudentGuardian.student_id == Student.id)
+                .join(Guardian, Guardian.id == StudentGuardian.guardian_id)
+            )
+            count_base = count_base.join(
+                StudentGuardian, StudentGuardian.student_id == Student.id
+            ).join(Guardian, Guardian.id == StudentGuardian.guardian_id)
 
         where = [Student.school_id == school_id]
         if active_only:
             where.append(Student.is_active.is_(True))
         if division:
             where.append(Class.division == division)
+        if staff_child:
+            where.append(Guardian.staff_id.isnot(None))
         if q:
             like = f"%{q}%"
             where.append(
@@ -71,21 +103,7 @@ class StudentsRepository:
 
         where_clause = and_(*where)
 
-        # Count uses the same join — division/q filters reach across.
-        count_stmt = (
-            select(func.count(Student.id))
-            .select_from(Student)
-            .outerjoin(
-                Enrollment,
-                and_(
-                    Enrollment.student_id == Student.id,
-                    Enrollment.academic_year == academic_year,
-                    Enrollment.status == ACTIVE,
-                ),
-            )
-            .outerjoin(Class, Class.id == Enrollment.class_id)
-            .where(where_clause)
-        )
+        count_stmt = count_base.where(where_clause)
         total = int((await session.execute(count_stmt)).scalar_one() or 0)
 
         offset = (page - 1) * size

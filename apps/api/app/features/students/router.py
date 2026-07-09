@@ -38,6 +38,7 @@ def _guardian_to_read(
         relationship=relation or "Guardian",
         is_primary=is_primary,
         has_login=has_login,
+        is_staff=guardian.staff_id is not None,
         phone=guardian.phone,
         email=guardian.email,
     )
@@ -66,6 +67,7 @@ async def list_students(
     size: Annotated[int, Query(ge=1, le=100)] = 50,
     division: Annotated[str | None, Query()] = None,
     active_only: Annotated[bool, Query(alias="activeOnly")] = False,
+    staff_child: Annotated[bool, Query(alias="staffChild")] = False,
 ) -> StudentsListResponse:
     rows, total = await StudentsService.list_for_school(
         session,
@@ -75,6 +77,7 @@ async def list_students(
         size=size,
         division=division,
         active_only=active_only,
+        staff_child=staff_child,
     )
     return StudentsListResponse(
         items=[_to_read(s, c) for (s, c) in rows],

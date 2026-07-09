@@ -33,6 +33,13 @@ class GuardianBase(BaseModel):
 
 
 class GuardianCreate(GuardianBase):
+    """`staff_id` tags this guardian record as staff-backed — the staff
+    member is also this student's guardian. `GuardiansService.create`
+    reuses any existing guardian for that staff member rather than
+    creating a duplicate."""
+
+    staff_id: UUID | None = None
+
     @model_validator(mode="after")
     def _email_or_phone_required(self) -> Self:
         if not self.email and not self.phone:
@@ -53,6 +60,7 @@ class GuardianRead(GuardianBase):
     id: UUID
     slug: str
     school_id: UUID
+    staff_id: UUID | None = None
 
 
 class GuardiansListResponse(Paginated[GuardianRead]):

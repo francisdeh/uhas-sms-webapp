@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, Star, Users, KeyRound, Check } from "lucide-react";
+import { Plus, Trash2, Loader2, Star, Users, KeyRound, Check, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -106,6 +106,11 @@ export function GuardianTab({ studentId, basePath }: GuardianTabProps) {
                     {g.isPrimary && (
                       <Badge variant="secondary" className="text-[10px]">
                         <Star size={10} className="mr-0.5" /> Primary
+                      </Badge>
+                    )}
+                    {g.isStaff && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        <Briefcase size={10} className="mr-0.5" /> Staff
                       </Badge>
                     )}
                     {g.hasLogin ? (
