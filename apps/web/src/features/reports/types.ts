@@ -61,6 +61,9 @@ export type CalendarEvent = {
   type: CalendarEventType;
   createdById: string;
   createdAt: string;
+  /** True for term-boundary entries synthesized from `school_terms` —
+   *  not a real `calendar_events` row, so it can't be deleted. */
+  isSynthetic?: boolean;
 };
 
 export type CreateCalendarEventInput = {
