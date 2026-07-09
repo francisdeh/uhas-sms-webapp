@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { uploadFile, buildStoragePath } from "@/lib/supabase/storage";
 
-type Kind = "lesson-plans/file" | "schemes/file" | "assignments/file";
+type Kind = "lesson-plans/file" | "schemes/file" | "schemes/resource" | "assignments/file";
 
 type Props = {
   ownerId: string;

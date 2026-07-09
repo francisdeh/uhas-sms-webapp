@@ -38,9 +38,10 @@ import {
   useSubmitScheme,
   useUpdateScheme,
 } from "@/features/schemes/hooks/use-schemes";
-import { SCHEME_TYPE_LABELS, type Scheme } from "@/features/schemes/types";
+import { LEARNING, SCHEME_TYPE_LABELS, type Scheme } from "@/features/schemes/types";
 import { SchemeStatusPill } from "./SchemeStatusPill";
 import { SchemeCommentThread } from "./SchemeCommentThread";
+import { SchemeWeeklyEntries } from "./SchemeWeeklyEntries";
 
 const schema = z
   .object({
@@ -52,10 +53,19 @@ const schema = z
     fileUrl: z.string().optional(),
     content: z.string().optional(),
   })
-  .refine((data) => Boolean(data.fileUrl) || Boolean(data.content && data.content.trim().length > 0), {
-    message: "Provide either an upload URL or structured content",
-    path: ["content"],
-  });
+  .refine(
+    (data) =>
+      // A Scheme of Learning's content is its weekly entries (added once
+      // the scheme exists) or an upload — never the free-text `content`
+      // field, so this create-time check only applies to Scheme of Work.
+      data.type === LEARNING ||
+      Boolean(data.fileUrl) ||
+      Boolean(data.content && data.content.trim().length > 0),
+    {
+      message: "Provide either an upload URL or structured content",
+      path: ["content"],
+    },
+  );
 
 type FormValues = z.infer<typeof schema>;
 
@@ -112,6 +122,9 @@ export function SchemeForm({
 
   const selectedClassId = useWatch({ control: form.control, name: "classId" });
   const subjectsForClass = assignments.filter((a) => a.classId === selectedClassId);
+  const selectedType = useWatch({ control: form.control, name: "type" });
+  const isLearning = selectedType === LEARNING;
+  const canEditEntries = existing?.status === "draft";
 
   async function onSave(values: FormValues) {
     const cleaned = {
@@ -216,7 +229,10 @@ export function SchemeForm({
                       <Select
                         value={field.value}
                         onValueChange={(v) => { if (v) field.onChange(v); }}
-                        disabled={locked}
+                        // Type is immutable once created (the update
+                        // endpoint doesn't accept it) — lock it as soon
+                        // as the scheme exists, not just once acknowledged.
+                        disabled={locked || !!existing}
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue>
@@ -352,7 +368,8 @@ export function SchemeForm({
               <Tabs defaultValue={existing?.fileUrl ? "upload" : "structured"} className="flex flex-col gap-3">
                 <TabsList variant="line" className="w-full justify-start gap-0">
                   <TabsTrigger value="structured" className="cursor-pointer px-4">
-                    <Pencil size={13} className="mr-1.5" /> Write from system
+                    <Pencil size={13} className="mr-1.5" />
+                    {isLearning ? "Weekly entries" : "Write from system"}
                   </TabsTrigger>
                   <TabsTrigger value="upload" className="cursor-pointer px-4">
                     <FileText size={13} className="mr-1.5" /> Upload URL
@@ -360,17 +377,32 @@ export function SchemeForm({
                 </TabsList>
 
                 <TabsContent value="structured">
-                  <Field>
-                    <FieldLabel htmlFor="content">Content (one row per week recommended)</FieldLabel>
-                    <Textarea
-                      id="content"
-                      rows={10}
-                      placeholder={"Week 1: …\nWeek 2: …\n…"}
-                      disabled={locked}
-                      {...form.register("content")}
-                    />
-                    <FieldError errors={[form.formState.errors.content]} />
-                  </Field>
+                  {isLearning ? (
+                    existing ? (
+                      <SchemeWeeklyEntries
+                        schemeId={existing.id}
+                        entries={existing.entries}
+                        canEdit={canEditEntries}
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Save this scheme as a draft first, then add each week&apos;s Strand,
+                        Sub-strand, Content Standard, Indicators, and Resources.
+                      </p>
+                    )
+                  ) : (
+                    <Field>
+                      <FieldLabel htmlFor="content">Content (one row per week recommended)</FieldLabel>
+                      <Textarea
+                        id="content"
+                        rows={10}
+                        placeholder={"Week 1: …\nWeek 2: …\n…"}
+                        disabled={locked}
+                        {...form.register("content")}
+                      />
+                      <FieldError errors={[form.formState.errors.content]} />
+                    </Field>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="upload">

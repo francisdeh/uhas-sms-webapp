@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { Scheme } from "@/features/schemes/types";
+import { WORK, type Scheme } from "@/features/schemes/types";
 import { SchemeStatusPill } from "./SchemeStatusPill";
 
 interface SchemesListProps {
@@ -53,7 +53,7 @@ export function SchemesList({ schemes, baseHref }: SchemesListProps) {
                       <p className="text-sm font-medium">{s.title}</p>
                       <SchemeStatusPill status={s.status} />
                       <Badge variant="secondary" className="text-[10px]">
-                        {s.type === "work" ? "SoW" : "SoL"}
+                        {s.type === WORK ? "SoW" : "SoL"}
                       </Badge>
                       {s.fileUrl && <FileText size={11} className="text-muted-foreground" />}
                     </div>

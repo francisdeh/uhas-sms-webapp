@@ -26,13 +26,15 @@ from app.features.notifications.constants import (
     SCHEME_SUBMITTED,
 )
 from app.features.notifications.service import NotificationsService, NotifyPayload
-from app.features.schemes.constants import ACKNOWLEDGED, DRAFT, SUBMITTED
-from app.features.schemes.model import Scheme, SchemeComment
+from app.features.schemes.constants import ACKNOWLEDGED, DRAFT, LEARNING, SUBMITTED
+from app.features.schemes.model import Scheme, SchemeComment, SchemeWeeklyEntry
 from app.features.schemes.repository import SchemesRepository
 from app.features.schemes.schema import (
     SchemeAcknowledgeRequest,
     SchemeCreate,
     SchemeUpdate,
+    SchemeWeeklyEntryAddRequest,
+    SchemeWeeklyEntryUpdateRequest,
 )
 from app.features.staff.model import Staff
 from app.features.staff.repository import StaffRepository
@@ -145,6 +147,12 @@ class SchemesService:
             raise ForbiddenError("Only the owning teacher can submit this scheme.")
         if row.status != DRAFT:
             raise ConflictError(f"Cannot submit a scheme in {row.status!r} state.")
+        if row.type == LEARNING and not row.file_url:
+            entry_count = await SchemesRepository.count_weekly_entries(session, row.id)
+            if entry_count == 0:
+                raise ValidationError(
+                    "Add at least one weekly entry or upload a file before submitting."
+                )
         row.status = SUBMITTED
         row.submitted_at = _now()
         row.updated_at = _now()
@@ -310,6 +318,106 @@ class SchemesService:
             raise ConflictError(f"Cannot delete a scheme in {row.status!r} state.")
         row.deleted_at = _now()
         await session.flush()
+
+    # ── Scheme of Learning weekly entries ───────────────────────────────────
+
+    @staticmethod
+    async def list_weekly_entries(
+        session: AsyncSession, scheme_id: UUID | str
+    ) -> list[SchemeWeeklyEntry]:
+        return await SchemesRepository.list_weekly_entries(session, scheme_id)
+
+    @staticmethod
+    async def _assert_can_edit_entries(
+        session: AsyncSession,
+        school_id: UUID | str,
+        scheme_id: UUID | str,
+        actor_staff_id: UUID | str,
+    ) -> Scheme:
+        row, _t, _s, _c, _r = await SchemesService.get(session, school_id, scheme_id)
+        if str(row.teacher_id) != str(actor_staff_id):
+            raise ForbiddenError("Only the owning teacher can edit this scheme's weekly entries.")
+        if row.status != DRAFT:
+            raise ConflictError(f"Cannot edit weekly entries while the scheme is {row.status!r}.")
+        if row.type != LEARNING:
+            raise ValidationError("Only a Scheme of Learning has weekly entries.")
+        return row
+
+    @staticmethod
+    async def add_weekly_entry(
+        session: AsyncSession,
+        school_id: UUID | str,
+        scheme_id: UUID | str,
+        payload: SchemeWeeklyEntryAddRequest,
+        *,
+        actor_staff_id: UUID | str,
+    ) -> list[SchemeWeeklyEntry]:
+        row = await SchemesService._assert_can_edit_entries(
+            session, school_id, scheme_id, actor_staff_id
+        )
+        existing = await SchemesRepository.find_weekly_entry_by_week(session, row.id, payload.week)
+        if existing is not None:
+            raise ConflictError(f"Week {payload.week} already has an entry.")
+        entry = SchemeWeeklyEntry(
+            scheme_id=row.id,
+            week=payload.week,
+            strand=payload.strand,
+            sub_strand=payload.sub_strand,
+            content_standard=payload.content_standard,
+            indicators=payload.indicators,
+            resources=payload.resources,
+            resource_file_urls=payload.resource_file_urls,
+        )
+        await SchemesRepository.insert_weekly_entry(session, entry)
+        return await SchemesRepository.list_weekly_entries(session, row.id)
+
+    @staticmethod
+    async def update_weekly_entry(
+        session: AsyncSession,
+        school_id: UUID | str,
+        scheme_id: UUID | str,
+        entry_id: UUID | str,
+        payload: SchemeWeeklyEntryUpdateRequest,
+        *,
+        actor_staff_id: UUID | str,
+    ) -> list[SchemeWeeklyEntry]:
+        row = await SchemesService._assert_can_edit_entries(
+            session, school_id, scheme_id, actor_staff_id
+        )
+        entry = await SchemesRepository.get_weekly_entry(session, row.id, entry_id)
+        if entry is None:
+            raise NotFoundError(f"Weekly entry {entry_id!r} not found.")
+
+        changes = payload.model_dump(exclude_unset=True)
+        if "week" in changes and changes["week"] != entry.week:
+            existing = await SchemesRepository.find_weekly_entry_by_week(
+                session, row.id, changes["week"]
+            )
+            if existing is not None:
+                raise ConflictError(f"Week {changes['week']} already has an entry.")
+        for field, value in changes.items():
+            setattr(entry, field, value)
+        entry.updated_at = _now()
+        await session.flush()
+        return await SchemesRepository.list_weekly_entries(session, row.id)
+
+    @staticmethod
+    async def remove_weekly_entry(
+        session: AsyncSession,
+        school_id: UUID | str,
+        scheme_id: UUID | str,
+        entry_id: UUID | str,
+        *,
+        actor_staff_id: UUID | str,
+    ) -> list[SchemeWeeklyEntry]:
+        row = await SchemesService._assert_can_edit_entries(
+            session, school_id, scheme_id, actor_staff_id
+        )
+        entry = await SchemesRepository.get_weekly_entry(session, row.id, entry_id)
+        if entry is None:
+            raise NotFoundError(f"Weekly entry {entry_id!r} not found.")
+        await SchemesRepository.delete_weekly_entry(session, entry)
+        return await SchemesRepository.list_weekly_entries(session, row.id)
 
 
 async def _is_reviewer(

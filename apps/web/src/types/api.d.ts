@@ -1355,6 +1355,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/schemes/{scheme_id}/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add one week's row to a Scheme of Learning's structured template */
+        post: operations["add_scheme_weekly_entry_schemes__scheme_id__entries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schemes/{scheme_id}/entries/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove one week's row */
+        delete: operations["remove_scheme_weekly_entry_schemes__scheme_id__entries__entry_id__delete"];
+        options?: never;
+        head?: never;
+        /** Edit one week's row */
+        patch: operations["update_scheme_weekly_entry_schemes__scheme_id__entries__entry_id__patch"];
+        trace?: never;
+    };
     "/assignments": {
         parameters: {
             query?: never;
@@ -4513,6 +4548,8 @@ export interface components {
             updatedAt?: string | null;
             /** Comments */
             comments?: components["schemas"]["SchemeCommentRead"][];
+            /** Entries */
+            entries?: components["schemas"]["SchemeWeeklyEntryRead"][];
         };
         /**
          * SchemeUpdate
@@ -4525,6 +4562,76 @@ export interface components {
             fileUrl?: string | null;
             /** Content */
             content?: string | null;
+        };
+        /**
+         * SchemeWeeklyEntryAddRequest
+         * @description `POST /schemes/{id}/entries` — add one week's row. Only `week` is
+         *     required, so a teacher can save a partially-filled week.
+         */
+        SchemeWeeklyEntryAddRequest: {
+            /** Week */
+            week: number;
+            /** Strand */
+            strand?: string | null;
+            /** Substrand */
+            subStrand?: string | null;
+            /** Contentstandard */
+            contentStandard?: string | null;
+            /** Indicators */
+            indicators?: string | null;
+            /** Resources */
+            resources?: string | null;
+            /** Resourcefileurls */
+            resourceFileUrls?: string[];
+        };
+        /**
+         * SchemeWeeklyEntryRead
+         * @description One week's row in a Scheme of Learning's structured template.
+         */
+        SchemeWeeklyEntryRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Week */
+            week: number;
+            /** Strand */
+            strand?: string | null;
+            /** Substrand */
+            subStrand?: string | null;
+            /** Contentstandard */
+            contentStandard?: string | null;
+            /** Indicators */
+            indicators?: string | null;
+            /** Resources */
+            resources?: string | null;
+            /** Resourcefileurls */
+            resourceFileUrls?: string[];
+            /** Createdat */
+            createdAt?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
+        };
+        /**
+         * SchemeWeeklyEntryUpdateRequest
+         * @description `PATCH /schemes/{id}/entries/{entryId}` — partial edit.
+         */
+        SchemeWeeklyEntryUpdateRequest: {
+            /** Week */
+            week?: number | null;
+            /** Strand */
+            strand?: string | null;
+            /** Substrand */
+            subStrand?: string | null;
+            /** Contentstandard */
+            contentStandard?: string | null;
+            /** Indicators */
+            indicators?: string | null;
+            /** Resources */
+            resources?: string | null;
+            /** Resourcefileurls */
+            resourceFileUrls?: string[] | null;
         };
         /**
          * SchemesListResponse
@@ -9621,6 +9728,115 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_scheme_weekly_entry_schemes__scheme_id__entries_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                scheme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchemeWeeklyEntryAddRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_scheme_weekly_entry_schemes__scheme_id__entries__entry_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                scheme_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_scheme_weekly_entry_schemes__scheme_id__entries__entry_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                scheme_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchemeWeeklyEntryUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

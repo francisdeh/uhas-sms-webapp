@@ -73,6 +73,52 @@ class SchemeCommentRead(BaseModel):
     created_at: datetime | None = None
 
 
+class SchemeWeeklyEntryRead(BaseModel):
+    """One week's row in a Scheme of Learning's structured template."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    week: int
+    strand: str | None = None
+    sub_strand: str | None = None
+    content_standard: str | None = None
+    indicators: str | None = None
+    resources: str | None = None
+    resource_file_urls: list[str] = Field(default_factory=list)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class SchemeWeeklyEntryAddRequest(BaseModel):
+    """`POST /schemes/{id}/entries` — add one week's row. Only `week` is
+    required, so a teacher can save a partially-filled week."""
+
+    model_config = _CAMEL_CONFIG
+
+    week: int = Field(..., ge=1, le=20)
+    strand: str | None = None
+    sub_strand: str | None = None
+    content_standard: str | None = None
+    indicators: str | None = None
+    resources: str | None = None
+    resource_file_urls: list[str] = Field(default_factory=list)
+
+
+class SchemeWeeklyEntryUpdateRequest(BaseModel):
+    """`PATCH /schemes/{id}/entries/{entryId}` — partial edit."""
+
+    model_config = _CAMEL_CONFIG
+
+    week: int | None = Field(None, ge=1, le=20)
+    strand: str | None = None
+    sub_strand: str | None = None
+    content_standard: str | None = None
+    indicators: str | None = None
+    resources: str | None = None
+    resource_file_urls: list[str] | None = None
+
+
 class SchemeRead(BaseModel):
     """Read shape includes joined display fields."""
 
@@ -103,6 +149,7 @@ class SchemeRead(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     comments: list[SchemeCommentRead] = Field(default_factory=list)
+    entries: list[SchemeWeeklyEntryRead] = Field(default_factory=list)
 
 
 class SchemesListResponse(Paginated[SchemeRead]):
