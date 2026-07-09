@@ -10,15 +10,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
+from app.core.errors import ForbiddenError
 from app.features.classes.model import Class
 from app.features.guardians.model import Guardian
-from app.features.students.model import Student
+from app.features.staff.model import Staff
+from app.features.students.model import Student, StudentDocument
 from app.features.students.schema import (
     SiblingRead,
     StudentCreate,
+    StudentDocumentCreate,
+    StudentDocumentRead,
     StudentGuardianAddRequest,
     StudentGuardianRead,
     StudentGuardianUpdateRequest,
+    StudentMedicalRead,
+    StudentMedicalUpdate,
     StudentRead,
     StudentsListResponse,
     StudentUpdate,
@@ -26,6 +32,19 @@ from app.features.students.schema import (
 from app.features.students.service import StudentsService
 
 router = APIRouter(prefix="/students", tags=["students"])
+
+
+def _document_to_read(document: StudentDocument, staff: Staff) -> StudentDocumentRead:
+    return StudentDocumentRead(
+        id=document.id,
+        student_id=document.student_id,
+        label=document.label,
+        other_label=document.other_label,
+        storage_path=document.storage_path,
+        uploaded_by_id=document.uploaded_by_id,
+        uploaded_by_name=f"{staff.first_name} {staff.last_name}".strip(),
+        created_at=document.created_at,
+    )
 
 
 def _guardian_to_read(
@@ -219,6 +238,96 @@ async def list_student_siblings(
         )
         for s, c in rows
     ]
+
+
+@router.get(
+    "/{student_id}/medical",
+    response_model=StudentMedicalRead,
+    response_model_by_alias=True,
+    summary="A student's medical info — Admin/Deputy/teacher/own-parent only",
+)
+async def get_student_medical(
+    student_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> StudentMedicalRead:
+    student = await StudentsService.get_medical(session, school_id, student_id, user=user)
+    return StudentMedicalRead.model_validate(student)
+
+
+@router.patch(
+    "/{student_id}/medical",
+    response_model=StudentMedicalRead,
+    response_model_by_alias=True,
+    summary="Edit a student's medical info — Admin or the student's own parent",
+)
+async def update_student_medical(
+    student_id: UUID,
+    payload: StudentMedicalUpdate,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> StudentMedicalRead:
+    student = await StudentsService.update_medical(
+        session, school_id, student_id, payload, user=user
+    )
+    return StudentMedicalRead.model_validate(student)
+
+
+@router.get(
+    "/{student_id}/documents",
+    response_model=list[StudentDocumentRead],
+    response_model_by_alias=True,
+    summary="A student's uploaded documents — Admin/Deputy/own-parent only",
+)
+async def list_student_documents(
+    student_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> list[StudentDocumentRead]:
+    rows = await StudentsService.list_documents(session, school_id, student_id, user=user)
+    return [_document_to_read(d, s) for d, s in rows]
+
+
+@router.post(
+    "/{student_id}/documents",
+    response_model=list[StudentDocumentRead],
+    response_model_by_alias=True,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload a document for a student — Admin only",
+)
+async def add_student_document(
+    student_id: UUID,
+    payload: StudentDocumentCreate,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> list[StudentDocumentRead]:
+    if not user.linked_id:
+        raise ForbiddenError("Cannot upload a document without a staff identity.")
+    rows = await StudentsService.add_document(
+        session, school_id, student_id, payload, actor_staff_id=user.linked_id
+    )
+    return [_document_to_read(d, s) for d, s in rows]
+
+
+@router.delete(
+    "/{student_id}/documents/{document_id}",
+    response_model=list[StudentDocumentRead],
+    response_model_by_alias=True,
+    summary="Remove a student's document — Admin only",
+)
+async def remove_student_document(
+    student_id: UUID,
+    document_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> list[StudentDocumentRead]:
+    rows = await StudentsService.remove_document(session, school_id, student_id, document_id)
+    return [_document_to_read(d, s) for d, s in rows]
 
 
 @router.post(

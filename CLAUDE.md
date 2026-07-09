@@ -196,7 +196,7 @@ Used for score calculation in `features/exams/`. Bands and interpretations come 
 
 - Don't use Firestore — the database is PostgreSQL. The SRS mentioned Firestore but that decision was superseded, and Firebase itself (Auth + Storage) was later replaced by Supabase in the Strategy A migration.
 - Don't add timetable features — explicitly deferred to a later phase.
-- Don't add payroll, medical, or counselling features — out of MVP scope. (Fee management — fee items, learner fees, payments, Accountant role, fee-reminder SMS — is in scope as of Phase 5; see [v2/UHAS_Migration_Execution_Plan.md](v2/UHAS_Migration_Execution_Plan.md) §9.)
+- Don't add payroll or counselling features — out of MVP scope. (Fee management is in scope as of Phase 5 — see [v2/UHAS_Migration_Execution_Plan.md](v2/UHAS_Migration_Execution_Plan.md) §9. Basic student medical info — conditions/allergies, emergency contact — is in scope as of Phase 6's student-profile-depth item; see §10.)
 - Don't add a Next.js API route handler, and don't write Drizzle/raw-SQL DB access in `apps/web/` — all data access is a call through `apps/web/src/lib/api/{server,browser}.ts` to `apps/api/`. If it needs a new endpoint, add it in `apps/api/`.
 - Don't add `"use client"` to layouts or pages that don't need it.
 - Don't skip `school_id` filtering in any FastAPI query.

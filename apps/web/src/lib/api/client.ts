@@ -323,6 +323,41 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           `/students/${studentId}/siblings`,
         ),
+      /** Gated separately from `get()` — see StudentMedicalRead docstring. */
+      getMedical: (studentId: string) =>
+        apiFetch<components["schemas"]["StudentMedicalRead"]>(
+          getAuthToken,
+          `/students/${studentId}/medical`,
+        ),
+      updateMedical: (
+        studentId: string,
+        payload: components["schemas"]["StudentMedicalUpdate"],
+      ) =>
+        apiFetch<components["schemas"]["StudentMedicalRead"]>(
+          getAuthToken,
+          `/students/${studentId}/medical`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      listDocuments: (studentId: string) =>
+        apiFetch<components["schemas"]["StudentDocumentRead"][]>(
+          getAuthToken,
+          `/students/${studentId}/documents`,
+        ),
+      addDocument: (
+        studentId: string,
+        payload: components["schemas"]["StudentDocumentCreate"],
+      ) =>
+        apiFetch<components["schemas"]["StudentDocumentRead"][]>(
+          getAuthToken,
+          `/students/${studentId}/documents`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      removeDocument: (studentId: string, documentId: string) =>
+        apiFetch<components["schemas"]["StudentDocumentRead"][]>(
+          getAuthToken,
+          `/students/${studentId}/documents/${documentId}`,
+          { method: "DELETE" },
+        ),
     },
     subjects: {
       list: (

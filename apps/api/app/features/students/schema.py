@@ -24,6 +24,7 @@ from app.core.pagination import Paginated
 from app.core.school_structure import Division
 from app.features.guardians.constants import RelationType
 from app.features.guardians.schema import GuardianCreate
+from app.features.students.constants import BloodType, DocumentLabel
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
@@ -114,6 +115,12 @@ class StudentRead(StudentBase):
     `class_id` / `class_name` / `division` come from the enrollments
     table. They're `None` for students who have no active enrollment
     in the current academic year (inactive students, mid-promotion).
+
+    Deliberately excludes medical info: `GET /students/{id}` has no
+    role/ownership gate (any authenticated user in the school can fetch
+    any student), so anything sensitive lives behind its own gated
+    endpoint instead — see `StudentMedicalRead` / `GET
+    /students/{id}/medical`.
     """
 
     id: UUID
@@ -124,6 +131,65 @@ class StudentRead(StudentBase):
     class_id: UUID | None = None
     class_name: str | None = None
     division: Division | None = None
+
+
+class StudentMedicalRead(BaseModel):
+    """`GET /students/{id}/medical` — gated separately from the base
+    student read (see `StudentRead` docstring): Admin, Deputy (own
+    division), Teacher (teaches the student), or the student's own
+    parent."""
+
+    model_config = _CAMEL_CONFIG
+
+    blood_type: BloodType | None = None
+    medical_notes: str | None = None
+    emergency_contact_name: str | None = None
+    emergency_contact_phone: str | None = None
+
+
+class StudentMedicalUpdate(BaseModel):
+    """`PATCH /students/{id}/medical` — Admin or the student's own
+    parent. Separate from `StudentUpdate` since it has a different
+    access gate (a parent may edit this but nothing else on the
+    student record)."""
+
+    model_config = _CAMEL_CONFIG
+
+    blood_type: BloodType | None = None
+    medical_notes: str | None = None
+    emergency_contact_name: str | None = Field(None, max_length=255)
+    emergency_contact_phone: str | None = Field(None, max_length=50)
+
+
+class StudentDocumentCreate(BaseModel):
+    """`POST /students/{id}/documents` — Admin/Deputy only."""
+
+    model_config = _CAMEL_CONFIG
+
+    label: DocumentLabel
+    other_label: str | None = Field(None, max_length=255)
+    storage_path: str = Field(..., max_length=500)
+
+    @model_validator(mode="after")
+    def _other_label_only_when_other(self) -> Self:
+        if self.label == "Other" and not self.other_label:
+            raise ValueError('otherLabel is required when label is "Other".')
+        if self.label != "Other" and self.other_label:
+            raise ValueError('otherLabel must be omitted unless label is "Other".')
+        return self
+
+
+class StudentDocumentRead(BaseModel):
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    student_id: UUID
+    label: DocumentLabel
+    other_label: str | None = None
+    storage_path: str
+    uploaded_by_id: UUID
+    uploaded_by_name: str
+    created_at: datetime | None = None
 
 
 class StudentsListResponse(Paginated[StudentRead]):

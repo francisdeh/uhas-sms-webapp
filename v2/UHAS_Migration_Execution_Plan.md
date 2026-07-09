@@ -169,7 +169,7 @@ Decomposed into sequential slices (each its own spec + PR):
 
 Prioritised by what UHAS hits first (from the Feature Enhancements doc):
 
-1. Student profile depth (siblings, all guardians, medical, documents) — parent-facing.
+1. ✅ **Student profile depth** (`docs/superpowers/specs/2026-07-09-student-profile-depth-design.md`) — done. A pre-design audit found siblings + all-guardians display were already ~90% built (siblings only needed a parent-bypass on the existing `list_siblings` gate, mirroring `list_guardians` — no schema/repository changes). Medical info (`students.blood_type`/`medical_notes`/`emergency_contact_name`/`emergency_contact_phone`) and a `student_documents` child table (labelled, accountable-uploader — not a bare JSONB path array) were genuinely new. Both get their own gated endpoints (`GET`/`PATCH /students/{id}/medical`, `GET`/`POST`/`DELETE /students/{id}/documents`) rather than folding into `StudentRead`, since implementation surfaced that `GET /students/{id}` has no role/ownership gate at all — embedding sensitive fields there would leak them to any authenticated user in the school. Medical view: Admin/Deputy(own division)/Teacher(teaches the class)/own-parent; medical edit + document upload/delete: Admin or the student's own parent (medical) / Admin only (documents) — matching this feature's existing Admin-only-mutation precedent. New `/parent/children/[id]` detail page.
 2. Audit log filters (user/target, CSV export) — cheap admin win.
 3. Leave management (balances, types, documents, substitute) — monthly staff use.
 4. Staff profile depth (hire date, qualifications, subject expertise, documents).

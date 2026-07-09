@@ -372,10 +372,24 @@ async def test_parent_cannot_read_unrelated_childs_guardians(
     assert res.status_code == 403
 
 
-async def test_parent_still_cannot_read_siblings(client: AsyncClient, seed_links: None) -> None:
+async def test_parent_can_read_own_childs_siblings(client: AsyncClient, seed_links: None) -> None:
     await _link(client, STUDENT_A, GUARDIAN_EXISTING)
+    # Phase 6 closed the "siblings stay Admin/Deputy-only" gap — same
+    # parent-bypass shape as guardians above.
     res = await client.get(
         f"/students/{STUDENT_A}/siblings",
+        headers=auth_header(role="Parent", linked_id=str(GUARDIAN_EXISTING)),
+    )
+    assert res.status_code == 200
+
+
+async def test_parent_cannot_read_unrelated_childs_siblings(
+    client: AsyncClient, seed_links: None
+) -> None:
+    await _link(client, STUDENT_A, GUARDIAN_EXISTING)
+    # Same parent, but STUDENT_B is not their child.
+    res = await client.get(
+        f"/students/{STUDENT_B}/siblings",
         headers=auth_header(role="Parent", linked_id=str(GUARDIAN_EXISTING)),
     )
     assert res.status_code == 403

@@ -5,13 +5,24 @@ import { toast } from "sonner";
 
 import { api, ApiError } from "@/lib/api/browser";
 import type { components } from "@/types/api";
-import type { GuardianLink, Sibling } from "@/features/students/types";
+import type {
+  CreateStudentDocumentInput,
+  GuardianLink,
+  Medical,
+  MedicalUpdateInput,
+  Sibling,
+  StudentDocument,
+} from "@/features/students/types";
 import { studentKeys } from "./use-students";
 
 const guardianKey = (studentId: string) =>
   [...studentKeys.detail(studentId), "guardians"] as const;
 const siblingKey = (studentId: string) =>
   [...studentKeys.detail(studentId), "siblings"] as const;
+const medicalKey = (studentId: string) =>
+  [...studentKeys.detail(studentId), "medical"] as const;
+const documentsKey = (studentId: string) =>
+  [...studentKeys.detail(studentId), "documents"] as const;
 
 export function useStudentGuardians(studentId: string, enabled = true) {
   return useQuery<GuardianLink[]>({
@@ -27,6 +38,69 @@ export function useStudentSiblings(studentId: string, enabled = true) {
     queryFn: () => api.students.siblings(studentId),
     enabled: enabled && !!studentId,
   });
+}
+
+export function useStudentMedical(studentId: string, enabled = true) {
+  return useQuery<Medical>({
+    queryKey: medicalKey(studentId),
+    queryFn: async () => {
+      const m = await api.students.getMedical(studentId);
+      return {
+        bloodType: m.bloodType ?? null,
+        medicalNotes: m.medicalNotes ?? null,
+        emergencyContactName: m.emergencyContactName ?? null,
+        emergencyContactPhone: m.emergencyContactPhone ?? null,
+      };
+    },
+    enabled: enabled && !!studentId,
+  });
+}
+
+export function useUpdateStudentMedical(studentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MedicalUpdateInput) => api.students.updateMedical(studentId, payload),
+    onSuccess: () => {
+      toast.success("Medical info saved.");
+      qc.invalidateQueries({ queryKey: medicalKey(studentId) });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Something went wrong."),
+  });
+}
+
+export function useStudentDocuments(studentId: string, enabled = true) {
+  return useQuery<StudentDocument[]>({
+    queryKey: documentsKey(studentId),
+    queryFn: () => api.students.listDocuments(studentId),
+    enabled: enabled && !!studentId,
+  });
+}
+
+export function useStudentDocumentMutations(studentId: string) {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: documentsKey(studentId) });
+  const onError = (err: unknown) =>
+    toast.error(err instanceof ApiError ? err.message : "Something went wrong.");
+
+  const add = useMutation({
+    mutationFn: (payload: CreateStudentDocumentInput) => api.students.addDocument(studentId, payload),
+    onSuccess: () => {
+      toast.success("Document uploaded.");
+      invalidate();
+    },
+    onError,
+  });
+
+  const remove = useMutation({
+    mutationFn: (documentId: string) => api.students.removeDocument(studentId, documentId),
+    onSuccess: () => {
+      toast.success("Document removed.");
+      invalidate();
+    },
+    onError,
+  });
+
+  return { add, remove };
 }
 
 export function useGuardianLinkMutations(studentId: string) {

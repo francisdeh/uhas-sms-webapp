@@ -17,27 +17,31 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
-from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT
+from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT, TEACHER
 from app.core.security import CurrentUser
 from app.core.slug import insert_with_sequential_slug
 from app.features.audit.actions import GUARDIAN_LINKED, GUARDIAN_UNLINKED, STUDENT_EDIT
 from app.features.audit.service import write_audit_log
-from app.features.classes.model import Class
+from app.features.classes.model import Class, ClassSubject, ClassTeacher
 from app.features.enrollments.constants import ACTIVE
 from app.features.enrollments.model import Enrollment
 from app.features.guardians.model import Guardian
 from app.features.guardians.service import GuardiansService
 from app.features.schools.repository import SchoolsRepository
+from app.features.staff.model import Staff
 from app.features.staff.repository import StaffRepository
-from app.features.students.model import Student, StudentGuardian
+from app.features.students.model import Student, StudentDocument, StudentGuardian
 from app.features.students.repository import StudentsRepository
 from app.features.students.schema import (
     StudentCreate,
+    StudentDocumentCreate,
     StudentGuardianAddRequest,
     StudentGuardianUpdateRequest,
+    StudentMedicalUpdate,
     StudentUpdate,
 )
 
@@ -70,9 +74,11 @@ async def _assert_can_view_student(
     user: CurrentUser,
     cls: Class | None,
 ) -> None:
-    """Read gate for a student's guardian/sibling data: Admin sees any;
-    a Deputy Head only within their own division. (Teacher/parent access
-    is a later slice.)"""
+    """Read gate for a student's guardian/sibling/document data: Admin
+    sees any; a Deputy Head only within their own division. Parent
+    access is handled by each caller's own bypass check (a parent may
+    only see their own child, never siblings' guardians etc.), not
+    here."""
     if user.role == ADMIN:
         return
     if user.role == DEPUTY_HEAD and user.linked_id and cls is not None:
@@ -80,6 +86,49 @@ async def _assert_can_view_student(
         if staff and staff.division == cls.division:
             return
     raise ForbiddenError("You may only view students in your own division.")
+
+
+async def _is_parent_of(session: AsyncSession, student_id: UUID | str, user: CurrentUser) -> bool:
+    return (
+        user.role == PARENT
+        and user.linked_id is not None
+        and await StudentsRepository.get_link(session, student_id, user.linked_id) is not None
+    )
+
+
+async def _assert_can_view_medical(
+    session: AsyncSession,
+    school_id: UUID | str,
+    user: CurrentUser,
+    student_id: UUID | str,
+    cls: Class | None,
+) -> None:
+    """Read gate for a student's medical info — broader than
+    `_assert_can_view_student` since a classroom emergency means the
+    student's own teachers need this too, not just the front office:
+    Admin any; Deputy own division; Teacher who class-teaches or
+    subject-teaches the student's current class; Parent of the
+    student."""
+    if user.role == ADMIN:
+        return
+    if await _is_parent_of(session, student_id, user):
+        return
+    if user.role == TEACHER and user.linked_id and cls is not None:
+        ct_stmt = select(ClassTeacher.class_id).where(
+            and_(ClassTeacher.staff_id == user.linked_id, ClassTeacher.class_id == cls.id)
+        )
+        cs_stmt = select(ClassSubject.class_id).where(
+            and_(ClassSubject.teacher_id == user.linked_id, ClassSubject.class_id == cls.id)
+        )
+        found = (await session.execute(ct_stmt.union(cs_stmt))).first()
+        if found is not None:
+            return
+        raise ForbiddenError("You may only view medical info for students you teach.")
+    if user.role == DEPUTY_HEAD and user.linked_id and cls is not None:
+        staff = await StaffRepository.get_by_id(session, school_id, user.linked_id)
+        if staff and staff.division == cls.division:
+            return
+    raise ForbiddenError("You may not view this student's medical info.")
 
 
 class StudentsService:
@@ -285,13 +334,7 @@ class StudentsService:
         _student, cls = await StudentsService.get(session, school_id, student_id)
         # A parent may see the co-guardians of their own child — allowed
         # when their linked guardian is one of the student's guardians.
-        # (Siblings stay Admin/Deputy-only; that's a Phase 6 parent item.)
-        parent_linked = (
-            user.role == PARENT
-            and user.linked_id is not None
-            and await StudentsRepository.get_link(session, student_id, user.linked_id) is not None
-        )
-        if not parent_linked:
+        if not await _is_parent_of(session, student_id, user):
             await _assert_can_view_student(session, school_id, user, cls)
         return await StudentsRepository.list_guardians(session, school_id, student_id)
 
@@ -382,7 +425,11 @@ class StudentsService:
         user: CurrentUser,
     ) -> list[tuple[Student, Class | None]]:
         _student, cls = await StudentsService.get(session, school_id, student_id)
-        await _assert_can_view_student(session, school_id, user, cls)
+        # A parent may see their own child's siblings — same bypass as
+        # list_guardians. Phase 6 closed the "Admin/Deputy-only" gap
+        # this method used to have.
+        if not await _is_parent_of(session, student_id, user):
+            await _assert_can_view_student(session, school_id, user, cls)
         year = await _academic_year(session, school_id)
         return await StudentsRepository.list_siblings(
             session, school_id, student_id, academic_year=year
@@ -402,3 +449,80 @@ class StudentsService:
         student.is_active = active
         await session.flush()
         return student, cls
+
+    # ── medical info (Phase 6 item 1) ───────────────────────────────────
+
+    @staticmethod
+    async def get_medical(
+        session: AsyncSession, school_id: UUID | str, student_id: UUID | str, *, user: CurrentUser
+    ) -> Student:
+        student, cls = await StudentsService.get(session, school_id, student_id)
+        await _assert_can_view_medical(session, school_id, user, student_id, cls)
+        return student
+
+    @staticmethod
+    async def update_medical(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        payload: StudentMedicalUpdate,
+        *,
+        user: CurrentUser,
+    ) -> Student:
+        """Admin, or the student's own parent — a Deputy Head's normal
+        division-scoped read access doesn't extend to editing this,
+        matching every other student-record mutation in this feature
+        (guardians, core fields) being Admin-only."""
+        student, _cls = await StudentsService.get(session, school_id, student_id)
+        if user.role != ADMIN and not await _is_parent_of(session, student_id, user):
+            raise ForbiddenError("Only Admin or this student's parent can edit medical info.")
+        for field, value in payload.model_dump(exclude_unset=True).items():
+            setattr(student, field, value)
+        await session.flush()
+        return student
+
+    # ── documents (Phase 6 item 1) ───────────────────────────────────────
+
+    @staticmethod
+    async def list_documents(
+        session: AsyncSession, school_id: UUID | str, student_id: UUID | str, *, user: CurrentUser
+    ) -> list[tuple[StudentDocument, Staff]]:
+        _student, cls = await StudentsService.get(session, school_id, student_id)
+        if not await _is_parent_of(session, student_id, user):
+            await _assert_can_view_student(session, school_id, user, cls)
+        return await StudentsRepository.list_documents(session, student_id)
+
+    @staticmethod
+    async def add_document(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        payload: StudentDocumentCreate,
+        *,
+        actor_staff_id: UUID | str,
+    ) -> list[tuple[StudentDocument, Staff]]:
+        await StudentsService.get(session, school_id, student_id)  # 404 if missing
+        document = StudentDocument(
+            school_id=school_id,
+            student_id=student_id,
+            label=payload.label,
+            other_label=payload.other_label,
+            storage_path=payload.storage_path,
+            uploaded_by_id=actor_staff_id,
+        )
+        await StudentsRepository.insert_document(session, document)
+        return await StudentsRepository.list_documents(session, student_id)
+
+    @staticmethod
+    async def remove_document(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        document_id: UUID | str,
+    ) -> list[tuple[StudentDocument, Staff]]:
+        await StudentsService.get(session, school_id, student_id)  # 404 if missing
+        document = await StudentsRepository.get_document(session, school_id, document_id)
+        if document is None or str(document.student_id) != str(student_id):
+            raise NotFoundError(f"Document {document_id!r} not found.")
+        await StudentsRepository.delete_document(session, document)
+        return await StudentsRepository.list_documents(session, student_id)
