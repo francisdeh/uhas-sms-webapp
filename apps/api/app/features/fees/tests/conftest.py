@@ -213,7 +213,10 @@ async def seed_guardians(
         school_id=SCHOOL_UUID,
         first_name="Ama",
         last_name="Mensah",
+        phone="+233241110001",
     )
+    # Deliberately no phone — exercises the reminder job's "guardian has
+    # no phone on file, skip" eligibility rule.
     other_guardian = Guardian(
         id=OTHER_GUARDIAN_UUID,
         slug="GUARDIAN-FEE-002",

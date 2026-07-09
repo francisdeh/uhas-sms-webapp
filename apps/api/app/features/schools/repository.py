@@ -50,6 +50,17 @@ class SchoolsRepository:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def list_active_ids(session: AsyncSession) -> list[UUID]:
+        """Every active school's id — for jobs that sweep across
+        tenants (e.g. the weekly fee-reminder job) rather than running
+        within one request's school-scoped session. First real
+        multi-school iteration in this codebase; today it's a
+        single-row result, but every caller should already be written
+        assuming more."""
+        result = await session.execute(select(School.id).where(School.is_active.is_(True)))
+        return list(result.scalars())
+
+    @staticmethod
     async def apply_patch(session: AsyncSession, school: School, patch: dict[str, Any]) -> School:
         """Apply a field-level patch in-place. Caller computes the diff.
 

@@ -74,6 +74,7 @@ export type LearnerFee = {
   status: LearnerFeeStatus;
   balanceMinor: number;
   dueDate: string | null;
+  lastReminderSentAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
   payments: FeePayment[];
@@ -84,6 +85,7 @@ export type FeesSummary = {
   totalCollectedMinor: number;
   overdueCount: number;
   activeFeeItemsCount: number;
+  lastReminderSentAt: string | null;
 };
 
 export type CreateFeeItemInput = {

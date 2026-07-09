@@ -9,7 +9,7 @@ money.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,9 +38,19 @@ from app.features.fees.schema import (
     ParentFeePaymentRead,
     ParentLearnerFeeRead,
 )
+from app.features.guardians.model import Guardian
+from app.features.notifications.constants import FEE_REMINDER as NOTIF_FEE_REMINDER
+from app.features.notifications.service import NotificationsService, NotifyPayload
+from app.features.sms.constants import FEE_REMINDER as SMS_FEE_REMINDER
+from app.features.sms.service import SmsService
 from app.features.staff.model import Staff
 from app.features.students.model import Student
 from app.features.students.service import StudentsService
+from app.integrations.sms.provider import SmsProvider
+
+# A retry of the same weekly cron run (or a manual re-trigger) within
+# this window won't double-text a guardian for the same fee.
+_REMINDER_COOLDOWN = timedelta(days=6)
 
 
 def _now() -> datetime:
@@ -276,8 +286,67 @@ class FeesService:
     # ── summary ──────────────────────────────────────────────────────────
 
     @staticmethod
-    async def summary(session: AsyncSession, school_id: UUID | str) -> tuple[int, int, int, int]:
+    async def summary(
+        session: AsyncSession, school_id: UUID | str
+    ) -> tuple[int, int, int, int, datetime | None]:
         return await FeesRepository.summary(session, school_id, today=_now().date())
+
+    # ── reminders ────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def send_overdue_reminders(
+        session: AsyncSession, school_id: UUID | str, *, provider: SmsProvider | None = None
+    ) -> int:
+        """Weekly job entry point. One SMS + one in-app notification per
+        guardian, even when they have several overdue fees — avoids
+        multi-text spam to the same household in one run. Returns the
+        number of `learner_fees` rows just reminded."""
+        now = _now()
+        rows = await FeesRepository.find_overdue_for_reminder(
+            session, school_id, today=now.date(), remind_again_after=now - _REMINDER_COOLDOWN
+        )
+        if not rows:
+            return 0
+
+        by_guardian: dict[UUID, list[tuple[LearnerFee, Student, FeeItem, Guardian]]] = {}
+        for lf, student, fee_item, guardian in rows:
+            by_guardian.setdefault(guardian.id, []).append((lf, student, fee_item, guardian))
+
+        for guardian_rows in by_guardian.values():
+            guardian = guardian_rows[0][3]
+            body = _reminder_message(guardian_rows)
+
+            await SmsService.send(
+                session,
+                school_id=school_id,
+                recipient_phone=guardian.phone,  # type: ignore[arg-type]
+                recipient_guardian_id=guardian.id,
+                category=SMS_FEE_REMINDER,
+                body=body,
+                provider=provider,
+            )
+
+            guardian_user = await NotificationsService.find_user_for_linked(
+                session, school_id, guardian.id
+            )
+            if guardian_user is not None:
+                await NotificationsService.notify_user(
+                    session,
+                    school_id,
+                    user_id=guardian_user.id,
+                    payload=NotifyPayload(
+                        kind=NOTIF_FEE_REMINDER,
+                        title="Fee reminder",
+                        body=body,
+                        link="/parent/fees",
+                    ),
+                )
+
+            for lf, _st, _fi, _g in guardian_rows:
+                lf.last_reminder_sent_at = now
+
+        await session.flush()
+        return len(rows)
 
     # ── parent view ──────────────────────────────────────────────────────
 
@@ -347,6 +416,30 @@ class FeesService:
                 )
             )
         return result
+
+
+def _reminder_message(rows: list[tuple[LearnerFee, Student, FeeItem, Guardian]]) -> str:
+    """Plain ASCII only (no "GH₵") — a currency symbol outside GSM-7
+    would push the whole SMS into UCS-2 encoding, cutting the
+    per-segment length from 160 to 70 chars and likely doubling cost
+    for no readability gain."""
+    guardian = rows[0][3]
+    total_minor = sum(lf.balance_minor for lf, _st, _fi, _g in rows)
+    total = f"GHS {total_minor / 100:,.2f}"
+    if len(rows) == 1:
+        _lf, student, fee_item, _g = rows[0]
+        return (
+            f"Dear {guardian.first_name}, {student.first_name} {student.last_name}'s "
+            f"{fee_item.name} balance of {total} is overdue. Please settle at your "
+            f"earliest convenience. - UHAS"
+        )
+    names = {f"{st.first_name} {st.last_name}" for _lf, st, _fi, _g in rows}
+    student_names = ", ".join(sorted(names))
+    return (
+        f"Dear {guardian.first_name}, you have {len(rows)} overdue school fees "
+        f"totaling {total} for {student_names}. Please settle at your earliest "
+        f"convenience. - UHAS"
+    )
 
 
 def _recompute_balance_and_status(row: LearnerFee, total_paid: int) -> None:

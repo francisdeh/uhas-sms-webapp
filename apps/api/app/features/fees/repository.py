@@ -14,8 +14,9 @@ from app.features.enrollments.constants import ACTIVE as ENROLLMENT_ACTIVE
 from app.features.enrollments.model import Enrollment
 from app.features.fees.constants import OUTSTANDING, PARTIAL
 from app.features.fees.model import FeeItem, FeePayment, LearnerFee
+from app.features.guardians.model import Guardian
 from app.features.staff.model import Staff
-from app.features.students.model import Student
+from app.features.students.model import Student, StudentGuardian
 
 
 class FeesRepository:
@@ -297,14 +298,58 @@ class FeesRepository:
         )
         return int((await session.execute(stmt)).scalar_one())
 
+    # ── reminders ────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def find_overdue_for_reminder(
+        session: AsyncSession,
+        school_id: UUID | str,
+        *,
+        today: date,
+        remind_again_after: datetime,
+    ) -> list[tuple[LearnerFee, Student, FeeItem, Guardian]]:
+        """Overdue, unpaid `learner_fees` whose primary guardian has a
+        phone on file, excluding ones reminded more recently than
+        `remind_again_after` — the weekly job's idempotency guard so a
+        retry or manual re-run within the same week doesn't double-text
+        a guardian. Only the *primary* guardian is joined, so a student
+        with two guardians on file gets exactly one text per fee."""
+        stmt = (
+            select(LearnerFee, Student, FeeItem, Guardian)
+            .join(Student, Student.id == LearnerFee.student_id)
+            .join(FeeItem, FeeItem.id == LearnerFee.fee_item_id)
+            .join(
+                StudentGuardian,
+                and_(
+                    StudentGuardian.student_id == Student.id,
+                    StudentGuardian.is_primary.is_(True),
+                ),
+            )
+            .join(Guardian, Guardian.id == StudentGuardian.guardian_id)
+            .where(
+                and_(
+                    LearnerFee.school_id == school_id,
+                    LearnerFee.deleted_at.is_(None),
+                    LearnerFee.status.in_([OUTSTANDING, PARTIAL]),
+                    LearnerFee.due_date.is_not(None),
+                    LearnerFee.due_date < today,
+                    Guardian.phone.is_not(None),
+                    (LearnerFee.last_reminder_sent_at.is_(None))
+                    | (LearnerFee.last_reminder_sent_at < remind_again_after),
+                )
+            )
+        )
+        return [(lf, st, fi, g) for lf, st, fi, g in (await session.execute(stmt)).all()]
+
     # ── summary ──────────────────────────────────────────────────────────
 
     @staticmethod
     async def summary(
         session: AsyncSession, school_id: UUID | str, *, today: date
-    ) -> tuple[int, int, int, int]:
+    ) -> tuple[int, int, int, int, datetime | None]:
         """`(total_outstanding_minor, total_collected_minor, overdue_count,
-        active_fee_items_count)` for the Accountant dashboard."""
+        active_fee_items_count, last_reminder_sent_at)` for the
+        Accountant dashboard."""
         outstanding_stmt = select(func.coalesce(func.sum(LearnerFee.balance_minor), 0)).where(
             and_(
                 LearnerFee.school_id == school_id,
@@ -327,8 +372,18 @@ class FeesRepository:
         active_items_stmt = select(func.count(FeeItem.id)).where(
             and_(FeeItem.school_id == school_id, FeeItem.is_active.is_(True))
         )
+        last_reminder_stmt = select(func.max(LearnerFee.last_reminder_sent_at)).where(
+            LearnerFee.school_id == school_id
+        )
         total_outstanding = int((await session.execute(outstanding_stmt)).scalar_one())
         total_collected = int((await session.execute(collected_stmt)).scalar_one())
         overdue_count = int((await session.execute(overdue_stmt)).scalar_one())
         active_fee_items_count = int((await session.execute(active_items_stmt)).scalar_one())
-        return total_outstanding, total_collected, overdue_count, active_fee_items_count
+        last_reminder_sent_at = (await session.execute(last_reminder_stmt)).scalar_one()
+        return (
+            total_outstanding,
+            total_collected,
+            overdue_count,
+            active_fee_items_count,
+            last_reminder_sent_at,
+        )

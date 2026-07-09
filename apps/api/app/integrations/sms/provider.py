@@ -1,20 +1,25 @@
-"""`SmsProvider` interface — Hubtel is the intended first real
-implementation; a swap later is a one-file change (per
-`v2/UHAS_Backend_Architecture_v1.1.md` §8.1).
-
-No Hubtel account/sender-ID exists yet, so this module ships only the
-interface + a `StubSmsProvider`: it logs the send and returns a fake
-message id instead of calling a real API. `get_sms_provider()` always
-resolves to the stub today — swap that one function when Hubtel
-credentials land, no call sites change.
+"""`SmsProvider` interface, the no-op `StubSmsProvider`, and the real
+`HubtelSmsProvider` — same "missing config isn't an error" contract as
+`app/integrations/email/provider.py`: `get_sms_provider()` falls back
+to the stub whenever Hubtel credentials aren't all set, so every
+environment (dev, CI, tests) runs the same code path without a live
+account.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Protocol
 
-from app.features.sms.constants import STUB, SmsProviderName, SmsStatus
+import httpx
+
+from app.core.config import settings
+from app.features.sms.constants import HUBTEL, STUB, SmsProviderName, SmsStatus
+
+logger = logging.getLogger(__name__)
+
+_HUBTEL_SEND_URL = "https://smsc.hubtel.com/v1/messages/send"
 
 
 class SmsSendResult:
@@ -29,10 +34,11 @@ class SmsSendResult:
 
 class SmsProvider(Protocol):
     """One method: send a message, get back a provider message id +
-    initial status. Real providers (Hubtel) return `queued`/`sent` here
-    and update `delivered`/`failed` later via a webhook callback — that
-    callback endpoint doesn't exist yet either; it lands with the real
-    Hubtel implementation."""
+    initial status. Hubtel's Quick Send API is synchronous (the HTTP
+    response tells us whether it was accepted), so `HubtelSmsProvider`
+    returns `sent`/`failed` directly — there's no delivery-callback
+    webhook in this codebase yet to later promote a row to
+    `delivered`."""
 
     name: SmsProviderName
 
@@ -54,9 +60,50 @@ class StubSmsProvider:
         )
 
 
+class HubtelSmsProvider:
+    """Real provider — Hubtel's Quick Send API
+    (https://businessdocs-developers.hubtel.com/docs/simple-messaging).
+
+    `GET {_HUBTEL_SEND_URL}?From=&To=&Content=`, authenticated with
+    HTTP Basic (ClientId as username, ClientSecret as password) rather
+    than the query-param credential variant Hubtel also supports —
+    keeps secrets out of URLs that might land in logs. A successful
+    response is JSON `{"Status": 0, "MessageId": "...", ...}`; any
+    other `Status`, a non-2xx response, or a network error is `failed`.
+    """
+
+    name: SmsProviderName = HUBTEL
+
+    def __init__(self, *, client_id: str, client_secret: str, sender_id: str) -> None:
+        self._client_id = client_id
+        self._client_secret = client_secret
+        self._sender_id = sender_id
+
+    async def send(self, *, phone: str, body: str) -> SmsSendResult:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(
+                    _HUBTEL_SEND_URL,
+                    params={"From": self._sender_id, "To": phone, "Content": body},
+                    auth=(self._client_id, self._client_secret),
+                )
+            resp.raise_for_status()
+            data = resp.json()
+        except httpx.HTTPError as exc:
+            logger.error("[sms] Hubtel send to %s failed: %s", phone, exc)
+            return SmsSendResult(provider_message_id=None, status="failed")
+
+        if data.get("Status") == 0:
+            return SmsSendResult(provider_message_id=data.get("MessageId"), status="sent")
+        logger.error("[sms] Hubtel send to %s rejected: %s", phone, data)
+        return SmsSendResult(provider_message_id=data.get("MessageId"), status="failed")
+
+
 def get_sms_provider() -> SmsProvider:
-    """Factory — always returns the stub today. Swap in a
-    `HubtelSmsProvider` here (reading `settings.hubtel_api_key` /
-    `settings.hubtel_sender_id`) once the account is registered; no
-    caller of `SmsService.send` needs to change."""
+    if settings.hubtel_client_id and settings.hubtel_client_secret and settings.hubtel_sender_id:
+        return HubtelSmsProvider(
+            client_id=settings.hubtel_client_id,
+            client_secret=settings.hubtel_client_secret,
+            sender_id=settings.hubtel_sender_id,
+        )
     return StubSmsProvider()

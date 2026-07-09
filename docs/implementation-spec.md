@@ -529,11 +529,10 @@ Without these two, every conversation against SchoolPad ends with "but does it h
 
 #### 2. **SMS gateway** — ~10–15 h, single PR
 
-> Superseded by the actual build: `apps/api/app/features/sms/` (Hubtel chosen, `SmsProvider` interface, `sms_log` table, Inngest fan-out job) exists since Phase 3, with a stub provider — a real `HubtelSmsProvider` + fee-reminder trigger is Phase 5 Slice 3.
+> Superseded by the actual build: `apps/api/app/features/sms/` (`SmsProvider` interface, `sms_log` table, Inngest fan-out job) exists since Phase 3; a real `HubtelSmsProvider` (Quick Send API, config-gated pending an actual Hubtel account) plus the weekly fee-reminder trigger (Phase 5 Slice 3) are done — see `docs/superpowers/specs/2026-07-09-fee-reminder-sms-design.md`. Remaining below: per-school credit pool + the app-inactivity fallback, plus triggers for absence/results/announcements (fee reminder is the only trigger wired so far).
 
-- Provider plug: **mNotify** (Ghana-local, MoMo top-ups) or **Hubtel** (broader)
-- `src/lib/sms.ts` mirroring the `src/lib/email.ts` pattern (provider-agnostic, env-gated, logs in dev)
-- Trigger SMS for: absence today, fee reminder, results published, urgent announcement
+- `src/lib/sms.ts` mirroring the `src/lib/email.ts` pattern — done (`HubtelSmsProvider`).
+- Trigger SMS for: absence today, results published, urgent announcement — fee reminder is done; these three are not yet wired.
 - Per-school SMS credit pool stored on `schools.sms_credits`, topped up via Paystack
 - Falls back from in-app notification when user hasn't opened the app in N days (configurable)
 - Admin dashboard: SMS usage chart, balance, top-up button

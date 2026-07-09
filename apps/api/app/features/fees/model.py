@@ -64,6 +64,9 @@ class LearnerFee(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="outstanding")
     balance_minor: Mapped[int] = mapped_column(Integer, nullable=False)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Stamped by the weekly fee-reminder job (Phase 5 slice 3) when it
+    # texts this fee's primary guardian. Null until the first reminder.
+    last_reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime, server_default=func.now(), nullable=True
