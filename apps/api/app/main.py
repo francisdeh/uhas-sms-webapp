@@ -49,6 +49,7 @@ from app.features.enrollments.router import (
 from app.features.enrollments.router import (
     students_router as student_enrollments_router,
 )
+from app.features.exams.jobs import EXAMS_JOBS
 from app.features.exams.router import (
     router as exams_router,
 )
@@ -66,7 +67,6 @@ from app.features.lesson_plans.router import router as lesson_plans_router
 from app.features.me.router import router as me_router
 from app.features.notifications.router import router as notifications_router
 from app.features.promotions.router import router as promotions_router
-from app.features.reports.jobs import REPORTS_JOBS
 from app.features.reports.router import router as reports_router
 from app.features.schemes.router import router as schemes_router
 from app.features.school_terms.router import router as school_terms_router
@@ -192,7 +192,7 @@ def create_app() -> FastAPI:
     inngest.fast_api.serve(
         app,
         inngest_client,
-        [*HEALTH_JOBS, *SMS_JOBS, *LESSON_PLANS_JOBS, *REPORTS_JOBS, *FEES_JOBS],
+        [*HEALTH_JOBS, *SMS_JOBS, *LESSON_PLANS_JOBS, *EXAMS_JOBS, *FEES_JOBS],
     )
 
     # Logfire instrumentation attaches after routers register so it sees

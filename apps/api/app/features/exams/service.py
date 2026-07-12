@@ -19,13 +19,18 @@ Everything happens in the caller's transaction.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+import inngest
+import sentry_sdk
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.inngest import inngest_client
 from app.features.audit.actions import EXAM_PUBLISH, EXAM_UNPUBLISH, SCORE_OVERRIDE
 from app.features.audit.service import write_audit_log
 from app.features.classes.repository import ClassesRepository
@@ -42,9 +47,14 @@ from app.features.exams.constants import (
 from app.features.exams.model import Exam, Score
 from app.features.exams.repository import ExamsRepository, ScoresRepository
 from app.features.exams.schema import ExamCreate, ExamUpdate, ScoresUpsertRequest
+from app.features.notifications.constants import RESULTS_PUBLISHED
+from app.features.notifications.service import NotificationsService, NotifyPayload
 from app.features.schools.model import School
 from app.features.schools.repository import SchoolsRepository
 from app.features.subjects.repository import SubjectsRepository
+from app.features.users.model import UserPreferences
+
+logger = logging.getLogger(__name__)
 
 
 async def _school(session: AsyncSession, school_id: UUID | str) -> School:
@@ -181,6 +191,10 @@ class ExamsService:
             after={"isPublished": publish},
         )
         await session.flush()
+
+        if publish:
+            await _notify_results_published(session, school_id, row)
+
         return row
 
 
@@ -329,3 +343,88 @@ class ScoresService:
 
         await session.flush()
         return group_scores
+
+
+async def _notify_results_published(
+    session: AsyncSession, school_id: UUID | str, exam: Exam
+) -> None:
+    """Fires on `ExamsService.set_published(publish=True)`. Two channels:
+
+      * In-app `RESULTS_PUBLISHED` notification, one per published
+        child — written in this same transaction (cheap, no network
+        I/O), so it's never lost even if the email side fails.
+      * `email/results-published.requested`, one event per guardian
+        (not per child) so a guardian with several children in this
+        exam gets one email listing all of them, not several. Fully
+        resolved here (recipient email + child names) so the job itself
+        is a pure "send what I'm told" handler — same division of
+        labour as `lesson_plans/jobs/rejection_email.py`.
+
+    Gated by the school's `notification_defaults.on_results_published`
+    toggle (checked once) and each guardian's own
+    `user_preferences.email_on_results_published` (checked per
+    recipient) — same two-tier gate as the lesson-plan-rejection email.
+    A guardian with no linked app user is skipped entirely (nobody to
+    notify); a guardian with an app user but no email only gets the
+    in-app notification.
+    """
+    recipients = await ExamsRepository.list_published_recipients(
+        session, school_id=school_id, exam_id=exam.id
+    )
+    if not recipients:
+        return
+
+    school = await SchoolsRepository.get_by_id(session, school_id)
+    defaults = (school.notification_defaults if school else None) or {}
+    email_enabled = bool(defaults.get("on_results_published", True))
+
+    by_guardian_user: dict[UUID, tuple[str | None, list[str]]] = {}
+    for student, _guardian, user in recipients:
+        if user is None:
+            continue
+        student_name = f"{student.first_name} {student.last_name}"
+        await NotificationsService.notify_user(
+            session,
+            school_id,
+            user_id=user.id,
+            payload=NotifyPayload(
+                kind=RESULTS_PUBLISHED,
+                title="Results published",
+                body=f"{student_name}'s results for {exam.name} are ready.",
+                link="/parent/results",
+            ),
+        )
+        email, names = by_guardian_user.get(user.id, (user.email, []))
+        names.append(f"{student.first_name} {student.last_name}")
+        by_guardian_user[user.id] = (email, names)
+
+    if not email_enabled:
+        return
+
+    for user_id, (email, child_names) in by_guardian_user.items():
+        if not email:
+            continue
+        prefs = await session.scalar(
+            select(UserPreferences).where(UserPreferences.user_id == user_id)
+        )
+        if prefs is not None and not prefs.email_on_results_published:
+            continue
+        try:
+            await inngest_client.send(
+                inngest.Event(
+                    name="email/results-published.requested",
+                    data={
+                        "guardian_email": email,
+                        "exam_name": exam.name,
+                        "child_names": child_names,
+                        "link": "/parent/results",
+                    },
+                )
+            )
+        except Exception:
+            logger.exception(
+                "Failed to emit results-published email event for exam %s, guardian user %s",
+                exam.id,
+                user_id,
+            )
+            sentry_sdk.capture_exception()

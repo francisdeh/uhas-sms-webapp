@@ -47,6 +47,7 @@ export default async function AdminReportCardRoute({ params }: PageProps) {
     grade: s.grade ?? null,
     interpretation: s.interpretation ?? null,
     subjectPosition: s.subjectPosition ?? null,
+    classAverage: s.classAverage ?? null,
   }));
 
   const student: Student = {
@@ -90,6 +91,9 @@ export default async function AdminReportCardRoute({ params }: PageProps) {
     classTeacherNames: card.classTeachers,
     classTeacherRemark: card.classTeacherRemark ?? null,
     headOfSchoolComment: card.headOfSchoolComment ?? null,
+    kgObservations: card.kgObservations ?? null,
+    conductRatings: card.conductRatings ?? null,
+    interestsCoCurricular: card.interestsCoCurricular ?? null,
     vacationDate: card.vacationDate ?? null,
     reopeningDate: card.reopeningDate ?? null,
   };

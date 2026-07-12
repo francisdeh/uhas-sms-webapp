@@ -117,6 +117,44 @@ export type ReportCardSubjectRow = {
   grade: string | null;
   interpretation: string | null;
   subjectPosition: number | null;
+  classAverage: number | null;
+};
+
+// Mirrors apps/api/app/features/exams/constants.py's KG_DOMAINS/
+// CONDUCT_TRAITS/Rating — fixed lists, no per-school customisation.
+export const RATINGS = ["Excellent", "Good", "Needs Improvement"] as const;
+export type Rating = (typeof RATINGS)[number];
+
+export const KG_DOMAINS = [
+  "language",
+  "numeracy",
+  "social_skills",
+  "physical_motor",
+  "creative_arts",
+] as const;
+export type KgDomain = (typeof KG_DOMAINS)[number];
+
+export const KG_DOMAIN_LABELS: Record<KgDomain, string> = {
+  language: "Language Development",
+  numeracy: "Numeracy",
+  social_skills: "Social Skills",
+  physical_motor: "Physical / Motor Skills",
+  creative_arts: "Creative Arts",
+};
+
+export const CONDUCT_TRAITS = [
+  "punctuality",
+  "neatness",
+  "honesty",
+  "relationship_with_others",
+] as const;
+export type ConductTrait = (typeof CONDUCT_TRAITS)[number];
+
+export const CONDUCT_TRAIT_LABELS: Record<ConductTrait, string> = {
+  punctuality: "Punctuality",
+  neatness: "Neatness",
+  honesty: "Honesty",
+  relationship_with_others: "Relationship with Others",
 };
 
 export type ReportCardData = {
@@ -132,8 +170,22 @@ export type ReportCardData = {
   classTeacherNames: string[];
   classTeacherRemark: string | null;
   headOfSchoolComment: string | null;
+  kgObservations: Partial<Record<KgDomain, Rating>> | null;
+  conductRatings: Partial<Record<ConductTrait, Rating>> | null;
+  interestsCoCurricular: string | null;
   vacationDate: string | null;
   reopeningDate: string | null;
+};
+
+export type BatchJobStatus = "pending" | "complete" | "failed";
+
+export type ReportCardBatchJob = {
+  id: string;
+  examId: string;
+  classId: string;
+  status: BatchJobStatus;
+  downloadUrl: string | null;
+  errorMessage: string | null;
 };
 
 export type ReportCardVariant = "summary" | "full";

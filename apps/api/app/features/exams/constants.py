@@ -72,3 +72,72 @@ DEFAULT_SCORE_WEIGHTS: Final[dict[str, int]] = {
     "projectWork": 10,
     "exam": 60,
 }
+
+
+# ── KG observations + conduct/co-curricular ────────────────────────────────────
+# Fixed lists — no per-school customisation for now (see design doc's
+# "out of scope"). Both KG domains and conduct traits share one rating
+# scale for visual consistency on the printed card.
+RATING_EXCELLENT: Final = "Excellent"
+RATING_GOOD: Final = "Good"
+RATING_NEEDS_IMPROVEMENT: Final = "Needs Improvement"
+
+Rating = Literal["Excellent", "Good", "Needs Improvement"]
+
+KG_DOMAIN_LANGUAGE: Final = "language"
+KG_DOMAIN_NUMERACY: Final = "numeracy"
+KG_DOMAIN_SOCIAL_SKILLS: Final = "social_skills"
+KG_DOMAIN_PHYSICAL_MOTOR: Final = "physical_motor"
+KG_DOMAIN_CREATIVE_ARTS: Final = "creative_arts"
+
+KgDomain = Literal["language", "numeracy", "social_skills", "physical_motor", "creative_arts"]
+
+KG_DOMAINS: Final[tuple[KgDomain, ...]] = (
+    KG_DOMAIN_LANGUAGE,
+    KG_DOMAIN_NUMERACY,
+    KG_DOMAIN_SOCIAL_SKILLS,
+    KG_DOMAIN_PHYSICAL_MOTOR,
+    KG_DOMAIN_CREATIVE_ARTS,
+)
+
+CONDUCT_PUNCTUALITY: Final = "punctuality"
+CONDUCT_NEATNESS: Final = "neatness"
+CONDUCT_HONESTY: Final = "honesty"
+CONDUCT_RELATIONSHIP_WITH_OTHERS: Final = "relationship_with_others"
+
+ConductTrait = Literal["punctuality", "neatness", "honesty", "relationship_with_others"]
+
+CONDUCT_TRAITS: Final[tuple[ConductTrait, ...]] = (
+    CONDUCT_PUNCTUALITY,
+    CONDUCT_NEATNESS,
+    CONDUCT_HONESTY,
+    CONDUCT_RELATIONSHIP_WITH_OTHERS,
+)
+
+# Display labels — mirrors apps/web/src/features/exams/types.ts's
+# KG_DOMAIN_LABELS/CONDUCT_TRAIT_LABELS. Consumed by the PDF template
+# (report_card_pdf.py passes ordered (key, label) pairs into context);
+# the browser view keeps its own copy since it has no reason to call
+# the API just for label text.
+KG_DOMAIN_LABELS: Final[dict[str, str]] = {
+    KG_DOMAIN_LANGUAGE: "Language Development",
+    KG_DOMAIN_NUMERACY: "Numeracy",
+    KG_DOMAIN_SOCIAL_SKILLS: "Social Skills",
+    KG_DOMAIN_PHYSICAL_MOTOR: "Physical / Motor Skills",
+    KG_DOMAIN_CREATIVE_ARTS: "Creative Arts",
+}
+
+CONDUCT_TRAIT_LABELS: Final[dict[str, str]] = {
+    CONDUCT_PUNCTUALITY: "Punctuality",
+    CONDUCT_NEATNESS: "Neatness",
+    CONDUCT_HONESTY: "Honesty",
+    CONDUCT_RELATIONSHIP_WITH_OTHERS: "Relationship with Others",
+}
+
+
+# ── Batch report-card print jobs ────────────────────────────────────────────────
+BATCH_JOB_PENDING: Final = "pending"
+BATCH_JOB_COMPLETE: Final = "complete"
+BATCH_JOB_FAILED: Final = "failed"
+
+BatchJobStatus = Literal["pending", "complete", "failed"]

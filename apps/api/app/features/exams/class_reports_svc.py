@@ -226,6 +226,9 @@ class ClassReportsService:
                     exam_id=_to_uuid(exam.id),
                     student_id=_to_uuid(r.student_id),
                     class_teacher_remark=(r.text.strip() or None),
+                    kg_observations=(r.kg_observations or None),
+                    conduct_ratings=(r.conduct_ratings or None),
+                    interests_co_curricular=(r.interests_co_curricular.strip() or None),
                     updated_at=now,
                 )
                 for r in remarks

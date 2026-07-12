@@ -59,6 +59,11 @@ export type Division = "KG" | "Lower Primary" | "Upper Primary" | "JHS";
 
 export const DIVISIONS: Division[] = ["KG", "Lower Primary", "Upper Primary", "JHS"];
 
+export const KG: Division = "KG";
+export const LOWER_PRIMARY: Division = "Lower Primary";
+export const UPPER_PRIMARY: Division = "Upper Primary";
+export const JHS: Division = "JHS";
+
 export type ManagedUser = {
   uid: string;
   email: string | null;

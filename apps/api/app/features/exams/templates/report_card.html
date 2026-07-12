@@ -60,6 +60,8 @@
 
   .sig-table td.field-label { font-weight: bold; width: 30%; vertical-align: top; }
   .sig-table td.sig-blank { height: 24pt; }
+  .class-avg { font-size: 7pt; color: #666; font-weight: normal; }
+  .conduct-item { display: inline-block; margin-right: 1rem; font-size: 9pt; }
 
   .legend-title { text-align: center; font-weight: bold; font-size: 10pt; margin-bottom: 0.4rem; }
   .legend-table { font-size: 8pt; }
@@ -103,6 +105,24 @@
     {% endif %}
   </div>
 
+  {% if data.kg_observations %}
+  <table class="scores-table">
+    <thead>
+      <tr>
+        <th style="width: 60%">DEVELOPMENTAL AREA</th>
+        <th class="center" style="width: 40%">OBSERVATION</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for domain, label in kg_domains %}
+      <tr>
+        <td>{{ label }}</td>
+        <td class="center">{{ data.kg_observations.get(domain) or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
   {% set ncols = 10 if full else 5 %}
   <table class="scores-table">
     <thead>
@@ -134,7 +154,10 @@
           <td class="center">{{ row.group_work if row.group_work is not none else "" }}</td>
           <td class="center">{{ row.exam_score if row.exam_score is not none else "" }}</td>
           {% endif %}
-          <td class="center">{{ row.total_score if row.total_score is not none else "" }}</td>
+          <td class="center">
+            {{ row.total_score if row.total_score is not none else "" }}
+            {% if row.class_average is not none %}<div class="class-avg">avg {{ "%.1f"|format(row.class_average) }}</div>{% endif %}
+          </td>
           <td class="center">{{ row.subject_position if row.subject_position is not none else "" }}</td>
           <td class="center">{{ row.grade if row.grade is not none else "" }}</td>
           <td class="center">{{ row.interpretation if row.interpretation is not none else "" }}</td>
@@ -153,6 +176,26 @@
       <tr class="empty-row"><td colspan="{{ ncols }}">No subjects in this section</td></tr>
     </tbody>
   </table>
+  {% endif %}
+
+  {% if data.conduct_ratings or data.interests_co_curricular %}
+  <table class="sig-table">
+    <tbody>
+      <tr>
+        <td class="field-label">Conduct</td>
+        <td>
+          {% for trait, label in conduct_traits %}
+          <span class="conduct-item"><strong>{{ label }}:</strong> {{ (data.conduct_ratings or {}).get(trait) or "—" }}</span>
+          {% endfor %}
+        </td>
+      </tr>
+      <tr>
+        <td class="field-label">Interests &amp; Co-curricular Activities</td>
+        <td>{{ data.interests_co_curricular or "" }}</td>
+      </tr>
+    </tbody>
+  </table>
+  {% endif %}
 
   <table class="sig-table">
     <tbody>

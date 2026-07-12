@@ -32,6 +32,7 @@ from sqlalchemy import (
     Uuid,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -126,6 +127,40 @@ class StudentReportRemark(Base):
     student_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("students.id"), nullable=False)
     class_teacher_remark: Mapped[str | None] = mapped_column(Text, nullable=True)
     head_of_school_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # KG_DOMAINS -> Rating; only meaningful for KG students, alongside
+    # the numeric-score table for everyone else (see
+    # `ReportCardService.get`). CONDUCT_TRAITS -> Rating; applies to
+    # every division.
+    kg_observations: Mapped[dict[str, str] | None] = mapped_column(JSONB, nullable=True)
+    conduct_ratings: Mapped[dict[str, str] | None] = mapped_column(JSONB, nullable=True)
+    interests_co_curricular: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime, server_default=func.now(), nullable=True
+    )
+
+
+class ReportCardBatchJob(Base):
+    """One row per "print this class's report cards" request. Needed
+    because rendering is async (an Inngest job, not the request) — the
+    row tracks status so `GET .../batch` can mint a fresh signed URL
+    from `storage_path` on demand rather than embedding one that would
+    expire. See `app.features.exams.jobs.report_card_batch`."""
+
+    __tablename__ = "report_card_batch_jobs"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, server_default=func.gen_random_uuid())
+    school_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("schools.id"), nullable=False)
+    exam_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("exams.id"), nullable=False)
+    class_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("classes.id"), nullable=False)
+    requested_by_staff_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("staff.id"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    storage_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime, server_default=func.now(), nullable=True
+    )
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime, server_default=func.now(), nullable=True
     )

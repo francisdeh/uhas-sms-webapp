@@ -1227,6 +1227,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/exams/{exam_id}/classes/{class_id}/report-cards/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status of the latest batch report-card print for a class */
+        get: operations["get_report_card_batch_status_exams__exam_id__classes__class_id__report_cards_batch_get"];
+        put?: never;
+        /** Request a zip of every student's report-card PDF in a class */
+        post: operations["request_report_card_batch_exams__exam_id__classes__class_id__report_cards_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/exams/{exam_id}/class-reports/{class_id}/draft": {
         parameters: {
             query?: never;
@@ -5016,6 +5034,55 @@ export interface components {
              * @default
              */
             text: string;
+            /** Kgobservations */
+            kgObservations?: {
+                [key: string]: "Excellent" | "Good" | "Needs Improvement";
+            } | null;
+            /** Conductratings */
+            conductRatings?: {
+                [key: string]: "Excellent" | "Good" | "Needs Improvement";
+            } | null;
+            /**
+             * Interestscocurricular
+             * @default
+             */
+            interestsCoCurricular: string;
+        };
+        /**
+         * ReportCardBatchJobRead
+         * @description `POST`/`GET .../report-cards/batch` — status of the latest batch-
+         *     print job for one (exam, class). `download_url` is a freshly-minted
+         *     signed URL, only present once `status == "complete"`.
+         */
+        ReportCardBatchJobRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Examid
+             * Format: uuid
+             */
+            examId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "complete" | "failed";
+            /** Downloadurl */
+            downloadUrl?: string | null;
+            /** Errormessage */
+            errorMessage?: string | null;
+            /** Createdat */
+            createdAt?: string | null;
+            /** Updatedat */
+            updatedAt?: string | null;
         };
         /**
          * ReportCardExam
@@ -5062,6 +5129,16 @@ export interface components {
             classTeacherRemark?: string | null;
             /** Headofschoolcomment */
             headOfSchoolComment?: string | null;
+            /** Kgobservations */
+            kgObservations?: {
+                [key: string]: "Excellent" | "Good" | "Needs Improvement";
+            } | null;
+            /** Conductratings */
+            conductRatings?: {
+                [key: string]: "Excellent" | "Good" | "Needs Improvement";
+            } | null;
+            /** Interestscocurricular */
+            interestsCoCurricular?: string | null;
             /** Vacationdate */
             vacationDate?: string | null;
             /** Reopeningdate */
@@ -5114,6 +5191,8 @@ export interface components {
             interpretation?: string | null;
             /** Subjectposition */
             subjectPosition?: number | null;
+            /** Classaverage */
+            classAverage?: number | null;
         };
         /**
          * ReportCardStudent
@@ -6646,6 +6725,16 @@ export interface components {
             studentLastName: string;
             /** Text */
             text?: string | null;
+            /** Kgobservations */
+            kgObservations?: {
+                [key: string]: "Excellent" | "Good" | "Needs Improvement";
+            } | null;
+            /** Conductratings */
+            conductRatings?: {
+                [key: string]: "Excellent" | "Good" | "Needs Improvement";
+            } | null;
+            /** Interestscocurricular */
+            interestsCoCurricular?: string | null;
             /** Updatedat */
             updatedAt?: string | null;
         };
@@ -10402,6 +10491,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScoreCompletenessResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_report_card_batch_status_exams__exam_id__classes__class_id__report_cards_batch_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCardBatchJobRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_report_card_batch_exams__exam_id__classes__class_id__report_cards_batch_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exam_id: string;
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCardBatchJobRead"];
                 };
             };
             /** @description Validation Error */

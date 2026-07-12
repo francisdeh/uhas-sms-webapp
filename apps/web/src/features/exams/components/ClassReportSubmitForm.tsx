@@ -8,7 +8,16 @@ import { Loader2, Save, Send, Lock, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -23,25 +32,44 @@ import {
 } from "@/components/ui/alert-dialog";
 import { api, ApiError } from "@/lib/api/browser";
 import type { Exam, ClassReportSubmission } from "@/features/exams/types";
+import {
+  CONDUCT_TRAITS,
+  CONDUCT_TRAIT_LABELS,
+  KG_DOMAINS,
+  KG_DOMAIN_LABELS,
+  RATINGS,
+  type ConductTrait,
+  type KgDomain,
+  type Rating,
+} from "@/features/exams/types";
+import { KG } from "@/features/auth/types";
+import type { Division } from "@/features/auth/types";
+
+interface ClassReportRow {
+  studentId: string;
+  studentName: string;
+  aggregate: number | null;
+  classTeacherRemark: string;
+  conductRatings: Partial<Record<ConductTrait, Rating>>;
+  kgObservations: Partial<Record<KgDomain, Rating>>;
+  interestsCoCurricular: string;
+}
 
 interface ClassReportSubmitFormProps {
   exam: Exam;
   classId: string;
   className: string;
+  division: Division;
   submittedById: string;
   submission: ClassReportSubmission | null;
-  initialRows: {
-    studentId: string;
-    studentName: string;
-    aggregate: number | null;
-    classTeacherRemark: string;
-  }[];
+  initialRows: ClassReportRow[];
 }
 
 export function ClassReportSubmitForm({
   exam,
   classId,
   className,
+  division,
   submission,
   initialRows,
 }: ClassReportSubmitFormProps) {
@@ -51,11 +79,15 @@ export function ClassReportSubmitForm({
 
   const locked = exam.isPublished;
   const submitted = submission?.status === "submitted";
+  const isKg = division === KG;
 
   function buildRemarksPayload() {
     return rows.map((r) => ({
       studentId: r.studentId,
       text: r.classTeacherRemark,
+      conductRatings: r.conductRatings,
+      kgObservations: isKg ? r.kgObservations : undefined,
+      interestsCoCurricular: r.interestsCoCurricular,
     }));
   }
 
@@ -95,6 +127,32 @@ export function ClassReportSubmitForm({
   function updateRemark(studentId: string, value: string) {
     setRows((prev) =>
       prev.map((r) => (r.studentId === studentId ? { ...r, classTeacherRemark: value } : r))
+    );
+  }
+
+  function updateInterests(studentId: string, value: string) {
+    setRows((prev) =>
+      prev.map((r) => (r.studentId === studentId ? { ...r, interestsCoCurricular: value } : r))
+    );
+  }
+
+  function updateConductRating(studentId: string, trait: ConductTrait, value: Rating) {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.studentId === studentId
+          ? { ...r, conductRatings: { ...r.conductRatings, [trait]: value } }
+          : r
+      )
+    );
+  }
+
+  function updateKgObservation(studentId: string, domain: KgDomain, value: Rating) {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.studentId === studentId
+          ? { ...r, kgObservations: { ...r.kgObservations, [domain]: value } }
+          : r
+      )
     );
   }
 
@@ -181,6 +239,52 @@ export function ClassReportSubmitForm({
                 rows={2}
                 className="resize-none"
               />
+
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">
+                  Interests &amp; co-curricular activities
+                </Label>
+                <Input
+                  placeholder="e.g. Debate club, football"
+                  value={row.interestsCoCurricular}
+                  onChange={(e) => updateInterests(row.studentId, e.target.value)}
+                  disabled={locked}
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Conduct</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {CONDUCT_TRAITS.map((trait) => (
+                    <RatingSelect
+                      key={trait}
+                      label={CONDUCT_TRAIT_LABELS[trait]}
+                      value={row.conductRatings[trait]}
+                      onChange={(v) => updateConductRating(row.studentId, trait, v)}
+                      disabled={locked}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {isKg && (
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">
+                    Developmental observations
+                  </Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {KG_DOMAINS.map((domain) => (
+                      <RatingSelect
+                        key={domain}
+                        label={KG_DOMAIN_LABELS[domain]}
+                        value={row.kgObservations[domain]}
+                        onChange={(v) => updateKgObservation(row.studentId, domain, v)}
+                        disabled={locked}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -218,6 +322,40 @@ export function ClassReportSubmitForm({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+function RatingSelect({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: Rating | undefined;
+  onChange: (value: Rating) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <Label className="text-[11px] text-muted-foreground mb-0.5 block">{label}</Label>
+      <Select
+        value={value ?? undefined}
+        onValueChange={(v) => v && onChange(v as Rating)}
+        disabled={disabled}
+      >
+        <SelectTrigger className="h-8 text-xs w-full">
+          <SelectValue placeholder="—" />
+        </SelectTrigger>
+        <SelectContent>
+          {RATINGS.map((r) => (
+            <SelectItem key={r} value={r}>
+              {r}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
