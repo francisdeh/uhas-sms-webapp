@@ -32,6 +32,11 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       isUnitHead: me.isUnitHead,
       unitHeadOf: me.unitHeadOf ?? null,
       emailOnLessonPlanRejected: me.emailOnLessonPlanRejected,
+      emailOnResultsPublished: me.emailOnResultsPublished,
+      emailOnAppointmentActivity: me.emailOnAppointmentActivity,
+      smsOnAppointmentActivity: me.smsOnAppointmentActivity,
+      emailOnAppointmentDecided: me.emailOnAppointmentDecided,
+      smsOnAppointmentDecided: me.smsOnAppointmentDecided,
     };
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {

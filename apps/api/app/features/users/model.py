@@ -53,6 +53,17 @@ class UserPreferences(Base):
         Boolean, nullable=False, default=True
     )
     email_on_results_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Teacher-facing — covers both a new appointment request and a
+    # guardian cancelling one (both mean "your calendar changed").
+    email_on_appointment_activity: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+    sms_on_appointment_activity: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Parent-facing — covers the teacher confirming or declining.
+    email_on_appointment_decided: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+    sms_on_appointment_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

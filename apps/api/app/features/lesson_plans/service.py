@@ -508,6 +508,9 @@ async def _emit_rejection_email(
     )
     reviewer_name = f"{reviewer.first_name} {reviewer.last_name}" if reviewer else "your reviewer"
     plan_topic = plan.topic or "(untitled)"
+    school_contact_email = (
+        (school.email if school else None) or (school.email_reply_to if school else None)
+    ) or ""
 
     # Best-effort: a broken event bus (Inngest dev server not running,
     # Cloud outage) must never fail the review itself — the reviewer's
@@ -523,6 +526,10 @@ async def _emit_rejection_email(
                     "reviewer_name": reviewer_name,
                     "comment": comment,
                     "link": f"/teacher/lesson-plans/{plan.id}",
+                    "school_name": school.name if school else "UHAS SMS",
+                    "school_address": (school.address if school else None) or "",
+                    "school_contact_email": school_contact_email,
+                    "preferences_link": "/teacher/profile?tab=notifications",
                 },
             )
         )

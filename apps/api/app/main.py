@@ -24,6 +24,7 @@ from app.core.inngest import inngest_client
 from app.core.observability import init_observability, instrument_app
 from app.core.rate_limit import limiter
 from app.features.announcements.router import router as announcements_router
+from app.features.appointments.jobs import APPOINTMENTS_JOBS
 from app.features.appointments.router import router as appointments_router
 from app.features.assignments.router import router as assignments_router
 from app.features.attendance.router import (
@@ -192,7 +193,7 @@ def create_app() -> FastAPI:
     inngest.fast_api.serve(
         app,
         inngest_client,
-        [*HEALTH_JOBS, *SMS_JOBS, *LESSON_PLANS_JOBS, *EXAMS_JOBS, *FEES_JOBS],
+        [*HEALTH_JOBS, *SMS_JOBS, *LESSON_PLANS_JOBS, *EXAMS_JOBS, *FEES_JOBS, *APPOINTMENTS_JOBS],
     )
 
     # Logfire instrumentation attaches after routers register so it sees

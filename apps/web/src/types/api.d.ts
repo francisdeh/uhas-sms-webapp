@@ -4801,6 +4801,31 @@ export interface components {
              * @default true
              */
             emailOnLessonPlanRejected: boolean;
+            /**
+             * Emailonresultspublished
+             * @default true
+             */
+            emailOnResultsPublished: boolean;
+            /**
+             * Emailonappointmentactivity
+             * @default true
+             */
+            emailOnAppointmentActivity: boolean;
+            /**
+             * Smsonappointmentactivity
+             * @default true
+             */
+            smsOnAppointmentActivity: boolean;
+            /**
+             * Emailonappointmentdecided
+             * @default true
+             */
+            emailOnAppointmentDecided: boolean;
+            /**
+             * Smsonappointmentdecided
+             * @default true
+             */
+            smsOnAppointmentDecided: boolean;
         };
         /**
          * MeUpdate
@@ -4824,6 +4849,16 @@ export interface components {
             displayName?: string | null;
             /** Emailonlessonplanrejected */
             emailOnLessonPlanRejected?: boolean | null;
+            /** Emailonresultspublished */
+            emailOnResultsPublished?: boolean | null;
+            /** Emailonappointmentactivity */
+            emailOnAppointmentActivity?: boolean | null;
+            /** Smsonappointmentactivity */
+            smsOnAppointmentActivity?: boolean | null;
+            /** Emailonappointmentdecided */
+            emailOnAppointmentDecided?: boolean | null;
+            /** Smsonappointmentdecided */
+            smsOnAppointmentDecided?: boolean | null;
         };
         /**
          * MfaResetResponse
@@ -4874,6 +4909,16 @@ export interface components {
             onAnnouncementPosted: boolean;
             /** Onresultspublished */
             onResultsPublished: boolean;
+            /**
+             * Onappointmentactivity
+             * @default true
+             */
+            onAppointmentActivity: boolean;
+            /**
+             * Onappointmentdecided
+             * @default true
+             */
+            onAppointmentDecided: boolean;
         };
         /**
          * NotificationRead
@@ -4889,7 +4934,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "scheme_commented" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_sent_back" | "assignment_created" | "appointment_requested" | "appointment_decided" | "fee_reminder";
+            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "scheme_commented" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_sent_back" | "assignment_created" | "appointment_requested" | "appointment_decided" | "appointment_cancelled" | "fee_reminder";
             /** Title */
             title: string;
             /** Body */
@@ -6040,7 +6085,7 @@ export interface components {
              * Category
              * @enum {string}
              */
-            category: "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "other";
+            category: "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "other";
             /** Body */
             body: string;
             /**
@@ -13288,7 +13333,7 @@ export interface operations {
     list_sms_log_sms_log_get: {
         parameters: {
             query?: {
-                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "other") | null;
+                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "other") | null;
                 page?: number;
                 size?: number;
             };

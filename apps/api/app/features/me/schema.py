@@ -52,6 +52,11 @@ class MeRead(BaseModel):
     is_unit_head: bool = False
     unit_head_of: Division | None = None
     email_on_lesson_plan_rejected: bool = True
+    email_on_results_published: bool = True
+    email_on_appointment_activity: bool = True
+    sms_on_appointment_activity: bool = True
+    email_on_appointment_decided: bool = True
+    sms_on_appointment_decided: bool = True
 
 
 class MeUpdate(BaseModel):
@@ -75,3 +80,8 @@ class MeUpdate(BaseModel):
 
     display_name: str | None = None
     email_on_lesson_plan_rejected: bool | None = None
+    email_on_results_published: bool | None = None
+    email_on_appointment_activity: bool | None = None
+    sms_on_appointment_activity: bool | None = None
+    email_on_appointment_decided: bool | None = None
+    sms_on_appointment_decided: bool | None = None

@@ -613,6 +613,10 @@ def test_results_published_email_job_sends_via_provider(
             "exam_name": "Term 2 End of Term",
             "child_names": ["Ama Adjei", "Kojo Boateng"],
             "link": "/parent/results",
+            "school_name": "UHAS Basic School",
+            "school_address": "Ho, Volta Region, Ghana",
+            "school_contact_email": "info@uhas.edu.gh",
+            "preferences_link": "/parent/profile?tab=notifications",
         },
     )
     client_mock = mocked.Inngest(app_id="test")
