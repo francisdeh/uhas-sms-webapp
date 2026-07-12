@@ -1286,11 +1286,25 @@ export function createApiClient(getAuthToken: TokenGetter) {
        *  dashboard render. */
       get: () =>
         apiFetch<components["schemas"]["MeRead"]>(getAuthToken, "/me"),
-      /** Self-service update of the caller's own display name + phone. */
+      /** Self-service update of the caller's own display name. */
       update: (payload: components["schemas"]["MeUpdate"]) =>
         apiFetch<components["schemas"]["MeRead"]>(getAuthToken, "/me", {
           method: "PATCH",
           body: JSON.stringify(payload),
+        }),
+      /** Call after Supabase's own updateUser({phone}) + verifyOtp
+       *  round trip confirms a new phone — mirrors that confirmed value
+       *  into the caller's linked staff/guardian row. Takes no body. */
+      confirmPhone: () =>
+        apiFetch<components["schemas"]["MeRead"]>(getAuthToken, "/me/phone/confirm", {
+          method: "POST",
+        }),
+      /** Call after Supabase's own updateUser({email}) — safe to call
+       *  any time (e.g. on every profile-page load), it just mirrors
+       *  whatever email Supabase currently has confirmed. Takes no body. */
+      confirmEmail: () =>
+        apiFetch<components["schemas"]["MeRead"]>(getAuthToken, "/me/email/confirm", {
+          method: "POST",
         }),
       /** Deactivate the caller's own account (non-Admin only; 403 for Admins). */
       deactivate: () =>

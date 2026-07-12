@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +12,9 @@ from app.core.slug import insert_with_sequential_slug, per_school_slug_resolver
 from app.features.guardians.model import Guardian
 from app.features.guardians.repository import GuardiansRepository
 from app.features.guardians.schema import GuardianCreate, GuardianUpdate
+from app.features.notifications.service import NotificationsService
 from app.features.staff.repository import StaffRepository
+from app.features.users.supabase_admin import SupabaseAdminClient
 
 
 class GuardiansService:
@@ -90,10 +93,37 @@ class GuardiansService:
         school_id: UUID | str,
         guardian_id: UUID | str,
         payload: GuardianUpdate,
+        *,
+        supabase: SupabaseAdminClient,
     ) -> Guardian:
+        """Admin-driven edit — trusted the same way Admin is already
+        trusted to set the initial phone/email at account creation, so
+        a phone or email change here syncs straight to Supabase Auth
+        with no OTP/confirmation-link challenge (contrast
+        `MeService.confirm_phone`/`confirm_email`'s self-service paths,
+        which only ever mirror what Supabase already confirmed)."""
         row = await GuardiansService.get(session, school_id, guardian_id)
         changes = payload.model_dump(exclude_unset=True)
         for field, value in changes.items():
             setattr(row, field, value)
         await session.flush()
+
+        new_phone = changes.get("phone")
+        new_email = changes.get("email")
+        if new_phone is not None or new_email is not None:
+            guardian_user = await NotificationsService.find_user_for_linked(
+                session, school_id, guardian_id
+            )
+            if guardian_user is not None:
+                supabase_kwargs: dict[str, Any] = {}
+                if new_phone is not None:
+                    supabase_kwargs["phone"] = new_phone
+                    supabase_kwargs["phone_confirm"] = True
+                if new_email is not None:
+                    guardian_user.email = new_email
+                    supabase_kwargs["email"] = new_email
+                    supabase_kwargs["email_confirm"] = True
+                await supabase.update_user_by_id(guardian_user.id, **supabase_kwargs)
+                await session.flush()
+
         return row

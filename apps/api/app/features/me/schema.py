@@ -57,16 +57,21 @@ class MeRead(BaseModel):
 class MeUpdate(BaseModel):
     """Partial self-update for `PATCH /me`.
 
-    `display_name`/`phone` are written to the caller's own linked
-    `staff` or `guardians` row. `email_on_lesson_plan_rejected` is
-    written to `user_preferences` (upserted — most users have no row
-    until they touch a preference for the first time). Anything else
-    about the account (role, linked_id, email) goes through the
-    admin-only `PATCH /users/{id}` flow instead.
+    `display_name` is written to the caller's own linked `staff` or
+    `guardians` row. `email_on_lesson_plan_rejected` is written to
+    `user_preferences` (upserted — most users have no row until they
+    touch a preference for the first time). Anything else about the
+    account (role, linked_id, email) goes through the admin-only
+    `PATCH /users/{id}` flow instead.
+
+    `phone` is deliberately NOT here — changing it goes through
+    `POST /me/phone/confirm` instead, which only ever mirrors a phone
+    Supabase Auth has already OTP-confirmed. Accepting a raw phone
+    value on this generic endpoint would let a caller silently point
+    their own login at any number, with no proof they control it.
     """
 
     model_config = _CAMEL_CONFIG
 
     display_name: str | None = None
-    phone: str | None = None
     email_on_lesson_plan_rejected: bool | None = None

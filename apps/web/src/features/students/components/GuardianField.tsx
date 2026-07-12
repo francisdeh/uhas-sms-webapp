@@ -214,7 +214,10 @@ export function GuardianField({ value, onChange, showPrimary = true }: GuardianF
               />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">Provide at least a phone or an email.</p>
+          <p className="text-xs text-muted-foreground">
+            Provide at least a phone or an email — whichever you add here is what this guardian
+            will use to log in and receive SMS/email notifications, not just a contact record.
+          </p>
         </TabsContent>
 
         <TabsContent value="link" className="space-y-2 pt-3">

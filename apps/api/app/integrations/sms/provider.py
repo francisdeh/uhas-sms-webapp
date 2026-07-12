@@ -1,9 +1,9 @@
 """`SmsProvider` interface, the no-op `StubSmsProvider`, and the real
-`HubtelSmsProvider` — same "missing config isn't an error" contract as
-`app/integrations/email/provider.py`: `get_sms_provider()` falls back
-to the stub whenever Hubtel credentials aren't all set, so every
-environment (dev, CI, tests) runs the same code path without a live
-account.
+`ArkeselSmsProvider`/`HubtelSmsProvider` — same "missing config isn't
+an error" contract as `app/integrations/email/provider.py`:
+`get_sms_provider()` falls back through Arkesel -> Hubtel -> the stub
+depending on which credentials are set, so every environment (dev, CI,
+tests) runs the same code path without a live account.
 """
 
 from __future__ import annotations
@@ -15,11 +15,12 @@ from typing import Protocol
 import httpx
 
 from app.core.config import settings
-from app.features.sms.constants import HUBTEL, STUB, SmsProviderName, SmsStatus
+from app.features.sms.constants import ARKESEL, HUBTEL, STUB, SmsProviderName, SmsStatus
 
 logger = logging.getLogger(__name__)
 
 _HUBTEL_SEND_URL = "https://smsc.hubtel.com/v1/messages/send"
+_ARKESEL_SEND_URL = "https://sms.arkesel.com/api/v2/sms/send"
 
 
 class SmsSendResult:
@@ -99,7 +100,52 @@ class HubtelSmsProvider:
         return SmsSendResult(provider_message_id=data.get("MessageId"), status="failed")
 
 
+class ArkeselSmsProvider:
+    """Real provider — Arkesel's SMS v2 API
+    (https://developers.arkesel.com/).
+
+    `POST {_ARKESEL_SEND_URL}` with an `api-key` header and a JSON body
+    `{"sender", "message", "recipients": [phone]}`. Arkesel's public
+    docs don't show a fully worked success-response example, so this
+    treats a 2xx HTTP status as the send-accepted signal (the one
+    behavior consistently documented) and best-effort extracts a
+    message id from whatever shape comes back, tolerating its absence
+    — mirrors `HubtelSmsProvider`'s failure handling otherwise.
+    """
+
+    name: SmsProviderName = ARKESEL
+
+    def __init__(self, *, api_key: str, sender_id: str) -> None:
+        self._api_key = api_key
+        self._sender_id = sender_id
+
+    async def send(self, *, phone: str, body: str) -> SmsSendResult:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    _ARKESEL_SEND_URL,
+                    headers={"api-key": self._api_key},
+                    json={"sender": self._sender_id, "message": body, "recipients": [phone]},
+                )
+            resp.raise_for_status()
+            data = resp.json()
+        except httpx.HTTPError as exc:
+            logger.error("[sms] Arkesel send to %s failed: %s", phone, exc)
+            return SmsSendResult(provider_message_id=None, status="failed")
+
+        message_id = None
+        if isinstance(data, dict):
+            nested = data.get("data")
+            message_id = data.get("id") or (nested.get("id") if isinstance(nested, dict) else None)
+        return SmsSendResult(provider_message_id=message_id, status="sent")
+
+
 def get_sms_provider() -> SmsProvider:
+    if settings.arkesel_api_key and settings.arkesel_sender_id:
+        return ArkeselSmsProvider(
+            api_key=settings.arkesel_api_key,
+            sender_id=settings.arkesel_sender_id,
+        )
     if settings.hubtel_client_id and settings.hubtel_client_secret and settings.hubtel_sender_id:
         return HubtelSmsProvider(
             client_id=settings.hubtel_client_id,

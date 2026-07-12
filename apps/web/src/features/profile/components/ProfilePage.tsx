@@ -19,6 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import { TwoFactorCard } from "@/features/profile/components/TwoFactorCard";
+import { PhoneChangeCard } from "@/features/profile/components/PhoneChangeCard";
+import { EmailChangeCard } from "@/features/profile/components/EmailChangeCard";
 import { StaffDocumentsCard } from "@/features/staff/components/StaffDocumentsCard";
 import { api, ApiError } from "@/lib/api/browser";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -37,7 +39,6 @@ import { ADMIN, PARENT, TEACHER } from "@/features/auth/types";
 
 const profileSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters" }),
-  phone: z.string().optional(),
 });
 
 const passwordSchema = z
@@ -158,12 +159,12 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
     formState: { errors, isSubmitting },
   } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { displayName: user.displayName, phone: user.phone ?? "" },
+    defaultValues: { displayName: user.displayName },
   });
 
   async function onSubmit(values: ProfileValues) {
     try {
-      await api.me.update({ displayName: values.displayName, phone: values.phone || null });
+      await api.me.update({ displayName: values.displayName });
       toast.success("Profile updated successfully.");
       router.refresh();
     } catch (err) {
@@ -217,22 +218,21 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
               <FieldError errors={[errors.displayName]} />
             </Field>
 
-            <Field>
-              <FieldLabel htmlFor="email">Email Address</FieldLabel>
-              <Input id="email" value={user.email || "—"} disabled className="rounded-md bg-muted/40 cursor-not-allowed" />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="phone">Phone Number</FieldLabel>
-              <Input id="phone" className="rounded-md" placeholder="0244 000 000" {...register("phone")} />
-            </Field>
-
             <Button type="submit" variant="ink" className="px-5 py-2 h-auto text-sm" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : null}
               Save Changes
             </Button>
           </FieldGroup>
         </form>
+
+        <div className="max-w-sm mt-4 space-y-4">
+          <EmailChangeCard currentEmail={user.email ?? null} />
+          <PhoneChangeCard currentPhone={user.phone ?? null} />
+          <p className="text-xs text-muted-foreground">
+            Your email or phone number is also how you sign in — changing either one changes what
+            you use to log in next time.
+          </p>
+        </div>
       </CardContent>
     </Card>
 

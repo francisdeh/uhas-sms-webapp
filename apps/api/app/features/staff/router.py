@@ -60,8 +60,10 @@ from app.features.staff.schema import (
     SubjectExpertiseUpdate,
 )
 from app.features.staff.service import StaffService
+from app.features.users.supabase_admin import SupabaseAdminClient, get_supabase_admin_client
 
 router = APIRouter(prefix="/staff", tags=["staff"])
+_SupabaseDep = Annotated[SupabaseAdminClient, Depends(get_supabase_admin_client)]
 
 
 def _document_to_read(document: StaffDocument, uploader: Staff) -> StaffDocumentRead:
@@ -150,8 +152,11 @@ async def update_staff(
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
     user: CurrentUserDep,
+    supabase: _SupabaseDep,
 ) -> StaffRead:
-    row = await StaffService.update(session, school_id, staff_id, payload, user=user)
+    row = await StaffService.update(
+        session, school_id, staff_id, payload, user=user, supabase=supabase
+    )
     return StaffRead.model_validate(row)
 
 

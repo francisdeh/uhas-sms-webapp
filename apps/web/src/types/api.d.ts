@@ -1433,8 +1433,56 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update the caller's own display name and/or phone */
+        /** Update the caller's own display name */
         patch: operations["update_me_me_patch"];
+        trace?: never;
+    };
+    "/me/phone/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mirror an already Supabase-confirmed phone into the caller's profile
+         * @description Call after the frontend completes Supabase's own phone-change OTP
+         *     round trip (`updateUser({phone})` then `verifyOtp({type:
+         *     "phone_change"})`). Takes no body — reads the now-confirmed phone
+         *     straight back off Supabase Auth rather than trusting a client-
+         *     supplied value.
+         */
+        post: operations["confirm_me_phone_me_phone_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/email/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mirror an already Supabase-confirmed email into the caller's profile
+         * @description Call after the frontend's `updateUser({email})`. Unlike phone,
+         *     Supabase confirms an email change via a link the user clicks in
+         *     their inbox, not an inline code — safe to call any time (e.g. on
+         *     every profile-page load) since it just mirrors whatever Supabase
+         *     currently has confirmed; a no-op if nothing changed.
+         */
+        post: operations["confirm_me_email_me_email_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/me/deactivate": {
@@ -4758,18 +4806,22 @@ export interface components {
          * MeUpdate
          * @description Partial self-update for `PATCH /me`.
          *
-         *     `display_name`/`phone` are written to the caller's own linked
-         *     `staff` or `guardians` row. `email_on_lesson_plan_rejected` is
-         *     written to `user_preferences` (upserted — most users have no row
-         *     until they touch a preference for the first time). Anything else
-         *     about the account (role, linked_id, email) goes through the
-         *     admin-only `PATCH /users/{id}` flow instead.
+         *     `display_name` is written to the caller's own linked `staff` or
+         *     `guardians` row. `email_on_lesson_plan_rejected` is written to
+         *     `user_preferences` (upserted — most users have no row until they
+         *     touch a preference for the first time). Anything else about the
+         *     account (role, linked_id, email) goes through the admin-only
+         *     `PATCH /users/{id}` flow instead.
+         *
+         *     `phone` is deliberately NOT here — changing it goes through
+         *     `POST /me/phone/confirm` instead, which only ever mirrors a phone
+         *     Supabase Auth has already OTP-confirmed. Accepting a raw phone
+         *     value on this generic endpoint would let a caller silently point
+         *     their own login at any number, with no proof they control it.
          */
         MeUpdate: {
             /** Displayname */
             displayName?: string | null;
-            /** Phone */
-            phone?: string | null;
             /** Emailonlessonplanrejected */
             emailOnLessonPlanRejected?: boolean | null;
         };
@@ -5988,14 +6040,14 @@ export interface components {
              * Category
              * @enum {string}
              */
-            category: "absence" | "results" | "fee_reminder" | "announcement" | "other";
+            category: "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "other";
             /** Body */
             body: string;
             /**
              * Provider
              * @enum {string}
              */
-            provider: "stub" | "hubtel";
+            provider: "stub" | "hubtel" | "arkesel";
             /** Providermessageid */
             providerMessageId?: string | null;
             /**
@@ -11064,6 +11116,68 @@ export interface operations {
             };
         };
     };
+    confirm_me_phone_me_phone_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_me_email_me_email_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     deactivate_me_me_deactivate_post: {
         parameters: {
             query?: never;
@@ -13174,7 +13288,7 @@ export interface operations {
     list_sms_log_sms_log_get: {
         parameters: {
             query?: {
-                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "other") | null;
+                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "other") | null;
                 page?: number;
                 size?: number;
             };

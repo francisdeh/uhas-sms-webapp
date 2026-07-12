@@ -16,14 +16,18 @@ same convention.
 
 from __future__ import annotations
 
+import logging
 import secrets
 from typing import Any
 from uuid import UUID
 
+import inngest
+import sentry_sdk
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.inngest import inngest_client
 from app.core.roles import PARENT
 from app.features.audit.actions import USER_CREATED, USER_MFA_RESET, AuditAction
 from app.features.audit.service import write_audit_log
@@ -31,6 +35,8 @@ from app.features.users.model import User
 from app.features.users.repository import JoinedRow, UsersRepository
 from app.features.users.schema import UserCreate, UserRead, UserUpdate
 from app.features.users.supabase_admin import PERMANENT_BAN, SupabaseAdminClient
+
+logger = logging.getLogger(__name__)
 
 
 def _invite_redirect_url() -> str:
@@ -227,6 +233,8 @@ class UsersService:
             auth_uid = UUID(str(created["id"]))
             must_change_password = False
 
+        onboarding_sms_recipient = phone if not email else None
+
         school_uuid = school_id if isinstance(school_id, UUID) else UUID(str(school_id))
         row = User(
             id=auth_uid,
@@ -251,7 +259,50 @@ class UsersService:
                 "via": "email" if email else "phone",
             },
         )
+
+        if onboarding_sms_recipient:
+            await UsersService._emit_onboarding_sms(
+                school_id,
+                phone=onboarding_sms_recipient,
+                guardian_id=linked_id if role == PARENT else None,
+            )
+
         return await UsersService._read_or_404(session, school_id, auth_uid)
+
+    @staticmethod
+    async def _emit_onboarding_sms(
+        school_id: UUID | str, *, phone: str, guardian_id: UUID | None
+    ) -> None:
+        """Phone-only accounts (the common Parent case) get no email
+        invite from Supabase — this is their only notice the account
+        exists. Treated as transactional, no opt-out: there's no
+        `user_preferences` row yet to check, and gating it would
+        recreate the exact "nobody told me my account exists" gap this
+        closes. Best-effort, same rationale as the email-job emits — a
+        broken event bus must not fail account creation."""
+        try:
+            await inngest_client.send(
+                inngest.Event(
+                    name="sms/fanout.requested",
+                    data={
+                        "school_id": str(school_id),
+                        "category": "onboarding",
+                        "body": (
+                            "Your UHAS SMS account is ready. Log in with your "
+                            f"phone number at {settings.app_url}/login."
+                        ),
+                        "recipients": [
+                            {
+                                "phone": phone,
+                                "guardian_id": str(guardian_id) if guardian_id else None,
+                            }
+                        ],
+                    },
+                )
+            )
+        except Exception:
+            logger.exception("Failed to emit onboarding SMS event for school %s", school_id)
+            sentry_sdk.capture_exception()
 
     @staticmethod
     async def update(

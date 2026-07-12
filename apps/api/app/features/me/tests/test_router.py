@@ -151,7 +151,7 @@ async def test_patch_me_updates_staff_row_and_syncs_supabase(
 ) -> None:
     res = await client.patch(
         "/me",
-        json={"displayName": "Kojo Newname", "phone": "0244000111"},
+        json={"displayName": "Kojo Newname"},
         headers=auth_header(),
     )
     assert res.status_code == 200, res.text
@@ -161,7 +161,6 @@ async def test_patch_me_updates_staff_row_and_syncs_supabase(
     assert staff is not None
     assert staff.first_name == "Kojo"
     assert staff.last_name == "Newname"
-    assert staff.phone == "0244000111"
 
     assert len(fake_supabase.update_calls) == 1
     assert fake_supabase.update_calls[0]["user_id"] == ADMIN_USER
@@ -176,7 +175,7 @@ async def test_patch_me_updates_guardian_row_for_parent(
 ) -> None:
     res = await client.patch(
         "/me",
-        json={"displayName": "Paa Newlast", "phone": "0244000222"},
+        json={"displayName": "Paa Newlast"},
         headers=auth_header(
             role="Parent", user_id=PARENT_USER, linked_id=GUARDIAN_ID, email="p@me.test"
         ),
@@ -187,25 +186,6 @@ async def test_patch_me_updates_guardian_row_for_parent(
     assert guardian is not None
     assert guardian.first_name == "Paa"
     assert guardian.last_name == "Newlast"
-    assert guardian.phone == "0244000222"
-
-
-async def test_patch_me_partial_update_leaves_name_untouched(
-    client: AsyncClient,
-    db_session: AsyncSession,
-    seed: None,
-    fake_supabase: FakeSupabaseAdminClient,
-) -> None:
-    res = await client.patch("/me", json={"phone": "0244000333"}, headers=auth_header())
-    assert res.status_code == 200, res.text
-
-    staff = await db_session.scalar(select(Staff).where(Staff.id == ADMIN_STAFF))
-    assert staff is not None
-    assert staff.first_name == "Adae"
-    assert staff.last_name == "Admin"
-    assert staff.phone == "0244000333"
-    # No display_name in the payload → no Supabase sync call.
-    assert fake_supabase.update_calls == []
 
 
 async def test_patch_me_without_linked_id_returns_400(
@@ -226,7 +206,64 @@ async def test_patch_me_without_linked_id_returns_400(
     assert res.status_code == 400
 
 
-async def test_patch_me_duplicate_guardian_phone_returns_409(
+async def test_patch_me_missing_auth_header_returns_401(client: AsyncClient, seed: None) -> None:
+    res = await client.patch("/me", json={"displayName": "X"})
+    assert res.status_code == 401
+
+
+# ─── POST /me/phone/confirm ───────────────────────────────────────────────────
+
+
+async def test_confirm_phone_mirrors_supabase_into_staff_row(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    fake_supabase.phone_by_user_id[str(ADMIN_USER)] = "+233244000111"
+
+    res = await client.post("/me/phone/confirm", headers=auth_header())
+    assert res.status_code == 200, res.text
+    assert res.json()["phone"] == "+233244000111"
+
+    staff = await db_session.scalar(select(Staff).where(Staff.id == ADMIN_STAFF))
+    assert staff is not None
+    assert staff.phone == "+233244000111"
+    assert staff.first_name == "Adae"  # untouched
+
+
+async def test_confirm_phone_mirrors_supabase_into_guardian_row(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    fake_supabase.phone_by_user_id[str(PARENT_USER)] = "0244000222"
+
+    res = await client.post(
+        "/me/phone/confirm",
+        headers=auth_header(
+            role="Parent", user_id=PARENT_USER, linked_id=GUARDIAN_ID, email="p@me.test"
+        ),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["phone"] == "+233244000222"
+
+    guardian = await db_session.scalar(select(Guardian).where(Guardian.id == GUARDIAN_ID))
+    assert guardian is not None
+    assert guardian.phone == "+233244000222"
+
+
+async def test_confirm_phone_without_confirmed_number_returns_400(
+    client: AsyncClient,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    res = await client.post("/me/phone/confirm", headers=auth_header())
+    assert res.status_code == 400
+
+
+async def test_confirm_phone_duplicate_guardian_phone_returns_409(
     client: AsyncClient,
     db_session: AsyncSession,
     seed: None,
@@ -239,14 +276,14 @@ async def test_patch_me_duplicate_guardian_phone_returns_409(
         first_name="Kwesi",
         last_name="Other",
         email="other@me.test",
-        phone="0244999999",
+        phone="+233244999999",
     )
     db_session.add(other_guardian)
     await db_session.flush()
 
-    res = await client.patch(
-        "/me",
-        json={"phone": "0244999999"},
+    fake_supabase.phone_by_user_id[str(PARENT_USER)] = "+233244999999"
+    res = await client.post(
+        "/me/phone/confirm",
         headers=auth_header(
             role="Parent", user_id=PARENT_USER, linked_id=GUARDIAN_ID, email="p@me.test"
         ),
@@ -254,8 +291,118 @@ async def test_patch_me_duplicate_guardian_phone_returns_409(
     assert res.status_code == 409
 
 
-async def test_patch_me_missing_auth_header_returns_401(client: AsyncClient, seed: None) -> None:
-    res = await client.patch("/me", json={"displayName": "X"})
+async def test_confirm_phone_without_linked_id_returns_400(
+    client: AsyncClient,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    fake_supabase.phone_by_user_id[str(EMAIL_ONLY_USER)] = "+233244000444"
+    res = await client.post(
+        "/me/phone/confirm",
+        headers=auth_header(
+            role="Admin",
+            user_id=EMAIL_ONLY_USER,
+            linked_id=None,
+            email="fallback@me.test",
+        ),
+    )
+    assert res.status_code == 400
+
+
+async def test_confirm_phone_missing_auth_header_returns_401(
+    client: AsyncClient, seed: None
+) -> None:
+    res = await client.post("/me/phone/confirm")
+    assert res.status_code == 401
+
+
+# ─── POST /me/email/confirm ───────────────────────────────────────────────────
+
+
+async def test_confirm_email_mirrors_supabase_into_users_and_staff_row(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    fake_supabase.email_by_user_id[str(ADMIN_USER)] = "new-admin@uhas.edu.gh"
+
+    res = await client.post("/me/email/confirm", headers=auth_header())
+    assert res.status_code == 200, res.text
+    assert res.json()["email"] == "new-admin@uhas.edu.gh"
+
+    user_row = await db_session.scalar(select(User).where(User.id == ADMIN_USER))
+    assert user_row is not None
+    assert user_row.email == "new-admin@uhas.edu.gh"
+
+    staff = await db_session.scalar(select(Staff).where(Staff.id == ADMIN_STAFF))
+    assert staff is not None
+    assert staff.email == "new-admin@uhas.edu.gh"
+    assert staff.first_name == "Adae"  # untouched
+
+
+async def test_confirm_email_mirrors_supabase_into_guardian_row(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    fake_supabase.email_by_user_id[str(PARENT_USER)] = "new-parent@example.com"
+
+    res = await client.post(
+        "/me/email/confirm",
+        headers=auth_header(
+            role="Parent", user_id=PARENT_USER, linked_id=GUARDIAN_ID, email="p@me.test"
+        ),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["email"] == "new-parent@example.com"
+
+    guardian = await db_session.scalar(select(Guardian).where(Guardian.id == GUARDIAN_ID))
+    assert guardian is not None
+    assert guardian.email == "new-parent@example.com"
+
+
+async def test_confirm_email_works_without_a_linked_record(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    """Unlike phone (which lives only on the linked staff/guardian row),
+    email's source of truth is `users.email` — syncing it doesn't
+    require a linked domain record."""
+    fake_supabase.email_by_user_id[str(EMAIL_ONLY_USER)] = "new-fallback@example.com"
+    res = await client.post(
+        "/me/email/confirm",
+        headers=auth_header(
+            role="Admin",
+            user_id=EMAIL_ONLY_USER,
+            linked_id=None,
+            email="fallback@me.test",
+        ),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["email"] == "new-fallback@example.com"
+
+    user_row = await db_session.scalar(select(User).where(User.id == EMAIL_ONLY_USER))
+    assert user_row is not None
+    assert user_row.email == "new-fallback@example.com"
+
+
+async def test_confirm_email_without_confirmed_address_returns_400(
+    client: AsyncClient,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    res = await client.post("/me/email/confirm", headers=auth_header())
+    assert res.status_code == 400
+
+
+async def test_confirm_email_missing_auth_header_returns_401(
+    client: AsyncClient, seed: None
+) -> None:
+    res = await client.post("/me/email/confirm")
     assert res.status_code == 401
 
 

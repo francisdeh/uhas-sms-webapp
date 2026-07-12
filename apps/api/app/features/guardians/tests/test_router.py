@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.guardians.tests.conftest import (
     OTHER_SCHOOL_UUID,
     SCHOOL_UUID,
+    FakeSupabaseAdminClient,
     auth_header,
 )
 from app.features.schools.model import School
+from app.features.users.model import User
 
 _BODY = {
     "firstName": "Abena",
@@ -74,7 +80,7 @@ async def test_search_filters(client: AsyncClient, seed_school: School) -> None:
     for i, last in enumerate(["Mensah", "Boateng"]):
         await client.post(
             "/guardians",
-            json={**_BODY, "lastName": last, "email": f"u{i}@x.gh", "phone": f"+2330{i}"},
+            json={**_BODY, "lastName": last, "email": f"u{i}@x.gh", "phone": f"+23324111220{i}"},
             headers=auth_header(role="Admin"),
         )
     res = await client.get("/guardians?q=boa", headers=auth_header(role="Admin"))
@@ -108,3 +114,96 @@ async def test_patch_updates_basic_fields(client: AsyncClient, seed_school: Scho
     )
     assert res.status_code == 200
     assert res.json()["firstName"] == "Akua"
+
+
+async def test_patch_phone_syncs_supabase_when_login_exists(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    created = (
+        await client.post("/guardians", json=_BODY, headers=auth_header(role="Admin"))
+    ).json()
+    guardian_user_id = uuid4()
+    db_session.add(
+        User(
+            id=guardian_user_id,
+            school_id=SCHOOL_UUID,
+            email=_BODY["email"],
+            role="Parent",
+            linked_id=created["id"],
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+
+    res = await client.patch(
+        f"/guardians/{created['id']}",
+        json={"phone": "0244000999"},
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["phone"] == "+233244000999"
+
+    assert len(fake_supabase.update_calls) == 1
+    call = fake_supabase.update_calls[0]
+    assert str(call["user_id"]) == str(guardian_user_id)
+    assert call["phone"] == "+233244000999"
+    assert call["phone_confirm"] is True
+
+
+async def test_patch_email_syncs_supabase_and_users_row_when_login_exists(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    created = (
+        await client.post("/guardians", json=_BODY, headers=auth_header(role="Admin"))
+    ).json()
+    guardian_user_id = uuid4()
+    db_session.add(
+        User(
+            id=guardian_user_id,
+            school_id=SCHOOL_UUID,
+            email=_BODY["email"],
+            role="Parent",
+            linked_id=created["id"],
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+
+    res = await client.patch(
+        f"/guardians/{created['id']}",
+        json={"email": "new-guardian@example.com"},
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["email"] == "new-guardian@example.com"
+
+    assert len(fake_supabase.update_calls) == 1
+    call = fake_supabase.update_calls[0]
+    assert str(call["user_id"]) == str(guardian_user_id)
+    assert call["email"] == "new-guardian@example.com"
+    assert call["email_confirm"] is True
+
+    user_row = await db_session.scalar(select(User).where(User.id == guardian_user_id))
+    assert user_row is not None
+    assert user_row.email == "new-guardian@example.com"
+
+
+async def test_patch_phone_skips_supabase_when_no_login(
+    client: AsyncClient, seed_school: School, fake_supabase: FakeSupabaseAdminClient
+) -> None:
+    created = (
+        await client.post("/guardians", json=_BODY, headers=auth_header(role="Admin"))
+    ).json()
+    res = await client.patch(
+        f"/guardians/{created['id']}",
+        json={"phone": "0244000999"},
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200, res.text
+    assert fake_supabase.update_calls == []

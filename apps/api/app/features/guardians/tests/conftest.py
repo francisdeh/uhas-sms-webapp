@@ -9,6 +9,7 @@ from typing import Any
 from uuid import UUID
 
 import jwt
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +21,7 @@ from app.features.enrollments.model import Enrollment
 from app.features.guardians.model import Guardian
 from app.features.schools.model import School
 from app.features.students.model import Student, StudentGuardian
+from app.features.users.supabase_admin import get_supabase_admin_client
 from app.main import app
 
 SCHOOL_UUID = UUID("44444444-4444-4444-8444-444444444401")
@@ -138,12 +140,46 @@ async def seed_children(db_session: AsyncSession, seed_school: School) -> None:
     await db_session.flush()
 
 
+class FakeSupabaseAdminClient:
+    """Minimal fake — records `update_user_by_id` calls so tests can
+    assert the Admin-driven phone-resync path fires (or doesn't)."""
+
+    def __init__(self) -> None:
+        self.update_calls: list[dict[str, Any]] = []
+
+    async def create_user(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def update_user_by_id(self, user_id: UUID | str, **kwargs: Any) -> None:
+        self.update_calls.append({"user_id": user_id, **kwargs})
+
+    async def delete_user(self, user_id: UUID | str) -> None:
+        raise NotImplementedError
+
+    async def invite_user_by_email(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def reset_mfa(self, user_id: UUID | str) -> int:
+        raise NotImplementedError
+
+    async def get_user_by_id(self, user_id: UUID | str) -> dict[str, Any]:
+        raise NotImplementedError
+
+
+@pytest.fixture
+def fake_supabase() -> FakeSupabaseAdminClient:
+    return FakeSupabaseAdminClient()
+
+
 @pytest_asyncio.fixture
-async def client(db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
+async def client(
+    db_session: AsyncSession, fake_supabase: FakeSupabaseAdminClient
+) -> AsyncIterator[AsyncClient]:
     async def _override_get_session() -> AsyncIterator[AsyncSession]:
         yield db_session
 
     app.dependency_overrides[get_session] = _override_get_session
+    app.dependency_overrides[get_supabase_admin_client] = lambda: fake_supabase
     transport = ASGITransport(app=app)
     try:
         async with AsyncClient(transport=transport, base_url="http://test") as ac:

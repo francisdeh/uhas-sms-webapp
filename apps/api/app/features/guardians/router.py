@@ -135,6 +135,7 @@ async def update_guardian(
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
     user: RequireAdmin,
+    supabase: _SupabaseDep,
 ) -> GuardianRead:
-    row = await GuardiansService.update(session, school_id, guardian_id, payload)
+    row = await GuardiansService.update(session, school_id, guardian_id, payload, supabase=supabase)
     return GuardianRead.model_validate(row)
