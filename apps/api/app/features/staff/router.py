@@ -1,6 +1,6 @@
 """HTTP routes for the Staff domain.
 
-Six endpoints — one for each Admin UI action:
+Core staff CRUD — one endpoint per Admin UI action:
 
   GET    /staff              → paginated list (server-side q + cursor)
   GET    /staff/{id}         → fetch single
@@ -16,6 +16,21 @@ can patch `photo_url` on their own row so the profile page can update
 avatars without a separate endpoint. Reads are open to any authenticated
 user; several pages (lesson plan reviewer list, class-teacher dropdown)
 need to see staff names.
+
+Profile-depth sub-resources (Phase 6 item 4):
+
+  GET    /staff/{id}/subjects              → open read
+  PUT    /staff/{id}/subjects              → Admin only (full-replace)
+  GET    /staff/{id}/qualifications        → open read
+  POST   /staff/{id}/qualifications        → Admin only
+  DELETE /staff/{id}/qualifications/{id}   → Admin only
+  GET    /staff/{id}/documents             → Admin any, staff their own only
+  POST   /staff/{id}/documents             → Admin only
+  DELETE /staff/{id}/documents/{id}        → Admin only
+
+Documents are gated more tightly than the rest of this feature's
+open-read precedent — certificates/contracts aren't something every
+logged-in user should be able to pull up for a colleague.
 """
 
 from __future__ import annotations
@@ -28,17 +43,49 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
+from app.core.errors import ForbiddenError
+from app.features.staff.model import Staff, StaffDocument, StaffQualification
 from app.features.staff.schema import (
     StaffCreate,
+    StaffDocumentCreate,
+    StaffDocumentRead,
     StaffListResponse,
+    StaffQualificationCreate,
+    StaffQualificationRead,
     StaffRead,
     StaffRoleChange,
     StaffUnitHeadToggle,
     StaffUpdate,
+    SubjectExpertiseRead,
+    SubjectExpertiseUpdate,
 )
 from app.features.staff.service import StaffService
 
 router = APIRouter(prefix="/staff", tags=["staff"])
+
+
+def _document_to_read(document: StaffDocument, uploader: Staff) -> StaffDocumentRead:
+    return StaffDocumentRead(
+        id=document.id,
+        staff_id=document.staff_id,
+        label=document.label,
+        other_label=document.other_label,
+        storage_path=document.storage_path,
+        uploaded_by_id=document.uploaded_by_id,
+        uploaded_by_name=f"{uploader.first_name} {uploader.last_name}".strip(),
+        created_at=document.created_at,
+    )
+
+
+def _qualification_to_read(qualification: StaffQualification) -> StaffQualificationRead:
+    return StaffQualificationRead(
+        id=qualification.id,
+        staff_id=qualification.staff_id,
+        name=qualification.name,
+        institution=qualification.institution,
+        year_obtained=qualification.year_obtained,
+        created_at=qualification.created_at,
+    )
 
 
 @router.get("", response_model=StaffListResponse, response_model_by_alias=True)
@@ -154,3 +201,141 @@ async def deactivate_staff(
 ) -> StaffRead:
     row = await StaffService.set_active(session, school_id, staff_id, active=False)
     return StaffRead.model_validate(row)
+
+
+@router.get(
+    "/{staff_id}/subjects",
+    response_model=list[SubjectExpertiseRead],
+    response_model_by_alias=True,
+    summary="Subjects this staff member is qualified to teach",
+)
+async def list_staff_subjects(
+    staff_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[SubjectExpertiseRead]:
+    rows = await StaffService.list_subject_expertise(session, school_id, staff_id)
+    return [SubjectExpertiseRead(id=s.id, slug=s.slug, name=s.name) for s in rows]
+
+
+@router.put(
+    "/{staff_id}/subjects",
+    response_model=list[SubjectExpertiseRead],
+    response_model_by_alias=True,
+    summary="Replace this staff member's subject expertise — Admin only",
+)
+async def replace_staff_subjects(
+    staff_id: UUID,
+    payload: SubjectExpertiseUpdate,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> list[SubjectExpertiseRead]:
+    rows = await StaffService.replace_subject_expertise(
+        session, school_id, staff_id, payload.subject_ids
+    )
+    return [SubjectExpertiseRead(id=s.id, slug=s.slug, name=s.name) for s in rows]
+
+
+@router.get(
+    "/{staff_id}/qualifications",
+    response_model=list[StaffQualificationRead],
+    response_model_by_alias=True,
+)
+async def list_staff_qualifications(
+    staff_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[StaffQualificationRead]:
+    rows = await StaffService.list_qualifications(session, school_id, staff_id)
+    return [_qualification_to_read(q) for q in rows]
+
+
+@router.post(
+    "/{staff_id}/qualifications",
+    response_model=list[StaffQualificationRead],
+    response_model_by_alias=True,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a qualification — Admin only",
+)
+async def add_staff_qualification(
+    staff_id: UUID,
+    payload: StaffQualificationCreate,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> list[StaffQualificationRead]:
+    rows = await StaffService.add_qualification(session, school_id, staff_id, payload)
+    return [_qualification_to_read(q) for q in rows]
+
+
+@router.delete(
+    "/{staff_id}/qualifications/{qualification_id}",
+    response_model=list[StaffQualificationRead],
+    response_model_by_alias=True,
+    summary="Remove a qualification — Admin only",
+)
+async def remove_staff_qualification(
+    staff_id: UUID,
+    qualification_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> list[StaffQualificationRead]:
+    rows = await StaffService.remove_qualification(session, school_id, staff_id, qualification_id)
+    return [_qualification_to_read(q) for q in rows]
+
+
+@router.get(
+    "/{staff_id}/documents",
+    response_model=list[StaffDocumentRead],
+    response_model_by_alias=True,
+    summary="A staff member's documents — Admin any, staff their own only",
+)
+async def list_staff_documents(
+    staff_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> list[StaffDocumentRead]:
+    rows = await StaffService.list_documents(session, school_id, staff_id, user=user)
+    return [_document_to_read(d, s) for d, s in rows]
+
+
+@router.post(
+    "/{staff_id}/documents",
+    response_model=list[StaffDocumentRead],
+    response_model_by_alias=True,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload a document for a staff member — Admin only",
+)
+async def add_staff_document(
+    staff_id: UUID,
+    payload: StaffDocumentCreate,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> list[StaffDocumentRead]:
+    if not user.linked_id:
+        raise ForbiddenError("Cannot upload a document without a staff identity.")
+    rows = await StaffService.add_document(
+        session, school_id, staff_id, payload, actor_staff_id=user.linked_id
+    )
+    return [_document_to_read(d, s) for d, s in rows]
+
+
+@router.delete(
+    "/{staff_id}/documents/{document_id}",
+    response_model=list[StaffDocumentRead],
+    response_model_by_alias=True,
+    summary="Remove a staff member's document — Admin only",
+)
+async def remove_staff_document(
+    staff_id: UUID,
+    document_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> list[StaffDocumentRead]:
+    rows = await StaffService.remove_document(session, school_id, staff_id, document_id)
+    return [_document_to_read(d, s) for d, s in rows]

@@ -44,6 +44,7 @@ export default async function AdminStaffDetailPage({
     photoUrl: row.photoUrl ?? null,
     phone: row.phone ?? "",
     email: row.email ?? "",
+    hireDate: row.hireDate ?? null,
     isActive: row.isActive ?? true,
     createdAt: row.createdAt ?? new Date().toISOString(),
   };

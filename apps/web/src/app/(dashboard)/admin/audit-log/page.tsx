@@ -15,6 +15,7 @@ import {
   type AuditFilters,
 } from "@/features/audit-log/types";
 import type { AuditEventView } from "@/features/audit-log/types";
+import { ADMIN } from "@/features/auth/types";
 
 const VALID_ACTIONS = new Set(Object.keys(AUDIT_ACTION_LABELS));
 const VALID_TARGET_TABLES = new Set<string>(AUDIT_TARGET_TABLES);
@@ -66,7 +67,7 @@ export default async function AdminAuditLogPage({
   searchParams: Promise<{ [k: string]: string | string[] | undefined }>;
 }) {
   const user = await getSessionUser();
-  if (!user || user.role !== "Admin") redirect("/login");
+  if (!user || user.role !== ADMIN) redirect("/login");
 
   const raw = await searchParams;
   const filters = parseFilters(raw);

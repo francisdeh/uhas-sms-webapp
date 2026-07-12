@@ -9,6 +9,7 @@ import { ReviewFooter } from "@/features/promotions/components/ReviewFooter";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { DecisionRowView } from "@/features/promotions/types";
+import { DEPUTY_HEAD } from "@/features/auth/types";
 
 export default async function DeputyHeadPromotionReviewPage({
   params,
@@ -16,7 +17,7 @@ export default async function DeputyHeadPromotionReviewPage({
   params: Promise<{ submissionId: string }>;
 }) {
   const user = await getSessionUser();
-  if (!user || user.role !== "DeputyHead" || !user.linkedId) redirect("/login");
+  if (!user || user.role !== DEPUTY_HEAD || !user.linkedId) redirect("/login");
 
   const division = await getDeputyHeadDivision(user.linkedId);
   if (!division) redirect("/deputy-head/promotions");

@@ -185,6 +185,57 @@ export function createApiClient(getAuthToken: TokenGetter) {
           `/staff/${id}/deactivate`,
           { method: "POST" },
         ),
+      /** Subjects this staff member is qualified to teach — open read. */
+      subjects: (id: string) =>
+        apiFetch<components["schemas"]["SubjectExpertiseRead"][]>(
+          getAuthToken,
+          `/staff/${id}/subjects`,
+        ),
+      /** Full-replace, not incremental — Admin only. */
+      replaceSubjects: (id: string, payload: components["schemas"]["SubjectExpertiseUpdate"]) =>
+        apiFetch<components["schemas"]["SubjectExpertiseRead"][]>(
+          getAuthToken,
+          `/staff/${id}/subjects`,
+          { method: "PUT", body: JSON.stringify(payload) },
+        ),
+      qualifications: (id: string) =>
+        apiFetch<components["schemas"]["StaffQualificationRead"][]>(
+          getAuthToken,
+          `/staff/${id}/qualifications`,
+        ),
+      addQualification: (
+        id: string,
+        payload: components["schemas"]["StaffQualificationCreate"],
+      ) =>
+        apiFetch<components["schemas"]["StaffQualificationRead"][]>(
+          getAuthToken,
+          `/staff/${id}/qualifications`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      removeQualification: (id: string, qualificationId: string) =>
+        apiFetch<components["schemas"]["StaffQualificationRead"][]>(
+          getAuthToken,
+          `/staff/${id}/qualifications/${qualificationId}`,
+          { method: "DELETE" },
+        ),
+      /** Admin any, staff their own only — see StaffDocumentRead docstring. */
+      listDocuments: (id: string) =>
+        apiFetch<components["schemas"]["StaffDocumentRead"][]>(
+          getAuthToken,
+          `/staff/${id}/documents`,
+        ),
+      addDocument: (id: string, payload: components["schemas"]["StaffDocumentCreate"]) =>
+        apiFetch<components["schemas"]["StaffDocumentRead"][]>(
+          getAuthToken,
+          `/staff/${id}/documents`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      removeDocument: (id: string, documentId: string) =>
+        apiFetch<components["schemas"]["StaffDocumentRead"][]>(
+          getAuthToken,
+          `/staff/${id}/documents/${documentId}`,
+          { method: "DELETE" },
+        ),
     },
     guardians: {
       list: (

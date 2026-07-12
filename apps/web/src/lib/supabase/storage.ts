@@ -31,7 +31,8 @@ export type UploadKind =
   | "schemes/resource"
   | "assignments/file"
   | "fees/receipt"
-  | "students/document";
+  | "students/document"
+  | "staff/document";
 
 function safeFileName(name: string): string {
   return name
@@ -85,6 +86,11 @@ export function buildStoragePath(
       return {
         bucket: "documents",
         path: `students/documents/${ownerId}/${ts}-${safeFileName(file.name)}`,
+      };
+    case "staff/document":
+      return {
+        bucket: "documents",
+        path: `staff/documents/${ownerId}/${ts}-${safeFileName(file.name)}`,
       };
   }
 }

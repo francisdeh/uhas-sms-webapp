@@ -36,7 +36,7 @@ import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { ApiError } from "@/lib/api/browser";
 import { useStaffMutations } from "@/features/staff/hooks/use-staff";
-import { STAFF_SYSTEM_ROLES } from "@/features/auth/types";
+import { STAFF_SYSTEM_ROLES, DEPUTY_HEAD, TEACHER } from "@/features/auth/types";
 import { TEACHER_RANKS } from "@/features/staff/types";
 
 const schema = z
@@ -61,7 +61,7 @@ const schema = z
   })
   .refine(
     (data) => {
-      if (data.systemRole === "DeputyHead" || data.systemRole === "Teacher") {
+      if (data.systemRole === DEPUTY_HEAD || data.systemRole === TEACHER) {
         return !!data.division;
       }
       return true;
@@ -111,8 +111,8 @@ export default function StaffRegistrationForm({
 
   const systemRole = useWatch({ control, name: "systemRole" });
   const isUnitHead = useWatch({ control, name: "isUnitHead" });
-  const showDivision = systemRole === "DeputyHead" || systemRole === "Teacher";
-  const canBeUnitHead = systemRole === "Teacher";
+  const showDivision = systemRole === DEPUTY_HEAD || systemRole === TEACHER;
+  const canBeUnitHead = systemRole === TEACHER;
 
   async function onSubmit(values: FormValues) {
     try {

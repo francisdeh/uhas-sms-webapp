@@ -18,6 +18,7 @@ import {
   Wallet,
 } from "lucide-react";
 import type { UserRole, SessionUser } from "@/features/auth/types";
+import { TEACHER } from "@/features/auth/types";
 import type { NavGroup, ShellConfig } from "./types";
 
 export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
@@ -182,7 +183,7 @@ const UNIT_HEAD_NAV: NavGroup = {
 
 export function getShellConfig(user: Pick<SessionUser, "role" | "isUnitHead">): ShellConfig {
   const base = ROLE_CONFIG[user.role];
-  if (user.role === "Teacher" && user.isUnitHead) {
+  if (user.role === TEACHER && user.isUnitHead) {
     return {
       ...base,
       navGroups: [...base.navGroups.slice(0, -1), UNIT_HEAD_NAV, ...base.navGroups.slice(-1)],

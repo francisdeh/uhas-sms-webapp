@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { Division } from "@/features/auth/types";
+import { ADMIN } from "@/features/auth/types";
 import type {
   ClassOverviewRow,
   PromotionSeason,
@@ -47,7 +48,7 @@ function statusPill(status: PromotionSubmissionStatus | undefined) {
 
 export default async function AdminPromotionsPage() {
   const user = await getSessionUser();
-  if (!user || user.role !== "Admin") redirect("/login");
+  if (!user || user.role !== ADMIN) redirect("/login");
 
   const api = await getApi();
   const [seasonRow, overviewResp, academicYear] = await Promise.all([

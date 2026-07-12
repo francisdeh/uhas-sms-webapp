@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { DecisionRowView, PromotionSubmission } from "@/features/promotions/types";
+import { TEACHER } from "@/features/auth/types";
 
 export default async function TeacherPromotionClassPage({
   params,
@@ -15,7 +16,7 @@ export default async function TeacherPromotionClassPage({
   params: Promise<{ classId: string }>;
 }) {
   const user = await getSessionUser();
-  if (!user || user.role !== "Teacher" || !user.linkedId) redirect("/login");
+  if (!user || user.role !== TEACHER || !user.linkedId) redirect("/login");
 
   const { classId } = await params;
 

@@ -9,6 +9,7 @@ import type {
   DecisionRowView,
   PromotionSubmission,
 } from "@/features/promotions/types";
+import { ADMIN } from "@/features/auth/types";
 
 export default async function AdminPromotionDetailPage({
   params,
@@ -16,7 +17,7 @@ export default async function AdminPromotionDetailPage({
   params: Promise<{ submissionId: string }>;
 }) {
   const user = await getSessionUser();
-  if (!user || user.role !== "Admin") redirect("/login");
+  if (!user || user.role !== ADMIN) redirect("/login");
 
   const { submissionId } = await params;
   const api = await getApi();

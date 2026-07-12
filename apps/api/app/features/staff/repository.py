@@ -12,10 +12,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import and_, asc, desc, func, or_, select
+from sqlalchemy import and_, asc, delete, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.staff.model import Staff
+from app.features.staff.model import Staff, StaffDocument, StaffQualification, StaffSubjectExpertise
+from app.features.subjects.model import Subject
 
 
 class StaffRepository:
@@ -109,3 +110,106 @@ class StaffRepository:
             # fall back to count + 1 so we don't crash.
             count_stmt = select(func.count(Staff.id)).where(Staff.school_id == school_id)
             return int((await session.execute(count_stmt)).scalar_one() or 0) + 1
+
+    # ── subject expertise ───────────────────────────────────────────────
+
+    @staticmethod
+    async def list_subject_expertise(session: AsyncSession, staff_id: UUID | str) -> list[Subject]:
+        stmt = (
+            select(Subject)
+            .join(StaffSubjectExpertise, StaffSubjectExpertise.subject_id == Subject.id)
+            .where(StaffSubjectExpertise.staff_id == staff_id)
+            .order_by(asc(Subject.name))
+        )
+        return list((await session.execute(stmt)).scalars().all())
+
+    @staticmethod
+    async def replace_subject_expertise(
+        session: AsyncSession, staff_id: UUID | str, subject_ids: list[UUID]
+    ) -> None:
+        await session.execute(
+            delete(StaffSubjectExpertise).where(StaffSubjectExpertise.staff_id == staff_id)
+        )
+        if subject_ids:
+            session.add_all(
+                [
+                    StaffSubjectExpertise(staff_id=staff_id, subject_id=sid)
+                    for sid in dict.fromkeys(subject_ids)  # de-dupe, keep order
+                ]
+            )
+        await session.flush()
+
+    # ── qualifications ───────────────────────────────────────────────────
+
+    @staticmethod
+    async def list_qualifications(
+        session: AsyncSession, staff_id: UUID | str
+    ) -> list[StaffQualification]:
+        stmt = (
+            select(StaffQualification)
+            .where(StaffQualification.staff_id == staff_id)
+            .order_by(desc(StaffQualification.created_at))
+        )
+        return list((await session.execute(stmt)).scalars().all())
+
+    @staticmethod
+    async def get_qualification(
+        session: AsyncSession, school_id: UUID | str, qualification_id: UUID | str
+    ) -> StaffQualification | None:
+        stmt = select(StaffQualification).where(
+            and_(
+                StaffQualification.id == qualification_id,
+                StaffQualification.school_id == school_id,
+            )
+        )
+        return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    async def insert_qualification(
+        session: AsyncSession, qualification: StaffQualification
+    ) -> StaffQualification:
+        session.add(qualification)
+        await session.flush()
+        return qualification
+
+    @staticmethod
+    async def delete_qualification(
+        session: AsyncSession, qualification: StaffQualification
+    ) -> None:
+        await session.delete(qualification)
+        await session.flush()
+
+    # ── documents ────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def list_documents(
+        session: AsyncSession, staff_id: UUID | str
+    ) -> list[tuple[StaffDocument, Staff]]:
+        stmt = (
+            select(StaffDocument, Staff)
+            .join(Staff, Staff.id == StaffDocument.uploaded_by_id)
+            .where(StaffDocument.staff_id == staff_id)
+            .order_by(desc(StaffDocument.created_at))
+        )
+        rows = (await session.execute(stmt)).all()
+        return [(d, s) for d, s in rows]
+
+    @staticmethod
+    async def get_document(
+        session: AsyncSession, school_id: UUID | str, document_id: UUID | str
+    ) -> StaffDocument | None:
+        stmt = select(StaffDocument).where(
+            and_(StaffDocument.id == document_id, StaffDocument.school_id == school_id)
+        )
+        return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    async def insert_document(session: AsyncSession, document: StaffDocument) -> StaffDocument:
+        session.add(document)
+        await session.flush()
+        return document
+
+    @staticmethod
+    async def delete_document(session: AsyncSession, document: StaffDocument) -> None:
+        await session.delete(document)
+        await session.flush()

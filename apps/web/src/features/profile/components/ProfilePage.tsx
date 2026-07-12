@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import { TwoFactorCard } from "@/features/profile/components/TwoFactorCard";
+import { StaffDocumentsCard } from "@/features/staff/components/StaffDocumentsCard";
 import { api, ApiError } from "@/lib/api/browser";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -32,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { SessionUser } from "@/features/auth/types";
+import { ADMIN, PARENT, TEACHER } from "@/features/auth/types";
 
 const profileSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -133,7 +135,7 @@ function ProfilePageContent({ user, currentPhotoUrl = null }: ProfilePageProps) 
 function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhotoUrl: string | null }) {
   const router = useRouter();
   const [photoUrl, setPhotoUrl] = useState<string | null>(currentPhotoUrl);
-  const canEditPhoto = !!user.linkedId && user.role !== "Parent";
+  const canEditPhoto = !!user.linkedId && user.role !== PARENT;
 
   async function onPhotoChange(next: string | null) {
     setPhotoUrl(next);
@@ -170,6 +172,7 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
   }
 
   return (
+    <div className="space-y-6">
     <Card className="rounded-t-none border-t-0">
       <CardHeader>
         <CardTitle className="text-base">Personal Information</CardTitle>
@@ -232,6 +235,11 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
         </form>
       </CardContent>
     </Card>
+
+    {canEditPhoto && user.linkedId && (
+      <StaffDocumentsCard staffId={user.linkedId} canManage={false} />
+    )}
+    </div>
   );
 }
 
@@ -418,7 +426,7 @@ function NotificationsTab({ user }: { user: SessionUser }) {
         <CardDescription>Choose how you want to receive notifications.</CardDescription>
       </CardHeader>
       <CardContent>
-        {user.role === "Teacher" ? (
+        {user.role === TEACHER ? (
           <NotifRow
             label="Email — Lesson Plan Rejected"
             description="Receive an email when a reviewer sends one of your lesson plans back for changes."
@@ -464,7 +472,7 @@ function DangerTab({ user }: { user: SessionUser }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
-  const isAdmin = user.role === "Admin";
+  const isAdmin = user.role === ADMIN;
 
   async function handleDeactivate() {
     setDeactivating(true);

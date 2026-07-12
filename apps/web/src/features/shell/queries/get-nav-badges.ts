@@ -1,5 +1,6 @@
 import { getApi } from "@/lib/api/server";
 import type { SessionUser } from "@/features/auth/types";
+import { DEPUTY_HEAD, TEACHER } from "@/features/auth/types";
 
 // Returns a map of nav href → pending count, computed per user.
 export async function getNavBadges(user: SessionUser): Promise<Record<string, number>> {
@@ -11,9 +12,9 @@ export async function getNavBadges(user: SessionUser): Promise<Record<string, nu
   const api = await getApi();
   const { lessonPlansPendingReview } = await api.shell.navBadges();
   if (lessonPlansPendingReview > 0) {
-    if (user.role === "DeputyHead") {
+    if (user.role === DEPUTY_HEAD) {
       badges["/deputy-head/lesson-plans"] = lessonPlansPendingReview;
-    } else if (user.role === "Teacher" && user.isUnitHead) {
+    } else if (user.role === TEACHER && user.isUnitHead) {
       badges["/teacher/reviews"] = lessonPlansPendingReview;
     }
   }
