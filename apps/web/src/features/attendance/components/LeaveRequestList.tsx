@@ -38,6 +38,8 @@ import type { LeaveRequest, LeaveRequestStatus, LeaveType } from "@/features/att
 
 interface LeaveRequestListProps {
   requests: LeaveRequest[];
+  /** Empty-state copy — "your division" (Deputy Head) or "your school" (Admin). */
+  scopeDescription?: string;
 }
 
 function formatDateRange(start: string, end: string): string {
@@ -111,7 +113,10 @@ function SubstitutePicker({ request }: { request: LeaveRequest }) {
   );
 }
 
-export function LeaveRequestList({ requests }: LeaveRequestListProps) {
+export function LeaveRequestList({
+  requests,
+  scopeDescription = "your division",
+}: LeaveRequestListProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<"all" | LeaveRequestStatus>("all");
   const [rejectionInputs, setRejectionInputs] = useState<Record<string, string>>({});
@@ -181,7 +186,7 @@ export function LeaveRequestList({ requests }: LeaveRequestListProps) {
           }
           description={
             filter === "all"
-              ? "Staff in your division will appear here when they request leave."
+              ? `Staff in ${scopeDescription} will appear here when they request leave.`
               : "Try the other filter pills above to see requests in different states."
           }
         />
