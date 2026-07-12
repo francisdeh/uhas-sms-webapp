@@ -368,6 +368,10 @@ export default function StaffRegistrationForm({
                   {...register("phone")}
                 />
                 <FieldError errors={[errors.phone]} />
+                <p className="text-xs text-muted-foreground">
+                  Used for this staff member&apos;s login (phone-OTP) once a login is provisioned
+                  — not just a contact number.
+                </p>
               </Field>
 
               <Field>
@@ -379,6 +383,9 @@ export default function StaffRegistrationForm({
                   {...register("email")}
                 />
                 <FieldError errors={[errors.email]} />
+                <p className="text-xs text-muted-foreground">
+                  This becomes their login email once a login is provisioned.
+                </p>
               </Field>
 
               <div className="flex items-center gap-3 pt-2">

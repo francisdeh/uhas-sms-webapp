@@ -17,10 +17,11 @@ from datetime import date, datetime
 from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
+from app.core.phone import validate_phone_field
 from app.core.roles import SystemRole, TeacherRank
 from app.core.school_structure import Division
 from app.features.staff.constants import DocumentLabel
@@ -62,6 +63,8 @@ class StaffCreate(StaffBase):
     system_role: SystemRole
     email: EmailStr
 
+    _normalize_phone = field_validator("phone")(validate_phone_field)
+
 
 class StaffUpdate(BaseModel):
     """Partial update for `PATCH /staff/{id}`.
@@ -79,6 +82,8 @@ class StaffUpdate(BaseModel):
     email: EmailStr | None = None
     photo_url: str | None = Field(None, max_length=500)
     hire_date: date | None = None
+
+    _normalize_phone = field_validator("phone")(validate_phone_field)
 
 
 class StaffRoleChange(BaseModel):

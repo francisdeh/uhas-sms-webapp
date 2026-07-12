@@ -97,6 +97,7 @@ class FakeSupabaseAdminClient:
         user_id: UUID | str,
         *,
         email: str | None = None,
+        email_confirm: bool = False,
         phone: str | None = None,
         phone_confirm: bool = False,
         ban_duration: str | None = None,
@@ -107,6 +108,7 @@ class FakeSupabaseAdminClient:
             {
                 "user_id": user_id,
                 "email": email,
+                "email_confirm": email_confirm,
                 "phone": phone,
                 "phone_confirm": phone_confirm,
                 "ban_duration": ban_duration,
@@ -128,6 +130,9 @@ class FakeSupabaseAdminClient:
         removed = self.mfa_factor_counts.get(str(user_id), 0)
         self.mfa_factor_counts[str(user_id)] = 0
         return removed
+
+    async def get_user_by_id(self, user_id: UUID | str) -> dict[str, Any]:
+        return {"id": str(user_id), "email": None, "phone": None}
 
 
 @pytest_asyncio.fixture

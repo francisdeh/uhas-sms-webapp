@@ -151,10 +151,16 @@ async def seed(db_session: AsyncSession) -> None:
 
 
 class FakeSupabaseAdminClient:
-    """Minimal fake — `PATCH /me` only ever calls `update_user_by_id`."""
+    """Minimal fake — `PATCH /me` only ever calls `update_user_by_id`;
+    `POST /me/phone/confirm` and `POST /me/email/confirm` call
+    `get_user_by_id`. Tests set `.phone_by_user_id[uid] = "+233…"` /
+    `.email_by_user_id[uid] = "..."` before calling confirm to control
+    what "Supabase" reports as already-confirmed."""
 
     def __init__(self) -> None:
         self.update_calls: list[dict[str, Any]] = []
+        self.phone_by_user_id: dict[str, str | None] = {}
+        self.email_by_user_id: dict[str, str | None] = {}
 
     async def create_user(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
@@ -167,6 +173,13 @@ class FakeSupabaseAdminClient:
 
     async def invite_user_by_email(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
+
+    async def get_user_by_id(self, user_id: UUID | str) -> dict[str, Any]:
+        return {
+            "id": str(user_id),
+            "email": self.email_by_user_id.get(str(user_id)),
+            "phone": self.phone_by_user_id.get(str(user_id)),
+        }
 
 
 @pytest.fixture

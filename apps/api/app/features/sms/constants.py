@@ -13,9 +13,10 @@ ABSENCE: Final = "absence"
 RESULTS: Final = "results"
 FEE_REMINDER: Final = "fee_reminder"
 ANNOUNCEMENT: Final = "announcement"
+ONBOARDING: Final = "onboarding"
 OTHER: Final = "other"
 
-SmsCategory = Literal["absence", "results", "fee_reminder", "announcement", "other"]
+SmsCategory = Literal["absence", "results", "fee_reminder", "announcement", "onboarding", "other"]
 
 QUEUED: Final = "queued"
 SENT: Final = "sent"
@@ -26,5 +27,6 @@ SmsStatus = Literal["queued", "sent", "delivered", "failed"]
 
 STUB: Final = "stub"
 HUBTEL: Final = "hubtel"
+ARKESEL: Final = "arkesel"
 
-SmsProviderName = Literal["stub", "hubtel"]
+SmsProviderName = Literal["stub", "hubtel", "arkesel"]

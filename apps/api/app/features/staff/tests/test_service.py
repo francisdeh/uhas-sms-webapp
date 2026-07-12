@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+from uuid import UUID, uuid4
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +22,34 @@ from app.features.staff.schema import (
 )
 from app.features.staff.service import StaffService
 from app.features.staff.tests.conftest import SCHOOL_UUID, USER_UUID
+from app.features.users.model import User
+
+
+class _FakeSupabase:
+    """Minimal `SupabaseAdminClient` double — this suite only cares
+    that `update_user_by_id` gets called with the right phone, not
+    about a real Supabase round trip."""
+
+    def __init__(self) -> None:
+        self.update_calls: list[dict[str, Any]] = []
+
+    async def create_user(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def update_user_by_id(self, user_id: UUID | str, **kwargs: Any) -> None:
+        self.update_calls.append({"user_id": user_id, **kwargs})
+
+    async def delete_user(self, user_id: UUID | str) -> None:
+        raise NotImplementedError
+
+    async def invite_user_by_email(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def reset_mfa(self, user_id: UUID | str) -> int:
+        raise NotImplementedError
+
+    async def get_user_by_id(self, user_id: UUID | str) -> dict[str, Any]:
+        raise NotImplementedError
 
 
 def _admin_user() -> CurrentUser:
@@ -99,9 +130,96 @@ async def test_update_only_touches_present_fields(
         row.id,
         StaffUpdate(phone="+233500000000"),
         user=_admin_user(),
+        supabase=_FakeSupabase(),
     )
     assert updated.phone == "+233500000000"
     assert updated.first_name == row.first_name  # untouched
+
+
+async def test_update_phone_syncs_supabase_when_login_exists(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    staff_user_id = uuid4()
+    db_session.add(
+        User(
+            id=staff_user_id,
+            school_id=SCHOOL_UUID,
+            email="teacher.one@uhas.edu.gh",
+            role="Teacher",
+            linked_id=row.id,
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+
+    fake = _FakeSupabase()
+    updated = await StaffService.update(
+        db_session,
+        SCHOOL_UUID,
+        row.id,
+        StaffUpdate(phone="0244000999"),
+        user=_admin_user(),
+        supabase=fake,
+    )
+    assert updated.phone == "+233244000999"
+    assert len(fake.update_calls) == 1
+    assert str(fake.update_calls[0]["user_id"]) == str(staff_user_id)
+    assert fake.update_calls[0]["phone"] == "+233244000999"
+    assert fake.update_calls[0]["phone_confirm"] is True
+
+
+async def test_update_phone_skips_supabase_when_no_login(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    fake = _FakeSupabase()
+    await StaffService.update(
+        db_session,
+        SCHOOL_UUID,
+        row.id,
+        StaffUpdate(phone="0244000999"),
+        user=_admin_user(),
+        supabase=fake,
+    )
+    assert fake.update_calls == []
+
+
+async def test_update_email_syncs_supabase_and_users_row_when_login_exists(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    staff_user_id = uuid4()
+    db_session.add(
+        User(
+            id=staff_user_id,
+            school_id=SCHOOL_UUID,
+            email="teacher.one@uhas.edu.gh",
+            role="Teacher",
+            linked_id=row.id,
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+
+    fake = _FakeSupabase()
+    updated = await StaffService.update(
+        db_session,
+        SCHOOL_UUID,
+        row.id,
+        StaffUpdate(email="new.teacher@uhas.edu.gh"),
+        user=_admin_user(),
+        supabase=fake,
+    )
+    assert updated.email == "new.teacher@uhas.edu.gh"
+    assert len(fake.update_calls) == 1
+    assert str(fake.update_calls[0]["user_id"]) == str(staff_user_id)
+    assert fake.update_calls[0]["email"] == "new.teacher@uhas.edu.gh"
+    assert fake.update_calls[0]["email_confirm"] is True
+
+    user_row = await db_session.scalar(select(User).where(User.id == staff_user_id))
+    assert user_row is not None
+    assert user_row.email == "new.teacher@uhas.edu.gh"
 
 
 async def test_update_teacher_can_patch_own_photo(
@@ -122,6 +240,7 @@ async def test_update_teacher_can_patch_own_photo(
         row.id,
         StaffUpdate(photo_url="https://cdn.example/img.png"),
         user=teacher,
+        supabase=_FakeSupabase(),
     )
     assert updated.photo_url == "https://cdn.example/img.png"
 
@@ -146,6 +265,7 @@ async def test_update_teacher_cannot_patch_other_staff_row(
             other.id,
             StaffUpdate(photo_url="https://cdn.example/x.png"),
             user=teacher,
+            supabase=_FakeSupabase(),
         )
 
 
@@ -168,6 +288,7 @@ async def test_update_teacher_cannot_patch_other_fields_on_own_row(
             row.id,
             StaffUpdate(first_name="Renamed"),
             user=teacher,
+            supabase=_FakeSupabase(),
         )
 
 
@@ -190,6 +311,7 @@ async def test_update_parent_cannot_patch_anything(
             row.id,
             StaffUpdate(photo_url="https://cdn.example/p.png"),
             user=parent,
+            supabase=_FakeSupabase(),
         )
 
 

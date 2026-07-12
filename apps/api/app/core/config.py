@@ -153,10 +153,16 @@ class Settings(BaseSettings):
 
     # ── Outbound SMS ──────────────────────────────────────────────────────
     # Same "missing config isn't an error" contract as email above —
-    # `get_sms_provider()` falls back to the no-op `StubSmsProvider` when
-    # any of these three are unset, so every environment runs the same
-    # code path. No Hubtel account exists yet; these stay unset until one
-    # is registered.
+    # `get_sms_provider()` falls back through Arkesel -> Hubtel -> the
+    # no-op `StubSmsProvider` depending on which of these are set, so
+    # every environment runs the same code path. Arkesel takes
+    # precedence when configured; Hubtel is kept as a fallback for any
+    # environment that already has it set up. Neither account has a
+    # live key registered yet; these stay unset until one is.
+    arkesel_api_key: str | None = Field(default=None)
+    arkesel_sender_id: str | None = Field(
+        default=None, description='Approved Arkesel sender name, e.g. "UHAS".'
+    )
     hubtel_client_id: str | None = Field(default=None)
     hubtel_client_secret: str | None = Field(default=None)
     hubtel_sender_id: str | None = Field(

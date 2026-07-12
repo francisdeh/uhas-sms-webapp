@@ -1,10 +1,11 @@
 """SMS fan-out — one job run per batch of recipients.
 
-Triggered by the `sms/fanout.requested` event. No producer emits that
-event yet (per the Phase 3 plan, wiring real triggers — absence
-alerts, results-published notices, fee reminders, announcement
-broadcast — into their domains is deferred); this job is the
-mechanism those triggers will call into.
+Triggered by the `sms/fanout.requested` event. First real producer:
+`UsersService._emit_onboarding_sms` (phone-only account creation). Per
+the Phase 3 plan, wiring the remaining triggers — absence alerts,
+results-published notices, announcement broadcast — into their
+domains is deferred; this job is the shared mechanism each will call
+into as they land.
 
 Runs with its own DB session (`SessionLocal`) rather than FastAPI's
 request-scoped `get_session` dependency — Inngest jobs execute outside
@@ -15,7 +16,7 @@ from the event payload's `school_id`, not a JWT.
 Event payload shape:
     {
       "school_id": "<uuid>",
-      "category": "absence" | "results" | "fee_reminder" | "announcement" | "other",
+      "category": "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "other",
       "body": "<message text>",
       "recipients": [{"phone": "+233...", "guardian_id": "<uuid> | null"}, ...]
     }

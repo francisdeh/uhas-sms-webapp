@@ -54,6 +54,7 @@ class SupabaseAdminClient(Protocol):
         user_id: UUID | str,
         *,
         email: str | None = None,
+        email_confirm: bool = False,
         phone: str | None = None,
         phone_confirm: bool = False,
         ban_duration: str | None = None,
@@ -71,6 +72,8 @@ class SupabaseAdminClient(Protocol):
     ) -> dict[str, Any]: ...
 
     async def reset_mfa(self, user_id: UUID | str) -> int: ...
+
+    async def get_user_by_id(self, user_id: UUID | str) -> dict[str, Any]: ...
 
 
 class _NotConfiguredSupabaseAdminClient:
@@ -100,6 +103,7 @@ class _NotConfiguredSupabaseAdminClient:
         user_id: UUID | str,
         *,
         email: str | None = None,
+        email_confirm: bool = False,
         phone: str | None = None,
         phone_confirm: bool = False,
         ban_duration: str | None = None,
@@ -115,6 +119,9 @@ class _NotConfiguredSupabaseAdminClient:
         raise ServiceUnavailableError(self._MSG)
 
     async def reset_mfa(self, user_id: UUID | str) -> int:
+        raise ServiceUnavailableError(self._MSG)
+
+    async def get_user_by_id(self, user_id: UUID | str) -> dict[str, Any]:
         raise ServiceUnavailableError(self._MSG)
 
 
@@ -166,6 +173,7 @@ class RealSupabaseAdminClient:
         user_id: UUID | str,
         *,
         email: str | None = None,
+        email_confirm: bool = False,
         phone: str | None = None,
         phone_confirm: bool = False,
         ban_duration: str | None = None,
@@ -175,6 +183,7 @@ class RealSupabaseAdminClient:
         payload: dict[str, Any] = {}
         if email is not None:
             payload["email"] = email
+            payload["email_confirm"] = email_confirm
         if phone is not None:
             payload["phone"] = phone
             payload["phone_confirm"] = phone_confirm
@@ -212,6 +221,21 @@ class RealSupabaseAdminClient:
             if user is None:
                 raise ServiceUnavailableError("Supabase did not return an auth user.")
             return {"id": str(user.id), "email": user.email}
+
+        return await asyncio.to_thread(_run)
+
+    async def get_user_by_id(self, user_id: UUID | str) -> dict[str, Any]:
+        """Reads the auth user straight back from Supabase — used by
+        `POST /me/phone/confirm` so the local `phone` mirror can never
+        diverge from what Supabase itself has actually confirmed
+        (rather than trusting a client-supplied value)."""
+
+        def _run() -> dict[str, Any]:
+            resp = self._client.auth.admin.get_user_by_id(str(user_id))
+            user = getattr(resp, "user", None)
+            if user is None:
+                raise ServiceUnavailableError("Supabase did not return an auth user.")
+            return {"id": str(user.id), "email": user.email, "phone": user.phone}
 
         return await asyncio.to_thread(_run)
 

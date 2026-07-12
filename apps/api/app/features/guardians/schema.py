@@ -11,10 +11,11 @@ from __future__ import annotations
 from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
+from app.core.phone import validate_phone_field
 
 _CAMEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
@@ -40,6 +41,8 @@ class GuardianCreate(GuardianBase):
 
     staff_id: UUID | None = None
 
+    _normalize_phone = field_validator("phone")(validate_phone_field)
+
     @model_validator(mode="after")
     def _email_or_phone_required(self) -> Self:
         if not self.email and not self.phone:
@@ -54,6 +57,8 @@ class GuardianUpdate(BaseModel):
     last_name: str | None = Field(None, min_length=1, max_length=255)
     email: EmailStr | None = None
     phone: str | None = Field(None, max_length=50)
+
+    _normalize_phone = field_validator("phone")(validate_phone_field)
 
 
 class GuardianRead(GuardianBase):

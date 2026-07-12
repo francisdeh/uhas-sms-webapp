@@ -1,7 +1,12 @@
 """HTTP routes for the session-user endpoint.
 
-    GET   /me   →  MeRead (any authenticated user)
-    PATCH /me   →  MeRead — self-service displayName/phone update
+    GET   /me               →  MeRead (any authenticated user)
+    PATCH /me                →  MeRead — self-service displayName update
+    POST  /me/phone/confirm  →  MeRead — mirrors Supabase's already-
+                                 OTP-confirmed phone into the linked row
+    POST  /me/email/confirm  →  MeRead — mirrors Supabase's already-
+                                 confirmed email into users.email +
+                                 the linked row
 
 Called on every dashboard render by the Next-side `getSessionUser()`
 helper — this endpoint replaces the Drizzle join across users/staff/
@@ -48,7 +53,7 @@ async def get_me(
     "",
     response_model=MeRead,
     response_model_by_alias=True,
-    summary="Update the caller's own display name and/or phone",
+    summary="Update the caller's own display name",
 )
 async def update_me(
     payload: MeUpdate,
@@ -57,6 +62,44 @@ async def update_me(
     supabase: Annotated[SupabaseAdminClient, Depends(get_supabase_admin_client)],
 ) -> MeRead:
     return await MeService.update(session, user, payload, supabase=supabase)
+
+
+@router.post(
+    "/phone/confirm",
+    response_model=MeRead,
+    response_model_by_alias=True,
+    summary="Mirror an already Supabase-confirmed phone into the caller's profile",
+)
+async def confirm_me_phone(
+    user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    supabase: Annotated[SupabaseAdminClient, Depends(get_supabase_admin_client)],
+) -> MeRead:
+    """Call after the frontend completes Supabase's own phone-change OTP
+    round trip (`updateUser({phone})` then `verifyOtp({type:
+    "phone_change"})`). Takes no body — reads the now-confirmed phone
+    straight back off Supabase Auth rather than trusting a client-
+    supplied value."""
+    return await MeService.confirm_phone(session, user, supabase=supabase)
+
+
+@router.post(
+    "/email/confirm",
+    response_model=MeRead,
+    response_model_by_alias=True,
+    summary="Mirror an already Supabase-confirmed email into the caller's profile",
+)
+async def confirm_me_email(
+    user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    supabase: Annotated[SupabaseAdminClient, Depends(get_supabase_admin_client)],
+) -> MeRead:
+    """Call after the frontend's `updateUser({email})`. Unlike phone,
+    Supabase confirms an email change via a link the user clicks in
+    their inbox, not an inline code — safe to call any time (e.g. on
+    every profile-page load) since it just mirrors whatever Supabase
+    currently has confirmed; a no-op if nothing changed."""
+    return await MeService.confirm_email(session, user, supabase=supabase)
 
 
 @router.post(

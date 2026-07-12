@@ -12,6 +12,7 @@ and let services compose the invariants.
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,7 @@ from app.core.security import CurrentUser
 from app.core.slug import insert_with_sequential_slug, per_school_slug_resolver
 from app.features.audit.actions import ROLE_CHANGE
 from app.features.audit.service import write_audit_log
+from app.features.notifications.service import NotificationsService
 from app.features.staff.model import Staff, StaffDocument, StaffQualification
 from app.features.staff.repository import StaffRepository
 from app.features.staff.schema import (
@@ -34,6 +36,7 @@ from app.features.staff.schema import (
 )
 from app.features.subjects.model import Subject
 from app.features.subjects.repository import SubjectsRepository
+from app.features.users.supabase_admin import SupabaseAdminClient
 
 _SELF_SERVICE_ROLES = frozenset({DEPUTY_HEAD, TEACHER, ACCOUNTANT})
 _SELF_SERVICE_FIELDS = frozenset({"photo_url"})
@@ -111,13 +114,20 @@ class StaffService:
         payload: StaffUpdate,
         *,
         user: CurrentUser,
+        supabase: SupabaseAdminClient,
     ) -> Staff:
         """Partial update — only fields present in `payload` are touched.
 
         Admins can touch any field on any staff row. Non-Admin staff
         (Deputy Head, Teacher, Accountant) can only patch `photo_url` on
         their own row — the profile page uses this to let each user set
-        their own avatar without a separate endpoint.
+        their own avatar without a separate endpoint. Neither `phone`
+        nor `email` is in that self-service allowlist, so a phone/email
+        change here is always Admin-driven — trusted the same way
+        Admin is already trusted to set the initial phone/email at
+        account creation, syncs straight to Supabase Auth with no
+        OTP/confirmation-link challenge (contrast
+        `MeService.confirm_phone`/`confirm_email`'s self-service paths).
         """
         if user.role != ADMIN:
             StaffService._authorize_self_service_update(staff_id, payload, user)
@@ -127,6 +137,25 @@ class StaffService:
         for field, value in changes.items():
             setattr(row, field, value)
         await session.flush()
+
+        new_phone = changes.get("phone")
+        new_email = changes.get("email")
+        if new_phone is not None or new_email is not None:
+            staff_user = await NotificationsService.find_user_for_linked(
+                session, school_id, staff_id
+            )
+            if staff_user is not None:
+                supabase_kwargs: dict[str, Any] = {}
+                if new_phone is not None:
+                    supabase_kwargs["phone"] = new_phone
+                    supabase_kwargs["phone_confirm"] = True
+                if new_email is not None:
+                    staff_user.email = new_email
+                    supabase_kwargs["email"] = new_email
+                    supabase_kwargs["email_confirm"] = True
+                await supabase.update_user_by_id(staff_user.id, **supabase_kwargs)
+                await session.flush()
+
         return row
 
     @staticmethod

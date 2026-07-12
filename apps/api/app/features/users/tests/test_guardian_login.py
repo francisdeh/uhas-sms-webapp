@@ -11,10 +11,13 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import inngest
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.inngest import inngest_client
 from app.features.guardians.model import Guardian
 from app.features.schools.model import School
 from app.features.users.model import User
@@ -22,6 +25,16 @@ from app.features.users.tests.conftest import (
     FakeSupabaseAdminClient,
     auth_header,
 )
+
+
+class _FakeSend:
+    def __init__(self) -> None:
+        self.events: list[inngest.Event] = []
+
+    async def __call__(self, event: inngest.Event) -> list[str]:
+        self.events.append(event)
+        return ["evt_fake"]
+
 
 G_EMAIL = UUID("70707070-7070-4707-8707-7070707009a1")
 G_PHONE = UUID("70707070-7070-4707-8707-7070707009a2")
@@ -95,6 +108,47 @@ async def test_provision_phone_only_guardian_creates_otp_user(
     assert call["phone"] == "gl-phone-a"
     assert call["phone_confirm"] is True
     assert call["app_metadata"]["linked_id"] == str(G_PHONE)
+
+
+async def test_provision_phone_only_emits_onboarding_sms(
+    client: AsyncClient,
+    seed_school: School,
+    db_session: AsyncSession,
+    fake_supabase: FakeSupabaseAdminClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_send = _FakeSend()
+    monkeypatch.setattr(inngest_client, "send", fake_send)
+
+    await _seed_guardian(
+        db_session, seed_school.id, guardian_id=G_PHONE, slug="G-PH", phone="gl-phone-a"
+    )
+    res = await client.post(f"/guardians/{G_PHONE}/login", headers=auth_header(role="Admin"))
+    assert res.status_code == 201, res.text
+
+    assert len(fake_send.events) == 1
+    event = fake_send.events[0]
+    assert event.name == "sms/fanout.requested"
+    assert event.data["category"] == "onboarding"
+    assert event.data["recipients"] == [{"phone": "gl-phone-a", "guardian_id": str(G_PHONE)}]
+
+
+async def test_provision_with_email_skips_onboarding_sms(
+    client: AsyncClient,
+    seed_school: School,
+    db_session: AsyncSession,
+    fake_supabase: FakeSupabaseAdminClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_send = _FakeSend()
+    monkeypatch.setattr(inngest_client, "send", fake_send)
+
+    await _seed_guardian(
+        db_session, seed_school.id, guardian_id=G_EMAIL, slug="G-EM", email="em@example.com"
+    )
+    res = await client.post(f"/guardians/{G_EMAIL}/login", headers=auth_header(role="Admin"))
+    assert res.status_code == 201, res.text
+    assert fake_send.events == []
 
 
 async def test_provision_both_invites_and_sets_phone(

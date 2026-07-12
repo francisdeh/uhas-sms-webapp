@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ForbiddenError, ValidationError
+from app.core.phone import normalize_ghana_phone
 from app.core.roles import ADMIN, PARENT
 from app.core.school_structure import Division
 from app.core.security import CurrentUser
@@ -123,10 +124,9 @@ class MeService:
         """
         changes = payload.model_dump(exclude_unset=True)
         display_name = changes.get("display_name")
-        phone = changes.get("phone")
         email_on_lesson_plan_rejected = changes.get("email_on_lesson_plan_rejected")
 
-        if display_name is not None or phone is not None:
+        if display_name is not None:
             if not user.school_id or not user.linked_id:
                 raise ValidationError("No linked staff or guardian record to update.")
             linked_uuid = UUID(user.linked_id)
@@ -137,29 +137,22 @@ class MeService:
                 )
                 if guardian is None:
                     raise ForbiddenError("Linked guardian record not found.")
-                if display_name is not None:
-                    first, _, last = display_name.partition(" ")
-                    guardian.first_name = first
-                    guardian.last_name = last
-                if phone is not None:
-                    guardian.phone = phone
+                first, _, last = display_name.partition(" ")
+                guardian.first_name = first
+                guardian.last_name = last
             else:
                 staff = await UsersRepository.find_staff_in_school(
                     session, user.school_id, linked_uuid
                 )
                 if staff is None:
                     raise ForbiddenError("Linked staff record not found.")
-                if display_name is not None:
-                    first, _, last = display_name.partition(" ")
-                    staff.first_name = first
-                    staff.last_name = last
-                if phone is not None:
-                    staff.phone = phone
+                first, _, last = display_name.partition(" ")
+                staff.first_name = first
+                staff.last_name = last
 
-            if display_name is not None:
-                await supabase.update_user_by_id(
-                    UUID(user.user_id), user_metadata={"display_name": display_name}
-                )
+            await supabase.update_user_by_id(
+                UUID(user.user_id), user_metadata={"display_name": display_name}
+            )
 
         if email_on_lesson_plan_rejected is not None:
             prefs = await session.scalar(
@@ -186,6 +179,115 @@ class MeService:
             raise ConflictError("That phone number is already in use.") from exc
 
         return await MeService.get(session, user)
+
+    @staticmethod
+    async def confirm_phone(
+        session: AsyncSession,
+        user: CurrentUser,
+        *,
+        supabase: SupabaseAdminClient,
+    ) -> MeRead:
+        """Mirror Supabase Auth's already-confirmed phone into the
+        caller's linked `staff`/`guardians` row.
+
+        Called after the frontend completes Supabase's own
+        `updateUser({phone}) -> verifyOtp({type: "phone_change"})`
+        round trip — this endpoint never accepts a phone value from
+        the request, it only ever reads back what Supabase itself has
+        already confirmed, so there's no way to use it to point a
+        login at a number the caller doesn't control.
+        """
+        if not user.school_id or not user.linked_id:
+            raise ValidationError("No linked staff or guardian record to update.")
+
+        auth_user = await supabase.get_user_by_id(UUID(user.user_id))
+        raw_phone = auth_user.get("phone")
+        if not raw_phone:
+            raise ValidationError("No confirmed phone number found on this account.")
+        # Supabase stores phone without a leading "+"; normalize so the
+        # local mirror always matches this app's canonical +233… form
+        # regardless of exactly how Supabase hands it back.
+        phone = normalize_ghana_phone(raw_phone)
+
+        linked_uuid = UUID(user.linked_id)
+        if user.role == PARENT:
+            guardian = await UsersRepository.find_guardian_in_school(
+                session, user.school_id, linked_uuid
+            )
+            if guardian is None:
+                raise ForbiddenError("Linked guardian record not found.")
+            guardian.phone = phone
+        else:
+            staff = await UsersRepository.find_staff_in_school(session, user.school_id, linked_uuid)
+            if staff is None:
+                raise ForbiddenError("Linked staff record not found.")
+            staff.phone = phone
+
+        try:
+            await session.flush()
+        except IntegrityError as exc:
+            await session.rollback()
+            raise ConflictError("That phone number is already in use.") from exc
+
+        return await MeService.get(session, user)
+
+    @staticmethod
+    async def confirm_email(
+        session: AsyncSession,
+        user: CurrentUser,
+        *,
+        supabase: SupabaseAdminClient,
+    ) -> MeRead:
+        """Mirror Supabase Auth's already-confirmed email into
+        `users.email` (and the linked `staff`/`guardians` row, if one
+        exists, for display consistency in the admin lists).
+
+        Called after the frontend's `updateUser({email})` — unlike
+        phone, Supabase confirms an email change via a link the user
+        clicks in their inbox, not an inline OTP, so there's no
+        synchronous "verify" step on this side to pair it with. Safe
+        to call any time (e.g. on every profile-page load): it just
+        mirrors Supabase's current confirmed email, a no-op if nothing
+        changed. Never accepts an email value from the request.
+        """
+        auth_user = await supabase.get_user_by_id(UUID(user.user_id))
+        email = auth_user.get("email")
+        if not email:
+            raise ValidationError("No confirmed email address found on this account.")
+
+        user_row = await session.scalar(select(User).where(User.id == UUID(user.user_id)))
+        if user_row is None:
+            raise ForbiddenError("Session has no matching user row.")
+        user_row.email = email
+
+        if user.linked_id:
+            linked_uuid = UUID(user.linked_id)
+            if user.role == PARENT:
+                guardian = await UsersRepository.find_guardian_in_school(
+                    session, user.school_id or "", linked_uuid
+                )
+                if guardian is not None:
+                    guardian.email = email
+            else:
+                staff = await UsersRepository.find_staff_in_school(
+                    session, user.school_id or "", linked_uuid
+                )
+                if staff is not None:
+                    staff.email = email
+
+        try:
+            await session.flush()
+        except IntegrityError as exc:
+            await session.rollback()
+            raise ConflictError("That email address is already in use.") from exc
+
+        # `MeService.get` prefers the JWT's `email` claim over `users.email`
+        # for the common case (it's fresher there day-to-day) — but right
+        # after a confirm, the JWT is the stale side (it won't carry the
+        # new address until the session's next refresh). Override with
+        # what we just confirmed so the response is correct immediately.
+        result = await MeService.get(session, user)
+        return result.model_copy(update={"email": email})
 
     @staticmethod
     async def deactivate(
