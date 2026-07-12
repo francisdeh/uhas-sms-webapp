@@ -39,6 +39,10 @@ export type SessionUser = {
   smsOnAppointmentActivity: boolean;
   emailOnAppointmentDecided: boolean;
   smsOnAppointmentDecided: boolean;
+  emailOnLeaveActivity: boolean;
+  smsOnLeaveActivity: boolean;
+  emailOnLeaveDecided: boolean;
+  smsOnLeaveDecided: boolean;
 };
 
 export const ROLE_DASHBOARD: Record<UserRole, string> = {

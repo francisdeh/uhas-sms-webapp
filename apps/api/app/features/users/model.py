@@ -64,6 +64,13 @@ class UserPreferences(Base):
         Boolean, nullable=False, default=True
     )
     sms_on_appointment_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Approver-facing (Admin/DeputyHead) — a staff member submitted a
+    # leave request.
+    email_on_leave_activity: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sms_on_leave_activity: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Requester-facing — their own leave request was approved/rejected.
+    email_on_leave_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sms_on_leave_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { SessionUser } from "@/features/auth/types";
-import { ADMIN, PARENT, TEACHER } from "@/features/auth/types";
+import { ADMIN, DEPUTY_HEAD, PARENT, TEACHER } from "@/features/auth/types";
 
 const profileSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -405,7 +405,11 @@ type PreferenceField =
   | "emailOnAppointmentActivity"
   | "smsOnAppointmentActivity"
   | "emailOnAppointmentDecided"
-  | "smsOnAppointmentDecided";
+  | "smsOnAppointmentDecided"
+  | "emailOnLeaveActivity"
+  | "smsOnLeaveActivity"
+  | "emailOnLeaveDecided"
+  | "smsOnLeaveDecided";
 
 type PreferenceRowConfig = {
   field: PreferenceField;
@@ -449,13 +453,41 @@ const PARENT_PREFERENCE_ROWS: PreferenceRowConfig[] = [
   },
 ];
 
+// Shared by Admin and Deputy Head — both are leave approvers, and both
+// can also submit their own leave request as a staff member, so both
+// directions (activity + decided) apply to either role identically.
+const LEAVE_APPROVER_PREFERENCE_ROWS: PreferenceRowConfig[] = [
+  {
+    field: "emailOnLeaveActivity",
+    label: "Email — Leave Requests Submitted",
+    description: "Receive an email when a staff member requests leave.",
+  },
+  {
+    field: "smsOnLeaveActivity",
+    label: "SMS — Leave Requests Submitted",
+    description: "Receive a text message when a staff member requests leave.",
+  },
+  {
+    field: "emailOnLeaveDecided",
+    label: "Email — Your Leave Requests",
+    description: "Receive an email when your own leave request is approved or rejected.",
+  },
+  {
+    field: "smsOnLeaveDecided",
+    label: "SMS — Your Leave Requests",
+    description: "Receive a text message when your own leave request is approved or rejected.",
+  },
+];
+
 function NotificationsTab({ user }: { user: SessionUser }) {
   const rows =
     user.role === TEACHER
       ? TEACHER_PREFERENCE_ROWS
       : user.role === PARENT
         ? PARENT_PREFERENCE_ROWS
-        : [];
+        : user.role === ADMIN || user.role === DEPUTY_HEAD
+          ? LEAVE_APPROVER_PREFERENCE_ROWS
+          : [];
 
   return (
     <Card className="rounded-t-none border-t-0">

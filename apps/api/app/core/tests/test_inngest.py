@@ -16,6 +16,7 @@ from app.features.exams.jobs import EXAMS_JOBS
 from app.features.fees.jobs import FEES_JOBS
 from app.features.health.jobs import HEALTH_JOBS
 from app.features.health.jobs.ping import ping_job
+from app.features.leave_requests.jobs import LEAVE_REQUESTS_JOBS
 from app.features.lesson_plans.jobs import LESSON_PLANS_JOBS
 from app.features.sms.jobs import SMS_JOBS
 from app.main import app
@@ -29,6 +30,7 @@ _ALL_JOBS = [
     *EXAMS_JOBS,
     *FEES_JOBS,
     *APPOINTMENTS_JOBS,
+    *LEAVE_REQUESTS_JOBS,
 ]
 
 

@@ -4826,6 +4826,26 @@ export interface components {
              * @default true
              */
             smsOnAppointmentDecided: boolean;
+            /**
+             * Emailonleaveactivity
+             * @default true
+             */
+            emailOnLeaveActivity: boolean;
+            /**
+             * Smsonleaveactivity
+             * @default true
+             */
+            smsOnLeaveActivity: boolean;
+            /**
+             * Emailonleavedecided
+             * @default true
+             */
+            emailOnLeaveDecided: boolean;
+            /**
+             * Smsonleavedecided
+             * @default true
+             */
+            smsOnLeaveDecided: boolean;
         };
         /**
          * MeUpdate
@@ -4859,6 +4879,14 @@ export interface components {
             emailOnAppointmentDecided?: boolean | null;
             /** Smsonappointmentdecided */
             smsOnAppointmentDecided?: boolean | null;
+            /** Emailonleaveactivity */
+            emailOnLeaveActivity?: boolean | null;
+            /** Smsonleaveactivity */
+            smsOnLeaveActivity?: boolean | null;
+            /** Emailonleavedecided */
+            emailOnLeaveDecided?: boolean | null;
+            /** Smsonleavedecided */
+            smsOnLeaveDecided?: boolean | null;
         };
         /**
          * MfaResetResponse
@@ -4919,6 +4947,16 @@ export interface components {
              * @default true
              */
             onAppointmentDecided: boolean;
+            /**
+             * Onleaveactivity
+             * @default true
+             */
+            onLeaveActivity: boolean;
+            /**
+             * Onleavedecided
+             * @default true
+             */
+            onLeaveDecided: boolean;
         };
         /**
          * NotificationRead
@@ -6085,7 +6123,7 @@ export interface components {
              * Category
              * @enum {string}
              */
-            category: "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "other";
+            category: "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "leave" | "other";
             /** Body */
             body: string;
             /**
@@ -13333,7 +13371,7 @@ export interface operations {
     list_sms_log_sms_log_get: {
         parameters: {
             query?: {
-                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "other") | null;
+                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "leave" | "other") | null;
                 page?: number;
                 size?: number;
             };
