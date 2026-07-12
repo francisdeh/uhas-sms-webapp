@@ -139,6 +139,9 @@ class SchoolBase(BaseModel):
     default_color_scheme: ColorScheme = "uhas"
     sidebar_accent_hex: Annotated[str | None, Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")]
 
+    # Leave — only Casual leave gets a balance; see leave_requests docs.
+    casual_leave_annual_days: Annotated[int, Field(ge=0, le=365)] = 21
+
 
 class SchoolUpdate(BaseModel):
     """Partial update payload for `PATCH /school`.
@@ -195,6 +198,9 @@ class SchoolUpdate(BaseModel):
     sidebar_accent_hex: Annotated[str | None, Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")] = (
         None
     )
+
+    # Leave
+    casual_leave_annual_days: Annotated[int | None, Field(default=None, ge=0, le=365)] = None
 
 
 class SchoolRead(SchoolBase):

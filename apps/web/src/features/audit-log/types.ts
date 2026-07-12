@@ -7,7 +7,8 @@ export type AuditAction =
   | "USER_DEACTIVATED"
   | "USER_REACTIVATED"
   | "ACCOUNT_SELF_DEACTIVATED"
-  | "USER_MFA_RESET";
+  | "USER_MFA_RESET"
+  | "LEAVE_DECIDED";
 
 export type AuditEventView = {
   id: string;
@@ -53,6 +54,7 @@ export const AUDIT_TARGET_TABLES = [
   "class_report_submissions",
   "staff",
   "schools",
+  "leave_requests",
 ] as const;
 
 export const AUDIT_TARGET_TABLE_LABELS: Record<(typeof AUDIT_TARGET_TABLES)[number], string> = {
@@ -66,6 +68,7 @@ export const AUDIT_TARGET_TABLE_LABELS: Record<(typeof AUDIT_TARGET_TABLES)[numb
   class_report_submissions: "Class report submissions",
   staff: "Staff",
   schools: "School settings",
+  leave_requests: "Leave requests",
 };
 
 export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
@@ -78,6 +81,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   USER_REACTIVATED: "User reactivated",
   ACCOUNT_SELF_DEACTIVATED: "Account self-deactivated",
   USER_MFA_RESET: "2FA reset",
+  LEAVE_DECIDED: "Leave decided",
 };
 
 export const AUDIT_ACTION_PILL: Record<AuditAction, string> = {
@@ -90,4 +94,5 @@ export const AUDIT_ACTION_PILL: Record<AuditAction, string> = {
   USER_REACTIVATED: "bg-green-100 text-green-700",
   ACCOUNT_SELF_DEACTIVATED: "bg-rose-100 text-rose-700",
   USER_MFA_RESET: "bg-amber-100 text-amber-700",
+  LEAVE_DECIDED: "bg-blue-100 text-blue-700",
 };

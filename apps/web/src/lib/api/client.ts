@@ -991,6 +991,21 @@ export function createApiClient(getAuthToken: TokenGetter) {
           `/leave-requests/${id}`,
           { method: "PATCH", body: JSON.stringify(payload) },
         ),
+      updateSubstitute: (
+        id: string,
+        payload: components["schemas"]["LeaveSubstituteUpdate"],
+      ) =>
+        apiFetch<components["schemas"]["LeaveRequestRead"]>(
+          getAuthToken,
+          `/leave-requests/${id}/substitute`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+        ),
+      /** Casual leave balance for the current calendar year. */
+      getBalance: (staffId: string) =>
+        apiFetch<components["schemas"]["LeaveBalanceRead"]>(
+          getAuthToken,
+          `/leave-requests/balance/${staffId}`,
+        ),
     },
     promotions: {
       /** Season header for the school's current academic year. Returns

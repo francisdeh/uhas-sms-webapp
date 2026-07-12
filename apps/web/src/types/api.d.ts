@@ -975,8 +975,9 @@ export interface paths {
         /**
          * List Leave Requests
          * @description Teachers see only their own by default (`staffId` auto-filled
-         *     from `linked_id`); Admin/Deputy see everyone unless they narrow
-         *     with `?staffId=…`.
+         *     from `linked_id`); Admin sees everyone unless narrowed with
+         *     `?staffId=…`; Deputy Head is scoped to their own division
+         *     regardless of `?staffId=…`.
          */
         get: operations["list_leave_requests_leave_requests_get"];
         put?: never;
@@ -992,6 +993,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/leave-requests/balance/{staff_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Casual leave balance for the current calendar year */
+        get: operations["get_leave_balance_leave_requests_balance__staff_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/leave-requests/{request_id}": {
         parameters: {
             query?: never;
@@ -1001,10 +1019,9 @@ export interface paths {
         };
         /**
          * Get Leave Request
-         * @description Own requests are visible; only Admin/Deputy see everyone's.
-         *
-         *     Mirrors the list-endpoint gate so a teacher can't iterate UUIDs to
-         *     read another staff member's leave.
+         * @description Own requests are visible; Admin sees everyone's; Deputy Head sees
+         *     only their own division's — enforced in the service, not just this
+         *     router (mirrors the list-endpoint gate).
          */
         get: operations["get_leave_request_leave_requests__request_id__get"];
         put?: never;
@@ -1014,6 +1031,23 @@ export interface paths {
         head?: never;
         /** Update Leave Status */
         patch: operations["update_leave_status_leave_requests__request_id__patch"];
+        trace?: never;
+    };
+    "/leave-requests/{request_id}/substitute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Assign or clear the covering staff member — Admin or Deputy Head only */
+        patch: operations["update_leave_substitute_leave_requests__request_id__substitute_patch"];
         trace?: never;
     };
     "/students/{student_id}/enrollments": {
@@ -3066,7 +3100,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED";
+            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED" | "LEAVE_DECIDED";
             /** Targettable */
             targetTable?: string | null;
             /** Targetid */
@@ -4308,6 +4342,24 @@ export interface components {
             size: number;
         };
         /**
+         * LeaveBalanceRead
+         * @description `GET /leave-requests/balance/{staffId}` — Casual leave only; see
+         *     the feature's design doc for why other types aren't balance-tracked.
+         */
+        LeaveBalanceRead: {
+            /**
+             * Staffid
+             * Format: uuid
+             */
+            staffId: string;
+            /** Entitlementdays */
+            entitlementDays: number;
+            /** Useddays */
+            usedDays: number;
+            /** Remainingdays */
+            remainingDays: number;
+        };
+        /**
          * LeaveRequestCreate
          * @description Payload from the staff dashboard's `Request Leave` form.
          *
@@ -4335,6 +4387,8 @@ export interface components {
             reason?: string | null;
             /** Staffid */
             staffId?: string | null;
+            /** Documenturls */
+            documentUrls?: string[];
         };
         /**
          * LeaveRequestRead
@@ -4386,6 +4440,14 @@ export interface components {
             approvedById?: string | null;
             /** Approvedbyname */
             approvedByName?: string | null;
+            /** Rejectionreason */
+            rejectionReason?: string | null;
+            /** Substitutestaffid */
+            substituteStaffId?: string | null;
+            /** Substitutestaffname */
+            substituteStaffName?: string | null;
+            /** Documenturls */
+            documentUrls?: string[];
             /** Createdat */
             createdAt?: string | null;
         };
@@ -4405,7 +4467,8 @@ export interface components {
         };
         /**
          * LeaveStatusUpdate
-         * @description Approve / reject / cancel — audit chain is via `approved_by_id`.
+         * @description Approve / reject / cancel — also audit-logged for approve/reject
+         *     (see `LEAVE_DECIDED`), on top of the `approved_by_id` chain.
          */
         LeaveStatusUpdate: {
             /**
@@ -4413,6 +4476,17 @@ export interface components {
              * @enum {string}
              */
             status: "pending" | "approved" | "rejected" | "cancelled";
+            /** Rejectionreason */
+            rejectionReason?: string | null;
+        };
+        /**
+         * LeaveSubstituteUpdate
+         * @description `PATCH /leave-requests/{id}/substitute` — Admin or Deputy (own
+         *     division) only. Purely informational — doesn't touch scheduling.
+         */
+        LeaveSubstituteUpdate: {
+            /** Substitutestaffid */
+            substituteStaffId?: string | null;
         };
         /** LessonPlanCounts */
         LessonPlanCounts: {
@@ -5415,6 +5489,11 @@ export interface components {
             /** Sidebaraccenthex */
             sidebarAccentHex?: string | null;
             /**
+             * Casualleaveannualdays
+             * @default 21
+             */
+            casualLeaveAnnualDays: number;
+            /**
              * Id
              * Format: uuid
              */
@@ -5507,6 +5586,8 @@ export interface components {
             defaultColorScheme?: ("default" | "uhas") | null;
             /** Sidebaraccenthex */
             sidebarAccentHex?: string | null;
+            /** Casualleaveannualdays */
+            casualLeaveAnnualDays?: number | null;
         };
         /**
          * ScoreCompletenessResponse
@@ -9737,6 +9818,39 @@ export interface operations {
             };
         };
     };
+    get_leave_balance_leave_requests_balance__staff_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveBalanceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_leave_request_leave_requests__request_id__get: {
         parameters: {
             query?: never;
@@ -9784,6 +9898,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["LeaveStatusUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_leave_substitute_leave_requests__request_id__substitute_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaveSubstituteUpdate"];
             };
         };
         responses: {
@@ -12387,7 +12538,7 @@ export interface operations {
     list_audit_events_audit_log_get: {
         parameters: {
             query?: {
-                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED") | null;
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED" | "LEAVE_DECIDED") | null;
                 userId?: string | null;
                 targetTable?: string | null;
                 targetId?: string | null;
@@ -12460,7 +12611,7 @@ export interface operations {
     export_audit_events_audit_log_export_get: {
         parameters: {
             query?: {
-                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED") | null;
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED" | "LEAVE_DECIDED") | null;
                 userId?: string | null;
                 targetTable?: string | null;
                 targetId?: string | null;

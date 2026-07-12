@@ -22,6 +22,11 @@ SCHOOL_UUID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb001")
 STAFF_REQUESTER_UUID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb101")
 STAFF_APPROVER_UUID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb102")
 STAFF_ADMIN_UUID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb103")
+# A second division's Deputy Head + staff member — for the
+# division-scope-leak regression tests.
+STAFF_OTHER_DEPUTY_UUID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb104")
+STAFF_OTHER_DIVISION_UUID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb105")
+STAFF_SUBSTITUTE_UUID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb106")
 USER_UUID = UUID("00000000-0000-0000-0000-0000000000b1")
 
 
@@ -87,7 +92,40 @@ async def seed_staff(db_session: AsyncSession, seed_school: School) -> tuple[Sta
         email="admin@uhas.edu.gh",
         is_active=True,
     )
-    db_session.add_all([requester, approver, admin])
+    other_deputy = Staff(
+        id=STAFF_OTHER_DEPUTY_UUID,
+        slug="STAFF-004",
+        school_id=SCHOOL_UUID,
+        first_name="Efua",
+        last_name="OtherDeputy",
+        system_role="DeputyHead",
+        division="Lower Primary",
+        email="other-deputy@uhas.edu.gh",
+        is_active=True,
+    )
+    other_division_staff = Staff(
+        id=STAFF_OTHER_DIVISION_UUID,
+        slug="STAFF-005",
+        school_id=SCHOOL_UUID,
+        first_name="Kojo",
+        last_name="OtherDivision",
+        system_role="Teacher",
+        division="Lower Primary",
+        email="other-division@uhas.edu.gh",
+        is_active=True,
+    )
+    substitute = Staff(
+        id=STAFF_SUBSTITUTE_UUID,
+        slug="STAFF-006",
+        school_id=SCHOOL_UUID,
+        first_name="Yaa",
+        last_name="Substitute",
+        system_role="Teacher",
+        division="JHS",
+        email="substitute@uhas.edu.gh",
+        is_active=True,
+    )
+    db_session.add_all([requester, approver, admin, other_deputy, other_division_staff, substitute])
     await db_session.flush()
     return requester, approver, admin
 

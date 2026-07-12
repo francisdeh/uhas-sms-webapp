@@ -1,12 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CalendarOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,40 +25,95 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useUpdateLeaveStatus } from "@/features/leave-requests/hooks/use-leave-requests";
+import {
+  useLeaveBalance,
+  useUpdateLeaveStatus,
+  useUpdateLeaveSubstitute,
+} from "@/features/leave-requests/hooks/use-leave-requests";
+import { useStaffList } from "@/features/staff/hooks/use-staff";
+import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
+import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/dates";
-import type { LeaveRequest } from "@/features/attendance/types";
+import type { LeaveRequest, LeaveRequestStatus, LeaveType } from "@/features/attendance/types";
 
 interface LeaveRequestListProps {
   requests: LeaveRequest[];
-  currentUserId: string;
-  currentUserName: string;
 }
 
 function formatDateRange(start: string, end: string): string {
   return start === end ? formatDate(start) : `${formatDate(start)} – ${formatDate(end)}`;
 }
 
-const leaveTypePill: Record<string, string> = {
-  sick: "bg-red-100 text-red-700",
-  maternity: "bg-pink-100 text-pink-700",
-  personal: "bg-blue-100 text-blue-700",
-  other: "bg-gray-100 text-gray-600",
+const leaveTypePill: Record<LeaveType, string> = {
+  Casual: "bg-blue-100 text-blue-700",
+  Sick: "bg-red-100 text-red-700",
+  Maternity: "bg-pink-100 text-pink-700",
+  Paternity: "bg-pink-100 text-pink-700",
+  Study: "bg-purple-100 text-purple-700",
+  Compassionate: "bg-slate-100 text-slate-700",
+  Other: "bg-gray-100 text-gray-600",
 };
 
-const statusPill: Record<string, string> = {
+const statusPill: Record<LeaveRequestStatus, string> = {
   pending: "bg-amber-100 text-amber-700",
   approved: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
+  cancelled: "bg-gray-100 text-gray-600",
 };
 
-export function LeaveRequestList({
-  requests: initialRequests,
-  currentUserId,
-  currentUserName,
-}: LeaveRequestListProps) {
-  const [requests, setRequests] = useState<LeaveRequest[]>(initialRequests);
-  const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+function CasualBalanceHint({ staffId }: { staffId: string }) {
+  const { data: balance } = useLeaveBalance(staffId);
+  if (!balance) return null;
+  return (
+    <p className="text-xs text-muted-foreground mt-0.5">
+      {balance.remainingDays} of {balance.entitlementDays} Casual days remaining this year
+    </p>
+  );
+}
+
+function SubstitutePicker({ request }: { request: LeaveRequest }) {
+  const router = useRouter();
+  const { data: staffList } = useStaffList({ activeOnly: true, size: 200 });
+  const updateSubstitute = useUpdateLeaveSubstitute();
+  const options = (staffList?.items ?? []).filter((s) => s.id !== request.staffId);
+
+  async function onValueChange(v: string | null) {
+    if (!v) return;
+    try {
+      await updateSubstitute.mutateAsync({
+        id: request.id,
+        payload: { substituteStaffId: v === "none" ? null : v },
+      });
+      router.refresh();
+    } catch {
+      /* toast handled inside the hook */
+    }
+  }
+
+  return (
+    <Select
+      value={request.substituteStaffId ?? "none"}
+      onValueChange={onValueChange}
+      disabled={updateSubstitute.isPending}
+    >
+      <SelectTrigger className="h-7 text-xs w-[160px]">
+        <SelectValue placeholder="Assign cover" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">No substitute</SelectItem>
+        {options.map((s) => (
+          <SelectItem key={s.id} value={s.id}>
+            {s.firstName} {s.lastName}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export function LeaveRequestList({ requests }: LeaveRequestListProps) {
+  const router = useRouter();
+  const [filter, setFilter] = useState<"all" | LeaveRequestStatus>("all");
   const [rejectionInputs, setRejectionInputs] = useState<Record<string, string>>({});
   const [approveDialogId, setApproveDialogId] = useState<string | null>(null);
   const [rejectDialogId, setRejectDialogId] = useState<string | null>(null);
@@ -60,27 +123,12 @@ export function LeaveRequestList({
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
   const filtered = requests.filter((r) => filter === "all" || r.status === filter);
-  // Rejection reason isn't in the FastAPI shape yet; kept for future
-  // when we add an audit/notes field. The frontend still collects it
-  // so the UX doesn't regress.
-  void currentUserName;
 
   async function handleApprove(id: string) {
     try {
       await updateStatus.mutateAsync({ id, payload: { status: "approved" } });
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === id
-            ? {
-                ...r,
-                status: "approved",
-                approvedById: currentUserId,
-                approvedByName: currentUserName,
-              }
-            : r
-        )
-      );
       setApproveDialogId(null);
+      router.refresh();
     } catch {
       /* toast handled inside the hook */
     }
@@ -88,13 +136,12 @@ export function LeaveRequestList({
 
   async function handleReject(id: string, reason?: string) {
     try {
-      await updateStatus.mutateAsync({ id, payload: { status: "rejected" } });
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, status: "rejected", rejectionReason: reason } : r
-        )
-      );
+      await updateStatus.mutateAsync({
+        id,
+        payload: { status: "rejected", rejectionReason: reason || null },
+      });
       setRejectDialogId(null);
+      router.refresh();
     } catch {
       /* toast handled inside the hook */
     }
@@ -111,7 +158,7 @@ export function LeaveRequestList({
       </div>
 
       <div className="flex gap-2 mb-4">
-        {(["all", "pending", "approved", "rejected"] as const).map((f) => (
+        {(["all", "pending", "approved", "rejected", "cancelled"] as const).map((f) => (
           <Button
             key={f}
             size="sm"
@@ -154,6 +201,7 @@ export function LeaveRequestList({
                     <p className="text-sm text-muted-foreground mt-0.5">
                       {formatDateRange(request.startDate, request.endDate)}
                     </p>
+                    {request.type === "Casual" && <CasualBalanceHint staffId={request.staffId} />}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
@@ -190,8 +238,23 @@ export function LeaveRequestList({
                   <p className="text-sm text-muted-foreground mt-2 truncate">{request.reason}</p>
                 )}
 
+                {request.documentUrls.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {request.documentUrls.map((path) => (
+                      <ClientDocumentDownloadLink key={path} storagePath={path} variant="inline" />
+                    ))}
+                  </div>
+                )}
+
                 {request.status === "rejected" && request.rejectionReason && (
                   <p className="text-xs text-red-600 mt-1">Reason: {request.rejectionReason}</p>
+                )}
+
+                {(request.status === "pending" || request.status === "approved") && (
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/40">
+                    <span className="text-xs text-muted-foreground">Cover:</span>
+                    <SubstitutePicker request={request} />
+                  </div>
                 )}
               </CardContent>
             </Card>

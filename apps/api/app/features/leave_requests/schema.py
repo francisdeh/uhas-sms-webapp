@@ -34,6 +34,7 @@ class LeaveRequestCreate(BaseModel):
     end_date: date
     reason: str | None = Field(None, max_length=2000)
     staff_id: UUID | None = None
+    document_urls: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _end_after_start(self) -> Self:
@@ -43,11 +44,36 @@ class LeaveRequestCreate(BaseModel):
 
 
 class LeaveStatusUpdate(BaseModel):
-    """Approve / reject / cancel — audit chain is via `approved_by_id`."""
+    """Approve / reject / cancel — also audit-logged for approve/reject
+    (see `LEAVE_DECIDED`), on top of the `approved_by_id` chain."""
 
     model_config = _CAMEL_CONFIG
 
     status: LeaveStatus
+    # Only meaningful when status="rejected"; validated in the service
+    # rather than here since it depends on the sibling field.
+    rejection_reason: str | None = Field(None, max_length=2000)
+
+
+class LeaveSubstituteUpdate(BaseModel):
+    """`PATCH /leave-requests/{id}/substitute` — Admin or Deputy (own
+    division) only. Purely informational — doesn't touch scheduling."""
+
+    model_config = _CAMEL_CONFIG
+
+    substitute_staff_id: UUID | None = None
+
+
+class LeaveBalanceRead(BaseModel):
+    """`GET /leave-requests/balance/{staffId}` — Casual leave only; see
+    the feature's design doc for why other types aren't balance-tracked."""
+
+    model_config = _CAMEL_CONFIG
+
+    staff_id: UUID
+    entitlement_days: int
+    used_days: int
+    remaining_days: int
 
 
 class LeaveRequestRead(BaseModel):
@@ -67,6 +93,10 @@ class LeaveRequestRead(BaseModel):
     status: LeaveStatus
     approved_by_id: UUID | None = None
     approved_by_name: str | None = None
+    rejection_reason: str | None = None
+    substitute_staff_id: UUID | None = None
+    substitute_staff_name: str | None = None
+    document_urls: list[str] = Field(default_factory=list)
     created_at: datetime | None = None
 
 

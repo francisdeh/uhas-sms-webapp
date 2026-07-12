@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,17 +18,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
 import { useCreateLeaveRequest } from "@/features/leave-requests/hooks/use-leave-requests";
-import type { components } from "@/types/api";
-
-// API leave-type union — inferred from the wire so we don't hardcode.
-type ApiLeaveType = components["schemas"]["LeaveRequestCreate"]["type"];
+import { LeaveDocumentFiles } from "@/features/attendance/components/LeaveDocumentFiles";
+import { LEAVE_TYPES } from "@/features/attendance/types";
 
 const schema = z
   .object({
-    type: z.enum(
-      ["Sick", "Maternity", "Casual", "Paternity", "Study", "Compassionate", "Other"],
-      { message: "Select a leave type" }
-    ),
+    type: z.enum(LEAVE_TYPES, { message: "Select a leave type" }),
     startDate: z.string().min(1, { message: "Start date is required" }),
     endDate: z.string().min(1, { message: "End date is required" }),
     reason: z.string().optional(),
@@ -40,13 +36,26 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 interface LeaveRequestFormProps {
-  /** Kept for compatibility; the API now derives requester from the JWT. */
+  /** Owns any uploaded documents; the API derives the requester from
+   *  the JWT for the request itself. */
   staffId?: string;
   staffName?: string;
 }
 
+const LEAVE_TYPE_LABELS: Record<(typeof LEAVE_TYPES)[number], string> = {
+  Casual: "Casual Leave",
+  Sick: "Sick Leave",
+  Maternity: "Maternity Leave",
+  Paternity: "Paternity Leave",
+  Study: "Study Leave",
+  Compassionate: "Compassionate Leave",
+  Other: "Other",
+};
+
 export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) {
   const create = useCreateLeaveRequest();
+  const [documentUrls, setDocumentUrls] = useState<string[]>([]);
+  void staffName;
 
   const {
     register,
@@ -66,19 +75,17 @@ export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) 
   });
 
   const leaveType = useWatch({ control, name: "type" });
-  // The API derives the requester from the JWT; these props exist for
-  // backwards compat with the current page renders.
-  void staffId;
-  void staffName;
 
   async function onSubmit(values: FormValues) {
     await create.mutateAsync({
-      type: values.type as ApiLeaveType,
+      type: values.type,
       startDate: values.startDate,
       endDate: values.endDate,
       reason: values.reason || null,
+      documentUrls,
     });
     reset();
+    setDocumentUrls([]);
   }
 
   return (
@@ -100,13 +107,11 @@ export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) 
                 <SelectValue placeholder="Select leave type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Sick">Sick Leave</SelectItem>
-                <SelectItem value="Maternity">Maternity Leave</SelectItem>
-                <SelectItem value="Paternity">Paternity Leave</SelectItem>
-                <SelectItem value="Casual">Casual Leave</SelectItem>
-                <SelectItem value="Study">Study Leave</SelectItem>
-                <SelectItem value="Compassionate">Compassionate Leave</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
+                {LEAVE_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {LEAVE_TYPE_LABELS[t]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {errors.type && (
@@ -149,6 +154,14 @@ export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) 
               rows={3}
             />
           </div>
+
+          {staffId && (
+            <LeaveDocumentFiles
+              ownerId={staffId}
+              value={documentUrls}
+              onChange={setDocumentUrls}
+            />
+          )}
 
           <Button type="submit" className="w-full" disabled={create.isPending}>
             {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
