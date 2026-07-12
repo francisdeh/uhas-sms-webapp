@@ -16,6 +16,7 @@ import {
   ArrowUpRight,
   History,
   Wallet,
+  CalendarOff,
 } from "lucide-react";
 import type { UserRole, SessionUser } from "@/features/auth/types";
 import { TEACHER } from "@/features/auth/types";
@@ -34,6 +35,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
           { label: "Students", href: "/admin/students", icon: GraduationCap },
           { label: "Staff", href: "/admin/staff", icon: UserCog },
           { label: "Users", href: "/admin/users", icon: Users },
+          { label: "Leave", href: "/admin/leave", icon: CalendarOff },
         ],
       },
       {
@@ -75,6 +77,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
         groupLabel: "People",
         items: [
           { label: "Students", href: "/deputy-head/students", icon: GraduationCap },
+          { label: "Leave", href: "/deputy-head/leave", icon: CalendarOff },
         ],
       },
       {
@@ -118,6 +121,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
           { label: "Examinations", href: "/teacher/examinations", icon: FileText },
           { label: "Class Reports", href: "/teacher/class-reports", icon: ClipboardList },
           { label: "Promotions", href: "/teacher/promotions", icon: ArrowUpRight },
+          { label: "Leave", href: "/teacher/leave", icon: CalendarOff },
         ],
       },
       {
