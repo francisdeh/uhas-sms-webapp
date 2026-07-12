@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import AsyncIterator
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -80,7 +80,12 @@ GUARDIAN_UUID = UUID("33333333-3333-4333-8333-333333330601")
 # Published Term-3 EndOfTerm exam.
 EXAM_UUID = UUID("33333333-3333-4333-8333-333333330701")
 
-TODAY = date.today()
+# Matches `ReportsService._today()` exactly (UTC, not local machine
+# time) — `date.today()` disagrees with it for ~2 hours a day whenever
+# local time has already rolled to the next calendar day but UTC
+# hasn't, which made `test_school_stats_admin`'s "today's attendance"
+# assertion flaky depending on what time of day the suite ran.
+TODAY = datetime.now(UTC).date()
 
 
 @pytest_asyncio.fixture

@@ -17,6 +17,7 @@ import {
   UserCheck,
   Pencil,
   RefreshCw,
+  GraduationCap,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,10 @@ import { api, ApiError } from "@/lib/api/browser";
 import { TEACHER_RANKS, type Staff } from "@/features/staff/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
-import { STAFF_SYSTEM_ROLES, ROLE_LABELS } from "@/features/auth/types";
+import { STAFF_SYSTEM_ROLES, ROLE_LABELS, ADMIN, DEPUTY_HEAD, TEACHER } from "@/features/auth/types";
+import { SubjectExpertiseCard } from "@/features/staff/components/SubjectExpertiseCard";
+import { QualificationsCard } from "@/features/staff/components/QualificationsCard";
+import { StaffDocumentsCard } from "@/features/staff/components/StaffDocumentsCard";
 
 const ROLE_AVATAR: Record<Staff["systemRole"], string> = {
   Admin: "from-purple-400 to-purple-600",
@@ -85,6 +89,7 @@ const editSchema = z.object({
   phone: z.string().min(7, { message: "Min 7 characters" }),
   email: z.string().email({ message: "Enter a valid email" }),
   photoUrl: z.string().optional(),
+  hireDate: z.string().optional(),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
@@ -98,7 +103,7 @@ const changeRoleSchema = z
   })
   .refine(
     (data) => {
-      if (data.systemRole === "DeputyHead" || data.systemRole === "Teacher") {
+      if (data.systemRole === DEPUTY_HEAD || data.systemRole === TEACHER) {
         return !!data.division;
       }
       return true;
@@ -146,6 +151,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
       phone: staff.phone,
       email: staff.email,
       photoUrl: staff.photoUrl ?? "",
+      hireDate: staff.hireDate ?? "",
     },
   });
 
@@ -158,7 +164,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
   });
 
   const watchedRole = useWatch({ control: roleForm.control, name: "systemRole" });
-  const showDivision = watchedRole === "DeputyHead" || watchedRole === "Teacher";
+  const showDivision = watchedRole === DEPUTY_HEAD || watchedRole === TEACHER;
 
   const editMutation = useMutation({
     mutationFn: (data: EditFormValues) =>
@@ -169,6 +175,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
         phone: data.phone,
         email: data.email,
         photoUrl: data.photoUrl || null,
+        hireDate: data.hireDate || null,
       }),
     onSuccess: () => {
       setEditOpen(false);
@@ -336,6 +343,9 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
             <TabsTrigger value="access" className="cursor-pointer px-4">
               <ShieldCheck size={14} className="mr-1.5" /> Access
             </TabsTrigger>
+            <TabsTrigger value="depth" className="cursor-pointer px-4">
+              <GraduationCap size={14} className="mr-1.5" /> Qualifications
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -356,6 +366,10 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                     <InfoRow label="Phone" value={staff.phone} />
                     <InfoRow label="Email" value={staff.email} />
                     <InfoRow label="Enrolled" value={formatStudentDate(staff.createdAt)} />
+                    <InfoRow
+                      label="Hire Date"
+                      value={staff.hireDate ? formatStudentDate(staff.hireDate) : null}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -399,6 +413,22 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                   </div>
                 </CardContent>
               </Card>
+            </motion.div>
+          </AnimatePresence>
+        </TabsContent>
+
+        <TabsContent value="depth">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key="depth"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
+              className="space-y-4"
+            >
+              <SubjectExpertiseCard staffId={staff.id} />
+              <QualificationsCard staffId={staff.id} />
+              <StaffDocumentsCard staffId={staff.id} canManage />
             </motion.div>
           </AnimatePresence>
         </TabsContent>
@@ -478,6 +508,12 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                 <Input id="edit-email" type="email" {...editForm.register("email")} />
                 <FieldError errors={[editForm.formState.errors.email]} />
               </Field>
+
+              <Field>
+                <FieldLabel htmlFor="edit-hireDate">Hire Date</FieldLabel>
+                <Input id="edit-hireDate" type="date" {...editForm.register("hireDate")} />
+                <FieldError errors={[editForm.formState.errors.hireDate]} />
+              </Field>
             </FieldGroup>
 
             <DialogFooter className="mt-4">
@@ -512,7 +548,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                       onValueChange={(v) => {
                         if (v) {
                           field.onChange(v);
-                          if (v === "Admin") {
+                          if (v === ADMIN) {
                             roleForm.setValue("division", undefined);
                           }
                         }

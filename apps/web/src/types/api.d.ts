@@ -268,6 +268,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/staff/{staff_id}/subjects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Subjects this staff member is qualified to teach */
+        get: operations["list_staff_subjects_staff__staff_id__subjects_get"];
+        /** Replace this staff member's subject expertise — Admin only */
+        put: operations["replace_staff_subjects_staff__staff_id__subjects_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff/{staff_id}/qualifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Staff Qualifications */
+        get: operations["list_staff_qualifications_staff__staff_id__qualifications_get"];
+        put?: never;
+        /** Add a qualification — Admin only */
+        post: operations["add_staff_qualification_staff__staff_id__qualifications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff/{staff_id}/qualifications/{qualification_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a qualification — Admin only */
+        delete: operations["remove_staff_qualification_staff__staff_id__qualifications__qualification_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff/{staff_id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A staff member's documents — Admin any, staff their own only */
+        get: operations["list_staff_documents_staff__staff_id__documents_get"];
+        put?: never;
+        /** Upload a document for a staff member — Admin only */
+        post: operations["add_staff_document_staff__staff_id__documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff/{staff_id}/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a staff member's document — Admin only */
+        delete: operations["remove_staff_document_staff__staff_id__documents__document_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/guardians": {
         parameters: {
             query?: never;
@@ -5940,6 +6028,54 @@ export interface components {
             email: string;
             /** Photourl */
             photoUrl?: string | null;
+            /** Hiredate */
+            hireDate?: string | null;
+        };
+        /**
+         * StaffDocumentCreate
+         * @description `POST /staff/{id}/documents` — Admin only.
+         */
+        StaffDocumentCreate: {
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "Certificate" | "Contract" | "National ID" | "CV" | "Other";
+            /** Otherlabel */
+            otherLabel?: string | null;
+            /** Storagepath */
+            storagePath: string;
+        };
+        /** StaffDocumentRead */
+        StaffDocumentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Staffid
+             * Format: uuid
+             */
+            staffId: string;
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "Certificate" | "Contract" | "National ID" | "CV" | "Other";
+            /** Otherlabel */
+            otherLabel?: string | null;
+            /** Storagepath */
+            storagePath: string;
+            /**
+             * Uploadedbyid
+             * Format: uuid
+             */
+            uploadedById: string;
+            /** Uploadedbyname */
+            uploadedByName: string;
+            /** Createdat */
+            createdAt?: string | null;
         };
         /** StaffHit */
         StaffHit: {
@@ -5968,6 +6104,39 @@ export interface components {
             page: number;
             /** Size */
             size: number;
+        };
+        /**
+         * StaffQualificationCreate
+         * @description `POST /staff/{id}/qualifications` — Admin only.
+         */
+        StaffQualificationCreate: {
+            /** Name */
+            name: string;
+            /** Institution */
+            institution?: string | null;
+            /** Yearobtained */
+            yearObtained?: number | null;
+        };
+        /** StaffQualificationRead */
+        StaffQualificationRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Staffid
+             * Format: uuid
+             */
+            staffId: string;
+            /** Name */
+            name: string;
+            /** Institution */
+            institution?: string | null;
+            /** Yearobtained */
+            yearObtained?: number | null;
+            /** Createdat */
+            createdAt?: string | null;
         };
         /**
          * StaffRead
@@ -5999,6 +6168,8 @@ export interface components {
             email?: string | null;
             /** Photourl */
             photoUrl?: string | null;
+            /** Hiredate */
+            hireDate?: string | null;
             /**
              * Id
              * Format: uuid
@@ -6066,6 +6237,8 @@ export interface components {
             email?: string | null;
             /** Photourl */
             photoUrl?: string | null;
+            /** Hiredate */
+            hireDate?: string | null;
         };
         /**
          * StudentAttendanceCalendarEntry
@@ -6469,6 +6642,29 @@ export interface components {
             category: ("Core" | "Elective" | "Optional") | null;
             /** Slug */
             slug: string;
+        };
+        /**
+         * SubjectExpertiseRead
+         * @description One subject a staff member is qualified to teach.
+         */
+        SubjectExpertiseRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * SubjectExpertiseUpdate
+         * @description `PUT /staff/{id}/subjects` — full-replace, not incremental.
+         */
+        SubjectExpertiseUpdate: {
+            /** Subjectids */
+            subjectIds?: string[];
         };
         /** SubjectRead */
         SubjectRead: {
@@ -7369,6 +7565,284 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_staff_subjects_staff__staff_id__subjects_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectExpertiseRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_staff_subjects_staff__staff_id__subjects_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubjectExpertiseUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectExpertiseRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_staff_qualifications_staff__staff_id__qualifications_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffQualificationRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_staff_qualification_staff__staff_id__qualifications_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffQualificationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffQualificationRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_staff_qualification_staff__staff_id__qualifications__qualification_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+                qualification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffQualificationRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_staff_documents_staff__staff_id__documents_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffDocumentRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_staff_document_staff__staff_id__documents_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffDocumentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffDocumentRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_staff_document_staff__staff_id__documents__document_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffDocumentRead"][];
                 };
             };
             /** @description Validation Error */

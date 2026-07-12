@@ -17,7 +17,7 @@ import { getShellConfig } from "@/features/shell/role-config";
 import { api } from "@/lib/api/browser";
 import type { GlobalSearchResults } from "@/features/shell/types";
 import type { SessionUser, UserRole } from "@/features/auth/types";
-import { ROLE_DASHBOARD } from "@/features/auth/types";
+import { ROLE_DASHBOARD, ADMIN, DEPUTY_HEAD, TEACHER, PARENT } from "@/features/auth/types";
 
 const RECENT_KEY = "uhas_recent_searches";
 const MAX_RECENT = 5;
@@ -28,21 +28,21 @@ const MAX_RECENT = 5;
 // Falls back to the closest relevant page rather than a hardcoded
 // `/admin/*` path, which `proxy.ts` redirects non-Admins away from.
 function studentHref(role: UserRole, id: string): string {
-  if (role === "Admin") return `/admin/students/${id}`;
-  if (role === "DeputyHead") return `/deputy-head/students/${id}`;
-  if (role === "Parent") return "/parent/children";
-  if (role === "Teacher") return "/teacher/classes";
+  if (role === ADMIN) return `/admin/students/${id}`;
+  if (role === DEPUTY_HEAD) return `/deputy-head/students/${id}`;
+  if (role === PARENT) return "/parent/children";
+  if (role === TEACHER) return "/teacher/classes";
   return ROLE_DASHBOARD[role];
 }
 
 function staffHref(role: UserRole, id: string): string {
-  if (role === "Admin") return `/admin/staff/${id}`;
+  if (role === ADMIN) return `/admin/staff/${id}`;
   return ROLE_DASHBOARD[role];
 }
 
 function classHref(role: UserRole, id: string): string {
-  if (role === "Admin") return `/admin/classes/${id}`;
-  if (role === "DeputyHead") return `/deputy-head/classes/${id}`;
+  if (role === ADMIN) return `/admin/classes/${id}`;
+  if (role === DEPUTY_HEAD) return `/deputy-head/classes/${id}`;
   return ROLE_DASHBOARD[role];
 }
 

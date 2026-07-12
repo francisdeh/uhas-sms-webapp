@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { api, ApiError } from "@/lib/api/browser";
 import type { ManagedUser } from "@/features/auth/types";
-import { USER_ROLES, ROLE_LABELS, type UserRole } from "@/features/auth/types";
+import { USER_ROLES, ROLE_LABELS, ADMIN, PARENT, type UserRole } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
 const ROLES = USER_ROLES;
@@ -112,7 +112,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
   const [roleFilter, setRoleFilter] = useState<UserRole | "All">("All");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
 
-  const isParentRole = form.role === "Parent";
+  const isParentRole = form.role === PARENT;
   const { data: staffData, isLoading: staffLoading } = useStaffList(
     { activeOnly: true, size: 200 },
     { enabled: dialogOpen && !isParentRole },
@@ -228,8 +228,8 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
 
   const total = users.length;
   const active = users.filter((u) => u.isActive).length;
-  const staff = users.filter((u) => u.role !== "Parent").length;
-  const admins = users.filter((u) => u.role === "Admin").length;
+  const staff = users.filter((u) => u.role !== PARENT).length;
+  const admins = users.filter((u) => u.role === ADMIN).length;
 
   const displayedUsers = users.filter((u) => {
     const roleMatch = roleFilter === "All" || u.role === roleFilter;

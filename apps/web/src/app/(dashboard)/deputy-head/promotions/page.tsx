@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { PromotionSubmissionStatus } from "@/features/promotions/types";
+import { DEPUTY_HEAD } from "@/features/auth/types";
 
 function statusPill(status: PromotionSubmissionStatus) {
   switch (status) {
@@ -28,7 +29,7 @@ function statusPill(status: PromotionSubmissionStatus) {
 
 export default async function DeputyHeadPromotionsPage() {
   const user = await getSessionUser();
-  if (!user || user.role !== "DeputyHead" || !user.linkedId) redirect("/login");
+  if (!user || user.role !== DEPUTY_HEAD || !user.linkedId) redirect("/login");
 
   const division = await getDeputyHeadDivision(user.linkedId);
   if (!division) {

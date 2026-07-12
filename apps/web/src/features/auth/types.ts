@@ -1,5 +1,14 @@
 export type UserRole = "Admin" | "DeputyHead" | "Teacher" | "Parent" | "Accountant";
 
+// Mirrors app/core/roles.py's individual Final constants (ADMIN,
+// DEPUTY_HEAD, etc). Use these instead of comparing against bare
+// string literals like `role === "DeputyHead"`.
+export const ADMIN: UserRole = "Admin";
+export const DEPUTY_HEAD: UserRole = "DeputyHead";
+export const TEACHER: UserRole = "Teacher";
+export const PARENT: UserRole = "Parent";
+export const ACCOUNTANT: UserRole = "Accountant";
+
 export const USER_ROLES: UserRole[] = ["Admin", "DeputyHead", "Teacher", "Parent", "Accountant"];
 
 // Subset of UserRole that excludes Parent. Used wherever a query needs to

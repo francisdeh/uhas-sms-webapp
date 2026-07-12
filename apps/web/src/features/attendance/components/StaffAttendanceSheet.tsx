@@ -20,6 +20,7 @@ import type {
 } from "@/features/attendance/types";
 import type { Staff } from "@/features/staff/types";
 import type { Division } from "@/features/auth/types";
+import { ADMIN, DEPUTY_HEAD } from "@/features/auth/types";
 import type { components } from "@/types/api";
 
 /** UI-side status → API status. `on_leave` → `OnLeave`. */
@@ -70,8 +71,8 @@ function buildInitialRows(
 }
 
 function avatarGradient(role: Staff["systemRole"]): string {
-  if (role === "Admin") return "from-gray-400 to-gray-600";
-  if (role === "DeputyHead") return "from-purple-400 to-purple-600";
+  if (role === ADMIN) return "from-gray-400 to-gray-600";
+  if (role === DEPUTY_HEAD) return "from-purple-400 to-purple-600";
   return "from-green-400 to-green-600";
 }
 

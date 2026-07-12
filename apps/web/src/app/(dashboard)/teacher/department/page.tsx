@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/api/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TEACHER } from "@/features/auth/types";
 
 export default async function TeacherDepartmentPage() {
   const user = await getSessionUser();
@@ -50,7 +51,7 @@ export default async function TeacherDepartmentPage() {
 
   const staffRes = await api.staff.list({ activeOnly: true, size: 200 });
   const teachers = staffRes.items.filter(
-    (s) => s.division === division && s.systemRole === "Teacher"
+    (s) => s.division === division && s.systemRole === TEACHER
   );
 
   const teachersMap = await getClassTeachersFor(classIds);

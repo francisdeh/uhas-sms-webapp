@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { PromotionSubmissionStatus } from "@/features/promotions/types";
+import { TEACHER } from "@/features/auth/types";
 
 function statusPill(status: PromotionSubmissionStatus | undefined) {
   switch (status) {
@@ -38,7 +39,7 @@ function statusPill(status: PromotionSubmissionStatus | undefined) {
 
 export default async function TeacherPromotionsPage() {
   const user = await getSessionUser();
-  if (!user || user.role !== "Teacher" || !user.linkedId) redirect("/login");
+  if (!user || user.role !== TEACHER || !user.linkedId) redirect("/login");
 
   const api = await getApi();
   const [season, classesRes] = await Promise.all([

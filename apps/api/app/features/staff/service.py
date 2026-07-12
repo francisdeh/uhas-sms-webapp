@@ -22,14 +22,18 @@ from app.core.security import CurrentUser
 from app.core.slug import insert_with_sequential_slug, per_school_slug_resolver
 from app.features.audit.actions import ROLE_CHANGE
 from app.features.audit.service import write_audit_log
-from app.features.staff.model import Staff
+from app.features.staff.model import Staff, StaffDocument, StaffQualification
 from app.features.staff.repository import StaffRepository
 from app.features.staff.schema import (
     StaffCreate,
+    StaffDocumentCreate,
+    StaffQualificationCreate,
     StaffRoleChange,
     StaffUnitHeadToggle,
     StaffUpdate,
 )
+from app.features.subjects.model import Subject
+from app.features.subjects.repository import SubjectsRepository
 
 _SELF_SERVICE_ROLES = frozenset({DEPUTY_HEAD, TEACHER, ACCOUNTANT})
 _SELF_SERVICE_FIELDS = frozenset({"photo_url"})
@@ -207,3 +211,113 @@ class StaffService:
         row.is_active = active
         await session.flush()
         return row
+
+    # ── subject expertise ───────────────────────────────────────────────
+
+    @staticmethod
+    async def list_subject_expertise(
+        session: AsyncSession, school_id: UUID | str, staff_id: UUID | str
+    ) -> list[Subject]:
+        await StaffService.get(session, school_id, staff_id)  # 404 if missing
+        return await StaffRepository.list_subject_expertise(session, staff_id)
+
+    @staticmethod
+    async def replace_subject_expertise(
+        session: AsyncSession, school_id: UUID | str, staff_id: UUID | str, subject_ids: list[UUID]
+    ) -> list[Subject]:
+        await StaffService.get(session, school_id, staff_id)  # 404 if missing
+        for subject_id in subject_ids:
+            if not await SubjectsRepository.get_by_id(session, school_id, subject_id):
+                raise ValidationError(f"Subject {subject_id!r} not found in this school.")
+        await StaffRepository.replace_subject_expertise(session, staff_id, subject_ids)
+        return await StaffRepository.list_subject_expertise(session, staff_id)
+
+    # ── qualifications ───────────────────────────────────────────────────
+
+    @staticmethod
+    async def list_qualifications(
+        session: AsyncSession, school_id: UUID | str, staff_id: UUID | str
+    ) -> list[StaffQualification]:
+        await StaffService.get(session, school_id, staff_id)  # 404 if missing
+        return await StaffRepository.list_qualifications(session, staff_id)
+
+    @staticmethod
+    async def add_qualification(
+        session: AsyncSession,
+        school_id: UUID | str,
+        staff_id: UUID | str,
+        payload: StaffQualificationCreate,
+    ) -> list[StaffQualification]:
+        await StaffService.get(session, school_id, staff_id)  # 404 if missing
+        qualification = StaffQualification(
+            school_id=school_id,
+            staff_id=staff_id,
+            name=payload.name,
+            institution=payload.institution,
+            year_obtained=payload.year_obtained,
+        )
+        await StaffRepository.insert_qualification(session, qualification)
+        return await StaffRepository.list_qualifications(session, staff_id)
+
+    @staticmethod
+    async def remove_qualification(
+        session: AsyncSession,
+        school_id: UUID | str,
+        staff_id: UUID | str,
+        qualification_id: UUID | str,
+    ) -> list[StaffQualification]:
+        await StaffService.get(session, school_id, staff_id)  # 404 if missing
+        qualification = await StaffRepository.get_qualification(
+            session, school_id, qualification_id
+        )
+        if qualification is None or str(qualification.staff_id) != str(staff_id):
+            raise NotFoundError(f"Qualification {qualification_id!r} not found.")
+        await StaffRepository.delete_qualification(session, qualification)
+        return await StaffRepository.list_qualifications(session, staff_id)
+
+    # ── documents ────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def list_documents(
+        session: AsyncSession, school_id: UUID | str, staff_id: UUID | str, *, user: CurrentUser
+    ) -> list[tuple[StaffDocument, Staff]]:
+        await StaffService.get(session, school_id, staff_id)  # 404 if missing
+        is_self = user.linked_id is not None and str(user.linked_id) == str(staff_id)
+        if user.role != ADMIN and not is_self:
+            raise ForbiddenError("You may only view your own documents.")
+        return await StaffRepository.list_documents(session, staff_id)
+
+    @staticmethod
+    async def add_document(
+        session: AsyncSession,
+        school_id: UUID | str,
+        staff_id: UUID | str,
+        payload: StaffDocumentCreate,
+        *,
+        actor_staff_id: UUID | str,
+    ) -> list[tuple[StaffDocument, Staff]]:
+        await StaffService.get(session, school_id, staff_id)  # 404 if missing
+        document = StaffDocument(
+            school_id=school_id,
+            staff_id=staff_id,
+            label=payload.label,
+            other_label=payload.other_label,
+            storage_path=payload.storage_path,
+            uploaded_by_id=actor_staff_id,
+        )
+        await StaffRepository.insert_document(session, document)
+        return await StaffRepository.list_documents(session, staff_id)
+
+    @staticmethod
+    async def remove_document(
+        session: AsyncSession,
+        school_id: UUID | str,
+        staff_id: UUID | str,
+        document_id: UUID | str,
+    ) -> list[tuple[StaffDocument, Staff]]:
+        await StaffService.get(session, school_id, staff_id)  # 404 if missing
+        document = await StaffRepository.get_document(session, school_id, document_id)
+        if document is None or str(document.staff_id) != str(staff_id):
+            raise NotFoundError(f"Document {document_id!r} not found.")
+        await StaffRepository.delete_document(session, document)
+        return await StaffRepository.list_documents(session, staff_id)
