@@ -27,6 +27,7 @@ from app.features.announcements.router import router as announcements_router
 from app.features.appointments.jobs import APPOINTMENTS_JOBS
 from app.features.appointments.router import router as appointments_router
 from app.features.assignments.router import router as assignments_router
+from app.features.attendance.jobs import ATTENDANCE_JOBS
 from app.features.attendance.router import (
     router as attendance_router,
 )
@@ -202,6 +203,7 @@ def create_app() -> FastAPI:
             *FEES_JOBS,
             *APPOINTMENTS_JOBS,
             *LEAVE_REQUESTS_JOBS,
+            *ATTENDANCE_JOBS,
         ],
     )
 

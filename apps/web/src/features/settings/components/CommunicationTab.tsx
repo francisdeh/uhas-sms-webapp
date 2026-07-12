@@ -130,6 +130,13 @@ export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
             checked={prefs.onLeaveDecided}
             onToggle={() => togglePref("onLeaveDecided")}
           />
+          <Separator />
+          <NotifRow
+            label="Student marked absent"
+            description="The child's primary guardian gets an email and SMS the first time they're marked absent that day."
+            checked={prefs.onAttendanceAbsent}
+            onToggle={() => togglePref("onAttendanceAbsent")}
+          />
 
           <div>
             <Button onClick={onSave} disabled={saving} variant="ink">

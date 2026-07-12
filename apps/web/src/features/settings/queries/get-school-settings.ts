@@ -35,6 +35,10 @@ const DEFAULT_NOTIFICATIONS: ApiNotificationDefaults = {
   onAppointmentDecided: true,
   onLeaveActivity: true,
   onLeaveDecided: true,
+  // Defaults off, unlike every other toggle here — see the matching
+  // comment on NotificationDefaults.on_attendance_absent in the API
+  // schema (apps/api/app/features/schools/schema.py).
+  onAttendanceAbsent: false,
 };
 
 export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {

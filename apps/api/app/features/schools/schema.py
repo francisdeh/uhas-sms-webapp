@@ -92,6 +92,11 @@ class NotificationDefaults(BaseModel):
     on_appointment_decided: bool = True
     on_leave_activity: bool = True
     on_leave_decided: bool = True
+    # Defaults off, unlike every other toggle here — attendance is
+    # marked daily for potentially every student, a much higher
+    # volume/sensitivity profile than the occasional, ad-hoc events
+    # above. A school opts in explicitly rather than starting on.
+    on_attendance_absent: bool = False
 
 
 # ─── School-level schemas ────────────────────────────────────────────────────
