@@ -16,8 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.attendance.constants import ABSENT, EXCUSED, LATE, PRESENT
 from app.features.attendance.model import AttendanceRecord, AttendanceSession
 from app.features.classes.model import Class
+from app.features.guardians.model import Guardian
 from app.features.staff.model import Staff
-from app.features.students.model import Student
+from app.features.students.model import Student, StudentGuardian
+from app.features.users.model import User
 
 
 class AttendanceRepository:
@@ -70,6 +72,34 @@ class AttendanceRepository:
             .order_by(asc(Student.last_name), asc(Student.first_name))
         )
         return [(rec, st) for rec, st in (await session.execute(stmt)).all()]
+
+    @staticmethod
+    async def list_primary_guardians_for_students(
+        session: AsyncSession, school_id: UUID | str, student_ids: set[UUID]
+    ) -> list[tuple[Student, Guardian, User | None]]:
+        """Every (student, primary guardian, guardian's app user if any)
+        for the given students — the fan-out list for
+        `email/attendance-absent.requested` + the in-app
+        `ATTENDANCE_ABSENT` notification. Skips students with no
+        primary guardian on file. Same join shape as
+        `ExamsRepository.list_published_recipients`."""
+        if not student_ids:
+            return []
+        stmt = (
+            select(Student, Guardian, User)
+            .join(
+                StudentGuardian,
+                and_(
+                    StudentGuardian.student_id == Student.id,
+                    StudentGuardian.is_primary.is_(True),
+                ),
+            )
+            .join(Guardian, Guardian.id == StudentGuardian.guardian_id)
+            .outerjoin(User, User.linked_id == Guardian.id)
+            .where(and_(Student.school_id == school_id, Student.id.in_(student_ids)))
+        )
+        rows = (await session.execute(stmt)).all()
+        return [(s, g, u) for s, g, u in rows]
 
     @staticmethod
     async def delete_records(session: AsyncSession, session_id: UUID | str) -> None:

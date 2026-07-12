@@ -71,6 +71,9 @@ class UserPreferences(Base):
     # Requester-facing — their own leave request was approved/rejected.
     email_on_leave_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sms_on_leave_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Parent-facing — their child was newly marked absent.
+    email_on_attendance_absent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sms_on_attendance_absent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

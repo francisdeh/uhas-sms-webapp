@@ -4846,6 +4846,16 @@ export interface components {
              * @default true
              */
             smsOnLeaveDecided: boolean;
+            /**
+             * Emailonattendanceabsent
+             * @default true
+             */
+            emailOnAttendanceAbsent: boolean;
+            /**
+             * Smsonattendanceabsent
+             * @default true
+             */
+            smsOnAttendanceAbsent: boolean;
         };
         /**
          * MeUpdate
@@ -4887,6 +4897,10 @@ export interface components {
             emailOnLeaveDecided?: boolean | null;
             /** Smsonleavedecided */
             smsOnLeaveDecided?: boolean | null;
+            /** Emailonattendanceabsent */
+            emailOnAttendanceAbsent?: boolean | null;
+            /** Smsonattendanceabsent */
+            smsOnAttendanceAbsent?: boolean | null;
         };
         /**
          * MfaResetResponse
@@ -4957,6 +4971,11 @@ export interface components {
              * @default true
              */
             onLeaveDecided: boolean;
+            /**
+             * Onattendanceabsent
+             * @default false
+             */
+            onAttendanceAbsent: boolean;
         };
         /**
          * NotificationRead

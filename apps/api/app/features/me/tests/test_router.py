@@ -509,6 +509,32 @@ async def test_patch_me_updates_leave_preferences(
     assert prefs.sms_on_leave_decided is False
 
 
+async def test_patch_me_updates_attendance_preferences(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    """The 2 attendance-absence preference fields — single-direction
+    (parent-facing only), unlike appointments/leave's two directions."""
+    res = await client.patch(
+        "/me",
+        json={"emailOnAttendanceAbsent": False, "smsOnAttendanceAbsent": False},
+        headers=auth_header(),
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["emailOnAttendanceAbsent"] is False
+    assert body["smsOnAttendanceAbsent"] is False
+
+    prefs = await db_session.scalar(
+        select(UserPreferences).where(UserPreferences.user_id == ADMIN_USER)
+    )
+    assert prefs is not None
+    assert prefs.email_on_attendance_absent is False
+    assert prefs.sms_on_attendance_absent is False
+
+
 async def test_patch_me_preferences_works_without_a_linked_row(
     client: AsyncClient,
     seed: None,

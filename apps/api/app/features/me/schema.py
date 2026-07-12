@@ -61,6 +61,8 @@ class MeRead(BaseModel):
     sms_on_leave_activity: bool = True
     email_on_leave_decided: bool = True
     sms_on_leave_decided: bool = True
+    email_on_attendance_absent: bool = True
+    sms_on_attendance_absent: bool = True
 
 
 class MeUpdate(BaseModel):
@@ -93,3 +95,5 @@ class MeUpdate(BaseModel):
     sms_on_leave_activity: bool | None = None
     email_on_leave_decided: bool | None = None
     sms_on_leave_decided: bool | None = None
+    email_on_attendance_absent: bool | None = None
+    sms_on_attendance_absent: bool | None = None
