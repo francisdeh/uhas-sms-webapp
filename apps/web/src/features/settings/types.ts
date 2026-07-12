@@ -66,6 +66,8 @@ export type SchoolSettings = {
   // SecurityTab.tsx)
   passwordMinLength: number;
   forcePasswordChangeOnFirstLogin: boolean;
+  // Leave
+  casualLeaveAnnualDays: number;
   // Branding
   defaultColorScheme: string;
   sidebarAccentHex: string | null;

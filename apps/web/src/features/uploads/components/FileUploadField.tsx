@@ -13,7 +13,8 @@ type Kind =
   | "assignments/file"
   | "fees/receipt"
   | "students/document"
-  | "staff/document";
+  | "staff/document"
+  | "leave/document";
 
 type Props = {
   ownerId: string;

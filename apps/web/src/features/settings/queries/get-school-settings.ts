@@ -72,5 +72,6 @@ export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {
     forcePasswordChangeOnFirstLogin: school.forcePasswordChangeOnFirstLogin ?? true,
     defaultColorScheme: school.defaultColorScheme ?? "uhas",
     sidebarAccentHex: school.sidebarAccentHex ?? null,
+    casualLeaveAnnualDays: school.casualLeaveAnnualDays,
   };
 });

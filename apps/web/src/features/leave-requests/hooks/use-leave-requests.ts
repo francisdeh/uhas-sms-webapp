@@ -89,3 +89,28 @@ export function useUpdateLeaveStatus() {
     onError: (err) => toast.error(err.message),
   });
 }
+
+type SubstituteVars = {
+  id: string;
+  payload: components["schemas"]["LeaveSubstituteUpdate"];
+};
+
+export function useUpdateLeaveSubstitute() {
+  const qc = useQueryClient();
+  return useMutation<LeaveData, ApiError, SubstituteVars>({
+    mutationFn: ({ id, payload }) => api.leaveRequests.updateSubstitute(id, payload),
+    onSuccess: () => {
+      toast.success("Substitute updated.");
+      qc.invalidateQueries({ queryKey: KEYS.root });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}
+
+export function useLeaveBalance(staffId: string | undefined) {
+  return useQuery({
+    queryKey: staffId ? [...KEYS.root, "balance", staffId] : [...KEYS.root, "balance", "none"],
+    queryFn: () => api.leaveRequests.getBalance(staffId!),
+    enabled: Boolean(staffId),
+  });
+}

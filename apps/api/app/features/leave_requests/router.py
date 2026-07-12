@@ -14,10 +14,12 @@ from app.core.errors import ForbiddenError
 from app.core.roles import ADMIN, DEPUTY_HEAD
 from app.features.leave_requests.model import LeaveRequest
 from app.features.leave_requests.schema import (
+    LeaveBalanceRead,
     LeaveRequestCreate,
     LeaveRequestRead,
     LeaveRequestsListResponse,
     LeaveStatusUpdate,
+    LeaveSubstituteUpdate,
 )
 from app.features.leave_requests.service import LeaveRequestsService
 from app.features.staff.model import Staff
@@ -27,7 +29,9 @@ _APPROVER_ROLES: frozenset[str] = frozenset({ADMIN, DEPUTY_HEAD})
 router = APIRouter(prefix="/leave-requests", tags=["leave-requests"])
 
 
-def _to_read(row: LeaveRequest, requester: Staff, approver: Staff | None) -> LeaveRequestRead:
+def _to_read(
+    row: LeaveRequest, requester: Staff, approver: Staff | None, substitute: Staff | None
+) -> LeaveRequestRead:
     return LeaveRequestRead(
         id=row.id,
         school_id=row.school_id,
@@ -41,6 +45,12 @@ def _to_read(row: LeaveRequest, requester: Staff, approver: Staff | None) -> Lea
         status=row.status,
         approved_by_id=row.approved_by_id,
         approved_by_name=(f"{approver.first_name} {approver.last_name}" if approver else None),
+        rejection_reason=row.rejection_reason,
+        substitute_staff_id=row.substitute_staff_id,
+        substitute_staff_name=(
+            f"{substitute.first_name} {substitute.last_name}" if substitute else None
+        ),
+        document_urls=row.document_urls or [],
         created_at=row.created_at,
     )
 
@@ -62,8 +72,9 @@ async def list_leave_requests(
     size: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> LeaveRequestsListResponse:
     """Teachers see only their own by default (`staffId` auto-filled
-    from `linked_id`); Admin/Deputy see everyone unless they narrow
-    with `?staffId=…`."""
+    from `linked_id`); Admin sees everyone unless narrowed with
+    `?staffId=…`; Deputy Head is scoped to their own division
+    regardless of `?staffId=…`."""
     effective_staff_id = staff_id
     if user.role not in _APPROVER_ROLES:
         effective_staff_id = UUID(user.linked_id) if user.linked_id else None
@@ -75,12 +86,36 @@ async def list_leave_requests(
         status=status_,
         page=page,
         size=size,
+        user=user,
     )
     return LeaveRequestsListResponse(
-        items=[_to_read(r, req, app_) for (r, req, app_) in rows],
+        items=[_to_read(r, req, app_, sub) for (r, req, app_, sub) in rows],
         total=total,
         page=page,
         size=size,
+    )
+
+
+@router.get(
+    "/balance/{staff_id}",
+    response_model=LeaveBalanceRead,
+    response_model_by_alias=True,
+    summary="Casual leave balance for the current calendar year",
+)
+async def get_leave_balance(
+    staff_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> LeaveBalanceRead:
+    entitlement, used, remaining = await LeaveRequestsService.get_balance(
+        session, school_id, staff_id, user=user
+    )
+    return LeaveBalanceRead(
+        staff_id=staff_id,
+        entitlement_days=entitlement,
+        used_days=used,
+        remaining_days=remaining,
     )
 
 
@@ -95,17 +130,13 @@ async def get_leave_request(
     session: Annotated[AsyncSession, Depends(get_session)],
     user: CurrentUserDep,
 ) -> LeaveRequestRead:
-    """Own requests are visible; only Admin/Deputy see everyone's.
-
-    Mirrors the list-endpoint gate so a teacher can't iterate UUIDs to
-    read another staff member's leave.
-    """
-    row, req, app_ = await LeaveRequestsService.get(session, school_id, request_id)
-    if user.role not in _APPROVER_ROLES and (
-        not user.linked_id or str(user.linked_id) != str(row.staff_id)
-    ):
-        raise ForbiddenError("You may only view your own leave requests.")
-    return _to_read(row, req, app_)
+    """Own requests are visible; Admin sees everyone's; Deputy Head sees
+    only their own division's — enforced in the service, not just this
+    router (mirrors the list-endpoint gate)."""
+    row, req, app_, sub = await LeaveRequestsService.get_for_viewer(
+        session, school_id, request_id, user=user
+    )
+    return _to_read(row, req, app_, sub)
 
 
 @router.post(
@@ -132,10 +163,10 @@ async def create_leave_request(
         )
 
     default_staff_id: UUID | str | None = user.linked_id
-    row, req, app_ = await LeaveRequestsService.create(
+    row, req, app_, sub = await LeaveRequestsService.create(
         session, school_id, payload, default_staff_id=default_staff_id
     )
-    return _to_read(row, req, app_)
+    return _to_read(row, req, app_, sub)
 
 
 @router.patch(
@@ -152,12 +183,32 @@ async def update_leave_status(
 ) -> LeaveRequestRead:
     actor_staff_id: UUID | str | None = user.linked_id
     actor_role = user.role or ""
-    row, req, app_ = await LeaveRequestsService.update_status(
+    row, req, app_, sub = await LeaveRequestsService.update_status(
         session,
         school_id,
         request_id,
         payload,
         actor_staff_id=actor_staff_id,
         actor_role=actor_role,
+        actor_user_id=user.user_id,
     )
-    return _to_read(row, req, app_)
+    return _to_read(row, req, app_, sub)
+
+
+@router.patch(
+    "/{request_id}/substitute",
+    response_model=LeaveRequestRead,
+    response_model_by_alias=True,
+    summary="Assign or clear the covering staff member — Admin or Deputy Head only",
+)
+async def update_leave_substitute(
+    request_id: UUID,
+    payload: LeaveSubstituteUpdate,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> LeaveRequestRead:
+    row, req, app_, sub = await LeaveRequestsService.update_substitute(
+        session, school_id, request_id, payload, user=user
+    )
+    return _to_read(row, req, app_, sub)

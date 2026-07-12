@@ -43,6 +43,9 @@ GUARDIAN_UNLINKED: Final = "GUARDIAN_UNLINKED"
 # A login (Supabase auth user + bridge row) was provisioned for a
 # staff member or guardian.
 USER_CREATED: Final = "USER_CREATED"
+# A leave request was approved or rejected (not written for cancel —
+# that's self-service, not a decision).
+LEAVE_DECIDED: Final = "LEAVE_DECIDED"
 
 AuditAction = Literal[
     "EXAM_PUBLISH",
@@ -61,6 +64,7 @@ AuditAction = Literal[
     "GUARDIAN_LINKED",
     "GUARDIAN_UNLINKED",
     "USER_CREATED",
+    "LEAVE_DECIDED",
 ]
 """All audit_log.action values the API writes. Add new actions here
 *and* on the TS side before introducing them."""

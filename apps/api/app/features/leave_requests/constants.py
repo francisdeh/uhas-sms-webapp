@@ -22,3 +22,7 @@ LeaveType = Literal[
     "Compassionate",
     "Other",
 ]
+
+# Only Casual leave gets a balance — see the leave-management-depth
+# design doc for why the other six don't work as a fixed annual quota.
+CASUAL: Final = "Casual"

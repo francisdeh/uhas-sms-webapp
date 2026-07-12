@@ -73,3 +73,7 @@ class School(Base):
         String(20), nullable=True, default="uhas"
     )
     sidebar_accent_hex: Mapped[str | None] = mapped_column(String(7), nullable=True)
+
+    # Leave tab — only Casual leave gets a balance (see leave_requests
+    # feature docs); the other types don't work as a fixed annual quota.
+    casual_leave_annual_days: Mapped[int] = mapped_column(Integer, nullable=False, default=21)

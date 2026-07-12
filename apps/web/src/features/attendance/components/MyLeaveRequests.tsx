@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/dates";
-import type { LeaveRequest } from "@/features/attendance/types";
+import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
+import type { LeaveRequest, LeaveRequestStatus, LeaveType } from "@/features/attendance/types";
 
 interface MyLeaveRequestsProps {
   requests: LeaveRequest[];
@@ -15,17 +16,21 @@ function formatDateRange(start: string, end: string): string {
   return start === end ? formatDate(start) : `${formatDate(start)} – ${formatDate(end)}`;
 }
 
-const leaveTypePill: Record<string, string> = {
-  sick: "bg-red-100 text-red-700",
-  maternity: "bg-pink-100 text-pink-700",
-  personal: "bg-blue-100 text-blue-700",
-  other: "bg-gray-100 text-gray-600",
+const leaveTypePill: Record<LeaveType, string> = {
+  Casual: "bg-blue-100 text-blue-700",
+  Sick: "bg-red-100 text-red-700",
+  Maternity: "bg-pink-100 text-pink-700",
+  Paternity: "bg-pink-100 text-pink-700",
+  Study: "bg-purple-100 text-purple-700",
+  Compassionate: "bg-slate-100 text-slate-700",
+  Other: "bg-gray-100 text-gray-600",
 };
 
-const statusPill: Record<string, string> = {
+const statusPill: Record<LeaveRequestStatus, string> = {
   pending: "bg-amber-100 text-amber-700",
   approved: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
+  cancelled: "bg-gray-100 text-gray-600",
 };
 
 export function MyLeaveRequests({ requests }: MyLeaveRequestsProps) {
@@ -42,7 +47,7 @@ export function MyLeaveRequests({ requests }: MyLeaveRequestsProps) {
             </div>
             <p className="text-sm font-medium">No leave requests yet</p>
             <p className="text-xs text-muted-foreground mt-0.5 max-w-sm mx-auto leading-relaxed">
-              Submit a sick, maternity, or personal leave request from the form above. Your Deputy Head will approve or decline.
+              Submit a leave request from the form above. Your Deputy Head will approve or decline.
             </p>
           </div>
         ) : (
@@ -53,33 +58,39 @@ export function MyLeaveRequests({ requests }: MyLeaveRequestsProps) {
                 className="flex items-start justify-between gap-4 py-3 border-b border-border/40 last:border-0"
               >
                 <div className="min-w-0">
-                  <Badge
-                    variant="secondary"
-                    className={cn(leaveTypePill[r.type])}
-                  >
+                  <Badge variant="secondary" className={cn(leaveTypePill[r.type])}>
                     {r.type}
                   </Badge>
                   <p className="text-sm text-muted-foreground mt-1">
                     {formatDateRange(r.startDate, r.endDate)}
                   </p>
                   {r.reason && (
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {r.reason}
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{r.reason}</p>
+                  )}
+                  {r.substituteStaffName && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Covered by {r.substituteStaffName}
                     </p>
+                  )}
+                  {r.documentUrls.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {r.documentUrls.map((path) => (
+                        <ClientDocumentDownloadLink
+                          key={path}
+                          storagePath={path}
+                          variant="inline"
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                <div className="shrink-0">
-                  <Badge
-                    variant="secondary"
-                    className={cn(statusPill[r.status])}
-                  >
+                <div className="shrink-0 text-right">
+                  <Badge variant="secondary" className={cn(statusPill[r.status])}>
                     {r.status}
                   </Badge>
                   {r.status === "rejected" && r.rejectionReason && (
-                    <p className="text-xs text-red-600 mt-1">
-                      Reason: {r.rejectionReason}
-                    </p>
+                    <p className="text-xs text-red-600 mt-1">Reason: {r.rejectionReason}</p>
                   )}
                 </div>
               </div>
