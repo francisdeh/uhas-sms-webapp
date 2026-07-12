@@ -1,4 +1,10 @@
 import { formatDate } from "@/lib/dates";
+import {
+  CONDUCT_TRAITS,
+  CONDUCT_TRAIT_LABELS,
+  KG_DOMAINS,
+  KG_DOMAIN_LABELS,
+} from "@/features/exams/types";
 import type {
   ReportCardData,
   ReportCardSubjectRow,
@@ -81,41 +87,75 @@ export function ReportCard({ data, variant = "summary" }: ReportCardProps) {
         )}
       </div>
 
-      {/* Scores table */}
-      <table className="w-full border-collapse border border-black text-sm mb-5">
-        <thead>
-          <tr>
-            <th className={`border border-black p-1.5 text-left ${full ? "w-[22%]" : "w-[40%]"}`}>SUBJECTS</th>
-            {full && (
-              <>
-                <th className="border border-black p-1.5 text-center">CAT 1</th>
-                <th className="border border-black p-1.5 text-center">CAT 2</th>
-                <th className="border border-black p-1.5 text-center">PROJECT</th>
-                <th className="border border-black p-1.5 text-center">GROUP</th>
-                <th className="border border-black p-1.5 text-center">EXAM</th>
-              </>
+      {/* Scores table — KG students get a developmental-observation
+          checklist instead of numeric CAT/exam columns. */}
+      {data.kgObservations ? (
+        <KgObservationsTable observations={data.kgObservations} />
+      ) : (
+        <table className="w-full border-collapse border border-black text-sm mb-5">
+          <thead>
+            <tr>
+              <th className={`border border-black p-1.5 text-left ${full ? "w-[22%]" : "w-[40%]"}`}>SUBJECTS</th>
+              {full && (
+                <>
+                  <th className="border border-black p-1.5 text-center">CAT 1</th>
+                  <th className="border border-black p-1.5 text-center">CAT 2</th>
+                  <th className="border border-black p-1.5 text-center">PROJECT</th>
+                  <th className="border border-black p-1.5 text-center">GROUP</th>
+                  <th className="border border-black p-1.5 text-center">EXAM</th>
+                </>
+              )}
+              <th className={`border border-black p-1.5 text-center ${full ? "w-[10%]" : "w-[18%]"}`}>{isMid ? "EXAM SCORE [100]" : "TOTAL SCORE [100]"}</th>
+              <th className={`border border-black p-1.5 text-center ${full ? "w-[10%]" : "w-[14%]"}`}>SUBJECT POSITION</th>
+              <th className={`border border-black p-1.5 text-center ${full ? "w-[8%]" : "w-[10%]"}`}>GRADE</th>
+              <th className={`border border-black p-1.5 text-center ${full ? "w-[12%]" : "w-[18%]"}`}>INTERPRETATION</th>
+            </tr>
+          </thead>
+          <tbody>
+            <SectionHeader label="CORE SUBJECTS" colSpan={colSpan} />
+            {data.coreRows.length === 0 ? (
+              <EmptyRow colSpan={colSpan} />
+            ) : (
+              data.coreRows.map((row) => <ScoreRow key={row.subjectId} row={row} full={full} />)
             )}
-            <th className={`border border-black p-1.5 text-center ${full ? "w-[10%]" : "w-[18%]"}`}>{isMid ? "EXAM SCORE [100]" : "TOTAL SCORE [100]"}</th>
-            <th className={`border border-black p-1.5 text-center ${full ? "w-[10%]" : "w-[14%]"}`}>SUBJECT POSITION</th>
-            <th className={`border border-black p-1.5 text-center ${full ? "w-[8%]" : "w-[10%]"}`}>GRADE</th>
-            <th className={`border border-black p-1.5 text-center ${full ? "w-[12%]" : "w-[18%]"}`}>INTERPRETATION</th>
-          </tr>
-        </thead>
-        <tbody>
-          <SectionHeader label="CORE SUBJECTS" colSpan={colSpan} />
-          {data.coreRows.length === 0 ? (
-            <EmptyRow colSpan={colSpan} />
-          ) : (
-            data.coreRows.map((row) => <ScoreRow key={row.subjectId} row={row} full={full} />)
-          )}
-          <SectionHeader label="ELECTIVE SUBJECTS" colSpan={colSpan} />
-          {data.electiveRows.length === 0 ? (
-            <EmptyRow colSpan={colSpan} />
-          ) : (
-            data.electiveRows.map((row) => <ScoreRow key={row.subjectId} row={row} full={full} />)
-          )}
-        </tbody>
-      </table>
+            <SectionHeader label="ELECTIVE SUBJECTS" colSpan={colSpan} />
+            {data.electiveRows.length === 0 ? (
+              <EmptyRow colSpan={colSpan} />
+            ) : (
+              data.electiveRows.map((row) => <ScoreRow key={row.subjectId} row={row} full={full} />)
+            )}
+          </tbody>
+        </table>
+      )}
+
+      {/* Conduct + interests — every division */}
+      {(data.conductRatings || data.interestsCoCurricular) && (
+        <table className="w-full border-collapse border border-black text-sm mb-5">
+          <tbody>
+            <tr>
+              <td className="border border-black p-1.5 font-bold w-[30%] align-top">Conduct</td>
+              <td className="border border-black p-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1">
+                  {CONDUCT_TRAITS.map((trait) => (
+                    <span key={trait} className="text-xs">
+                      <span className="font-semibold">{CONDUCT_TRAIT_LABELS[trait]}:</span>{" "}
+                      {data.conductRatings?.[trait] ?? "—"}
+                    </span>
+                  ))}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td className="border border-black p-1.5 font-bold align-top">
+                Interests &amp; Co-curricular Activities
+              </td>
+              <td className="border border-black p-1.5 whitespace-pre-wrap">
+                {data.interestsCoCurricular || ""}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
 
       {/* Attendance + signatures */}
       <table className="w-full border-collapse border border-black text-sm mb-5">
@@ -220,7 +260,14 @@ function ScoreRow({ row, full }: { row: ReportCardSubjectRow; full: boolean }) {
           <td className="border border-black p-1.5 text-center">{row.examScore ?? ""}</td>
         </>
       )}
-      <td className="border border-black p-1.5 text-center">{row.totalScore ?? ""}</td>
+      <td className="border border-black p-1.5 text-center">
+        {row.totalScore ?? ""}
+        {row.classAverage != null && (
+          <div className="text-[9px] text-gray-500 font-normal">
+            avg {row.classAverage.toFixed(1)}
+          </div>
+        )}
+      </td>
       <td className="border border-black p-1.5 text-center">{row.subjectPosition ?? ""}</td>
       <td className="border border-black p-1.5 text-center">{row.grade ?? ""}</td>
       <td className="border border-black p-1.5 text-center">{row.interpretation ?? ""}</td>
@@ -235,5 +282,30 @@ function EmptyRow({ colSpan }: { colSpan: number }) {
         No subjects in this section
       </td>
     </tr>
+  );
+}
+
+function KgObservationsTable({
+  observations,
+}: {
+  observations: NonNullable<ReportCardData["kgObservations"]>;
+}) {
+  return (
+    <table className="w-full border-collapse border border-black text-sm mb-5">
+      <thead>
+        <tr>
+          <th className="border border-black p-1.5 text-left w-[60%]">DEVELOPMENTAL AREA</th>
+          <th className="border border-black p-1.5 text-center w-[40%]">OBSERVATION</th>
+        </tr>
+      </thead>
+      <tbody>
+        {KG_DOMAINS.map((domain) => (
+          <tr key={domain}>
+            <td className="border border-black p-1.5">{KG_DOMAIN_LABELS[domain]}</td>
+            <td className="border border-black p-1.5 text-center">{observations[domain] ?? "—"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.enrollments.constants import ACTIVE
 from app.features.enrollments.model import Enrollment
-from app.features.exams.model import Exam, Score
-from app.features.students.model import Student
+from app.features.exams.model import Exam, Score, StudentReportRemark
+from app.features.guardians.model import Guardian
+from app.features.students.model import Student, StudentGuardian
 from app.features.subjects.model import Subject
+from app.features.users.model import User
 
 
 class ExamsRepository:
@@ -91,6 +93,56 @@ class ExamsRepository:
             )
         )
         return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    async def list_published_recipients(
+        session: AsyncSession, *, school_id: UUID | str, exam_id: UUID | str
+    ) -> list[tuple[Student, Guardian, User | None]]:
+        """Every (student, primary guardian, guardian's app user if any)
+        for students who have a `Score` or KG-observation row on this
+        exam — the fan-out list for `email/results-published.requested`
+        + the per-child in-app `RESULTS_PUBLISHED` notification. Skips
+        students with no primary guardian on file — nobody to notify."""
+        scored_ids = set(
+            (
+                await session.execute(
+                    select(Score.student_id).where(Score.exam_id == exam_id).distinct()
+                )
+            ).scalars()
+        )
+        kg_ids = set(
+            (
+                await session.execute(
+                    select(StudentReportRemark.student_id)
+                    .where(
+                        and_(
+                            StudentReportRemark.exam_id == exam_id,
+                            StudentReportRemark.kg_observations.is_not(None),
+                        )
+                    )
+                    .distinct()
+                )
+            ).scalars()
+        )
+        published_ids = scored_ids | kg_ids
+        if not published_ids:
+            return []
+
+        stmt = (
+            select(Student, Guardian, User)
+            .join(
+                StudentGuardian,
+                and_(
+                    StudentGuardian.student_id == Student.id,
+                    StudentGuardian.is_primary.is_(True),
+                ),
+            )
+            .join(Guardian, Guardian.id == StudentGuardian.guardian_id)
+            .outerjoin(User, User.linked_id == Guardian.id)
+            .where(and_(Student.school_id == school_id, Student.id.in_(published_ids)))
+        )
+        rows = (await session.execute(stmt)).all()
+        return [(s, g, u) for s, g, u in rows]
 
 
 class ScoresRepository:

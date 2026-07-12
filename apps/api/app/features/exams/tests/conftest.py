@@ -375,6 +375,12 @@ class FakeStorageClient:
     ) -> None:
         self.uploads.append((bucket, path, data, content_type))
 
+    async def download(self, bucket: Bucket, path: str) -> bytes:
+        for b, p, data, _ in reversed(self.uploads):
+            if b == bucket and p == path:
+                return data
+        raise FileNotFoundError(f"{bucket}/{path} was never uploaded to this fake.")
+
     async def get_public_url(self, bucket: Bucket, path: str) -> str:
         return f"https://fake-storage.test/{bucket}/{path}"
 

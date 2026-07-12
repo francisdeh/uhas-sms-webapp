@@ -20,19 +20,26 @@ Not found → 404 (student or exam missing from the school); role miss
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
+import inngest
+import sentry_sdk
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ForbiddenError, NotFoundError
+from app.core.inngest import inngest_client
 from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT, TEACHER
+from app.core.school_structure import KG
 from app.core.security import CurrentUser
 from app.features.classes.model import Class
+from app.features.classes.repository import ClassesRepository
 from app.features.exams.compute import compute_aggregate
-from app.features.exams.constants import DEFAULT_GRADE_BANDS
-from app.features.exams.model import Exam
-from app.features.exams.report_card_repo import ReportCardRepository
+from app.features.exams.constants import BATCH_JOB_COMPLETE, DEFAULT_GRADE_BANDS, BatchJobStatus
+from app.features.exams.model import Exam, ReportCardBatchJob
+from app.features.exams.report_card_repo import ReportCardBatchJobsRepository, ReportCardRepository
 from app.features.exams.schema import (
+    ReportCardBatchJobRead,
     ReportCardExam,
     ReportCardResponse,
     ReportCardSchool,
@@ -43,6 +50,9 @@ from app.features.schools.repository import SchoolsRepository
 from app.features.schools.schema import GradingBand
 from app.features.staff.repository import StaffRepository
 from app.features.students.model import Student
+from app.integrations.storage import StorageClient
+
+logger = logging.getLogger(__name__)
 
 
 class ReportCardService:
@@ -73,26 +83,32 @@ class ReportCardService:
 
         await _assert_can_view(session, school_id, user, student, cls, exam)
 
-        scored = await ReportCardRepository.list_scored_rows(
-            session, student_id=student.id, exam_id=exam.id
-        )
-        scores = [
-            ReportCardScoreRow(
-                subject_id=subject.id,
-                subject_slug=subject.slug,
-                subject_name=subject.name,
-                cat1=score.cat1,
-                cat2=score.cat2,
-                project_work=score.project_work,
-                group_work=score.group_work,
-                exam_score=score.exam_score,
-                total_score=score.total_score,
-                grade=score.grade,
-                interpretation=score.interpretation,
-                subject_position=score.subject_position,
+        scores: list[ReportCardScoreRow] = []
+        if cls.division != KG:
+            scored = await ReportCardRepository.list_scored_rows(
+                session, student_id=student.id, exam_id=exam.id
             )
-            for score, subject in scored
-        ]
+            class_averages = await ReportCardRepository.class_average_scores(
+                session, class_id=cls.id, exam_id=exam.id, academic_year=exam.academic_year
+            )
+            scores = [
+                ReportCardScoreRow(
+                    subject_id=subject.id,
+                    subject_slug=subject.slug,
+                    subject_name=subject.name,
+                    cat1=score.cat1,
+                    cat2=score.cat2,
+                    project_work=score.project_work,
+                    group_work=score.group_work,
+                    exam_score=score.exam_score,
+                    total_score=score.total_score,
+                    grade=score.grade,
+                    interpretation=score.interpretation,
+                    subject_position=score.subject_position,
+                    class_average=class_averages.get(subject.id),
+                )
+                for score, subject in scored
+            ]
         aggregate = compute_aggregate([row.grade for row in scores])
 
         teachers = await ReportCardRepository.list_class_teachers(session, class_id=cls.id)
@@ -145,6 +161,9 @@ class ReportCardService:
             class_teachers=class_teachers,
             class_teacher_remark=(remark.class_teacher_remark if remark else None),
             head_of_school_comment=(report.head_of_school_comment if report else None),
+            kg_observations=(remark.kg_observations if remark and cls.division == KG else None),
+            conduct_ratings=(remark.conduct_ratings if remark else None),
+            interests_co_curricular=(remark.interests_co_curricular if remark else None),
             vacation_date=(this_term.end_date if this_term else None),
             reopening_date=(following_term.start_date if following_term else None),
         )
@@ -208,3 +227,92 @@ async def _assert_can_view(
         return
 
     raise ForbiddenError("This role cannot view report cards.")
+
+
+class ReportCardBatchService:
+    """Admin-only — role gate is the router's `RequireAdmin` dep, no
+    additional fine-grained check needed (matches `create_exam`/
+    `publish_exam`)."""
+
+    @staticmethod
+    async def request_batch(
+        session: AsyncSession,
+        school_id: UUID | str,
+        *,
+        exam_id: UUID | str,
+        class_id: UUID | str,
+        requested_by_staff_id: UUID | str,
+    ) -> ReportCardBatchJob:
+        exam = await ReportCardRepository.load_exam(session, school_id, exam_id)
+        if exam is None:
+            raise NotFoundError(f"Exam {exam_id!r} not found.")
+        cls = await ClassesRepository.get_by_id(session, school_id, class_id)
+        if cls is None:
+            raise NotFoundError(f"Class {class_id!r} not found.")
+
+        job = await ReportCardBatchJobsRepository.create(
+            session,
+            school_id=school_id,
+            exam_id=exam.id,
+            class_id=cls.id,
+            requested_by_staff_id=requested_by_staff_id,
+        )
+
+        # Best-effort, same rationale as the results-published email
+        # emit — the job row already exists in `pending` state, so a
+        # broken event bus just leaves it pending rather than losing
+        # the request outright.
+        try:
+            await inngest_client.send(
+                inngest.Event(
+                    name="reports/report-card.batch.requested",
+                    data={
+                        "school_id": str(school_id),
+                        "exam_id": str(exam.id),
+                        "class_id": str(cls.id),
+                        "job_id": str(job.id),
+                    },
+                )
+            )
+        except Exception:
+            logger.exception("Failed to emit report-card batch event for job %s", job.id)
+            sentry_sdk.capture_exception()
+
+        return job
+
+    @staticmethod
+    async def get_status(
+        session: AsyncSession,
+        school_id: UUID | str,
+        *,
+        exam_id: UUID | str,
+        class_id: UUID | str,
+        storage: StorageClient,
+    ) -> ReportCardBatchJobRead:
+        job = await ReportCardBatchJobsRepository.find_latest(
+            session, school_id=school_id, exam_id=exam_id, class_id=class_id
+        )
+        if job is None:
+            raise NotFoundError("No batch print has been requested for this class yet.")
+
+        download_url = None
+        if job.status == BATCH_JOB_COMPLETE and job.storage_path:
+            download_url = await storage.get_signed_url("documents", job.storage_path)
+
+        status: BatchJobStatus = (
+            "complete"
+            if job.status == "complete"
+            else "failed"
+            if job.status == "failed"
+            else "pending"
+        )
+        return ReportCardBatchJobRead(
+            id=job.id,
+            exam_id=job.exam_id,
+            class_id=job.class_id,
+            status=status,
+            download_url=download_url,
+            error_message=job.error_message,
+            created_at=job.created_at,
+            updated_at=job.updated_at,
+        )

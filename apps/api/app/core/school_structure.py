@@ -23,3 +23,5 @@ DIVISIONS: Final[tuple[Division, ...]] = (
     "Upper Primary",
     "JHS",
 )
+
+KG: Final = "KG"

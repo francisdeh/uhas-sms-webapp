@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi, ApiError } from "@/lib/api/server";
 import { HeadOfSchoolReviewForm } from "@/features/exams/components/HeadOfSchoolReviewForm";
+import { BatchPrintButton } from "@/features/exams/components/BatchPrintButton";
 import type { Exam, ClassReportSubmission } from "@/features/exams/types";
 
 interface PageProps {
@@ -81,12 +82,15 @@ export default async function AdminReviewClassPage({ params }: PageProps) {
 
   return (
     <div className="space-y-4">
-      <Link
-        href={`/admin/examinations/${examId}/review`}
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft size={14} className="mr-1" /> Back to classes
-      </Link>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <Link
+          href={`/admin/examinations/${examId}/review`}
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft size={14} className="mr-1" /> Back to classes
+        </Link>
+        <BatchPrintButton examId={examId} classId={classId} />
+      </div>
       <HeadOfSchoolReviewForm
         exam={exam}
         className={classRead.name}

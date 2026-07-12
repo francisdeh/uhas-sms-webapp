@@ -662,6 +662,21 @@ export function createApiClient(getAuthToken: TokenGetter) {
             { method: "PUT", body: JSON.stringify(payload) },
           ),
       },
+      /** Zip of every student's report-card PDF in a class — async
+       *  Inngest job, poll `getStatus` for the download link. */
+      reportCardBatch: {
+        request: (examId: string, classId: string) =>
+          apiFetch<components["schemas"]["ReportCardBatchJobRead"]>(
+            getAuthToken,
+            `/exams/${examId}/classes/${classId}/report-cards/batch`,
+            { method: "POST" },
+          ),
+        getStatus: (examId: string, classId: string) =>
+          apiFetch<components["schemas"]["ReportCardBatchJobRead"]>(
+            getAuthToken,
+            `/exams/${examId}/classes/${classId}/report-cards/batch`,
+          ),
+      },
     },
     lessonPlans: {
       list: (

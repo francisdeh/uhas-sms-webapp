@@ -10,7 +10,15 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 from app.core.pagination import Paginated
-from app.features.exams.constants import ClassReportStatus, ExamType, ScoreEntryStatus
+from app.features.exams.constants import (
+    BatchJobStatus,
+    ClassReportStatus,
+    ConductTrait,
+    ExamType,
+    KgDomain,
+    Rating,
+    ScoreEntryStatus,
+)
 from app.features.schools.schema import GradingBand
 
 _CAMEL_CONFIG = ConfigDict(
@@ -156,6 +164,9 @@ class StudentRemarkRead(BaseModel):
     student_first_name: str
     student_last_name: str
     text: str | None = None
+    kg_observations: dict[KgDomain, Rating] | None = None
+    conduct_ratings: dict[ConductTrait, Rating] | None = None
+    interests_co_curricular: str | None = None
     updated_at: datetime | None = None
 
 
@@ -204,6 +215,12 @@ class RemarkInput(BaseModel):
 
     student_id: UUID
     text: str = Field("", max_length=1000)
+    # KG-only; ignored (not persisted as an error, just harmless) if
+    # sent for a non-KG student — the service doesn't re-validate
+    # division here, keeping this schema division-agnostic.
+    kg_observations: dict[KgDomain, Rating] | None = None
+    conduct_ratings: dict[ConductTrait, Rating] | None = None
+    interests_co_curricular: str = Field("", max_length=1000)
 
 
 class ClassReportUpsertRequest(BaseModel):
@@ -318,6 +335,10 @@ class ReportCardScoreRow(BaseModel):
     grade: str | None = None
     interpretation: str | None = None
     subject_position: int | None = None
+    # Class average for this subject/exam — null for a class with no
+    # other scored students besides this one row's own missing data
+    # case (never null just because the row itself lacks a score).
+    class_average: float | None = None
 
 
 class ReportCardSchool(BaseModel):
@@ -349,9 +370,35 @@ class ReportCardResponse(BaseModel):
     class_teachers: list[str]
     class_teacher_remark: str | None = None
     head_of_school_comment: str | None = None
+    # KG only — populated instead of `scores` when the student's class
+    # division is KG (see `ReportCardService.get`); null for everyone
+    # else. Conduct/interests apply to every division.
+    kg_observations: dict[KgDomain, Rating] | None = None
+    conduct_ratings: dict[ConductTrait, Rating] | None = None
+    interests_co_curricular: str | None = None
     # Term boundary dates, sourced from `school_terms`: vacation = the
     # exam term's end date; reopening = the next term's start date (term 3
     # rolls to next academic year's term 1). Null when the term row or its
     # date isn't set — the card omits the line rather than failing.
     vacation_date: date | None = None
     reopening_date: date | None = None
+
+
+# ─── Batch report-card print ─────────────────────────────────────────────────
+
+
+class ReportCardBatchJobRead(BaseModel):
+    """`POST`/`GET .../report-cards/batch` — status of the latest batch-
+    print job for one (exam, class). `download_url` is a freshly-minted
+    signed URL, only present once `status == "complete"`."""
+
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    exam_id: UUID
+    class_id: UUID
+    status: BatchJobStatus
+    download_url: str | None = None
+    error_message: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None

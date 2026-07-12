@@ -70,9 +70,7 @@ export default async function ClassReportSubmitPage({ params }: PageProps) {
     })
   );
 
-  const remarksById = new Map(
-    (classReport?.remarks ?? []).map((r) => [r.studentId, r.text ?? ""])
-  );
+  const remarksById = new Map((classReport?.remarks ?? []).map((r) => [r.studentId, r]));
 
   const submission: ClassReportSubmission | null = classReport
     ? {
@@ -85,12 +83,18 @@ export default async function ClassReportSubmitPage({ params }: PageProps) {
       }
     : null;
 
-  const initialRows = roster.map((s) => ({
-    studentId: s.studentId,
-    studentName: `${s.studentFirstName ?? ""} ${s.studentLastName ?? ""}`.trim(),
-    aggregate: aggregates.get(s.studentId) ?? null,
-    classTeacherRemark: remarksById.get(s.studentId) ?? "",
-  }));
+  const initialRows = roster.map((s) => {
+    const remark = remarksById.get(s.studentId);
+    return {
+      studentId: s.studentId,
+      studentName: `${s.studentFirstName ?? ""} ${s.studentLastName ?? ""}`.trim(),
+      aggregate: aggregates.get(s.studentId) ?? null,
+      classTeacherRemark: remark?.text ?? "",
+      conductRatings: remark?.conductRatings ?? {},
+      kgObservations: remark?.kgObservations ?? {},
+      interestsCoCurricular: remark?.interestsCoCurricular ?? "",
+    };
+  });
 
   return (
     <div className="space-y-4">
@@ -105,6 +109,7 @@ export default async function ClassReportSubmitPage({ params }: PageProps) {
         exam={{ ...exam, publishedAt: exam.publishedAt ?? null, createdAt: exam.createdAt ?? "" }}
         classId={classId}
         className={schoolClass.name}
+        division={schoolClass.division}
         submittedById={user.linkedId}
         submission={submission}
         initialRows={initialRows}

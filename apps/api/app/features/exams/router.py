@@ -26,12 +26,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
+from app.core.errors import ForbiddenError
 from app.core.rate_limit import REPORT_CARD_PDF_LIMIT, limiter
 from app.features.classes.model import Class
 from app.features.exams.class_reports_svc import ClassReportsService
 from app.features.exams.model import ClassReportSubmission, Exam, Score, StudentReportRemark
 from app.features.exams.report_card_pdf import ReportCardPdfService
-from app.features.exams.report_card_svc import ReportCardService
+from app.features.exams.report_card_svc import ReportCardBatchService, ReportCardService
 from app.features.exams.schema import (
     ClassReportListItem,
     ClassReportListResponse,
@@ -42,6 +43,7 @@ from app.features.exams.schema import (
     ExamsListResponse,
     ExamUpdate,
     HosCommentUpdate,
+    ReportCardBatchJobRead,
     ReportCardResponse,
     ScoreCompletenessResponse,
     ScoreRead,
@@ -296,6 +298,9 @@ def _to_remark_read(student: Student, remark: StudentReportRemark | None) -> Stu
         student_first_name=student.first_name,
         student_last_name=student.last_name,
         text=(remark.class_teacher_remark if remark else None),
+        kg_observations=(remark.kg_observations if remark else None),
+        conduct_ratings=(remark.conduct_ratings if remark else None),
+        interests_co_curricular=(remark.interests_co_curricular if remark else None),
         updated_at=(remark.updated_at if remark else None),
     )
 
@@ -398,6 +403,54 @@ async def get_score_completeness(
         class_id=class_id,
         actor_role=user.role or "",
         actor_staff_id=user.linked_id,
+    )
+
+
+@router.post(
+    "/{exam_id}/classes/{class_id}/report-cards/batch",
+    response_model=ReportCardBatchJobRead,
+    response_model_by_alias=True,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Request a zip of every student's report-card PDF in a class",
+)
+async def request_report_card_batch(
+    exam_id: UUID,
+    class_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+    storage: Annotated[StorageClient, Depends(get_storage_client)],
+) -> ReportCardBatchJobRead:
+    if not user.linked_id:
+        raise ForbiddenError("Admin identity missing.")
+    job = await ReportCardBatchService.request_batch(
+        session,
+        school_id,
+        exam_id=exam_id,
+        class_id=class_id,
+        requested_by_staff_id=user.linked_id,
+    )
+    return await ReportCardBatchService.get_status(
+        session, school_id, exam_id=job.exam_id, class_id=job.class_id, storage=storage
+    )
+
+
+@router.get(
+    "/{exam_id}/classes/{class_id}/report-cards/batch",
+    response_model=ReportCardBatchJobRead,
+    response_model_by_alias=True,
+    summary="Status of the latest batch report-card print for a class",
+)
+async def get_report_card_batch_status(
+    exam_id: UUID,
+    class_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _user: RequireAdmin,
+    storage: Annotated[StorageClient, Depends(get_storage_client)],
+) -> ReportCardBatchJobRead:
+    return await ReportCardBatchService.get_status(
+        session, school_id, exam_id=exam_id, class_id=class_id, storage=storage
     )
 
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import and_, asc, select
+from sqlalchemy import and_, asc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.classes.model import Class, ClassSubject, ClassTeacher
@@ -23,6 +23,7 @@ from app.features.enrollments.model import Enrollment
 from app.features.exams.model import (
     ClassReportSubmission,
     Exam,
+    ReportCardBatchJob,
     Score,
     StudentReportRemark,
 )
@@ -107,6 +108,36 @@ class ReportCardRepository:
                 )
             )
         ]
+
+    @staticmethod
+    async def class_average_scores(
+        session: AsyncSession,
+        *,
+        class_id: UUID | str,
+        exam_id: UUID | str,
+        academic_year: str,
+    ) -> dict[UUID, float]:
+        """subject_id -> average `total_score` across every actively-
+        enrolled (this exam's academic year) student in the class with a
+        non-null total_score for that subject. Powers the report card's
+        "class avg" line — never null just because one student's own
+        score is missing, only when nobody in the class has one."""
+        stmt = (
+            select(Score.subject_id, func.avg(Score.total_score))
+            .join(Enrollment, Enrollment.student_id == Score.student_id)
+            .where(
+                and_(
+                    Score.exam_id == exam_id,
+                    Score.total_score.is_not(None),
+                    Enrollment.class_id == class_id,
+                    Enrollment.academic_year == academic_year,
+                    Enrollment.status == ACTIVE,
+                )
+            )
+            .group_by(Score.subject_id)
+        )
+        rows = (await session.execute(stmt)).all()
+        return {subject_id: float(avg) for subject_id, avg in rows}
 
     @staticmethod
     async def find_term(
@@ -196,3 +227,42 @@ class ReportCardRepository:
             )
         )
         return (await session.execute(cs_stmt)).first() is not None
+
+
+class ReportCardBatchJobsRepository:
+    @staticmethod
+    async def create(
+        session: AsyncSession,
+        *,
+        school_id: UUID | str,
+        exam_id: UUID | str,
+        class_id: UUID | str,
+        requested_by_staff_id: UUID | str,
+    ) -> ReportCardBatchJob:
+        row = ReportCardBatchJob(
+            school_id=school_id,
+            exam_id=exam_id,
+            class_id=class_id,
+            requested_by_staff_id=requested_by_staff_id,
+        )
+        session.add(row)
+        await session.flush()
+        return row
+
+    @staticmethod
+    async def find_latest(
+        session: AsyncSession, *, school_id: UUID | str, exam_id: UUID | str, class_id: UUID | str
+    ) -> ReportCardBatchJob | None:
+        stmt = (
+            select(ReportCardBatchJob)
+            .where(
+                and_(
+                    ReportCardBatchJob.school_id == school_id,
+                    ReportCardBatchJob.exam_id == exam_id,
+                    ReportCardBatchJob.class_id == class_id,
+                )
+            )
+            .order_by(ReportCardBatchJob.created_at.desc())
+            .limit(1)
+        )
+        return (await session.execute(stmt)).scalar_one_or_none()

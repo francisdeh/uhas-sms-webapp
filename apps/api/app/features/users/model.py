@@ -52,6 +52,7 @@ class UserPreferences(Base):
     email_on_lesson_plan_rejected: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True
     )
+    email_on_results_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

@@ -10,8 +10,10 @@ the assembled response; any real change busts it automatically on the
 next request, with no mutation call site needing to remember to
 invalidate anything.
 
-Single-student only — batch/bulk generation is deferred (see
-`app.features.reports.jobs.report_batch`, still a placeholder).
+Renders one student at a time; batch/bulk generation
+(`app.features.exams.jobs.report_card_batch`) calls this same method
+per student so a batch run shares this cache with single-student
+downloads.
 """
 
 from __future__ import annotations
@@ -27,7 +29,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from weasyprint import HTML
 
 from app.core.security import CurrentUser
-from app.features.exams.constants import MID_TERM
+from app.features.exams.constants import (
+    CONDUCT_TRAIT_LABELS,
+    CONDUCT_TRAITS,
+    KG_DOMAIN_LABELS,
+    KG_DOMAINS,
+    MID_TERM,
+)
 from app.features.exams.model import Exam, ReportCardPdfCache
 from app.features.exams.report_card_svc import ReportCardService
 from app.features.exams.schema import ReportCardResponse
@@ -43,10 +51,9 @@ _env = Environment(
 def report_card_storage_path(*, school_id: str, exam_id: str, student_id: str) -> str:
     """Bucket-relative path in `documents` — deterministic so a re-render
     for the same (school, exam, student) overwrites rather than
-    accumulating stale copies. Mirrors
-    `app.features.reports.jobs.report_generate.report_card_storage_path`
-    (kept separate: that module's version stays untouched, tied to the
-    still-placeholder Inngest batch job)."""
+    accumulating stale copies. Imported directly by
+    `app.features.exams.jobs.report_card_batch` so a batch run reads
+    back the same object a single-student render just wrote."""
     return f"report-cards/{school_id}/{exam_id}/{student_id}.pdf"
 
 
@@ -82,6 +89,8 @@ def _render_html(data: ReportCardResponse, exam_created_at: datetime, *, full: b
         generated_date=datetime.now(UTC).strftime("%d/%m/%Y"),
         is_mid_term=data.exam.type == MID_TERM,
         grade_bands=data.grading_bands,
+        kg_domains=[(d, KG_DOMAIN_LABELS[d]) for d in KG_DOMAINS],
+        conduct_traits=[(t, CONDUCT_TRAIT_LABELS[t]) for t in CONDUCT_TRAITS],
         # Placeholders — the assembled ReportCardResponse doesn't carry
         # roll count or attendance yet. Matches the same gap already
         # shipped in the admin browser-print route.

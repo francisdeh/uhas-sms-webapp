@@ -6,9 +6,10 @@ for the browser-upload half of this split — most uploads still happen
 client-side, directly to Supabase, and never touch this module.
 
 This module exists for the Python-side callers that need storage
-access without a browser in the loop: Inngest jobs writing generated
-PDFs (`features/reports/jobs/report_generate.py`), and any future
-backend flow that needs a signed download URL. Bucket names and the
+access without a browser in the loop: report-card PDF rendering
+(`features/exams/report_card_pdf.py`) and batch printing
+(`features/exams/jobs/report_card_batch.py`), and any future backend
+flow that needs a signed download URL. Bucket names and the
 public/private split intentionally mirror the TS side exactly — a
 path written by one side must resolve correctly from the other.
 
@@ -51,6 +52,8 @@ class StorageClient(Protocol):
         upsert: bool = False,
     ) -> None: ...
 
+    async def download(self, bucket: Bucket, path: str) -> bytes: ...
+
     async def get_public_url(self, bucket: Bucket, path: str) -> str: ...
 
     async def get_signed_url(
@@ -81,6 +84,9 @@ class _NotConfiguredStorageClient:
         content_type: str | None = None,
         upsert: bool = False,
     ) -> None:
+        raise ServiceUnavailableError(self._MSG)
+
+    async def download(self, bucket: Bucket, path: str) -> bytes:
         raise ServiceUnavailableError(self._MSG)
 
     async def get_public_url(self, bucket: Bucket, path: str) -> str:
@@ -125,6 +131,12 @@ class RealStorageClient:
             self._client.storage.from_(bucket).upload(path, data, file_options)
 
         await asyncio.to_thread(_run)
+
+    async def download(self, bucket: Bucket, path: str) -> bytes:
+        def _run() -> bytes:
+            return self._client.storage.from_(bucket).download(path)
+
+        return await asyncio.to_thread(_run)
 
     async def get_public_url(self, bucket: Bucket, path: str) -> str:
         def _run() -> str:
