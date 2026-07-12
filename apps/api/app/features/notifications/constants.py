@@ -45,6 +45,7 @@ ASSIGNMENT_CREATED: Final = "assignment_created"
 # ─── Appointments ───────────────────────────────────────────────────────────
 APPOINTMENT_REQUESTED: Final = "appointment_requested"
 APPOINTMENT_DECIDED: Final = "appointment_decided"
+APPOINTMENT_CANCELLED: Final = "appointment_cancelled"
 
 # ─── Fees ───────────────────────────────────────────────────────────────────
 FEE_REMINDER: Final = "fee_reminder"
@@ -67,5 +68,6 @@ NotificationKind = Literal[
     "assignment_created",
     "appointment_requested",
     "appointment_decided",
+    "appointment_cancelled",
     "fee_reminder",
 ]

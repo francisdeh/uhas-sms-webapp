@@ -34,6 +34,11 @@ export type SessionUser = {
   isUnitHead?: boolean;
   unitHeadOf?: Division | null;
   emailOnLessonPlanRejected: boolean;
+  emailOnResultsPublished: boolean;
+  emailOnAppointmentActivity: boolean;
+  smsOnAppointmentActivity: boolean;
+  emailOnAppointmentDecided: boolean;
+  smsOnAppointmentDecided: boolean;
 };
 
 export const ROLE_DASHBOARD: Record<UserRole, string> = {

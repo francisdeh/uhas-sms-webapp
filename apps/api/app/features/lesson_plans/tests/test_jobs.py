@@ -35,6 +35,10 @@ def test_job_completes_and_reports_skipped_without_smtp_config() -> None:
             "reviewer_name": "Kojo Head",
             "comment": "Add more resources.",
             "link": "/teacher/lesson-plans/abc123",
+            "school_name": "UHAS Basic School",
+            "school_address": "Ho, Volta Region, Ghana",
+            "school_contact_email": "info@uhas.edu.gh",
+            "preferences_link": "/teacher/profile?tab=notifications",
         },
     )
     res = mocked.trigger(rejection_email_job, event, _client_mock)
@@ -51,6 +55,10 @@ def test_job_handles_missing_comment() -> None:
             "reviewer_name": "Kojo Head",
             "comment": None,
             "link": "/teacher/lesson-plans/abc123",
+            "school_name": "UHAS Basic School",
+            "school_address": "Ho, Volta Region, Ghana",
+            "school_contact_email": "info@uhas.edu.gh",
+            "preferences_link": "/teacher/profile?tab=notifications",
         },
     )
     res = mocked.trigger(rejection_email_job, event, _client_mock)

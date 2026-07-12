@@ -14,9 +14,12 @@ RESULTS: Final = "results"
 FEE_REMINDER: Final = "fee_reminder"
 ANNOUNCEMENT: Final = "announcement"
 ONBOARDING: Final = "onboarding"
+APPOINTMENT: Final = "appointment"
 OTHER: Final = "other"
 
-SmsCategory = Literal["absence", "results", "fee_reminder", "announcement", "onboarding", "other"]
+SmsCategory = Literal[
+    "absence", "results", "fee_reminder", "announcement", "onboarding", "appointment", "other"
+]
 
 QUEUED: Final = "queued"
 SENT: Final = "sent"

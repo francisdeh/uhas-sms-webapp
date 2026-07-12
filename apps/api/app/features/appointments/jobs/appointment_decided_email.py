@@ -1,19 +1,20 @@
-"""Results-published parent email.
+"""Appointment-decided guardian email.
 
-Triggered by `email/results-published.requested`, emitted from
-`ExamsService._notify_results_published` only after both gates pass
-(school's `notification_defaults.on_results_published` +
-the guardian's own `user_preferences.email_on_results_published`) — the
-gating and recipient resolution happen at the emit site, not here, so
-this job stays a pure "send what I'm told" handler, same division of
-labour as `lesson_plans/jobs/rejection_email.py`.
+Triggered by `email/appointment-decided.requested`, emitted from
+`AppointmentsService._notify_appointment_channels` (called from
+`.respond`) only after both gates pass (school's
+`notification_defaults.on_appointment_decided` + the guardian's own
+`user_preferences.email_on_appointment_decided`). Pure "send what I'm
+told" handler, same shape as `lesson_plans/jobs/rejection_email.py`.
 
 Event payload shape:
     {
       "guardian_email": "...",
-      "exam_name": "...",
-      "child_names": ["...", ...],
-      "link": "/parent/results",
+      "teacher_name": "...",
+      "student_name": "...",
+      "action": "confirmed" | "declined",
+      "response": "..." | "",
+      "link": "/parent/appointments",
       "school_name": "...",
       "school_address": "..." | "",
       "school_contact_email": "..." | "",
@@ -23,7 +24,7 @@ Event payload shape:
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 import inngest
 
@@ -32,37 +33,34 @@ from app.integrations.email.provider import EmailMessage, app_url, get_email_pro
 from app.integrations.email.templates import render_email_template
 
 
-def _format_children(names: list[str]) -> str:
-    if len(names) == 1:
-        return names[0]
-    if len(names) == 2:
-        return f"{names[0]} and {names[1]}"
-    return ", ".join(names[:-1]) + f", and {names[-1]}"
-
-
 @with_sentry
 async def _run(ctx: inngest.Context) -> dict[str, Any]:
     data = ctx.event.data
     guardian_email = str(data["guardian_email"])
-    exam_name = str(data["exam_name"])
-    child_names = [str(n) for n in cast("list[Any]", data["child_names"])]
+    teacher_name = str(data["teacher_name"])
+    student_name = str(data["student_name"])
+    action = str(data["action"])
+    response = str(data.get("response") or "").strip()
     link = app_url(str(data["link"]))
     school_name = str(data["school_name"])
     school_address = str(data.get("school_address") or "")
     school_contact_email = str(data.get("school_contact_email") or "")
     preferences_link = app_url(str(data["preferences_link"]))
 
-    who = _format_children(child_names)
+    response_block = f'Note from the teacher:\n"{response}"\n\n' if response else ""
     text = (
         f"Hi,\n\n"
-        f"Results for {who} are now published for {exam_name}.\n\n"
-        f"View the full report card:\n{link}\n\n"
+        f"{teacher_name} {action} your meeting about {student_name}.\n\n"
+        f"{response_block}"
+        f"View the appointment:\n{link}\n\n"
         f"— {school_name}\n"
     )
     html = render_email_template(
-        "results_published.html",
-        who=who,
-        exam_name=exam_name,
+        "appointment_decided.html",
+        teacher_name=teacher_name,
+        student_name=student_name,
+        action=action,
+        response=response,
         link=link,
         school_name=school_name,
         school_address=school_address,
@@ -75,7 +73,7 @@ async def _run(ctx: inngest.Context) -> dict[str, Any]:
         result = await provider.send(
             EmailMessage(
                 to=guardian_email,
-                subject=f"Results published: {exam_name}",
+                subject=f"Appointment {action}",
                 text=text,
                 html=html,
             )
@@ -85,7 +83,7 @@ async def _run(ctx: inngest.Context) -> dict[str, Any]:
     return await ctx.step.run("send-email", _send)
 
 
-results_published_email_job = inngest_client.create_function(
-    fn_id="results-published-email",
-    trigger=inngest.TriggerEvent(event="email/results-published.requested"),
+appointment_decided_email_job = inngest_client.create_function(
+    fn_id="appointment-decided-email",
+    trigger=inngest.TriggerEvent(event="email/appointment-decided.requested"),
 )(_run)

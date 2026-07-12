@@ -454,6 +454,26 @@ async def test_patch_me_updates_existing_preferences_row(
     assert rows[0].email_on_lesson_plan_rejected is True
 
 
+async def test_patch_me_updates_results_published_preference(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    """`emailOnResultsPublished` — the parent-facing counterpart to
+    `emailOnLessonPlanRejected`, exposed on `/me` for the first time
+    alongside the appointment preferences."""
+    res = await client.patch("/me", json={"emailOnResultsPublished": False}, headers=auth_header())
+    assert res.status_code == 200, res.text
+    assert res.json()["emailOnResultsPublished"] is False
+
+    prefs = await db_session.scalar(
+        select(UserPreferences).where(UserPreferences.user_id == ADMIN_USER)
+    )
+    assert prefs is not None
+    assert prefs.email_on_results_published is False
+
+
 async def test_patch_me_preferences_works_without_a_linked_row(
     client: AsyncClient,
     seed: None,

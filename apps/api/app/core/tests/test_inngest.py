@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.core.inngest import inngest_client
+from app.features.appointments.jobs import APPOINTMENTS_JOBS
 from app.features.exams.jobs import EXAMS_JOBS
 from app.features.fees.jobs import FEES_JOBS
 from app.features.health.jobs import HEALTH_JOBS
@@ -21,7 +22,14 @@ from app.main import app
 
 client = TestClient(app)
 
-_ALL_JOBS = [*HEALTH_JOBS, *SMS_JOBS, *LESSON_PLANS_JOBS, *EXAMS_JOBS, *FEES_JOBS]
+_ALL_JOBS = [
+    *HEALTH_JOBS,
+    *SMS_JOBS,
+    *LESSON_PLANS_JOBS,
+    *EXAMS_JOBS,
+    *FEES_JOBS,
+    *APPOINTMENTS_JOBS,
+]
 
 
 def test_inngest_webhook_route_is_mounted() -> None:

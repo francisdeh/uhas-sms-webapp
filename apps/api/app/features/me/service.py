@@ -85,9 +85,9 @@ class MeService:
         prefs = await session.scalar(
             select(UserPreferences).where(UserPreferences.user_id == UUID(user.user_id))
         )
-        email_on_lesson_plan_rejected = (
-            prefs.email_on_lesson_plan_rejected if prefs is not None else True
-        )
+
+        def _pref(field: str) -> bool:
+            return bool(getattr(prefs, field)) if prefs is not None else True
 
         return MeRead(
             uid=UUID(user.user_id),
@@ -101,7 +101,12 @@ class MeService:
             is_active=bool(user_row.is_active) if user_row.is_active is not None else True,
             is_unit_head=is_unit_head,
             unit_head_of=unit_head_of,
-            email_on_lesson_plan_rejected=email_on_lesson_plan_rejected,
+            email_on_lesson_plan_rejected=_pref("email_on_lesson_plan_rejected"),
+            email_on_results_published=_pref("email_on_results_published"),
+            email_on_appointment_activity=_pref("email_on_appointment_activity"),
+            sms_on_appointment_activity=_pref("sms_on_appointment_activity"),
+            email_on_appointment_decided=_pref("email_on_appointment_decided"),
+            sms_on_appointment_decided=_pref("sms_on_appointment_decided"),
         )
 
     @staticmethod
@@ -118,13 +123,21 @@ class MeService:
         row directly — there's no separate "users" row to update here
         (unlike the admin-side `UsersService.update`, which patches a
         bridge-table row this one skips entirely since the caller IS
-        the row's owner). `email_on_lesson_plan_rejected` writes to
+        the row's owner). The boolean preference fields write to
         `user_preferences` instead, which isn't tied to a linked row —
         it works even for an account with no staff/guardian record yet.
         """
         changes = payload.model_dump(exclude_unset=True)
         display_name = changes.get("display_name")
-        email_on_lesson_plan_rejected = changes.get("email_on_lesson_plan_rejected")
+        pref_fields = (
+            "email_on_lesson_plan_rejected",
+            "email_on_results_published",
+            "email_on_appointment_activity",
+            "sms_on_appointment_activity",
+            "email_on_appointment_decided",
+            "sms_on_appointment_decided",
+        )
+        pref_changes = {f: changes[f] for f in pref_fields if changes.get(f) is not None}
 
         if display_name is not None:
             if not user.school_id or not user.linked_id:
@@ -154,19 +167,15 @@ class MeService:
                 UUID(user.user_id), user_metadata={"display_name": display_name}
             )
 
-        if email_on_lesson_plan_rejected is not None:
+        if pref_changes:
             prefs = await session.scalar(
                 select(UserPreferences).where(UserPreferences.user_id == UUID(user.user_id))
             )
             if prefs is None:
-                session.add(
-                    UserPreferences(
-                        user_id=UUID(user.user_id),
-                        email_on_lesson_plan_rejected=email_on_lesson_plan_rejected,
-                    )
-                )
+                session.add(UserPreferences(user_id=UUID(user.user_id), **pref_changes))
             else:
-                prefs.email_on_lesson_plan_rejected = email_on_lesson_plan_rejected
+                for field, value in pref_changes.items():
+                    setattr(prefs, field, value)
 
         try:
             await session.flush()

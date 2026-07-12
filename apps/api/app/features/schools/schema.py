@@ -85,6 +85,11 @@ class NotificationDefaults(BaseModel):
     on_lesson_plan_rejected: bool
     on_announcement_posted: bool
     on_results_published: bool
+    # Coarser than the matching user_preferences columns — one toggle
+    # per direction gates both email and SMS at the school level; the
+    # per-user prefs stay channel-specific.
+    on_appointment_activity: bool = True
+    on_appointment_decided: bool = True
 
 
 # ─── School-level schemas ────────────────────────────────────────────────────

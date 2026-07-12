@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -398,26 +399,63 @@ function SecurityTab() {
   );
 }
 
-function NotificationsTab({ user }: { user: SessionUser }) {
-  const router = useRouter();
-  const [emailOnRejected, setEmailOnRejected] = useState(user.emailOnLessonPlanRejected);
-  const [saving, setSaving] = useState(false);
+type PreferenceField =
+  | "emailOnLessonPlanRejected"
+  | "emailOnResultsPublished"
+  | "emailOnAppointmentActivity"
+  | "smsOnAppointmentActivity"
+  | "emailOnAppointmentDecided"
+  | "smsOnAppointmentDecided";
 
-  async function onToggle() {
-    const next = !emailOnRejected;
-    setEmailOnRejected(next);
-    setSaving(true);
-    try {
-      await api.me.update({ emailOnLessonPlanRejected: next });
-      toast.success("Preference saved.");
-      router.refresh();
-    } catch (err) {
-      setEmailOnRejected(!next);
-      toast.error(err instanceof ApiError ? err.message : "Failed to update preference.");
-    } finally {
-      setSaving(false);
-    }
-  }
+type PreferenceRowConfig = {
+  field: PreferenceField;
+  label: string;
+  description: string;
+};
+
+const TEACHER_PREFERENCE_ROWS: PreferenceRowConfig[] = [
+  {
+    field: "emailOnLessonPlanRejected",
+    label: "Email — Lesson Plan Rejected",
+    description: "Receive an email when a reviewer sends one of your lesson plans back for changes.",
+  },
+  {
+    field: "emailOnAppointmentActivity",
+    label: "Email — Appointment Requests",
+    description: "Receive an email when a parent requests or cancels a meeting with you.",
+  },
+  {
+    field: "smsOnAppointmentActivity",
+    label: "SMS — Appointment Requests",
+    description: "Receive a text message when a parent requests or cancels a meeting with you.",
+  },
+];
+
+const PARENT_PREFERENCE_ROWS: PreferenceRowConfig[] = [
+  {
+    field: "emailOnResultsPublished",
+    label: "Email — Results Published",
+    description: "Receive an email when your child's results are published.",
+  },
+  {
+    field: "emailOnAppointmentDecided",
+    label: "Email — Appointment Responses",
+    description: "Receive an email when a teacher responds to your meeting request.",
+  },
+  {
+    field: "smsOnAppointmentDecided",
+    label: "SMS — Appointment Responses",
+    description: "Receive a text message when a teacher responds to your meeting request.",
+  },
+];
+
+function NotificationsTab({ user }: { user: SessionUser }) {
+  const rows =
+    user.role === TEACHER
+      ? TEACHER_PREFERENCE_ROWS
+      : user.role === PARENT
+        ? PARENT_PREFERENCE_ROWS
+        : [];
 
   return (
     <Card className="rounded-t-none border-t-0">
@@ -426,14 +464,15 @@ function NotificationsTab({ user }: { user: SessionUser }) {
         <CardDescription>Choose how you want to receive notifications.</CardDescription>
       </CardHeader>
       <CardContent>
-        {user.role === TEACHER ? (
-          <NotifRow
-            label="Email — Lesson Plan Rejected"
-            description="Receive an email when a reviewer sends one of your lesson plans back for changes."
-            checked={emailOnRejected}
-            onToggle={onToggle}
-            disabled={saving}
-          />
+        {rows.length > 0 ? (
+          <div className="flex flex-col gap-4">
+            {rows.map((row, i) => (
+              <div key={row.field} className="flex flex-col gap-4">
+                {i > 0 && <Separator />}
+                <PreferenceRow user={user} row={row} />
+              </div>
+            ))}
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">
             There&apos;s nothing to configure for your role yet.
@@ -441,6 +480,38 @@ function NotificationsTab({ user }: { user: SessionUser }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function PreferenceRow({ user, row }: { user: SessionUser; row: PreferenceRowConfig }) {
+  const router = useRouter();
+  const [checked, setChecked] = useState(user[row.field]);
+  const [saving, setSaving] = useState(false);
+
+  async function onToggle() {
+    const next = !checked;
+    setChecked(next);
+    setSaving(true);
+    try {
+      await api.me.update({ [row.field]: next });
+      toast.success("Preference saved.");
+      router.refresh();
+    } catch (err) {
+      setChecked(!next);
+      toast.error(err instanceof ApiError ? err.message : "Failed to update preference.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <NotifRow
+      label={row.label}
+      description={row.description}
+      checked={checked}
+      onToggle={onToggle}
+      disabled={saving}
+    />
   );
 }
 

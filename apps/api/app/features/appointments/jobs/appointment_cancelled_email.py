@@ -1,21 +1,18 @@
-"""Lesson-plan-rejection email — the one deferred trigger from Phase 2's
-notification retrofit (see `docs/MIGRATION-CLEANUP.md` §C). Every other
-in-app trigger landed with the Notifications domain; this one needed
-Inngest + the email integration to exist first.
+"""Appointment-cancelled teacher email.
 
-Triggered by `email/lesson-plan-rejected.requested`, emitted from
-`LessonPlansService._fan_out_review_notification` only when
-`school.notification_defaults.on_lesson_plan_rejected` is true — the
-gating happens at the emit site, not here, so this job can stay a pure
-"send what I'm told" handler.
+Triggered by `email/appointment-cancelled.requested`, emitted from
+`AppointmentsService._notify_appointment_channels` (called from
+`.cancel`) — same two-tier gate as the requested/decided jobs, reusing
+the `"activity"` direction (request and cancel both mean "your
+calendar changed"). Pure "send what I'm told" handler.
 
 Event payload shape:
     {
       "teacher_email": "...",
-      "plan_topic": "...",
-      "reviewer_name": "...",
-      "comment": "..." | null,
-      "link": "/teacher/lesson-plans/<id>",
+      "teacher_name": "...",
+      "guardian_name": "...",
+      "student_name": "...",
+      "link": "/teacher/appointments",
       "school_name": "...",
       "school_address": "..." | "",
       "school_contact_email": "..." | "",
@@ -38,28 +35,26 @@ from app.integrations.email.templates import render_email_template
 async def _run(ctx: inngest.Context) -> dict[str, Any]:
     data = ctx.event.data
     teacher_email = str(data["teacher_email"])
-    plan_topic = str(data["plan_topic"])
-    reviewer_name = str(data["reviewer_name"])
-    comment = str(data["comment"]).strip() if data.get("comment") else ""
+    teacher_name = str(data["teacher_name"])
+    guardian_name = str(data["guardian_name"])
+    student_name = str(data["student_name"])
     link = app_url(str(data["link"]))
     school_name = str(data["school_name"])
     school_address = str(data.get("school_address") or "")
     school_contact_email = str(data.get("school_contact_email") or "")
     preferences_link = app_url(str(data["preferences_link"]))
 
-    comment_block = f"Reviewer's note:\n{comment}\n\n" if comment else ""
     text = (
-        f"Hi,\n\n"
-        f'Your lesson plan "{plan_topic}" was sent back by {reviewer_name} and needs changes.\n\n'
-        f"{comment_block}"
-        f"Open it to revise and resubmit:\n{link}\n\n"
+        f"Hi {teacher_name},\n\n"
+        f"{guardian_name} cancelled the meeting about {student_name}.\n\n"
+        f"View your appointments:\n{link}\n\n"
         f"— {school_name}\n"
     )
     html = render_email_template(
-        "lesson_plan_rejected.html",
-        plan_topic=plan_topic,
-        reviewer_name=reviewer_name,
-        comment=comment,
+        "appointment_cancelled.html",
+        teacher_name=teacher_name,
+        guardian_name=guardian_name,
+        student_name=student_name,
         link=link,
         school_name=school_name,
         school_address=school_address,
@@ -72,7 +67,7 @@ async def _run(ctx: inngest.Context) -> dict[str, Any]:
         result = await provider.send(
             EmailMessage(
                 to=teacher_email,
-                subject=f"Lesson plan returned: {plan_topic}",
+                subject="Appointment cancelled",
                 text=text,
                 html=html,
             )
@@ -82,7 +77,7 @@ async def _run(ctx: inngest.Context) -> dict[str, Any]:
     return await ctx.step.run("send-email", _send)
 
 
-rejection_email_job = inngest_client.create_function(
-    fn_id="lesson-plan-rejection-email",
-    trigger=inngest.TriggerEvent(event="email/lesson-plan-rejected.requested"),
+appointment_cancelled_email_job = inngest_client.create_function(
+    fn_id="appointment-cancelled-email",
+    trigger=inngest.TriggerEvent(event="email/appointment-cancelled.requested"),
 )(_run)

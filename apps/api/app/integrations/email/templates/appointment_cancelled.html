@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Appointment cancelled{% endblock %}
+{% block content %}
+<p style="margin:0 0 16px;color:#111827;font-size:15px;">Hi {{ teacher_name }},</p>
+<p style="margin:0 0 20px;color:#111827;font-size:15px;line-height:1.5;">
+  {{ guardian_name }} cancelled the meeting about {{ student_name }}.
+</p>
+<p style="margin:0;">
+  <a href="{{ link }}" style="display:inline-block;background-color:#1B6B3E;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">View appointments</a>
+</p>
+{% endblock %}

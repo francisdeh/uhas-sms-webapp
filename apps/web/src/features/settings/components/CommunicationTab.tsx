@@ -49,7 +49,7 @@ export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
         <CardTitle className="text-base">Communication</CardTitle>
         <CardDescription>
           Outbound email sender + the per-event notification toggles that gate whether the school
-          sends an email when something happens.
+          sends an email (and, for appointments, SMS too) when something happens.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -101,6 +101,20 @@ export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
             description="Parents get an email when a term's results go live."
             checked={prefs.onResultsPublished}
             onToggle={() => togglePref("onResultsPublished")}
+          />
+          <Separator />
+          <NotifRow
+            label="Appointment requested or cancelled"
+            description="Teacher gets an email and SMS when a parent requests or cancels a meeting."
+            checked={prefs.onAppointmentActivity}
+            onToggle={() => togglePref("onAppointmentActivity")}
+          />
+          <Separator />
+          <NotifRow
+            label="Appointment confirmed or declined"
+            description="Parent gets an email and SMS when the teacher responds to their request."
+            checked={prefs.onAppointmentDecided}
+            onToggle={() => togglePref("onAppointmentDecided")}
           />
 
           <div>

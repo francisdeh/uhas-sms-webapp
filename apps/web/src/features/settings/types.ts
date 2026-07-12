@@ -27,6 +27,8 @@ export type NotificationDefaults = {
   onLessonPlanRejected: boolean;
   onAnnouncementPosted: boolean;
   onResultsPublished: boolean;
+  onAppointmentActivity: boolean;
+  onAppointmentDecided: boolean;
 };
 
 export type SchoolTerm = {
