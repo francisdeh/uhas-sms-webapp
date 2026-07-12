@@ -90,6 +90,8 @@ class NotificationDefaults(BaseModel):
     # per-user prefs stay channel-specific.
     on_appointment_activity: bool = True
     on_appointment_decided: bool = True
+    on_leave_activity: bool = True
+    on_leave_decided: bool = True
 
 
 # ─── School-level schemas ────────────────────────────────────────────────────

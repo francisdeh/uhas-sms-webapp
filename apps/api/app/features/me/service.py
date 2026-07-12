@@ -107,6 +107,10 @@ class MeService:
             sms_on_appointment_activity=_pref("sms_on_appointment_activity"),
             email_on_appointment_decided=_pref("email_on_appointment_decided"),
             sms_on_appointment_decided=_pref("sms_on_appointment_decided"),
+            email_on_leave_activity=_pref("email_on_leave_activity"),
+            sms_on_leave_activity=_pref("sms_on_leave_activity"),
+            email_on_leave_decided=_pref("email_on_leave_decided"),
+            sms_on_leave_decided=_pref("sms_on_leave_decided"),
         )
 
     @staticmethod
@@ -136,6 +140,10 @@ class MeService:
             "sms_on_appointment_activity",
             "email_on_appointment_decided",
             "sms_on_appointment_decided",
+            "email_on_leave_activity",
+            "sms_on_leave_activity",
+            "email_on_leave_decided",
+            "sms_on_leave_decided",
         )
         pref_changes = {f: changes[f] for f in pref_fields if changes.get(f) is not None}
 

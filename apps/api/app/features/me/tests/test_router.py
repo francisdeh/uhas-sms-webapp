@@ -474,6 +474,41 @@ async def test_patch_me_updates_results_published_preference(
     assert prefs.email_on_results_published is False
 
 
+async def test_patch_me_updates_leave_preferences(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed: None,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    """The 4 leave-request preference fields (approver-facing
+    "activity" + requester-facing "decided", each email/SMS)."""
+    res = await client.patch(
+        "/me",
+        json={
+            "emailOnLeaveActivity": False,
+            "smsOnLeaveActivity": False,
+            "emailOnLeaveDecided": False,
+            "smsOnLeaveDecided": False,
+        },
+        headers=auth_header(),
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["emailOnLeaveActivity"] is False
+    assert body["smsOnLeaveActivity"] is False
+    assert body["emailOnLeaveDecided"] is False
+    assert body["smsOnLeaveDecided"] is False
+
+    prefs = await db_session.scalar(
+        select(UserPreferences).where(UserPreferences.user_id == ADMIN_USER)
+    )
+    assert prefs is not None
+    assert prefs.email_on_leave_activity is False
+    assert prefs.sms_on_leave_activity is False
+    assert prefs.email_on_leave_decided is False
+    assert prefs.sms_on_leave_decided is False
+
+
 async def test_patch_me_preferences_works_without_a_linked_row(
     client: AsyncClient,
     seed: None,

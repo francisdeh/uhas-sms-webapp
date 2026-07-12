@@ -116,6 +116,20 @@ export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
             checked={prefs.onAppointmentDecided}
             onToggle={() => togglePref("onAppointmentDecided")}
           />
+          <Separator />
+          <NotifRow
+            label="Leave request submitted"
+            description="Admin and the relevant Deputy Head get an email and SMS when a staff member requests leave."
+            checked={prefs.onLeaveActivity}
+            onToggle={() => togglePref("onLeaveActivity")}
+          />
+          <Separator />
+          <NotifRow
+            label="Leave request approved or rejected"
+            description="The requester gets an email and SMS when their leave request is decided."
+            checked={prefs.onLeaveDecided}
+            onToggle={() => togglePref("onLeaveDecided")}
+          />
 
           <div>
             <Button onClick={onSave} disabled={saving} variant="ink">

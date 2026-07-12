@@ -15,10 +15,18 @@ FEE_REMINDER: Final = "fee_reminder"
 ANNOUNCEMENT: Final = "announcement"
 ONBOARDING: Final = "onboarding"
 APPOINTMENT: Final = "appointment"
+LEAVE: Final = "leave"
 OTHER: Final = "other"
 
 SmsCategory = Literal[
-    "absence", "results", "fee_reminder", "announcement", "onboarding", "appointment", "other"
+    "absence",
+    "results",
+    "fee_reminder",
+    "announcement",
+    "onboarding",
+    "appointment",
+    "leave",
+    "other",
 ]
 
 QUEUED: Final = "queued"

@@ -33,6 +33,8 @@ const DEFAULT_NOTIFICATIONS: ApiNotificationDefaults = {
   onResultsPublished: true,
   onAppointmentActivity: true,
   onAppointmentDecided: true,
+  onLeaveActivity: true,
+  onLeaveDecided: true,
 };
 
 export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {
