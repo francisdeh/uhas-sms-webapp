@@ -41,13 +41,31 @@ export function EmailChangeCard({ currentEmail }: EmailChangeCardProps) {
       return;
     }
     setSending(true);
-    const { error } = await supabase.auth.updateUser({ email: newEmail });
-    setSending(false);
 
-    if (error) {
-      toast.error(error.message || "Couldn't start the email change.");
-      return;
+    // Changing an existing email goes through our own backend — it mints
+    // both confirmation links via Supabase's admin API and sends our
+    // branded emails instead of Supabase's own. Adding a first email
+    // (no currentEmail yet) has no existing address for Supabase's admin
+    // API to look the account up by, so that one case still uses
+    // Supabase's own direct client-side call.
+    if (currentEmail) {
+      try {
+        await api.me.requestEmailChange({ newEmail });
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Couldn't start the email change.");
+        setSending(false);
+        return;
+      }
+    } else {
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      if (error) {
+        toast.error(error.message || "Couldn't start the email change.");
+        setSending(false);
+        return;
+      }
     }
+
+    setSending(false);
     setPendingTo(newEmail);
     toast.success(`Confirmation link sent to ${newEmail}.`);
   }

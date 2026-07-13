@@ -159,6 +159,9 @@ class FakeSupabaseAdminClient:
     async def invite_user_by_email(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
+    async def generate_link(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
     async def reset_mfa(self, user_id: UUID | str) -> int:
         raise NotImplementedError
 

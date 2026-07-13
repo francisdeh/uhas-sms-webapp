@@ -74,3 +74,4 @@ htmlcov/
 .vercel
 .turbo
 coverage/
+.playwright-mcp/

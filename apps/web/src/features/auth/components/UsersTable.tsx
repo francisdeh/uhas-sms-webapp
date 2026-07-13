@@ -631,7 +631,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
                     <Field>
                       <FieldLabel>{isParentRole ? "Guardian" : "Staff"}</FieldLabel>
                       <Select
-                        value={linkOptionsLoading ? undefined : form.linkedId}
+                        value={form.linkedId}
                         onValueChange={(v) => setForm((f) => ({ ...f, linkedId: v || "" }))}
                         disabled={linkOptionsLoading || !!editingUser}
                       >

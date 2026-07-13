@@ -303,8 +303,9 @@ async def test_create_success_calls_supabase(
     assert body["isActive"] is True
     assert body["mustChangePassword"] is True
 
-    assert len(fake_supabase.invite_calls) == 1
-    invite_call = fake_supabase.invite_calls[0]
+    assert len(fake_supabase.generate_link_calls) == 1
+    invite_call = fake_supabase.generate_link_calls[0]
+    assert invite_call["type"] == "invite"
     assert invite_call["email"] == "dan@example.com"
 
     assert len(fake_supabase.update_calls) == 1
@@ -338,7 +339,7 @@ async def test_create_parent_with_staff_link_returns_400(
     }
     res = await client.post("/users", json=payload, headers=auth_header(role="Admin"))
     assert res.status_code == 400
-    assert fake_supabase.invite_calls == []
+    assert fake_supabase.generate_link_calls == []
 
 
 async def test_create_teacher_with_guardian_link_returns_400(
@@ -363,7 +364,7 @@ async def test_create_teacher_with_guardian_link_returns_400(
     }
     res = await client.post("/users", json=payload, headers=auth_header(role="Admin"))
     assert res.status_code == 400
-    assert fake_supabase.invite_calls == []
+    assert fake_supabase.generate_link_calls == []
 
 
 async def test_deactivate_flips_is_active(

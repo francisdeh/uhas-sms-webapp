@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -31,6 +32,7 @@ from app.core.inngest import inngest_client
 from app.core.roles import PARENT
 from app.features.audit.actions import USER_CREATED, USER_MFA_RESET, AuditAction
 from app.features.audit.service import write_audit_log
+from app.features.schools.service import SchoolsService
 from app.features.users.model import User
 from app.features.users.repository import JoinedRow, UsersRepository
 from app.features.users.schema import UserCreate, UserRead, UserUpdate
@@ -41,6 +43,20 @@ logger = logging.getLogger(__name__)
 
 def _invite_redirect_url() -> str:
     return f"{settings.app_url}/change-password"
+
+
+def _reset_redirect_url() -> str:
+    # Same landing page as the invite flow — it establishes a session
+    # from Supabase's link token and lets the user set a new password,
+    # regardless of whether they arrived via invite or recovery.
+    return f"{settings.app_url}/change-password"
+
+
+def _now() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+PASSWORD_RESET_COOLDOWN = timedelta(minutes=5)
 
 
 def _display_name_from_joined(
@@ -173,6 +189,36 @@ class UsersService:
         )
 
     @staticmethod
+    async def provision_staff_login(
+        session: AsyncSession,
+        school_id: UUID | str,
+        staff_id: UUID,
+        *,
+        supabase: SupabaseAdminClient,
+        actor_user_id: UUID | str,
+    ) -> UserRead:
+        """Provision a login for a staff member, inferring `role` from
+        the staff row's own `system_role` and sourcing email/phone from
+        the same row — no separate role/person picker needed, unlike
+        the generic `/users` endpoint."""
+        staff = await UsersRepository.find_staff_in_school(session, school_id, staff_id)
+        if staff is None:
+            raise NotFoundError(f"Staff {staff_id!r} not found.")
+        if not staff.system_role:
+            raise ValidationError("This staff member has no role set.")
+        return await UsersService.provision_login(
+            session,
+            school_id,
+            role=staff.system_role,
+            linked_id=staff_id,
+            email=staff.email,
+            phone=staff.phone,
+            display_name=f"{staff.first_name} {staff.last_name}".strip(),
+            supabase=supabase,
+            actor_user_id=actor_user_id,
+        )
+
+    @staticmethod
     async def provision_login(
         session: AsyncSession,
         school_id: UUID | str,
@@ -186,10 +232,11 @@ class UsersService:
         actor_user_id: UUID | str,
     ) -> UserRead:
         """Create a Supabase auth user + local bridge row. Provisions
-        whatever identifiers exist: an email sends an invite (password set
-        via the link); a phone is set + confirmed so SMS-OTP works; both
-        when both are present. A phone-only login skips the invite entirely
-        and uses `create_user` with an unused random password."""
+        whatever identifiers exist: an email sends our own branded invite
+        (mints the link via `generate_link`, password set via the link);
+        a phone is set + confirmed so SMS-OTP works; both when both are
+        present. A phone-only login skips the invite entirely and uses
+        `create_user` with an unused random password."""
         await UsersService._validate_link(session, school_id, role, linked_id)
 
         if linked_id is not None:
@@ -207,10 +254,11 @@ class UsersService:
         }
 
         if email:
-            created = await supabase.invite_user_by_email(
-                email=email, redirect_to=_invite_redirect_url()
+            created = await supabase.generate_link(
+                type="invite", email=email, redirect_to=_invite_redirect_url()
             )
-            auth_uid = UUID(str(created["id"]))
+            auth_uid = UUID(str(created["user_id"]))
+            invite_link = str(created["action_link"])
             await supabase.update_user_by_id(
                 auth_uid,
                 phone=phone,
@@ -267,7 +315,50 @@ class UsersService:
                 guardian_id=linked_id if role == PARENT else None,
             )
 
+        if email:
+            await UsersService._emit_account_invite_email(
+                session,
+                school_id,
+                email=email,
+                display_name=display_name,
+                invite_link=invite_link,
+            )
+
         return await UsersService._read_or_404(session, school_id, auth_uid)
+
+    @staticmethod
+    async def _emit_account_invite_email(
+        session: AsyncSession,
+        school_id: UUID | str,
+        *,
+        email: str,
+        display_name: str,
+        invite_link: str,
+    ) -> None:
+        """The one email every account creation with an email needs —
+        not gated by any preference, same "always send, no opt-out"
+        rationale as `_emit_onboarding_sms`: you can't opt out of the
+        email that lets you set up your own account. Best-effort, same
+        as every other email emit in this codebase — a broken event bus
+        must not fail account creation."""
+        try:
+            school = await SchoolsService.get(session, school_id)
+            await inngest_client.send(
+                inngest.Event(
+                    name="email/account-invite.requested",
+                    data={
+                        "email": email,
+                        "display_name": display_name,
+                        "invite_link": invite_link,
+                        "school_name": school.name,
+                        "school_address": school.address or "",
+                        "school_contact_email": school.email or school.email_reply_to or "",
+                    },
+                )
+            )
+        except Exception:
+            logger.exception("Failed to emit account-invite email event for school %s", school_id)
+            sentry_sdk.capture_exception()
 
     @staticmethod
     async def _emit_onboarding_sms(
@@ -425,3 +516,58 @@ class UsersService:
             after={"factorsRemoved": removed},
         )
         return removed
+
+    @staticmethod
+    async def request_password_reset(
+        session: AsyncSession, *, email: str, supabase: SupabaseAdminClient
+    ) -> None:
+        """Public, unauthenticated entry point (`POST /auth/reset-password`)
+        — replaces the frontend's direct `supabase.auth.resetPasswordForEmail`
+        call so the email goes out through our own branded system instead
+        of Supabase's.
+
+        Enumeration-safe by construction: every branch below — unknown
+        email, cooldown still active, Supabase itself reporting no such
+        auth user — falls through to the same `return None` with no
+        distinguishing side effect the caller could observe. The router
+        always sends back one generic response regardless of what
+        happened here."""
+        user = await UsersRepository.find_by_email(session, email)
+        if user is None:
+            return
+
+        now = _now()
+        if (
+            user.last_password_reset_sent_at is not None
+            and now - user.last_password_reset_sent_at < PASSWORD_RESET_COOLDOWN
+        ):
+            return
+
+        try:
+            link = await supabase.generate_link(
+                type="recovery", email=email, redirect_to=_reset_redirect_url()
+            )
+        except NotFoundError:
+            # Our bridge row exists but Supabase disagrees — stay silent
+            # rather than surface the mismatch to an anonymous caller.
+            return
+
+        user.last_password_reset_sent_at = now
+
+        try:
+            school = await SchoolsService.get(session, user.school_id)
+            await inngest_client.send(
+                inngest.Event(
+                    name="email/password-reset.requested",
+                    data={
+                        "email": email,
+                        "reset_link": link["action_link"],
+                        "school_name": school.name,
+                        "school_address": school.address or "",
+                        "school_contact_email": school.email or school.email_reply_to or "",
+                    },
+                )
+            )
+        except Exception:
+            logger.exception("Failed to emit password-reset email event for user %s", user.id)
+            sentry_sdk.capture_exception()

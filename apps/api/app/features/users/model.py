@@ -11,7 +11,9 @@ write to `user_id`, and the resolver joins staff/guardian FKs → this
 table so a business-identity change (division moved) is reflected
 without re-issuing IDs.
 
-Table was created in the Drizzle baseline; no columns change here.
+Table was created in the Drizzle baseline; columns have been added
+since via hand-written Alembic migrations (see `last_password_reset_sent_at`
+below).
 """
 
 from __future__ import annotations
@@ -36,6 +38,9 @@ class User(Base):
     linked_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
     is_active: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)
     must_change_password: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)
+    # Abuse guard on the public `POST /auth/reset-password` endpoint —
+    # a request within the cooldown window is silently skipped.
+    last_password_reset_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class UserPreferences(Base):

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 from pydantic.alias_generators import to_camel
 
 from app.core.roles import Role
@@ -97,3 +97,9 @@ class MeUpdate(BaseModel):
     sms_on_leave_decided: bool | None = None
     email_on_attendance_absent: bool | None = None
     sms_on_attendance_absent: bool | None = None
+
+
+class EmailChangeRequest(BaseModel):
+    model_config = _CAMEL_CONFIG
+
+    new_email: EmailStr

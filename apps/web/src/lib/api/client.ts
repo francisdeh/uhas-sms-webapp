@@ -99,6 +99,16 @@ export function createApiClient(getAuthToken: TokenGetter) {
       get: () =>
         apiFetch<components["schemas"]["HealthResponse"]>(getAuthToken, "/health"),
     },
+    auth: {
+      /** Request a password-reset email — no session required. Always
+       *  resolves with no error regardless of whether the email is
+       *  registered (enumeration-safe by design; server-side too). */
+      resetPassword: (payload: components["schemas"]["PasswordResetRequest"]) =>
+        apiFetch<void>(getAuthToken, "/auth/reset-password", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+    },
     school: {
       /** Fetch the caller's school settings. Any authenticated role. */
       get: () =>
@@ -183,6 +193,15 @@ export function createApiClient(getAuthToken: TokenGetter) {
         apiFetch<components["schemas"]["StaffRead"]>(
           getAuthToken,
           `/staff/${id}/deactivate`,
+          { method: "POST" },
+        ),
+      /** Provision a login for a staff member (branded invite email
+       *  and/or phone-OTP), inferring role + sourcing email/phone from
+       *  the staff row itself. */
+      createLogin: (id: string) =>
+        apiFetch<components["schemas"]["UserRead"]>(
+          getAuthToken,
+          `/staff/${id}/login`,
           { method: "POST" },
         ),
       /** Subjects this staff member is qualified to teach — open read. */
@@ -1305,6 +1324,13 @@ export function createApiClient(getAuthToken: TokenGetter) {
       confirmEmail: () =>
         apiFetch<components["schemas"]["MeRead"]>(getAuthToken, "/me/email/confirm", {
           method: "POST",
+        }),
+      /** Kicks off a branded dual-confirmation email change — replaces
+       *  a direct client-side `supabase.auth.updateUser({email})` call. */
+      requestEmailChange: (payload: components["schemas"]["EmailChangeRequest"]) =>
+        apiFetch<void>(getAuthToken, "/me/email/request-change", {
+          method: "POST",
+          body: JSON.stringify(payload),
         }),
       /** Deactivate the caller's own account (non-Admin only; 403 for Admins). */
       deactivate: () =>

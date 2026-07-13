@@ -482,7 +482,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
                   control={teacherForm.control}
                   render={({ field }) => (
                     <Select
-                      value={staffLoading ? undefined : field.value}
+                      value={field.value}
                       onValueChange={(v) => { if (v) field.onChange(v); }}
                       disabled={staffLoading}
                     >
@@ -599,7 +599,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
                   control={assignForm.control}
                   render={({ field }) => (
                     <Select
-                      value={staffLoading ? undefined : field.value}
+                      value={field.value}
                       onValueChange={(v) => { if (v) field.onChange(v); }}
                       disabled={staffLoading}
                     >

@@ -132,3 +132,13 @@ class UsersRepository:
             and_(Guardian.id == guardian_id, Guardian.school_id == school_id)
         )
         return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    async def find_by_email(session: AsyncSession, email: str) -> User | None:
+        """Deliberately NOT school-scoped — the one caller (password
+        reset) runs before authentication, when `school_id` isn't known
+        yet. Emails are effectively unique across the whole app since
+        they mirror Supabase Auth's own globally-unique `auth.users`
+        table."""
+        stmt = select(User).where(User.email == email)
+        return (await session.execute(stmt)).scalars().first()

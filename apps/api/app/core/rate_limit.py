@@ -2,9 +2,13 @@
 
 There's no login/OTP endpoint in this API to protect from brute force
 (Supabase Auth handles that entirely client-side) — every route here
-already requires a verified JWT except `/health`. So the threat model
-this addresses is a runaway/buggy or compromised *authenticated*
-client hammering the API, not anonymous credential stuffing.
+already requires a verified JWT except `/health`, `/school/public`, and
+`POST /auth/reset-password` (the last of which triggers a real email
+send for an anonymous caller, hence its own IP-keyed limit below). So
+the threat model this addresses is mostly a runaway/buggy or
+compromised *authenticated* client hammering the API, not anonymous
+credential stuffing — `/auth/reset-password` is the one deliberate
+exception.
 
 Keys by the authenticated user's id (from the same JWT verification
 `CurrentUserDep` uses), not client IP — `uvicorn` isn't configured to
@@ -31,6 +35,7 @@ from app.core.security import verify_supabase_jwt
 
 DEFAULT_LIMIT = "300/minute"
 REPORT_CARD_PDF_LIMIT = "10/minute"
+PASSWORD_RESET_LIMIT = "5/minute"
 
 
 def _rate_limit_key(request: Request) -> str:

@@ -6,7 +6,7 @@ import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, Copy, Check } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
-import { ApiError } from "@/lib/api/browser";
+import { api, ApiError } from "@/lib/api/browser";
 import { useStaffMutations } from "@/features/staff/hooks/use-staff";
 import { STAFF_SYSTEM_ROLES, DEPUTY_HEAD, TEACHER } from "@/features/auth/types";
 import { TEACHER_RANKS } from "@/features/staff/types";
@@ -80,8 +80,6 @@ type FormValues = z.infer<typeof schema>;
 
 interface SuccessState {
   id: string;
-  /** Placeholder link until the Auth invite flow is wired in Phase 3. */
-  inviteLink: string;
   firstName: string;
   lastName: string;
 }
@@ -95,7 +93,8 @@ export default function StaffRegistrationForm({
 }: StaffRegistrationFormProps) {
   const router = useRouter();
   const [successState, setSuccessState] = useState<SuccessState | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
+  const [sendingInvite, setSendingInvite] = useState(false);
   const [tempId] = useState(() => `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
 
   const {
@@ -131,8 +130,6 @@ export default function StaffRegistrationForm({
       });
       setSuccessState({
         id: row.id,
-        // Auth invite flow lands in Phase 3 — use the id as a placeholder.
-        inviteLink: `/invite?token=${row.id}`,
         firstName: values.firstName,
         lastName: values.lastName,
       });
@@ -141,15 +138,18 @@ export default function StaffRegistrationForm({
     }
   }
 
-  async function handleCopyLink() {
+  async function handleSendInvite() {
     if (!successState) return;
-    if (!navigator.clipboard) {
-      toast.error("Clipboard not available in this context");
-      return;
+    setSendingInvite(true);
+    try {
+      await api.staff.createLogin(successState.id);
+      setInviteSent(true);
+      toast.success("Invite email sent.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't send the invite.");
+    } finally {
+      setSendingInvite(false);
     }
-    await navigator.clipboard.writeText(successState.inviteLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -416,7 +416,10 @@ export default function StaffRegistrationForm({
       <Dialog
         open={!!successState}
         onOpenChange={(open) => {
-          if (!open) setSuccessState(null);
+          if (!open) {
+            setSuccessState(null);
+            setInviteSent(false);
+          }
         }}
       >
         <DialogContent showCloseButton={false}>
@@ -430,27 +433,29 @@ export default function StaffRegistrationForm({
           </DialogHeader>
 
           <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">Invite link</p>
-            <div className="flex items-center gap-2">
-              <Input
-                readOnly
-                value={successState?.inviteLink ?? ""}
-                className="flex-1 text-xs"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                onClick={handleCopyLink}
-                aria-label="Copy link"
-              >
-                {copied ? (
-                  <Check size={14} className="text-green-600" />
-                ) : (
-                  <Copy size={14} />
-                )}
-              </Button>
-            </div>
+            <p className="text-sm font-medium">Account login</p>
+            {inviteSent ? (
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                <Check size={14} className="text-green-600" />
+                Invite email sent — they can set their password from it.
+              </p>
+            ) : (
+              <div className="flex items-center gap-2">
+                <p className="flex-1 text-xs text-muted-foreground">
+                  Send an invite email so this staff member can set their password and log in.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSendInvite}
+                  disabled={sendingInvite}
+                >
+                  {sendingInvite && <Loader2 size={13} className="animate-spin mr-1.5" />}
+                  Send invite
+                </Button>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

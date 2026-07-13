@@ -24,6 +24,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a password-reset email — no auth required, always 204 */
+        post: operations["reset_password_auth_reset_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/school/public": {
         parameters: {
             query?: never;
@@ -198,6 +215,23 @@ export interface paths {
         head?: never;
         /** Update Staff */
         patch: operations["update_staff_staff__staff_id__patch"];
+        trace?: never;
+    };
+    "/staff/{staff_id}/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Provision a login for a staff member (branded invite email and/or phone-OTP) */
+        post: operations["create_staff_login_staff__staff_id__login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/staff/{staff_id}/role": {
@@ -1479,6 +1513,31 @@ export interface paths {
          *     currently has confirmed; a no-op if nothing changed.
          */
         post: operations["confirm_me_email_me_email_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/email/request-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request an email change — sends our own branded dual-confirmation emails
+         * @description Replaces the frontend's direct `supabase.auth.updateUser({email})`
+         *     call. Both the current and new address get a confirmation link
+         *     through our branded system; once both are clicked, Supabase
+         *     completes the change exactly as before, and the existing
+         *     `POST /me/email/confirm` mirrors it locally — that endpoint hasn't
+         *     changed.
+         */
+        post: operations["request_me_email_change_me_email_request_change_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3807,6 +3866,14 @@ export interface components {
             /** Staff */
             staff: number;
         };
+        /** EmailChangeRequest */
+        EmailChangeRequest: {
+            /**
+             * Newemail
+             * Format: email
+             */
+            newEmail: string;
+        };
         /**
          * EnrollmentCreate
          * @description `POST /enrollments` — enrol an existing student into a class.
@@ -5095,6 +5162,14 @@ export interface components {
             dueDate?: string | null;
             /** Payments */
             payments?: components["schemas"]["ParentFeePaymentRead"][];
+        };
+        /** PasswordResetRequest */
+        PasswordResetRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
         };
         /** PscClassRow */
         PscClassRow: {
@@ -7404,6 +7479,37 @@ export interface operations {
             };
         };
     };
+    reset_password_auth_reset_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_school_public_school_public_get: {
         parameters: {
             query?: never;
@@ -7749,6 +7855,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_staff_login_staff__staff_id__login_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
                 };
             };
             /** @description Validation Error */
@@ -11267,6 +11406,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_me_email_change_me_email_request_change_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

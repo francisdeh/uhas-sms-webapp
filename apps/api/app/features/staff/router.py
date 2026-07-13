@@ -60,6 +60,8 @@ from app.features.staff.schema import (
     SubjectExpertiseUpdate,
 )
 from app.features.staff.service import StaffService
+from app.features.users.schema import UserRead
+from app.features.users.service import UsersService
 from app.features.users.supabase_admin import SupabaseAdminClient, get_supabase_admin_client
 
 router = APIRouter(prefix="/staff", tags=["staff"])
@@ -143,6 +145,25 @@ async def create_staff(
 ) -> StaffRead:
     row = await StaffService.create(session, school_id, payload)
     return StaffRead.model_validate(row)
+
+
+@router.post(
+    "/{staff_id}/login",
+    response_model=UserRead,
+    response_model_by_alias=True,
+    status_code=status.HTTP_201_CREATED,
+    summary="Provision a login for a staff member (branded invite email and/or phone-OTP)",
+)
+async def create_staff_login(
+    staff_id: UUID,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+    supabase: _SupabaseDep,
+) -> UserRead:
+    return await UsersService.provision_staff_login(
+        session, school_id, staff_id, supabase=supabase, actor_user_id=user.user_id
+    )
 
 
 @router.patch("/{staff_id}", response_model=StaffRead, response_model_by_alias=True)
