@@ -87,7 +87,7 @@ export function StaffDocumentsCard({ staffId, canManage }: StaffDocumentsCardPro
                   <p className="text-xs text-muted-foreground">Uploaded by {doc.uploadedByName}</p>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <ClientDocumentDownloadLink storagePath={doc.storagePath} variant="inline" />
+                  <ClientDocumentDownloadLink storagePath={doc.storagePath} />
                   {canManage && (
                     <Button
                       variant="ghost"

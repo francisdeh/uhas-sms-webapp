@@ -17,6 +17,7 @@ import {
   History,
   Wallet,
   CalendarOff,
+  Layers,
 } from "lucide-react";
 import type { UserRole, SessionUser } from "@/features/auth/types";
 import { TEACHER } from "@/features/auth/types";
@@ -42,6 +43,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
         groupLabel: "Academic",
         items: [
           { label: "Classes", href: "/admin/classes", icon: School },
+          { label: "Subjects", href: "/admin/subjects", icon: Layers },
           { label: "Attendance", href: "/admin/attendance", icon: ClipboardCheck },
           { label: "Examinations", href: "/admin/examinations", icon: FileText },
           { label: "Lesson Plans", href: "/admin/lesson-plans", icon: BookOpen },

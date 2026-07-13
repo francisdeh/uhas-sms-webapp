@@ -10,8 +10,6 @@ const KEYS = {
   root: ["appointments"] as const,
   list: () => [...KEYS.root, "list"] as const,
   detail: (id: string) => [...KEYS.root, "detail", id] as const,
-  teachers: (studentId: string) =>
-    [...KEYS.root, "teachers-for-student", studentId] as const,
 } as const;
 
 export function useAppointments() {
@@ -26,16 +24,6 @@ export function useAppointment(id: string | undefined) {
     queryKey: id ? KEYS.detail(id) : [...KEYS.root, "detail", "none"],
     queryFn: () => api.appointments.get(id!),
     enabled: Boolean(id),
-  });
-}
-
-export function useTeachersForStudent(studentId: string | undefined) {
-  return useQuery({
-    queryKey: studentId
-      ? KEYS.teachers(studentId)
-      : [...KEYS.root, "teachers-for-student", "none"],
-    queryFn: () => api.appointments.teachersForStudent(studentId!),
-    enabled: Boolean(studentId),
   });
 }
 

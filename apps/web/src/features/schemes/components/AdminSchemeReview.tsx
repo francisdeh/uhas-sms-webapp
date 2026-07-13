@@ -106,7 +106,6 @@ export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeRe
                           <ClientDocumentDownloadLink
                             storagePath={scheme.fileUrl}
                             label="Open attachment"
-                            variant="inline"
                           />
                         </div>
                       )}

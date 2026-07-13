@@ -16,8 +16,6 @@ const KEYS = {
     page?: number;
     size?: number;
   }) => [...KEYS.lists(), params] as const,
-  lookup: (division: string, date: string) =>
-    [...KEYS.root, "sessions", "lookup", division, date] as const,
   detail: (sessionId: string) =>
     [...KEYS.root, "sessions", "detail", sessionId] as const,
 } as const;
@@ -33,21 +31,6 @@ export function useStaffAttendanceSessions(
   return useQuery({
     queryKey: KEYS.list(params),
     queryFn: () => api.staffAttendance.listSessions(params),
-  });
-}
-
-export function useStaffAttendanceLookup(division: string, date: string) {
-  return useQuery({
-    queryKey: KEYS.lookup(division, date),
-    queryFn: async () => {
-      try {
-        return await api.staffAttendance.lookupSession({ division, date });
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 404) return null;
-        throw err;
-      }
-    },
-    enabled: Boolean(division && date),
   });
 }
 

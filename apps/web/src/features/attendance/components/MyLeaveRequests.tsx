@@ -78,7 +78,6 @@ export function MyLeaveRequests({ requests }: MyLeaveRequestsProps) {
                         <ClientDocumentDownloadLink
                           key={path}
                           storagePath={path}
-                          variant="inline"
                         />
                       ))}
                     </div>

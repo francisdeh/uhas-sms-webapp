@@ -246,7 +246,7 @@ export function LeaveRequestList({
                 {request.documentUrls.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {request.documentUrls.map((path) => (
-                      <ClientDocumentDownloadLink key={path} storagePath={path} variant="inline" />
+                      <ClientDocumentDownloadLink key={path} storagePath={path} />
                     ))}
                   </div>
                 )}

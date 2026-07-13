@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -102,12 +103,23 @@ const transferSchema = z.object({
 
 type TransferFormValues = z.infer<typeof transferSchema>;
 
+interface ExamSummary {
+  id: string;
+  name: string;
+  term: number;
+  academicYear: string;
+  isPublished: boolean;
+}
+
 interface Props {
   student: Student;
   classes: ClassRecord[];
   /** Base path for the student list/detail routes (admin vs deputy-head),
    *  used for sibling profile links. */
   basePath: string;
+  /** Admin-only: exams to link report cards for. Deputy Head has no
+   *  per-student report-card route, so this is omitted there. */
+  exams?: ExamSummary[];
 }
 
 function InfoRow({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
@@ -119,7 +131,7 @@ function InfoRow({ label, value, mono }: { label: string; value?: string | null;
   );
 }
 
-export default function StudentDetail({ student, classes, basePath }: Props) {
+export default function StudentDetail({ student, classes, basePath, exams = [] }: Props) {
   const router = useRouter();
   const isAdmin = basePath === "/admin/students";
   const [editOpen, setEditOpen] = useState(false);
@@ -360,6 +372,40 @@ export default function StudentDetail({ student, classes, basePath }: Props) {
                   </div>
                 </CardContent>
               </Card>
+
+              {isAdmin && exams.length > 0 && (
+                <Card className="rounded-t-none border-t-0 mt-4">
+                  <CardHeader>
+                    <CardTitle className="text-base">Report Cards</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col gap-2">
+                      {exams.map((exam) => (
+                        <Link
+                          key={exam.id}
+                          href={`${basePath}/${student.id}/report-card/${exam.id}`}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2 hover:bg-accent/50 transition-colors"
+                        >
+                          <span className="flex items-center gap-2 text-sm font-medium">
+                            <Printer size={14} className="text-muted-foreground" />
+                            {exam.name}
+                          </span>
+                          <span className="flex items-center gap-2">
+                            {!exam.isPublished && (
+                              <Badge variant="outline" className="text-[11px]">
+                                Unpublished
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              Term {exam.term} · {exam.academicYear}
+                            </span>
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </motion.div>
           </AnimatePresence>
         </TabsContent>

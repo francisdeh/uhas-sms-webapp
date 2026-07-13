@@ -39,7 +39,7 @@ export function LeaveDocumentFiles({
               key={path}
               className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-1.5"
             >
-              <ClientDocumentDownloadLink storagePath={path} variant="inline" />
+              <ClientDocumentDownloadLink storagePath={path} />
               {!disabled && (
                 <Button
                   type="button"

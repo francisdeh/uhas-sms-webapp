@@ -31,6 +31,15 @@ export default async function AdminStudentDetailPage({
     division: c.division,
   }));
 
+  const examsResp = await api.exams.list({ size: 50 });
+  const exams = examsResp.items.map((e) => ({
+    id: e.id,
+    name: e.name,
+    term: e.term,
+    academicYear: e.academicYear,
+    isPublished: e.isPublished,
+  }));
+
   const student: Student = {
     id: studentRead.id,
     slug: studentRead.slug,
@@ -52,5 +61,7 @@ export default async function AdminStudentDetailPage({
     createdAt: studentRead.createdAt ?? new Date().toISOString(),
   };
 
-  return <StudentDetail student={student} classes={classes} basePath="/admin/students" />;
+  return (
+    <StudentDetail student={student} classes={classes} basePath="/admin/students" exams={exams} />
+  );
 }

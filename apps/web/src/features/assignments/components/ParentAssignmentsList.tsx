@@ -61,7 +61,6 @@ export function ParentAssignmentsList({
                         <DocumentDownloadLink
                           storagePath={a.fileUrl}
                           label="Attachment"
-                          variant="inline"
                         />
                       )}
                     </div>

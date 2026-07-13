@@ -160,7 +160,6 @@ export function ReviewQueue({ reviewerId, reviewerRole, pending, recent }: Revie
                           <ClientDocumentDownloadLink
                             storagePath={plan.fileUrl}
                             label="View attachment"
-                            variant="inline"
                           />
                         </div>
                       )}

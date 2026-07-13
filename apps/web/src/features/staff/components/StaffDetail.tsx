@@ -57,30 +57,10 @@ import { TEACHER_RANKS, type Staff } from "@/features/staff/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
 import { STAFF_SYSTEM_ROLES, ROLE_LABELS, ADMIN, DEPUTY_HEAD, TEACHER } from "@/features/auth/types";
+import { STAFF_ROLE_AVATAR, STAFF_ROLE_PILL } from "@/features/staff/role-styles";
 import { SubjectExpertiseCard } from "@/features/staff/components/SubjectExpertiseCard";
 import { QualificationsCard } from "@/features/staff/components/QualificationsCard";
 import { StaffDocumentsCard } from "@/features/staff/components/StaffDocumentsCard";
-
-const ROLE_AVATAR: Record<Staff["systemRole"], string> = {
-  Admin: "from-purple-400 to-purple-600",
-  DeputyHead: "from-blue-400 to-blue-600",
-  Teacher: "from-orange-400 to-accent-orange",
-  Accountant: "from-emerald-400 to-emerald-600",
-};
-
-const ROLE_PILL: Record<Staff["systemRole"], string> = {
-  Admin: "bg-purple-100 text-purple-700",
-  DeputyHead: "bg-blue-100 text-blue-700",
-  Teacher: "bg-orange-100 text-accent-orange",
-  Accountant: "bg-emerald-100 text-emerald-700",
-};
-
-const ROLE_LABEL: Record<Staff["systemRole"], string> = {
-  Admin: "Admin",
-  DeputyHead: "Deputy Head",
-  Teacher: "Teacher",
-  Accountant: "Accountant",
-};
 
 const editSchema = z.object({
   firstName: z.string().min(2, { message: "Min 2 characters" }),
@@ -265,7 +245,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
           firstName={staff.firstName}
           lastName={staff.lastName}
           size="lg"
-          gradient={ROLE_AVATAR[staff.systemRole]}
+          gradient={STAFF_ROLE_AVATAR[staff.systemRole]}
         />
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold truncate">
@@ -276,10 +256,10 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
             <span
               className={cn(
                 "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-                ROLE_PILL[staff.systemRole]
+                STAFF_ROLE_PILL[staff.systemRole]
               )}
             >
-              {ROLE_LABEL[staff.systemRole]}
+              {ROLE_LABELS[staff.systemRole]}
             </span>
             {staff.division && (
               <span className="text-xs text-muted-foreground">{staff.division}</span>
@@ -394,10 +374,10 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                       <span
                         className={cn(
                           "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-                          ROLE_PILL[staff.systemRole]
+                          STAFF_ROLE_PILL[staff.systemRole]
                         )}
                       >
-                        {ROLE_LABEL[staff.systemRole]}
+                        {ROLE_LABELS[staff.systemRole]}
                       </span>
                     </div>
                     <InfoRow label="Division" value={staff.division ?? "—"} />

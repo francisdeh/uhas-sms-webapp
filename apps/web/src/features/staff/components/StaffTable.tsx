@@ -35,32 +35,12 @@ import {
   type StaffRow,
 } from "@/features/staff/hooks/use-staff";
 import type { SchoolClass } from "@/features/classes/types";
+import type { StaffSystemRole } from "@/features/staff/types";
+import { STAFF_ROLE_AVATAR, STAFF_ROLE_PILL } from "@/features/staff/role-styles";
+import { ROLE_LABELS } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
-type SystemRole = "Admin" | "DeputyHead" | "Teacher" | "Accountant";
-
-const ROLE_PILL: Record<SystemRole, string> = {
-  Admin: "bg-purple-100 text-purple-700",
-  DeputyHead: "bg-blue-100 text-blue-700",
-  Teacher: "bg-orange-100 text-accent-orange",
-  Accountant: "bg-emerald-100 text-emerald-700",
-};
-
-const ROLE_LABEL: Record<SystemRole, string> = {
-  Admin: "Admin",
-  DeputyHead: "Deputy Head",
-  Teacher: "Teacher",
-  Accountant: "Accountant",
-};
-
-const ROLE_AVATAR: Record<SystemRole, string> = {
-  Admin: "from-purple-400 to-purple-600",
-  DeputyHead: "from-blue-400 to-blue-600",
-  Teacher: "from-orange-400 to-accent-orange",
-  Accountant: "from-emerald-400 to-emerald-600",
-};
-
-type RoleFilter = SystemRole | "All";
+type RoleFilter = StaffSystemRole | "All";
 
 interface StaffTableProps {
   initialData: StaffListResponse;
@@ -134,7 +114,7 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
               firstName={s.firstName}
               lastName={s.lastName}
               size="sm"
-              gradient={ROLE_AVATAR[(s.systemRole ?? "Teacher") as SystemRole]}
+              gradient={STAFF_ROLE_AVATAR[(s.systemRole ?? "Teacher") as StaffSystemRole]}
             />
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">
@@ -150,15 +130,15 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
       accessorKey: "systemRole",
       header: "Role",
       cell: ({ row }) => {
-        const role = (row.original.systemRole ?? "Teacher") as SystemRole;
+        const role = (row.original.systemRole ?? "Teacher") as StaffSystemRole;
         return (
           <span
             className={cn(
               "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-              ROLE_PILL[role]
+              STAFF_ROLE_PILL[role]
             )}
           >
-            {ROLE_LABEL[role]}
+            {ROLE_LABELS[role]}
           </span>
         );
       },
@@ -333,7 +313,7 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
                     : "bg-transparent text-muted-foreground border-border/60 hover:border-border hover:text-foreground"
                 )}
               >
-                {r === "All" ? "All roles" : ROLE_LABEL[r]}
+                {r === "All" ? "All roles" : ROLE_LABELS[r]}
               </button>
             ))}
           </div>
