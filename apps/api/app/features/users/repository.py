@@ -8,7 +8,6 @@ matches the legacy Drizzle implementation.
 
 from __future__ import annotations
 
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, asc, func, or_, select
@@ -133,8 +132,3 @@ class UsersRepository:
             and_(Guardian.id == guardian_id, Guardian.school_id == school_id)
         )
         return (await session.execute(stmt)).scalar_one_or_none()
-
-    @staticmethod
-    async def touch(session: AsyncSession, _row: Any) -> None:
-        """Flush pending changes so callers can re-read the updated row."""
-        await session.flush()

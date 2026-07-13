@@ -175,7 +175,7 @@ export function LearnerFeesTable({
                   {p.receiptFileUrls.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       {p.receiptFileUrls.map((path) => (
-                        <ClientDocumentDownloadLink key={path} storagePath={path} variant="inline" />
+                        <ClientDocumentDownloadLink key={path} storagePath={path} />
                       ))}
                     </div>
                   )}

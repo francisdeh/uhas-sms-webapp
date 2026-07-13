@@ -13,7 +13,6 @@ import type { components } from "@/types/api";
  *   ["attendance"]
  *     ["attendance", "sessions"]
  *       ["attendance", "sessions", "list", params]
- *       ["attendance", "sessions", "lookup", classId, date]
  *       ["attendance", "sessions", "detail", sessionId]
  *
  * The batch upsert mutation invalidates the whole `["attendance"]`
@@ -30,8 +29,6 @@ const KEYS = {
     page?: number;
     size?: number;
   }) => [...KEYS.lists(), params] as const,
-  lookup: (classId: string, date: string) =>
-    [...KEYS.root, "sessions", "lookup", classId, date] as const,
   detail: (sessionId: string) =>
     [...KEYS.root, "sessions", "detail", sessionId] as const,
 } as const;
@@ -42,26 +39,6 @@ export function useAttendanceSessions(
   return useQuery({
     queryKey: KEYS.list(params),
     queryFn: () => api.attendance.listSessions(params),
-  });
-}
-
-/**
- * Look up "have we already saved today's roster?" — returns undefined
- * (via a swallowed 404) when the class hasn't submitted yet. That's the
- * happy path for the roster editor's first render.
- */
-export function useAttendanceLookup(classId: string, date: string) {
-  return useQuery({
-    queryKey: KEYS.lookup(classId, date),
-    queryFn: async () => {
-      try {
-        return await api.attendance.lookupSession({ classId, date });
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 404) return null;
-        throw err;
-      }
-    },
-    enabled: Boolean(classId && date),
   });
 }
 

@@ -179,7 +179,6 @@ export function LessonPlansOversight({ plans }: LessonPlansOversightProps) {
                           <ClientDocumentDownloadLink
                             storagePath={plan.fileUrl}
                             label="Open attachment"
-                            variant="inline"
                           />
                         </div>
                       )}
