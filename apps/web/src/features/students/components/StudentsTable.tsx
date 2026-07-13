@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -288,12 +289,9 @@ export default function StudentsTable({
             Manage student records and enrolment status.
           </p>
         </div>
-        <Link
-          href={`${listHref}/new`}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 text-white px-5 py-2 text-sm font-medium hover:bg-slate-900 active:bg-slate-950 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors"
-        >
+        <Button variant="brand" nativeButton={false} render={<Link href={`${listHref}/new`} />}>
           <Plus size={14} /> Register student
-        </Link>
+        </Button>
       </div>
 
       {/* Stats */}
@@ -418,7 +416,7 @@ export default function StudentsTable({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={() => {
                 if (deactivateTarget) {
                   doDeactivate(deactivateTarget.id);

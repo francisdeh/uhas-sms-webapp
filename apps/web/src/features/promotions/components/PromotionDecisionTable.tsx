@@ -372,7 +372,7 @@ export function PromotionDecisionTable({
             {isPending ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Save size={14} className="mr-1.5" />}
             Save draft
           </Button>
-          <Button onClick={() => setConfirmOpen(true)} disabled={isPending}>
+          <Button variant="brand" onClick={() => setConfirmOpen(true)} disabled={isPending}>
             <Send size={14} className="mr-1.5" />
             Submit to Deputy Head
           </Button>

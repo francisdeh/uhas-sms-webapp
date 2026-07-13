@@ -318,7 +318,7 @@ export function AssignmentForm({ teacherId, existing, assignments, backHref }: A
                   Save
                 </Button>
                 {existing && !published && (
-                  <Button type="button" onClick={onPublish} disabled={isPending}>
+                  <Button type="button" variant="brand" onClick={onPublish} disabled={isPending}>
                     <Send size={14} className="mr-1.5" /> Publish to parents
                   </Button>
                 )}
@@ -342,7 +342,7 @@ export function AssignmentForm({ teacherId, existing, assignments, backHref }: A
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={onDelete}
               disabled={isPending}
             >

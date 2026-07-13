@@ -403,7 +403,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
           <h1 className="text-xl font-bold">User Accounts</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Manage system accounts and access roles.</p>
         </div>
-        <Button variant="ink" className="px-5 py-2 h-auto text-sm" onClick={openCreate}>
+        <Button variant="brand" onClick={openCreate}>
           <Plus size={14} /> New account
         </Button>
       </div>
@@ -508,7 +508,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={() => {
                 if (deactivateTarget) {
                   doToggle(deactivateTarget.uid, true);
@@ -664,7 +664,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
                   )}
                 </FieldGroup>
                 <DialogFooter className="mt-2">
-                  <Button type="submit" variant="ink" className="px-5 py-2 h-auto text-sm" disabled={isPending}>
+                  <Button type="submit" variant="brand" disabled={isPending}>
                     {isPending && <Loader2 size={13} className="animate-spin" />}
                     {editingUser ? "Save changes" : "Create account"}
                   </Button>
@@ -692,7 +692,7 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
                   )}
                 </DialogDescription>
               </DialogHeader>
-              <Button variant="ink" className="w-full py-2 h-auto text-sm" onClick={closeDialog}>
+              <Button variant="brand" className="w-full" onClick={closeDialog}>
                 Done
               </Button>
             </>

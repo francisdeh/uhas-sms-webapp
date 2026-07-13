@@ -444,7 +444,7 @@ export function SchemeForm({
                   </Button>
                 )}
                 {existing && existing.status === "draft" && (
-                  <Button type="button" onClick={onSubmitForReview} disabled={isPending}>
+                  <Button type="button" variant="brand" onClick={onSubmitForReview} disabled={isPending}>
                     <Send size={14} className="mr-1.5" /> Submit to Head of School
                   </Button>
                 )}
@@ -463,7 +463,7 @@ export function SchemeForm({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={onDelete}
               disabled={isPending}
             >

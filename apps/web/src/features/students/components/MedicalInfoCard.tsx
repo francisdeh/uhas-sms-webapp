@@ -69,7 +69,7 @@ export function MedicalInfoCard({ studentId, canEdit }: MedicalInfoCardProps) {
             <div className="space-y-1">
               <Label className="text-xs">Blood type</Label>
               <Select
-                value={draft.bloodType ?? undefined}
+                value={draft.bloodType ?? ""}
                 onValueChange={(v) => setDraft((d) => ({ ...d, bloodType: v as BloodType }))}
               >
                 <SelectTrigger className="h-9">
@@ -124,7 +124,7 @@ export function MedicalInfoCard({ studentId, canEdit }: MedicalInfoCardProps) {
               >
                 Cancel
               </Button>
-              <Button size="sm" onClick={onSave} disabled={update.isPending}>
+              <Button variant="brand" size="sm" onClick={onSave} disabled={update.isPending}>
                 {update.isPending && <Loader2 size={12} className="mr-1.5 animate-spin" />}
                 Save
               </Button>

@@ -240,12 +240,12 @@ export function TwoFactorCard() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive-solid"
               onClick={(e) => {
                 e.preventDefault();
                 disable();
               }}
               disabled={busy}
-              className="bg-red-600 hover:bg-red-700 focus-visible:ring-red-600"
             >
               {busy && <Loader2 size={14} className="mr-2 animate-spin" />}
               Disable

@@ -510,7 +510,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
               <Button type="button" variant="ghost" onClick={() => setTeacherOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isTeacherOpMutating}>
+              <Button type="submit" variant="brand" disabled={isTeacherOpMutating}>
                 {isTeacherOpMutating && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 Save
               </Button>
@@ -569,7 +569,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
                 <Button type="button" variant="ghost" onClick={() => setSubjectOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={assignSubject.isPending}>
+                <Button type="submit" variant="brand" disabled={assignSubject.isPending}>
                   {assignSubject.isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                   Save
                 </Button>
@@ -627,7 +627,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
               <Button type="button" variant="ghost" onClick={() => setAssignTarget(null)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={setSubjectTeacher.isPending}>
+              <Button type="submit" variant="brand" disabled={setSubjectTeacher.isPending}>
                 {setSubjectTeacher.isPending && (
                   <Loader2 size={14} className="animate-spin mr-1.5" />
                 )}

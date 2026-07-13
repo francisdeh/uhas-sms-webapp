@@ -23,7 +23,7 @@ export function AssignmentsList({ assignments, baseHref }: AssignmentsListProps)
           </p>
         </div>
         <Link href={`${baseHref}/new`}>
-          <Button>
+          <Button variant="brand">
             <Plus size={14} className="mr-1.5" /> New assignment
           </Button>
         </Link>
@@ -36,7 +36,7 @@ export function AssignmentsList({ assignments, baseHref }: AssignmentsListProps)
           description="Create assignments for your classes. Drafts stay private; publish to make them visible to parents."
           action={
             <Link href={`${baseHref}/new`}>
-              <Button size="sm">
+              <Button variant="brand" size="sm">
                 <Plus size={13} className="mr-1.5" /> New assignment
               </Button>
             </Link>

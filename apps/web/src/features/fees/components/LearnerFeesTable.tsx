@@ -201,6 +201,7 @@ export function LearnerFeesTable({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive-solid"
               disabled={waive.isPending}
               onClick={async () => {
                 if (action?.type !== "waive") return;
@@ -233,6 +234,7 @@ export function LearnerFeesTable({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive-solid"
               disabled={exclude.isPending}
               onClick={async () => {
                 if (action?.type !== "exclude") return;

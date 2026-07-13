@@ -87,7 +87,7 @@ export function ReviewFooter({ submissionId, reviewedById, redirectTo }: Props) 
             )}
             Send back
           </Button>
-          <Button onClick={() => setApproveOpen(true)} disabled={isPending}>
+          <Button variant="brand" onClick={() => setApproveOpen(true)} disabled={isPending}>
             <Check size={14} className="mr-1.5" />
             Approve
           </Button>

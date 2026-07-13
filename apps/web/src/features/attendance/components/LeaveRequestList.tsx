@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -126,7 +125,6 @@ export function LeaveRequestList({
   const updateStatus = useUpdateLeaveStatus();
   const isPending = updateStatus.isPending;
 
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
   const filtered = requests.filter((r) => filter === "all" || r.status === filter);
 
   async function handleApprove(id: string) {
@@ -157,11 +155,6 @@ export function LeaveRequestList({
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-xl font-bold">Leave Requests</h1>
-        <Badge className="bg-amber-100 text-amber-700">{pendingCount} pending</Badge>
-      </div>
-
       <div className="flex gap-2 mb-4">
         {(["all", "pending", "approved", "rejected", "cancelled"] as const).map((f) => (
           <Button
@@ -283,6 +276,7 @@ export function LeaveRequestList({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="brand"
               onClick={() => { if (approveDialogId) handleApprove(approveDialogId); }}
               disabled={isPending}
             >
@@ -318,7 +312,7 @@ export function LeaveRequestList({
                 if (rejectDialogId) handleReject(rejectDialogId, rejectionInputs[rejectDialogId]);
               }}
               disabled={isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="destructive-solid"
             >
               Reject
             </AlertDialogAction>

@@ -294,7 +294,7 @@ export function StaffAttendanceSheet({
             <p className="text-sm text-muted-foreground">
               {presentCount} present · {absentCount} absent · {onLeaveCount} on leave
             </p>
-            <Button onClick={handleSave} disabled={isPending} className="w-full sm:w-auto">
+            <Button variant="brand" onClick={handleSave} disabled={isPending} className="w-full sm:w-auto">
               {isPending && <Loader2 className="animate-spin" size={14} />}
               Save session
             </Button>

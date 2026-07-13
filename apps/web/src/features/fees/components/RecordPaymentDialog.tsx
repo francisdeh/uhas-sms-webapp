@@ -153,7 +153,7 @@ export function RecordPaymentDialog({ learnerFee, onOpenChange }: RecordPaymentD
             />
 
             <DialogFooter>
-              <Button type="submit" disabled={record.isPending}>
+              <Button type="submit" variant="brand" disabled={record.isPending}>
                 {record.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
                 Record payment
               </Button>

@@ -96,7 +96,7 @@ export function EditLearnerFeeDialog({ learnerFee, onOpenChange }: EditLearnerFe
             </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={update.isPending}>
+              <Button type="submit" variant="brand" disabled={update.isPending}>
                 {update.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
                 Save
               </Button>

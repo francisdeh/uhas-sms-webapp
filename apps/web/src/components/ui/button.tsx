@@ -17,10 +17,17 @@ const buttonVariants = cva(
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+        "destructive-solid":
+          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
         ink: "bg-slate-800 text-white hover:bg-slate-900 active:bg-slate-950 dark:bg-slate-700 dark:hover:bg-slate-600",
         "ink-outline":
           "border-slate-800 text-slate-800 hover:bg-slate-800 hover:text-white dark:border-slate-400 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white",
+        // The one primary "add/create/register/send" CTA style, used
+        // app-wide — bg-accent-orange tracks the school's actual brand
+        // color via the theme token (UHAS's own scheme repoints it to
+        // forest green), unlike the hardcoded `ink` slate.
+        brand: "bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40",
       },
       size: {
         default:

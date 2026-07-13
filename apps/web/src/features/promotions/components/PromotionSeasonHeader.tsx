@@ -119,7 +119,7 @@ export function PromotionSeasonHeader({
                 Close season
               </Button>
             ) : (
-              <Button onClick={handleOpenClick} disabled={isPending}>
+              <Button variant="brand" onClick={handleOpenClick} disabled={isPending}>
                 {isPending ? (
                   <Loader2 size={14} className="animate-spin mr-1.5" />
                 ) : (

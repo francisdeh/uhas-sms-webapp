@@ -73,7 +73,7 @@ export function AuditLogFilters({ filters, actors }: Props) {
   }
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
       <div className="flex-1 min-w-0">
         <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1 block">
           Action

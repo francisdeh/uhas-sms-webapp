@@ -143,7 +143,7 @@ export function ParentAppointmentsView({
             Book a time to meet your child&apos;s teachers about their progress.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} disabled={childOptions.length === 0}>
+        <Button variant="brand" onClick={() => setCreateOpen(true)} disabled={childOptions.length === 0}>
           <Plus size={14} className="mr-1.5" /> Book appointment
         </Button>
       </div>
@@ -161,7 +161,7 @@ export function ParentAppointmentsView({
           description="Book a meeting with your child's teacher to discuss progress, attendance, or any concerns."
           action={
             childOptions.length > 0 ? (
-              <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Button variant="brand" size="sm" onClick={() => setCreateOpen(true)}>
                 <Plus size={13} className="mr-1.5" /> Book appointment
               </Button>
             ) : null
@@ -334,7 +334,7 @@ export function ParentAppointmentsView({
             </FieldGroup>
 
             <DialogFooter className="mt-4">
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" variant="brand" disabled={isPending}>
                 {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 Send request
               </Button>
@@ -354,7 +354,7 @@ export function ParentAppointmentsView({
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={handleCancel}
               disabled={isPending}
             >

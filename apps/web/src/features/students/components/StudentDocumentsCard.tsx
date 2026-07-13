@@ -149,6 +149,7 @@ export function StudentDocumentsCard({ studentId, canManage }: StudentDocumentsC
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive-solid"
               disabled={remove.isPending}
               onClick={async () => {
                 if (!removeId) return;

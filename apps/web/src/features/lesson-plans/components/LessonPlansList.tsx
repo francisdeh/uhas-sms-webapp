@@ -24,7 +24,7 @@ export function LessonPlansList({ plans, baseHref }: LessonPlansListProps) {
           </p>
         </div>
         <Link href={`${baseHref}/new`}>
-          <Button>
+          <Button variant="brand">
             <Plus size={14} className="mr-1.5" /> New plan
           </Button>
         </Link>
@@ -37,7 +37,7 @@ export function LessonPlansList({ plans, baseHref }: LessonPlansListProps) {
           description="Write your first plan for an upcoming week. Drafts can be edited and submitted to your Unit Head when ready."
           action={
             <Link href={`${baseHref}/new`}>
-              <Button size="sm">
+              <Button variant="brand" size="sm">
                 <Plus size={13} className="mr-1.5" /> New plan
               </Button>
             </Link>
