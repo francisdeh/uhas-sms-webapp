@@ -190,7 +190,7 @@ export default function StudentRegistrationForm({
                     control={control}
                     render={({ field }) => (
                       <Select
-                        value={field.value}
+                        value={field.value ?? ""}
                         onValueChange={(v) => {
                           if (v) field.onChange(v);
                         }}
@@ -223,7 +223,7 @@ export default function StudentRegistrationForm({
                   control={control}
                   render={({ field }) => (
                     <Select
-                      value={field.value}
+                      value={field.value ?? ""}
                       onValueChange={(v) => {
                         if (v) field.onChange(v);
                       }}
@@ -329,11 +329,7 @@ export default function StudentRegistrationForm({
 
               {/* Footer actions */}
               <div className="flex items-center gap-3 pt-2">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-slate-800 text-white hover:bg-slate-900 active:bg-slate-950 dark:bg-slate-700 dark:hover:bg-slate-600"
-                >
+                <Button type="submit" variant="brand" disabled={isSubmitting}>
                   {isSubmitting && (
                     <Loader2 size={15} className="animate-spin mr-2" />
                   )}

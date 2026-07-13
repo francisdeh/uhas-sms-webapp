@@ -97,7 +97,7 @@ export function FeeItemForm() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
+      <Button variant="brand" onClick={() => setOpen(true)}>
         <Plus size={14} className="mr-1.5" /> New fee item
       </Button>
       <Dialog
@@ -252,7 +252,7 @@ export function FeeItemForm() {
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={create.isPending}>
+            <Button type="submit" variant="brand" disabled={create.isPending}>
               {create.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
               Create
             </Button>

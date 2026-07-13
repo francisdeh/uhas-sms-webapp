@@ -103,7 +103,7 @@ export function Header({ user, currentYear, onMobileMenuOpen, userPhotoUrl = nul
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleLogout}
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
             >
               Sign out
             </AlertDialogAction>

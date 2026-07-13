@@ -394,7 +394,7 @@ export default function LoginForm() {
               <Button
                 type="submit"
                 disabled={isSubmitting || kind === "unknown"}
-                className="w-full h-10 mt-1 bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40"
+                variant="brand" className="w-full h-10 mt-1"
               >
                 {isSubmitting && <Loader2 size={15} className="animate-spin mr-2" />}
                 {isSubmitting ? "Signing in…" : "Sign in"}
@@ -426,7 +426,7 @@ export default function LoginForm() {
               <Button
                 type="submit"
                 disabled={isSubmitting || !E164_REGEX.test(normalizePhone(identifier))}
-                className="w-full h-10 mt-1 bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40"
+                variant="brand" className="w-full h-10 mt-1"
               >
                 {isSubmitting && <Loader2 size={15} className="animate-spin mr-2" />}
                 {isSubmitting ? "Sending…" : "Send verification code"}
@@ -462,7 +462,7 @@ export default function LoginForm() {
               <Button
                 type="submit"
                 disabled={isSubmitting || otp.length !== 6}
-                className="w-full h-10 mt-1 bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40"
+                variant="brand" className="w-full h-10 mt-1"
               >
                 {isSubmitting && <Loader2 size={15} className="animate-spin mr-2" />}
                 {isSubmitting ? "Verifying…" : "Verify and sign in"}
@@ -502,7 +502,7 @@ export default function LoginForm() {
               <Button
                 type="submit"
                 disabled={isSubmitting || mfaCode.length !== 6}
-                className="w-full h-10 mt-1 bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40"
+                variant="brand" className="w-full h-10 mt-1"
               >
                 {isSubmitting && <Loader2 size={15} className="animate-spin mr-2" />}
                 {isSubmitting ? "Verifying…" : "Verify and sign in"}

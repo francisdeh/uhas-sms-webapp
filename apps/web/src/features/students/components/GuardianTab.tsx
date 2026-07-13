@@ -236,7 +236,7 @@ export function GuardianTab({ studentId, basePath }: GuardianTabProps) {
             <Button variant="ghost" onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={onAdd} disabled={add.isPending}>
+            <Button variant="brand" onClick={onAdd} disabled={add.isPending}>
               {add.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
               Add
             </Button>
@@ -257,6 +257,7 @@ export function GuardianTab({ studentId, basePath }: GuardianTabProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive-solid"
               onClick={() => {
                 if (unlinkId) remove.mutate(unlinkId);
                 setUnlinkId(null);

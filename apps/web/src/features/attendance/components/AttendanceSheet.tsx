@@ -256,6 +256,7 @@ export function AttendanceSheet({
               {presentCount} present · {absentCount} absent · {lateCount} late
             </p>
             <Button
+              variant="brand"
               onClick={handleSave}
               disabled={isPending}
               className="w-full sm:w-auto"

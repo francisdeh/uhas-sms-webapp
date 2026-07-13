@@ -122,7 +122,7 @@ export function ExamsManager({
             Configure mid-term and end-of-term exams. Publish to lock scores and release report cards.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button variant="brand" onClick={() => setCreateOpen(true)}>
           <Plus size={14} className="mr-1.5" /> New exam
         </Button>
       </div>
@@ -224,7 +224,7 @@ export function ExamsManager({
                   control={form.control}
                   render={({ field }) => (
                     <Select
-                      value={field.value}
+                      value={field.value ?? ""}
                       onValueChange={(v) => { if (v) field.onChange(v); }}
                     >
                       <SelectTrigger className="w-full">
@@ -293,7 +293,7 @@ export function ExamsManager({
             </FieldGroup>
 
             <DialogFooter className="mt-4">
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" variant="brand" disabled={isPending}>
                 {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 Create
               </Button>
@@ -334,7 +334,7 @@ export function ExamsManager({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={handleUnpublish}
               disabled={isPending}
             >

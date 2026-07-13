@@ -497,7 +497,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
             </FieldGroup>
 
             <DialogFooter className="mt-4">
-              <Button type="submit" disabled={editIsPending}>
+              <Button type="submit" variant="brand" disabled={editIsPending}>
                 {editIsPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 Save changes
               </Button>
@@ -579,7 +579,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
             </FieldGroup>
 
             <DialogFooter className="mt-4">
-              <Button type="submit" disabled={roleIsPending}>
+              <Button type="submit" variant="brand" disabled={roleIsPending}>
                 {roleIsPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 Save role
               </Button>
@@ -602,7 +602,7 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={handleDeactivate}
               disabled={roleIsPending}
             >

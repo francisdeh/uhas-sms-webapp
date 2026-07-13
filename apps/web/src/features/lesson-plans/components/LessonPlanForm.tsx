@@ -413,7 +413,7 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
                 {existing &&
                 (existing.status === LESSON_PLAN_STATUS.DRAFT ||
                   existing.status === LESSON_PLAN_STATUS.REJECTED) && (
-                  <Button type="button" onClick={onSubmitForReview} disabled={isPending}>
+                  <Button type="button" variant="brand" onClick={onSubmitForReview} disabled={isPending}>
                     <Send size={14} className="mr-1.5" /> Submit for review
                   </Button>
                 )}
@@ -434,7 +434,7 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={onDelete}
               disabled={isPending}
             >

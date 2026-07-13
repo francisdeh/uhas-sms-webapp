@@ -180,11 +180,7 @@ export default function ClassCreateForm({
               </Field>
 
               <div className="flex items-center gap-3 pt-2">
-                <Button
-                  type="submit"
-                  disabled={isPending}
-                  className="bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40"
-                >
+                <Button type="submit" variant="brand" disabled={isPending}>
                   {isPending && <Loader2 size={15} className="animate-spin mr-2" />}
                   {isPending ? "Adding…" : "Add Class"}
                 </Button>

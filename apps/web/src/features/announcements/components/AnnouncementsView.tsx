@@ -132,7 +132,7 @@ export function AnnouncementsView({
             Post notices to the school, a division, or a class. Critical notices are flagged.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button variant="brand" onClick={() => setCreateOpen(true)}>
           <Plus size={14} className="mr-1.5" /> New announcement
         </Button>
       </div>
@@ -143,7 +143,7 @@ export function AnnouncementsView({
           title="No announcements yet"
           description="Post a notice for the whole school, a specific division, or a class. Flag critical ones to draw attention."
           action={
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button variant="brand" size="sm" onClick={() => setCreateOpen(true)}>
               <Plus size={13} className="mr-1.5" /> New announcement
             </Button>
           }
@@ -265,7 +265,7 @@ export function AnnouncementsView({
             </FieldGroup>
 
             <DialogFooter className="mt-4">
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" variant="brand" disabled={isPending}>
                 {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 Post
               </Button>
@@ -283,7 +283,7 @@ export function AnnouncementsView({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={handleDelete}
               disabled={isPending}
             >

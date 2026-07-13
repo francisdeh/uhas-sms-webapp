@@ -101,7 +101,7 @@ export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) 
               onValueChange={(v) =>
                 setValue("type", v as FormValues["type"], { shouldValidate: true })
               }
-              value={leaveType}
+              value={leaveType ?? ""}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select leave type" />
@@ -163,7 +163,7 @@ export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) 
             />
           )}
 
-          <Button type="submit" className="w-full" disabled={create.isPending}>
+          <Button type="submit" variant="brand" className="w-full" disabled={create.isPending}>
             {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Submit Leave Request
           </Button>

@@ -549,7 +549,7 @@ export default function StudentDetail({ student, classes, basePath, exams = [] }
               </div>
             </FieldGroup>
             <DialogFooter className="mt-4">
-              <Button type="submit" disabled={editIsPending}>
+              <Button type="submit" variant="brand" disabled={editIsPending}>
                 {editIsPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 Save changes
               </Button>

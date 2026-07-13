@@ -149,6 +149,7 @@ export function StaffDocumentsCard({ staffId, canManage }: StaffDocumentsCardPro
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive-solid"
               disabled={remove.isPending}
               onClick={async () => {
                 if (!removeId) return;

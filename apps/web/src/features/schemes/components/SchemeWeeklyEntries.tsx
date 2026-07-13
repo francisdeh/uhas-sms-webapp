@@ -149,7 +149,7 @@ export function SchemeWeeklyEntries({ schemeId, entries, canEdit }: SchemeWeekly
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">Weekly entries ({entries.length})</p>
         {canEdit && (
-          <Button type="button" size="sm" variant="outline" onClick={openAdd}>
+          <Button type="button" size="sm" variant="brand" onClick={openAdd}>
             <Plus size={13} className="mr-1.5" /> Add week
           </Button>
         )}
@@ -283,7 +283,7 @@ export function SchemeWeeklyEntries({ schemeId, entries, canEdit }: SchemeWeekly
             </FieldGroup>
 
             <DialogFooter className="mt-4">
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" variant="brand" disabled={isPending}>
                 {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 {editing ? "Save changes" : "Add week"}
               </Button>
@@ -301,7 +301,7 @@ export function SchemeWeeklyEntries({ schemeId, entries, canEdit }: SchemeWeekly
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={onDelete}
               disabled={isPending}
             >

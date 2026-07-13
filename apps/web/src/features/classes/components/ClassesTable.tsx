@@ -6,6 +6,7 @@ import Link from "next/link";
 import { School, BookOpen, GraduationCap, BookMarked, Eye, Plus, Loader2 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { StatCard } from "@/components/ui/stat-card";
 import { useClasses } from "@/features/classes/hooks/use-classes";
@@ -133,12 +134,9 @@ export default function ClassesTable({
           </p>
         </div>
         {!readonly && (
-          <Link
-            href={`${listHref}/new`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 text-white px-5 py-2 text-sm font-medium hover:bg-slate-900 active:bg-slate-950 dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors"
-          >
+          <Button variant="brand" nativeButton={false} render={<Link href={`${listHref}/new`} />}>
             <Plus size={14} /> Add Class
-          </Link>
+          </Button>
         )}
       </div>
 

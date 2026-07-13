@@ -249,7 +249,7 @@ export default function StaffRegistrationForm({
                     control={control}
                     render={({ field }) => (
                       <Select
-                        value={field.value}
+                        value={field.value ?? ""}
                         onValueChange={(v) => {
                           if (v) field.onChange(v);
                         }}
@@ -278,7 +278,7 @@ export default function StaffRegistrationForm({
                       control={control}
                       render={({ field }) => (
                         <Select
-                          value={field.value}
+                          value={field.value ?? ""}
                           onValueChange={(v) => {
                             if (v) field.onChange(v);
                           }}
@@ -334,7 +334,7 @@ export default function StaffRegistrationForm({
                         control={control}
                         render={({ field }) => (
                           <Select
-                            value={field.value}
+                            value={field.value ?? ""}
                             onValueChange={(v) => {
                               if (v) field.onChange(v);
                             }}
@@ -389,11 +389,7 @@ export default function StaffRegistrationForm({
               </Field>
 
               <div className="flex items-center gap-3 pt-2">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-slate-800 text-white hover:bg-slate-900 active:bg-slate-950 dark:bg-slate-700 dark:hover:bg-slate-600"
-                >
+                <Button type="submit" variant="brand" disabled={isSubmitting}>
                   {isSubmitting && (
                     <Loader2 size={15} className="animate-spin mr-2" />
                   )}
@@ -427,7 +423,7 @@ export default function StaffRegistrationForm({
             <DialogTitle>Staff member registered</DialogTitle>
             <DialogDescription>
               {successState
-                ? `${successState.firstName} ${successState.lastName} has been registered with ID ${successState.id}.`
+                ? `${successState.firstName} ${successState.lastName} has been registered.`
                 : ""}
             </DialogDescription>
           </DialogHeader>
@@ -460,11 +456,11 @@ export default function StaffRegistrationForm({
 
           <DialogFooter>
             <Button
+              variant="brand"
               onClick={() => {
                 setSuccessState(null);
                 router.push(listHref);
               }}
-              className="bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40"
             >
               Done
             </Button>

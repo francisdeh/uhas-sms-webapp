@@ -139,7 +139,7 @@ export function CalendarView({ events, authorId, canManage }: CalendarViewProps)
           </p>
         </div>
         {canManage && (
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button variant="brand" onClick={() => setCreateOpen(true)}>
             <Plus size={14} className="mr-1.5" /> Add event
           </Button>
         )}
@@ -282,7 +282,7 @@ export function CalendarView({ events, authorId, canManage }: CalendarViewProps)
             </FieldGroup>
 
             <DialogFooter className="mt-4">
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" variant="brand" disabled={isPending}>
                 {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 Add
               </Button>
@@ -302,7 +302,7 @@ export function CalendarView({ events, authorId, canManage }: CalendarViewProps)
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive-solid"
               onClick={handleDelete}
               disabled={isPending}
             >

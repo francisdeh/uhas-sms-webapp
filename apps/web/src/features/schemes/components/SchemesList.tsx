@@ -23,7 +23,7 @@ export function SchemesList({ schemes, baseHref }: SchemesListProps) {
           </p>
         </div>
         <Link href={`${baseHref}/new`}>
-          <Button>
+          <Button variant="brand">
             <Plus size={14} className="mr-1.5" /> New scheme
           </Button>
         </Link>
@@ -36,7 +36,7 @@ export function SchemesList({ schemes, baseHref }: SchemesListProps) {
           description="Create a Scheme of Work or Scheme of Learning for one of your classes. You can upload an existing document or write directly in the system."
           action={
             <Link href={`${baseHref}/new`}>
-              <Button size="sm">
+              <Button variant="brand" size="sm">
                 <Plus size={13} className="mr-1.5" /> New scheme
               </Button>
             </Link>

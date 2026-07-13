@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { BookOpen, BookMarked, Sparkles, Loader2 } from "lucide-react";
+import { BookOpen, BookMarked, Sparkles, Loader2, Plus } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/ui/data-table";
@@ -190,8 +190,8 @@ export default function SubjectsTable() {
             Manage subjects across all divisions.
           </p>
         </div>
-        <Button variant="outline" onClick={() => setCreateOpen(true)}>
-          Add Subject
+        <Button variant="brand" onClick={() => setCreateOpen(true)}>
+          <Plus size={14} className="mr-1.5" /> Add Subject
         </Button>
       </div>
 
@@ -313,7 +313,7 @@ export default function SubjectsTable() {
                   control={control}
                   render={({ field }) => (
                     <Select
-                      value={field.value}
+                      value={field.value ?? ""}
                       onValueChange={(v) => {
                         if (v) field.onChange(v as "Core" | "Elective");
                       }}
@@ -336,7 +336,7 @@ export default function SubjectsTable() {
               <Button
                 type="submit"
                 disabled={createSubject.isPending || isSubmitting}
-                variant="default"
+                variant="brand"
               >
                 {(createSubject.isPending || isSubmitting) && (
                   <Loader2 size={15} className="animate-spin mr-2" />

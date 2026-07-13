@@ -296,7 +296,7 @@ export function ClassReportSubmitForm({
             {isPending ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Save size={14} className="mr-1.5" />}
             Save draft
           </Button>
-          <Button onClick={() => setConfirmOpen(true)} disabled={isPending}>
+          <Button variant="brand" onClick={() => setConfirmOpen(true)} disabled={isPending}>
             <Send size={14} className="mr-1.5" />
             {submitted ? "Re-submit" : "Submit to Head of School"}
           </Button>
@@ -341,7 +341,7 @@ function RatingSelect({
     <div>
       <Label className="text-[11px] text-muted-foreground mb-0.5 block">{label}</Label>
       <Select
-        value={value ?? undefined}
+        value={value ?? ""}
         onValueChange={(v) => v && onChange(v as Rating)}
         disabled={disabled}
       >

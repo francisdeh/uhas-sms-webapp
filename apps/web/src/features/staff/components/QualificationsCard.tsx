@@ -110,7 +110,7 @@ export function QualificationsCard({ staffId }: QualificationsCardProps) {
             />
           </div>
           <div className="flex justify-end">
-            <Button size="sm" disabled={!name.trim() || add.isPending} onClick={onAdd}>
+            <Button variant="brand" size="sm" disabled={!name.trim() || add.isPending} onClick={onAdd}>
               Add
             </Button>
           </div>
@@ -126,6 +126,7 @@ export function QualificationsCard({ staffId }: QualificationsCardProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive-solid"
               disabled={remove.isPending}
               onClick={async () => {
                 if (!removeId) return;

@@ -646,12 +646,12 @@ function DangerTab({ user }: { user: SessionUser }) {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deactivating}>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive-solid"
               onClick={(e) => {
                 e.preventDefault();
                 handleDeactivate();
               }}
               disabled={deactivating}
-              className="bg-red-600 hover:bg-red-700 focus-visible:ring-red-600"
             >
               {deactivating && <Loader2 size={14} className="mr-2 animate-spin" />}
               Deactivate account

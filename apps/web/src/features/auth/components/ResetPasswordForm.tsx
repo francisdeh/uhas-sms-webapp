@@ -86,11 +86,7 @@ export default function ResetPasswordForm() {
           <FieldError errors={[errors.email]} />
         </Field>
 
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full h-10 mt-1 bg-accent-orange text-white hover:bg-accent-orange/90 focus-visible:ring-accent-orange/40"
-        >
+        <Button type="submit" variant="brand" className="w-full h-10 mt-1" disabled={isSubmitting}>
           {isSubmitting && <Loader2 size={15} className="animate-spin mr-2" />}
           {isSubmitting ? "Sending…" : "Send reset link"}
         </Button>
