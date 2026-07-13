@@ -33,7 +33,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request a password-reset email — no auth required, always 202 */
+        /** Request a password-reset email — no auth required, always 204 */
         post: operations["reset_password_auth_reset_password_post"];
         delete?: never;
         options?: never;
@@ -7493,13 +7493,11 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            202: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
