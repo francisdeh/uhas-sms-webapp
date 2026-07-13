@@ -1,46 +1,49 @@
-"""Shared fixtures for the Staff test suite.
+"""Fixtures for the public auth-adjacent endpoint suite.
 
-Same shape as the school_terms suite — distinct pinned UUIDs so a
-future suite-wide fixture that seeds both can't collide.
+Distinct UUID range (`aaaaaaaa-…`) so seeded rows can't collide with
+any other suite's fixtures. `/auth/reset-password` is IP-keyed (no
+JWT) — the `_reset_limiter` autouse fixture clears `slowapi`'s
+in-memory bucket between tests so one test's requests don't count
+against another's rate-limit budget.
 """
 
 from __future__ import annotations
 
-import time
 from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID, uuid4
 
-import jwt
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.db import engine, get_session
+from app.core.errors import NotFoundError
+from app.core.rate_limit import limiter
 from app.features.schools.model import School
-from app.features.users.supabase_admin import get_supabase_admin_client
+from app.features.users.model import User
+from app.features.users.supabase_admin import SupabaseAdminClient, get_supabase_admin_client
 from app.main import app
 
-SCHOOL_UUID = UUID("33333333-3333-4333-8333-333333333301")
-OTHER_SCHOOL_UUID = UUID("33333333-3333-4333-8333-333333333302")
-USER_UUID = UUID("00000000-0000-0000-0000-000000000031")
+SCHOOL_UUID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0001")
+USER_UUID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0101")
 
 
 class FakeSupabaseAdminClient:
-    """Full-ish fake — records `generate_link`/`update_user_by_id` calls
-    so `POST /staff/{id}/login` tests can assert on them."""
+    """`generate_link` records calls and returns a deterministic link.
+    Emails in `unknown_emails` simulate Supabase's own "user not found"
+    (the same signal path the real client re-raises `NotFoundError` for)."""
 
     def __init__(self) -> None:
         self.generate_link_calls: list[dict[str, Any]] = []
-        self.update_calls: list[dict[str, Any]] = []
+        self.unknown_emails: set[str] = set()
 
     async def create_user(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
     async def update_user_by_id(self, user_id: UUID | str, **kwargs: Any) -> None:
-        self.update_calls.append({"user_id": user_id, **kwargs})
+        raise NotImplementedError
 
     async def delete_user(self, user_id: UUID | str) -> None:
         raise NotImplementedError
@@ -49,11 +52,12 @@ class FakeSupabaseAdminClient:
         raise NotImplementedError
 
     async def generate_link(self, **kwargs: Any) -> dict[str, Any]:
-        uid = uuid4()
+        if kwargs.get("email") in self.unknown_emails:
+            raise NotFoundError("No account for that email.")
         self.generate_link_calls.append(kwargs)
         return {
             "action_link": f"https://example.com/verify?type={kwargs['type']}",
-            "user_id": str(uid),
+            "user_id": str(uuid4()),
         }
 
     async def reset_mfa(self, user_id: UUID | str) -> int:
@@ -63,9 +67,9 @@ class FakeSupabaseAdminClient:
         raise NotImplementedError
 
 
-@pytest.fixture
-def fake_supabase() -> FakeSupabaseAdminClient:
-    return FakeSupabaseAdminClient()
+@pytest.fixture(autouse=True)
+def _reset_limiter() -> None:
+    limiter.reset()
 
 
 @pytest_asyncio.fixture
@@ -84,8 +88,8 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 async def seed_school(db_session: AsyncSession) -> School:
     school = School(
         id=SCHOOL_UUID,
-        slug="test-school-for-staff",
-        name="Test School (staff suite)",
+        slug="test-school-auth",
+        name="Test School (auth suite)",
         academic_year="2025/2026",
         current_term=1,
         grading_scale="GES_STANDARD",
@@ -97,48 +101,39 @@ async def seed_school(db_session: AsyncSession) -> School:
 
 
 @pytest_asyncio.fixture
+async def seed_user(db_session: AsyncSession, seed_school: School) -> User:
+    user = User(
+        id=USER_UUID,
+        school_id=SCHOOL_UUID,
+        email="staff@auth-suite.example.com",
+        role="Teacher",
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+
+@pytest.fixture
+def fake_supabase() -> FakeSupabaseAdminClient:
+    return FakeSupabaseAdminClient()
+
+
+@pytest_asyncio.fixture
 async def client(
     db_session: AsyncSession, fake_supabase: FakeSupabaseAdminClient
 ) -> AsyncIterator[AsyncClient]:
     async def _override_get_session() -> AsyncIterator[AsyncSession]:
         yield db_session
 
+    def _override_supabase() -> SupabaseAdminClient:
+        return fake_supabase
+
     app.dependency_overrides[get_session] = _override_get_session
-    app.dependency_overrides[get_supabase_admin_client] = lambda: fake_supabase
+    app.dependency_overrides[get_supabase_admin_client] = _override_supabase
     transport = ASGITransport(app=app)
     try:
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             yield ac
     finally:
         app.dependency_overrides.clear()
-
-
-def mint_jwt(
-    *,
-    role: str = "Admin",
-    school_id: UUID | str | None = SCHOOL_UUID,
-    user_id: UUID | str = USER_UUID,
-    linked_id: UUID | str | None = None,
-    expires_in: int = 3600,
-) -> str:
-    now = int(time.time())
-    app_metadata: dict[str, Any] = {"role": role}
-    if school_id is not None:
-        app_metadata["school_id"] = str(school_id)
-    if linked_id is not None:
-        app_metadata["linked_id"] = str(linked_id)
-    return jwt.encode(
-        {
-            "sub": str(user_id),
-            "iat": now,
-            "exp": now + expires_in,
-            "email": "test@example.com",
-            "app_metadata": app_metadata,
-        },
-        settings.supabase_jwt_secret,
-        algorithm="HS256",
-    )
-
-
-def auth_header(**kwargs: Any) -> dict[str, str]:
-    return {"Authorization": f"Bearer {mint_jwt(**kwargs)}"}

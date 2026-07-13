@@ -35,6 +35,7 @@ from app.features.attendance.router import (
     students_router as student_attendance_router,
 )
 from app.features.audit.router import router as audit_log_router
+from app.features.auth.router import router as auth_router
 from app.features.calendar.router import router as calendar_router
 from app.features.classes.router import (
     class_subjects_router,
@@ -82,6 +83,7 @@ from app.features.staff.router import router as staff_router
 from app.features.staff_attendance.router import router as staff_attendance_router
 from app.features.students.router import router as students_router
 from app.features.subjects.router import router as subjects_router
+from app.features.users.jobs import USERS_JOBS
 from app.features.users.router import router as users_router
 
 # Initialise observability before constructing the FastAPI app so that
@@ -152,6 +154,7 @@ def create_app() -> FastAPI:
     # Each feature's router lands here. Keep the list flat + alphabetised
     # so it's easy to see what surfaces exist.
     app.include_router(health_router)
+    app.include_router(auth_router)
     app.include_router(schools_router)
     app.include_router(school_terms_router)
     app.include_router(shell_router)
@@ -204,6 +207,7 @@ def create_app() -> FastAPI:
             *APPOINTMENTS_JOBS,
             *LEAVE_REQUESTS_JOBS,
             *ATTENDANCE_JOBS,
+            *USERS_JOBS,
         ],
     )
 

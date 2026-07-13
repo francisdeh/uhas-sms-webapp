@@ -161,6 +161,7 @@ class FakeSupabaseAdminClient:
         self.update_calls: list[dict[str, Any]] = []
         self.phone_by_user_id: dict[str, str | None] = {}
         self.email_by_user_id: dict[str, str | None] = {}
+        self.generate_link_calls: list[dict[str, Any]] = []
 
     async def create_user(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
@@ -173,6 +174,10 @@ class FakeSupabaseAdminClient:
 
     async def invite_user_by_email(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
+
+    async def generate_link(self, **kwargs: Any) -> dict[str, Any]:
+        self.generate_link_calls.append(kwargs)
+        return {"action_link": f"https://example.com/verify?type={kwargs['type']}", "user_id": None}
 
     async def get_user_by_id(self, user_id: UUID | str) -> dict[str, Any]:
         return {

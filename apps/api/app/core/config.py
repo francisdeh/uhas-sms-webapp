@@ -129,16 +129,21 @@ class Settings(BaseSettings):
     )
 
     # ── Outbound email ────────────────────────────────────────────────────
-    # Provider-agnostic — today this is plain SMTP (Gmail App Password in
-    # dev), matching the pre-migration Next-side `lib/email.ts`. Swapping
-    # to a transactional provider (Resend/SendGrid/Postmark) later is a
-    # one-file change in `app/integrations/email/`; no caller changes.
-    # Missing SMTP config isn't an error — `get_email_provider()` returns
-    # a provider that logs + returns `skipped=True` so every environment
-    # (dev, CI, tests) runs the same code path without exploding.
-    smtp_host: str | None = Field(default=None, description="e.g. smtp.gmail.com")
-    smtp_port: int = Field(default=465, description="465 → implicit TLS.")
-    smtp_user: str | None = Field(default=None)
+    # Provider-agnostic — `get_email_provider()` prefers Resend (real
+    # production sends) when `resend_api_key` is set, else falls back to
+    # plain SMTP (local Mailpit in dev — no credentials needed — or a
+    # real SMTP server if `smtp_user`/`smtp_password` are also set), else
+    # the not-configured stub that logs + returns `skipped=True` so every
+    # environment (dev, CI, tests) runs the same code path without
+    # exploding. Same "missing config isn't an error" contract as SMS.
+    resend_api_key: str | None = Field(
+        default=None, description="Production email provider — takes precedence over SMTP."
+    )
+    smtp_host: str | None = Field(
+        default=None, description="e.g. localhost (Mailpit) or smtp.gmail.com"
+    )
+    smtp_port: int = Field(default=465, description="465 → implicit TLS. Mailpit uses 1025.")
+    smtp_user: str | None = Field(default=None, description="Unset for Mailpit — auth is optional.")
     smtp_password: str | None = Field(
         default=None, description="Gmail App Password, not the account password."
     )
@@ -148,7 +153,7 @@ class Settings(BaseSettings):
     )
     email_dev_redirect: str | None = Field(
         default=None,
-        description="Outside production, every email goes here instead of the real recipient.",
+        description="Outside production, every SMTP email goes here instead of the real recipient.",
     )
 
     # ── Outbound SMS ──────────────────────────────────────────────────────

@@ -19,11 +19,13 @@ Tests override the dependency with `FakeSupabaseAdminClient` (see the
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Protocol, cast
+from typing import Any, Literal, Protocol, cast
 from uuid import UUID
 
 from app.core.config import settings
-from app.core.errors import ServiceUnavailableError
+from app.core.errors import NotFoundError, ServiceUnavailableError
+
+GenerateLinkType = Literal["invite", "recovery", "email_change_current", "email_change_new"]
 
 PERMANENT_BAN = "876600h"
 """Supabase's idiomatic value for "disable indefinitely" — mirrors the
@@ -71,6 +73,21 @@ class SupabaseAdminClient(Protocol):
         redirect_to: str,
     ) -> dict[str, Any]: ...
 
+    async def generate_link(
+        self,
+        *,
+        type: GenerateLinkType,
+        email: str,
+        redirect_to: str,
+        new_email: str | None = None,
+    ) -> dict[str, Any]:
+        """Mints an auth link WITHOUT sending Supabase's own email —
+        the caller sends it via our own branded system instead. Raises
+        `NotFoundError` if `email` doesn't correspond to a real account
+        (relevant to `recovery`, where the caller must swallow that into
+        a generic response to avoid leaking account existence)."""
+        ...
+
     async def reset_mfa(self, user_id: UUID | str) -> int: ...
 
     async def get_user_by_id(self, user_id: UUID | str) -> dict[str, Any]: ...
@@ -116,6 +133,16 @@ class _NotConfiguredSupabaseAdminClient:
         raise ServiceUnavailableError(self._MSG)
 
     async def invite_user_by_email(self, *, email: str, redirect_to: str) -> dict[str, Any]:
+        raise ServiceUnavailableError(self._MSG)
+
+    async def generate_link(
+        self,
+        *,
+        type: GenerateLinkType,
+        email: str,
+        redirect_to: str,
+        new_email: str | None = None,
+    ) -> dict[str, Any]:
         raise ServiceUnavailableError(self._MSG)
 
     async def reset_mfa(self, user_id: UUID | str) -> int:
@@ -221,6 +248,46 @@ class RealSupabaseAdminClient:
             if user is None:
                 raise ServiceUnavailableError("Supabase did not return an auth user.")
             return {"id": str(user.id), "email": user.email}
+
+        return await asyncio.to_thread(_run)
+
+    async def generate_link(
+        self,
+        *,
+        type: GenerateLinkType,
+        email: str,
+        redirect_to: str,
+        new_email: str | None = None,
+    ) -> dict[str, Any]:
+        """Mints an `action_link` without Supabase sending anything —
+        the caller emits it through our own branded email system. A
+        nonexistent `email` raises Supabase's own `user_not_found`
+        error; re-raised as `NotFoundError` so callers that need
+        enumeration-safety (password recovery) can catch specifically
+        and still return a generic response."""
+        from supabase_auth.errors import AuthApiError
+
+        def _run() -> dict[str, Any]:
+            payload: dict[str, Any] = {
+                "type": type,
+                "email": email,
+                "options": {"redirect_to": redirect_to},
+            }
+            if new_email is not None:
+                payload["new_email"] = new_email
+            try:
+                resp = self._client.auth.admin.generate_link(cast(Any, payload))
+            except AuthApiError as exc:
+                if exc.code == "user_not_found":
+                    raise NotFoundError(f"No account for {email!r}.") from exc
+                raise
+            action_link = resp.properties.action_link if resp.properties else None
+            if not action_link:
+                raise ServiceUnavailableError("Supabase did not return an action link.")
+            return {
+                "action_link": action_link,
+                "user_id": str(resp.user.id) if resp.user else None,
+            }
 
         return await asyncio.to_thread(_run)
 

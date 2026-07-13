@@ -81,8 +81,8 @@ async def test_provision_email_guardian_sends_invite(
     assert body["linkedId"] == str(G_EMAIL)
     assert body["mustChangePassword"] is True
     # Email → invite; no phone → update sets phone_confirm False.
-    assert len(fake_supabase.invite_calls) == 1
-    assert fake_supabase.invite_calls[0]["email"] == "em@example.com"
+    assert len(fake_supabase.generate_link_calls) == 1
+    assert fake_supabase.generate_link_calls[0]["email"] == "em@example.com"
     assert len(fake_supabase.create_calls) == 0
     assert fake_supabase.update_calls[0]["phone_confirm"] is False
     assert fake_supabase.update_calls[0]["app_metadata"]["role"] == "Parent"
@@ -102,7 +102,7 @@ async def test_provision_phone_only_guardian_creates_otp_user(
     body = res.json()
     assert body["mustChangePassword"] is False
     # Phone-only → create_user with confirmed phone, NO invite.
-    assert len(fake_supabase.invite_calls) == 0
+    assert len(fake_supabase.generate_link_calls) == 0
     assert len(fake_supabase.create_calls) == 1
     call = fake_supabase.create_calls[0]
     assert call["phone"] == "gl-phone-a"
@@ -133,7 +133,7 @@ async def test_provision_phone_only_emits_onboarding_sms(
     assert event.data["recipients"] == [{"phone": "gl-phone-a", "guardian_id": str(G_PHONE)}]
 
 
-async def test_provision_with_email_skips_onboarding_sms(
+async def test_provision_with_email_sends_invite_not_onboarding_sms(
     client: AsyncClient,
     seed_school: School,
     db_session: AsyncSession,
@@ -148,7 +148,10 @@ async def test_provision_with_email_skips_onboarding_sms(
     )
     res = await client.post(f"/guardians/{G_EMAIL}/login", headers=auth_header(role="Admin"))
     assert res.status_code == 201, res.text
-    assert fake_send.events == []
+    assert len(fake_send.events) == 1
+    event = fake_send.events[0]
+    assert event.name == "email/account-invite.requested"
+    assert event.data["email"] == "em@example.com"
 
 
 async def test_provision_both_invites_and_sets_phone(
@@ -167,7 +170,7 @@ async def test_provision_both_invites_and_sets_phone(
     )
     res = await client.post(f"/guardians/{G_BOTH}/login", headers=auth_header(role="Admin"))
     assert res.status_code == 201, res.text
-    assert len(fake_supabase.invite_calls) == 1
+    assert len(fake_supabase.generate_link_calls) == 1
     assert fake_supabase.update_calls[0]["phone"] == "gl-phone-b"
     assert fake_supabase.update_calls[0]["phone_confirm"] is True
 
@@ -181,7 +184,7 @@ async def test_provision_neither_returns_400(
     await _seed_guardian(db_session, seed_school.id, guardian_id=G_NEITHER, slug="G-NO")
     res = await client.post(f"/guardians/{G_NEITHER}/login", headers=auth_header(role="Admin"))
     assert res.status_code == 400
-    assert fake_supabase.invite_calls == []
+    assert fake_supabase.generate_link_calls == []
     assert fake_supabase.create_calls == []
 
 

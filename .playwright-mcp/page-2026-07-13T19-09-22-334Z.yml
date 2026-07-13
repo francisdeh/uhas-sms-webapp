@@ -1,0 +1,10 @@
+- generic [active] [ref=f7e1]:
+  - paragraph [ref=f7e2]: Hi,
+  - paragraph [ref=f7e3]:
+    - text: Someone requested to change the email on your Test School (me) account from this address to
+    - strong [ref=f7e4]: new-teacher@example.com
+    - text: . If this wasn't you, you can safely ignore this email — your login stays unchanged either way.
+  - paragraph [ref=f7e5]:
+    - link "Confirm change" [ref=f7e6] [cursor=pointer]:
+      - /url: https://example.com/verify?type=email_change_current
+  - paragraph [ref=f7e7]: Test School (me)

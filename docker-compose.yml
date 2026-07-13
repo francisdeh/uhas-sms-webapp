@@ -17,3 +17,17 @@ services:
       # `uv run uvicorn ...` isn't containerized, so the API lives outside
       # this compose network.
       - "host.docker.internal:host-gateway"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: uhas_sms_mailpit
+    restart: unless-stopped
+    ports:
+      # SMTP — point SMTP_HOST=localhost / SMTP_PORT=1025 at this, no
+      # credentials needed. Web UI at http://localhost:8025 to view
+      # everything this app's own SmtpEmailProvider sends in dev.
+      # Distinct from the Supabase CLI's own local mail catcher (also
+      # branded "Mailpit" in newer CLI versions) at :54324, which only
+      # catches Supabase Auth's own emails, not this app's.
+      - "1025:1025"
+      - "8025:8025"

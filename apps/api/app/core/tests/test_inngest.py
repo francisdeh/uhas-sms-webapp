@@ -20,6 +20,7 @@ from app.features.health.jobs.ping import ping_job
 from app.features.leave_requests.jobs import LEAVE_REQUESTS_JOBS
 from app.features.lesson_plans.jobs import LESSON_PLANS_JOBS
 from app.features.sms.jobs import SMS_JOBS
+from app.features.users.jobs import USERS_JOBS
 from app.main import app
 
 client = TestClient(app)
@@ -33,6 +34,7 @@ _ALL_JOBS = [
     *APPOINTMENTS_JOBS,
     *LEAVE_REQUESTS_JOBS,
     *ATTENDANCE_JOBS,
+    *USERS_JOBS,
 ]
 
 

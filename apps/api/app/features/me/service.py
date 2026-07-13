@@ -6,25 +6,41 @@ logic is unit-testable without hitting FastAPI.
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
+import inngest
+import sentry_sdk
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import ConflictError, ForbiddenError, ValidationError
+from app.core.inngest import inngest_client
 from app.core.phone import normalize_ghana_phone
-from app.core.roles import ADMIN, PARENT
+from app.core.roles import ACCOUNTANT, ADMIN, DEPUTY_HEAD, PARENT, TEACHER
 from app.core.school_structure import Division
 from app.core.security import CurrentUser
 from app.features.audit.actions import ACCOUNT_SELF_DEACTIVATED
 from app.features.guardians.model import Guardian
 from app.features.me.schema import MeRead, MeUpdate
+from app.features.schools.service import SchoolsService
 from app.features.staff.model import Staff
 from app.features.users.model import User, UserPreferences
 from app.features.users.repository import UsersRepository
 from app.features.users.service import UsersService
 from app.features.users.supabase_admin import SupabaseAdminClient
+
+logger = logging.getLogger(__name__)
+
+_ROLE_DASHBOARD_PREFIX = {
+    ADMIN: "admin",
+    DEPUTY_HEAD: "deputy-head",
+    TEACHER: "teacher",
+    PARENT: "parent",
+    ACCOUNTANT: "accountant",
+}
 
 
 class MeService:
@@ -309,6 +325,75 @@ class MeService:
         # what we just confirmed so the response is correct immediately.
         result = await MeService.get(session, user)
         return result.model_copy(update={"email": email})
+
+    @staticmethod
+    async def request_email_change(
+        session: AsyncSession,
+        user: CurrentUser,
+        *,
+        new_email: str,
+        supabase: SupabaseAdminClient,
+    ) -> None:
+        """Replaces the frontend's direct `supabase.auth.updateUser({email})`
+        call — mints both confirmation links via `generate_link` and sends
+        them through our own branded system instead of Supabase's. Supabase
+        still owns the actual dual-confirmation state machine; once both
+        links are clicked the change completes on Supabase's side exactly
+        as before, and the existing `POST /me/email/confirm` mirrors it
+        into `users.email` (unchanged, not touched by this method).
+
+        Requires an existing email on the account — `generate_link` looks
+        the account up BY email, so there's no way to mint a "confirm new
+        address" link for a phone-only account that has none yet. That
+        one case (adding, not changing, an email) keeps using Supabase's
+        own direct client-side call; not migrated here."""
+        user_row = await session.scalar(select(User).where(User.id == UUID(user.user_id)))
+        if user_row is None:
+            raise ForbiddenError("Session has no matching user row.")
+        old_email = user_row.email
+        if not old_email:
+            raise ValidationError(
+                "This account has no email yet — that's an add, not a change. "
+                "Ask an Admin to add one for you."
+            )
+        if new_email == old_email:
+            raise ValidationError("That's already your current email address.")
+
+        redirect_prefix = _ROLE_DASHBOARD_PREFIX.get(user.role or "", "")
+        redirect_to = f"{settings.app_url}/{redirect_prefix}/profile?tab=security"
+
+        current_link = await supabase.generate_link(
+            type="email_change_current",
+            email=old_email,
+            new_email=new_email,
+            redirect_to=redirect_to,
+        )
+        new_link = await supabase.generate_link(
+            type="email_change_new",
+            email=old_email,
+            new_email=new_email,
+            redirect_to=redirect_to,
+        )
+
+        try:
+            school = await SchoolsService.get(session, user.school_id or "")
+            await inngest_client.send(
+                inngest.Event(
+                    name="email/account-email-change.requested",
+                    data={
+                        "old_email": old_email,
+                        "new_email": new_email,
+                        "current_link": current_link["action_link"],
+                        "new_link": new_link["action_link"],
+                        "school_name": school.name,
+                        "school_address": school.address or "",
+                        "school_contact_email": school.email or school.email_reply_to or "",
+                    },
+                )
+            )
+        except Exception:
+            logger.exception("Failed to emit email-change event for user %s", user.user_id)
+            sentry_sdk.capture_exception()
 
     @staticmethod
     async def deactivate(

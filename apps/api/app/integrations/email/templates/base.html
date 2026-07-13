@@ -36,9 +36,11 @@
                 <a href="mailto:{{ school_contact_email }}" style="color:#1B6B3E;text-decoration:none;">{{ school_contact_email }}</a>
               </p>
               {% endif %}
+              {% if preferences_link %}
               <p style="margin:0;color:#9ca3af;font-size:11px;">
                 <a href="{{ preferences_link }}" style="color:#9ca3af;text-decoration:underline;">Manage email preferences</a>
               </p>
+              {% endif %}
             </td>
           </tr>
         </table>

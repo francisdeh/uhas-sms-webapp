@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import engine, get_session
+from app.core.errors import NotFoundError
 from app.features.schools.model import School
 from app.features.users.supabase_admin import (
     SupabaseAdminClient,
@@ -51,9 +52,14 @@ class FakeSupabaseAdminClient:
         self.update_calls: list[dict[str, Any]] = []
         self.delete_calls: list[UUID | str] = []
         self.invite_calls: list[dict[str, Any]] = []
+        self.generate_link_calls: list[dict[str, Any]] = []
         self.reset_mfa_calls: list[UUID | str] = []
         # user_id (str) -> number of factors the fake pretends they have.
         self.mfa_factor_counts: dict[str, int] = {}
+        # emails in this set make generate_link raise NotFoundError,
+        # simulating Supabase's real "user_not_found" — tests use this
+        # to exercise the enumeration-safe recovery path.
+        self.unknown_emails: set[str] = set()
         self._preset_ids: list[UUID] = []
         self._preset_index = 0
 
@@ -124,6 +130,28 @@ class FakeSupabaseAdminClient:
         uid = self._next_uid()
         self.invite_calls.append({"email": email, "redirect_to": redirect_to, "returned_id": uid})
         return {"id": str(uid), "email": email}
+
+    async def generate_link(
+        self,
+        *,
+        type: str,
+        email: str,
+        redirect_to: str,
+        new_email: str | None = None,
+    ) -> dict[str, Any]:
+        if email in self.unknown_emails:
+            raise NotFoundError(f"No account for {email!r}.")
+        uid = self._next_uid()
+        self.generate_link_calls.append(
+            {
+                "type": type,
+                "email": email,
+                "redirect_to": redirect_to,
+                "new_email": new_email,
+                "returned_id": uid,
+            }
+        )
+        return {"action_link": f"https://example.com/verify?type={type}", "user_id": str(uid)}
 
     async def reset_mfa(self, user_id: UUID | str) -> int:
         self.reset_mfa_calls.append(user_id)

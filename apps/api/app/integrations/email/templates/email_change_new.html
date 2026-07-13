@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Confirm your new email address{% endblock %}
+{% block content %}
+<p style="margin:0 0 16px;color:#111827;font-size:15px;">Hi,</p>
+<p style="margin:0 0 20px;color:#111827;font-size:15px;line-height:1.5;">
+  Confirm that this is your new email address for your {{ school_name }} account. Both this address and your old one need to confirm the change before it takes effect.
+</p>
+<p style="margin:0;">
+  <a href="{{ confirm_link }}" style="display:inline-block;background-color:#1B6B3E;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">Confirm new email</a>
+</p>
+{% endblock %}

@@ -7,6 +7,9 @@
     POST  /me/email/confirm  →  MeRead — mirrors Supabase's already-
                                  confirmed email into users.email +
                                  the linked row
+    POST  /me/email/request-change → kicks off a branded dual-
+                                 confirmation email change (replaces a
+                                 direct client-side Supabase call)
 
 Called on every dashboard render by the Next-side `getSessionUser()`
 helper — this endpoint replaces the Drizzle join across users/staff/
@@ -22,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.deps import CurrentUserDep
-from app.features.me.schema import MeRead, MeUpdate
+from app.features.me.schema import EmailChangeRequest, MeRead, MeUpdate
 from app.features.me.service import MeService
 from app.features.users.supabase_admin import SupabaseAdminClient, get_supabase_admin_client
 
@@ -100,6 +103,28 @@ async def confirm_me_email(
     every profile-page load) since it just mirrors whatever Supabase
     currently has confirmed; a no-op if nothing changed."""
     return await MeService.confirm_email(session, user, supabase=supabase)
+
+
+@router.post(
+    "/email/request-change",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Request an email change — sends our own branded dual-confirmation emails",
+)
+async def request_me_email_change(
+    payload: EmailChangeRequest,
+    user: CurrentUserDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    supabase: Annotated[SupabaseAdminClient, Depends(get_supabase_admin_client)],
+) -> None:
+    """Replaces the frontend's direct `supabase.auth.updateUser({email})`
+    call. Both the current and new address get a confirmation link
+    through our branded system; once both are clicked, Supabase
+    completes the change exactly as before, and the existing
+    `POST /me/email/confirm` mirrors it locally — that endpoint hasn't
+    changed."""
+    await MeService.request_email_change(
+        session, user, new_email=payload.new_email, supabase=supabase
+    )
 
 
 @router.post(

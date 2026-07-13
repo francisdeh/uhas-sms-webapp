@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Welcome to {{ school_name }}{% endblock %}
+{% block content %}
+<p style="margin:0 0 16px;color:#111827;font-size:15px;">Hi {{ display_name }},</p>
+<p style="margin:0 0 20px;color:#111827;font-size:15px;line-height:1.5;">
+  An account has been created for you on {{ school_name }}'s management system. Set your password to get started.
+</p>
+<p style="margin:0;">
+  <a href="{{ invite_link }}" style="display:inline-block;background-color:#1B6B3E;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">Set your password</a>
+</p>
+{% endblock %}
