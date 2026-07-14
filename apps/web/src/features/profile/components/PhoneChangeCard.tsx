@@ -14,6 +14,11 @@ import { api, ApiError } from "@/lib/api/browser";
 
 interface PhoneChangeCardProps {
   currentPhone: string | null;
+  /** Only Parent accounts can sign in via phone-OTP (see LoginForm.tsx) —
+   *  every other role's phone is contact/SMS-notification only. Changes
+   *  the helper copy below so staff aren't told a number is "login-usable"
+   *  when it isn't. */
+  usedForLogin: boolean;
 }
 
 /** Same allowance LoginForm.tsx makes for local dev/test — Supabase's
@@ -24,7 +29,7 @@ function isLocalNoProviderError(message: string): boolean {
   return /unsupported phone provider|no sms provider/i.test(message);
 }
 
-export function PhoneChangeCard({ currentPhone }: PhoneChangeCardProps) {
+export function PhoneChangeCard({ currentPhone, usedForLogin }: PhoneChangeCardProps) {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseClient(), []);
 
@@ -131,7 +136,9 @@ export function PhoneChangeCard({ currentPhone }: PhoneChangeCardProps) {
           </Button>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          We&apos;ll text a 6-digit code to the new number before it becomes login-usable.
+          {usedForLogin
+            ? "We'll text a 6-digit code to the new number before it becomes login-usable."
+            : "We'll text a 6-digit code to confirm the new number. It's used for contact and SMS notifications only — not for signing in."}
         </p>
       </Field>
     );

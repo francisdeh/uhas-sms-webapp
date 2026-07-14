@@ -200,10 +200,11 @@ function ProfileTab({ user }: { user: SessionUser }) {
 
         <div className="max-w-sm mt-4 space-y-4">
           <EmailChangeCard currentEmail={user.email ?? null} />
-          <PhoneChangeCard currentPhone={user.phone ?? null} />
+          <PhoneChangeCard currentPhone={user.phone ?? null} usedForLogin={user.role === PARENT} />
           <p className="text-xs text-muted-foreground">
-            Your email or phone number is also how you sign in — changing either one changes what
-            you use to log in next time.
+            {user.role === PARENT
+              ? "Your email or phone number is also how you sign in — changing either one changes what you use to log in next time."
+              : "Your email is also how you sign in — changing it changes what you use to log in next time. Your phone number is for contact and SMS notifications only."}
           </p>
         </div>
       </CardContent>
