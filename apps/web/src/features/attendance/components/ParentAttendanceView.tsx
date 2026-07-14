@@ -25,6 +25,7 @@ const STATUS_DOT: Record<AttendanceStatus, string> = {
   present: "bg-green-500",
   absent: "bg-red-500",
   late: "bg-amber-500",
+  excused: "bg-blue-500",
 };
 
 function buildCalendarWeeks(year: number, month: number): Date[][] {

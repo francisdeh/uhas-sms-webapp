@@ -15,9 +15,11 @@ import { cn } from "@/lib/utils";
 import { useUpsertAttendanceSession } from "@/features/attendance/hooks/use-attendance";
 import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { formatDateLong } from "@/lib/dates";
-import type {
-  AttendanceStatus,
-  SessionWithRecords,
+import {
+  ATTENDANCE_STATUS,
+  ATTENDANCE_STATUSES,
+  type AttendanceStatus,
+  type SessionWithRecords,
 } from "@/features/attendance/types";
 import type { Student } from "@/features/students/types";
 import type { components } from "@/types/api";
@@ -31,6 +33,7 @@ const UI_TO_API_STATUS: Record<AttendanceStatus, ApiStatus> = {
   present: "Present",
   absent: "Absent",
   late: "Late",
+  excused: "Excused",
 };
 
 interface AttendanceSheetProps {
@@ -65,7 +68,7 @@ function buildInitialRows(
   for (const student of students) {
     const record = existingSession?.records.find((r) => r.studentId === student.id);
     rows[student.id] = {
-      status: record?.status ?? "present",
+      status: record?.status ?? ATTENDANCE_STATUS.PRESENT,
       lateReason: record?.lateReason ?? "",
       note: record?.note ?? "",
       expanded: false,
@@ -81,11 +84,12 @@ function avatarGradient(division: Student["division"]): string {
   return "from-orange-400 to-orange-600";
 }
 
-const STATUS_LABELS: AttendanceStatus[] = ["present", "absent", "late"];
+const STATUS_LABELS: readonly AttendanceStatus[] = ATTENDANCE_STATUSES;
 
 function statusActiveClass(status: AttendanceStatus): string {
-  if (status === "present") return "bg-green-100 text-green-700 border-green-300 hover:bg-green-100";
-  if (status === "absent") return "bg-red-500 text-white border-red-500 hover:bg-red-600 hover:border-red-600";
+  if (status === ATTENDANCE_STATUS.PRESENT) return "bg-green-100 text-green-700 border-green-300 hover:bg-green-100";
+  if (status === ATTENDANCE_STATUS.ABSENT) return "bg-red-500 text-white border-red-500 hover:bg-red-600 hover:border-red-600";
+  if (status === ATTENDANCE_STATUS.EXCUSED) return "bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-100";
   return "bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-100";
 }
 
@@ -117,9 +121,9 @@ export function AttendanceSheet({
         ...prev[studentId],
         status,
         // auto-open the reason input when marking late
-        expanded: status === "late" ? true : prev[studentId].expanded,
+        expanded: status === ATTENDANCE_STATUS.LATE ? true : prev[studentId].expanded,
         // clear lateReason if no longer late
-        lateReason: status === "late" ? prev[studentId].lateReason : "",
+        lateReason: status === ATTENDANCE_STATUS.LATE ? prev[studentId].lateReason : "",
       },
     }));
   }, []);
@@ -150,7 +154,7 @@ export function AttendanceSheet({
     for (const s of students) {
       next[s.id] = {
         ...(rows[s.id] ?? { note: "", expanded: false }),
-        status: "present",
+        status: ATTENDANCE_STATUS.PRESENT,
         lateReason: "",
       };
     }
@@ -162,7 +166,7 @@ export function AttendanceSheet({
       term,
       records: students.map((s) => ({
         studentId: s.id,
-        status: "Present" as ApiStatus,
+        status: UI_TO_API_STATUS[ATTENDANCE_STATUS.PRESENT],
         note: next[s.id].note || undefined,
       })),
     });
@@ -174,7 +178,7 @@ export function AttendanceSheet({
 
   function handleSave() {
     const missingReasons = students.filter(
-      (s) => rows[s.id].status === "late" && !rows[s.id].lateReason.trim()
+      (s) => rows[s.id].status === ATTENDANCE_STATUS.LATE && !rows[s.id].lateReason.trim()
     );
     if (missingReasons.length > 0) {
       toast.error(
@@ -191,7 +195,7 @@ export function AttendanceSheet({
         studentId: s.id,
         status: UI_TO_API_STATUS[rows[s.id].status],
         lateReason:
-          rows[s.id].status === "late" ? rows[s.id].lateReason : undefined,
+          rows[s.id].status === ATTENDANCE_STATUS.LATE ? rows[s.id].lateReason : undefined,
         note: rows[s.id].note || undefined,
       })),
     });
@@ -199,9 +203,10 @@ export function AttendanceSheet({
 
   const formattedDate = formatDateLong(date);
 
-  const presentCount = students.filter((s) => rows[s.id]?.status === "present").length;
-  const absentCount = students.filter((s) => rows[s.id]?.status === "absent").length;
-  const lateCount = students.filter((s) => rows[s.id]?.status === "late").length;
+  const presentCount = students.filter((s) => rows[s.id]?.status === ATTENDANCE_STATUS.PRESENT).length;
+  const absentCount = students.filter((s) => rows[s.id]?.status === ATTENDANCE_STATUS.ABSENT).length;
+  const lateCount = students.filter((s) => rows[s.id]?.status === ATTENDANCE_STATUS.LATE).length;
+  const excusedCount = students.filter((s) => rows[s.id]?.status === ATTENDANCE_STATUS.EXCUSED).length;
 
   return (
     <Card>
@@ -265,7 +270,7 @@ export function AttendanceSheet({
         {editable && (
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              {presentCount} present · {absentCount} absent · {lateCount} late
+              {presentCount} present · {absentCount} absent · {lateCount} late · {excusedCount} excused
             </p>
             <Button
               variant="brand"
@@ -369,7 +374,7 @@ const AttendanceRow = memo(function AttendanceRow({
 
       {row.expanded && editable && (
         <div className="pb-3 pl-12 space-y-2">
-          {row.status === "late" && (
+          {row.status === ATTENDANCE_STATUS.LATE && (
             <div>
               <Input
                 placeholder="Reason for lateness (required)"

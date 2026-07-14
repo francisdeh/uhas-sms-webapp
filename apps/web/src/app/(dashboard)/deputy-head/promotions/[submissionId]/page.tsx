@@ -38,6 +38,22 @@ export default async function DeputyHeadPromotionReviewPage({
   const season = await api.promotions.getSeason();
   const isSubmitted = detail.submission.status === PROMOTION_SUBMISSION_STATUS.SUBMITTED;
 
+  const decisions: DecisionRowView[] = detail.decisions.map((d) => ({
+    decision: {
+      id: d.id,
+      submissionId: d.submissionId,
+      studentId: d.studentId,
+      decision: d.decision,
+      targetClassId: d.targetClassId ?? null,
+      reason: d.reason ?? null,
+      suggestedDecision: d.suggestedDecision ?? null,
+      suggestedReason: d.suggestedReason ?? null,
+      failedCoreSubjects: d.failedCoreSubjects ?? null,
+    },
+    studentName: d.studentName,
+    studentPhotoUrl: d.studentPhotoUrl ?? null,
+  }));
+
   return (
     <div className="space-y-4">
       <Link
@@ -59,6 +75,11 @@ export default async function DeputyHeadPromotionReviewPage({
           {detail.submission.submittedByName
             ? ` · submitted by ${detail.submission.submittedByName}`
             : ""}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {detail.classTeachers.length > 0
+            ? `Class teacher${detail.classTeachers.length === 1 ? "" : "s"}: ${detail.classTeachers.map((t) => t.staffName).join(", ")}`
+            : "No class teacher assigned"}
         </p>
       </div>
 
@@ -89,7 +110,7 @@ export default async function DeputyHeadPromotionReviewPage({
         className={detail.className}
         nextAcademicYear={detail.nextAcademicYear}
         nextYearClasses={detail.nextYearClasses}
-        initial={detail.decisions as unknown as DecisionRowView[]}
+        initial={decisions}
         overrideMode={season?.openedWithOverride ?? false}
       />
 

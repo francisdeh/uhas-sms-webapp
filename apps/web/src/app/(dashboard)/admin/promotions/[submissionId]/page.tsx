@@ -96,6 +96,11 @@ export default async function AdminPromotionDetailPage({
             ? ` · submitted by ${detail.submission.submittedByName}`
             : ""}
         </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {detail.classTeachers.length > 0
+            ? `Class teacher${detail.classTeachers.length === 1 ? "" : "s"}: ${detail.classTeachers.map((t) => t.staffName).join(", ")}`
+            : "No class teacher assigned"}
+        </p>
       </div>
 
       <PromotionDecisionTable

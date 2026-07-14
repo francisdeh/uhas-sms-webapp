@@ -6,9 +6,10 @@ import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi, ApiError } from "@/lib/api/server";
 import { AttendanceSheet } from "@/features/attendance/components/AttendanceSheet";
 import { MALE, type Student } from "@/features/students/types";
-import type {
-  AttendanceStatus,
-  SessionWithRecords,
+import {
+  ATTENDANCE_STATUS,
+  type AttendanceStatus,
+  type SessionWithRecords,
 } from "@/features/attendance/types";
 import type { Division } from "@/features/auth/types";
 
@@ -16,10 +17,10 @@ const API_TO_UI_STATUS: Record<
   "Present" | "Absent" | "Late" | "Excused",
   AttendanceStatus
 > = {
-  Present: "present",
-  Absent: "absent",
-  Late: "late",
-  Excused: "absent",
+  Present: ATTENDANCE_STATUS.PRESENT,
+  Absent: ATTENDANCE_STATUS.ABSENT,
+  Late: ATTENDANCE_STATUS.LATE,
+  Excused: ATTENDANCE_STATUS.EXCUSED,
 };
 
 export default async function AdminAttendanceClassPage({
