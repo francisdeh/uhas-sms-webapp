@@ -8,7 +8,8 @@ export type AuditAction =
   | "USER_REACTIVATED"
   | "ACCOUNT_SELF_DEACTIVATED"
   | "USER_MFA_RESET"
-  | "LEAVE_DECIDED";
+  | "LEAVE_DECIDED"
+  | "SCHOOL_YEAR_ACTIVATED";
 
 export type AuditEventView = {
   id: string;
@@ -82,6 +83,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   ACCOUNT_SELF_DEACTIVATED: "Account self-deactivated",
   USER_MFA_RESET: "2FA reset",
   LEAVE_DECIDED: "Leave decided",
+  SCHOOL_YEAR_ACTIVATED: "Academic year activated",
 };
 
 export const AUDIT_ACTION_PILL: Record<AuditAction, string> = {
@@ -95,4 +97,5 @@ export const AUDIT_ACTION_PILL: Record<AuditAction, string> = {
   ACCOUNT_SELF_DEACTIVATED: "bg-rose-100 text-rose-700",
   USER_MFA_RESET: "bg-amber-100 text-amber-700",
   LEAVE_DECIDED: "bg-blue-100 text-blue-700",
+  SCHOOL_YEAR_ACTIVATED: "bg-slate-100 text-slate-700",
 };

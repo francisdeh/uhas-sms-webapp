@@ -129,6 +129,48 @@ export interface paths {
         patch: operations["patch_school_school_patch"];
         trace?: never;
     };
+    "/school/prepare-next-year": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Scaffold next year's classes + term dates ahead of Promotions (Admin only)
+         * @description Copy this year's classes forward and pre-fill next year's term
+         *     dates. Idempotent — safe to call more than once.
+         */
+        post: operations["prepare_next_year_school_prepare_next_year_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/school/activate-next-year": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roll the school over to its next academic year (Admin only)
+         * @description Flip `schools.academic_year` forward. Refuses while a promotion
+         *     season is still open for the current year.
+         */
+        post: operations["activate_next_year_school_activate_next_year_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/school/terms": {
         parameters: {
             query?: never;
@@ -3225,7 +3267,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED" | "LEAVE_DECIDED";
+            action: "EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED" | "LEAVE_DECIDED" | "SCHOOL_YEAR_ACTIVATED";
             /** Targettable */
             targetTable?: string | null;
             /** Targetid */
@@ -5171,6 +5213,20 @@ export interface components {
              */
             email: string;
         };
+        /**
+         * PrepareNextYearRead
+         * @description Response for `POST /school/prepare-next-year` — a summary of what
+         *     was scaffolded, not the created rows themselves (the Calendar tab
+         *     already re-fetches classes/terms after the call).
+         */
+        PrepareNextYearRead: {
+            /** Nextacademicyear */
+            nextAcademicYear: string;
+            /** Classescreated */
+            classesCreated: number;
+            /** Termscreated */
+            termsCreated: number;
+        };
         /** PscClassRow */
         PscClassRow: {
             /**
@@ -5761,6 +5817,8 @@ export interface components {
             academicYear: string;
             /** Currentterm */
             currentTerm: number;
+            /** Currenttermoverride */
+            currentTermOverride?: number | null;
             /**
              * Gradingscale
              * @default GES_STANDARD
@@ -5878,8 +5936,8 @@ export interface components {
             logoUrl?: string | null;
             /** Academicyear */
             academicYear?: string | null;
-            /** Currentterm */
-            currentTerm?: number | null;
+            /** Currenttermoverride */
+            currentTermOverride?: number | null;
             /** Gradingscale */
             gradingScale?: ("GES_STANDARD" | "CUSTOM") | null;
             /** Gradingbands */
@@ -7608,6 +7666,68 @@ export interface operations {
                 "application/json": components["schemas"]["SchoolUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prepare_next_year_school_prepare_next_year_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrepareNextYearRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_next_year_school_activate_next_year_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -13087,7 +13207,7 @@ export interface operations {
     list_audit_events_audit_log_get: {
         parameters: {
             query?: {
-                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED" | "LEAVE_DECIDED") | null;
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED" | "LEAVE_DECIDED" | "SCHOOL_YEAR_ACTIVATED") | null;
                 userId?: string | null;
                 targetTable?: string | null;
                 targetId?: string | null;
@@ -13160,7 +13280,7 @@ export interface operations {
     export_audit_events_audit_log_export_get: {
         parameters: {
             query?: {
-                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED" | "LEAVE_DECIDED") | null;
+                action?: ("EXAM_PUBLISH" | "EXAM_UNPUBLISH" | "SCORE_OVERRIDE" | "STUDENT_EDIT" | "ROLE_CHANGE" | "PROMOTION_APPROVED" | "SCHOOL_SETTINGS_UPDATE" | "SCHOOL_TERMS_UPSERT" | "CLASS_REPORT_HOS_COMMENT_UPDATED" | "USER_DEACTIVATED" | "USER_REACTIVATED" | "ACCOUNT_SELF_DEACTIVATED" | "USER_MFA_RESET" | "GUARDIAN_LINKED" | "GUARDIAN_UNLINKED" | "USER_CREATED" | "LEAVE_DECIDED" | "SCHOOL_YEAR_ACTIVATED") | null;
                 userId?: string | null;
                 targetTable?: string | null;
                 targetId?: string | null;

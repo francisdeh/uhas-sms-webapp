@@ -6,7 +6,20 @@ import type { Announcement } from "@/features/announcements/types";
 import type { Division } from "@/features/auth/types";
 import ParentDashboardOverview from "./DashboardOverview";
 
-function academicYearRange(year: string): { start: string; end: string } {
+/** First term's start date to last term's end date for `year` — the
+ *  real, Admin-configured range (same source report cards use), not a
+ *  hardcoded Sept 1–Aug 31 guess. Falls back to that guess only when
+ *  `year` has no school_terms rows configured yet. */
+function academicYearRange(
+  year: string,
+  allTerms: { academicYear: string; term: number; startDate: string; endDate: string }[]
+): { start: string; end: string } {
+  const forYear = allTerms
+    .filter((t) => t.academicYear === year)
+    .sort((a, b) => a.term - b.term);
+  if (forYear.length > 0) {
+    return { start: forYear[0].startDate, end: forYear[forYear.length - 1].endDate };
+  }
   const [startYear, endYear] = year.split("/");
   return { start: `${startYear}-09-01`, end: `${endYear}-08-31` };
 }
@@ -17,7 +30,7 @@ export default async function ParentPage() {
 
   const currentYear = await getCurrentAcademicYear();
   const api = await getApi();
-  const school = await api.school.get();
+  const [school, termsResponse] = await Promise.all([api.school.get(), api.schoolTerms.list()]);
 
   const { items: childRows } = user.linkedId
     ? await api.guardians.children(user.linkedId)
@@ -38,7 +51,7 @@ export default async function ParentPage() {
   const firstChild = linkedChildren[0];
   let attendancePct: number | null = null;
   if (firstChild && firstChild.classId) {
-    const { start, end } = academicYearRange(currentYear);
+    const { start, end } = academicYearRange(currentYear, termsResponse.items);
     const records = await api.studentViews.attendanceCalendar(firstChild.id, {
       termStart: start,
       termEnd: end,

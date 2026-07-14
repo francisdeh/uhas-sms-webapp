@@ -552,7 +552,11 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
                         onValueChange={(v) => { if (v) field.onChange(v); }}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a subject" />
+                          <SelectValue placeholder="Select a subject">
+                            {(value: string) =>
+                              availableSubjects.find((subject) => subject.id === value)?.name ?? ""
+                            }
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {availableSubjects.map((subject) => (

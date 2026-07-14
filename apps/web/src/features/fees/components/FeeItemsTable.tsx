@@ -12,6 +12,8 @@ import { FeeItemForm } from "./FeeItemForm";
 interface FeeItemsTableProps {
   initialData: { items: FeeItem[]; total: number; page: number; size: number };
   baseHref: string;
+  currentYear: string;
+  yearOptions: string[];
 }
 
 const columns: ColumnDef<FeeItem>[] = [
@@ -41,7 +43,7 @@ const columns: ColumnDef<FeeItem>[] = [
   },
 ];
 
-export function FeeItemsTable({ initialData, baseHref }: FeeItemsTableProps) {
+export function FeeItemsTable({ initialData, baseHref, currentYear, yearOptions }: FeeItemsTableProps) {
   const router = useRouter();
   const { data, isLoading } = useFeeItems({ size: 200 }, { initialData });
 
@@ -54,7 +56,7 @@ export function FeeItemsTable({ initialData, baseHref }: FeeItemsTableProps) {
             Define fees and assign them to learners.
           </p>
         </div>
-        <FeeItemForm />
+        <FeeItemForm currentYear={currentYear} yearOptions={yearOptions} />
       </div>
 
       <DataTable

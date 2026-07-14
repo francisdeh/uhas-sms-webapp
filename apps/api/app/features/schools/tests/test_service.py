@@ -8,13 +8,19 @@ cross-test pollution.
 
 from __future__ import annotations
 
+from datetime import date
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import NotFoundError
+from app.core.errors import NotFoundError, ValidationError
 from app.features.audit.model import AuditLog
+from app.features.classes.model import Class
+from app.features.classes.repository import ClassesRepository
+from app.features.promotions.model import PromotionSeason
+from app.features.school_terms.model import SchoolTerm
+from app.features.school_terms.repository import SchoolTermsRepository
 from app.features.schools.model import School
 from app.features.schools.schema import SchoolUpdate
 from app.features.schools.service import SchoolsService
@@ -74,7 +80,6 @@ async def test_patch_with_unchanged_fields_skips_audit_row(
     patch = SchoolUpdate(
         name=seed_school.name,
         academic_year=seed_school.academic_year,
-        current_term=seed_school.current_term,
     )
     await SchoolsService.patch(db_session, SCHOOL_UUID, patch, actor_user_id=ACTOR)
 
@@ -116,3 +121,134 @@ async def test_patch_empty_payload_is_noop(db_session: AsyncSession, seed_school
         .all()
     )
     assert audit_count == 0
+
+
+async def test_get_resolved_uses_term_resolver(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """`current_term` in the response is resolved from school_terms dates,
+    not the raw (fallback-only) stored column."""
+    db_session.add(
+        SchoolTerm(
+            school_id=SCHOOL_UUID,
+            academic_year="2025/2026",
+            term=2,
+            start_date=date(2020, 1, 1),
+            end_date=date(2099, 1, 1),  # spans "today" regardless of test run date
+        )
+    )
+    await db_session.flush()
+    read = await SchoolsService.get_resolved(db_session, SCHOOL_UUID)
+    assert read.current_term == 2  # seed_school.current_term is 1 — resolver wins
+
+
+async def test_prepare_next_year_copies_classes_and_shifts_terms(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    db_session.add_all(
+        [
+            Class(
+                slug="class-jhs1",
+                school_id=SCHOOL_UUID,
+                name="JHS 1",
+                division="JHS",
+                academic_year="2025/2026",
+            ),
+            SchoolTerm(
+                school_id=SCHOOL_UUID,
+                academic_year="2025/2026",
+                term=1,
+                start_date=date(2025, 9, 8),
+                end_date=date(2025, 12, 12),
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    result = await SchoolsService.prepare_next_year(db_session, SCHOOL_UUID)
+
+    assert result.next_academic_year == "2026/2027"
+    assert result.classes_created == 1
+    assert result.terms_created == 1
+
+    next_class = await ClassesRepository.find_by_slug(db_session, SCHOOL_UUID, "class-jhs1-2027")
+    assert next_class is not None
+    assert next_class.name == "JHS 1"
+    assert next_class.academic_year == "2026/2027"
+
+    next_term = await SchoolTermsRepository.find_one(db_session, SCHOOL_UUID, "2026/2027", 1)
+    assert next_term is not None
+    assert next_term.start_date == date(2026, 9, 8)
+    assert next_term.end_date == date(2026, 12, 12)
+
+
+async def test_prepare_next_year_is_idempotent(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """Running it twice doesn't duplicate classes/terms."""
+    db_session.add(
+        Class(
+            slug="class-jhs1",
+            school_id=SCHOOL_UUID,
+            name="JHS 1",
+            division="JHS",
+            academic_year="2025/2026",
+        )
+    )
+    await db_session.flush()
+
+    first = await SchoolsService.prepare_next_year(db_session, SCHOOL_UUID)
+    second = await SchoolsService.prepare_next_year(db_session, SCHOOL_UUID)
+
+    assert first.classes_created == 1
+    assert second.classes_created == 0  # already exists — skipped, not duplicated
+
+
+async def test_activate_next_year_blocked_while_season_open(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    db_session.add(PromotionSeason(school_id=SCHOOL_UUID, academic_year="2025/2026", status="open"))
+    await db_session.flush()
+
+    try:
+        await SchoolsService.activate_next_year(db_session, SCHOOL_UUID, actor_user_id=ACTOR)
+    except ValidationError as exc:
+        assert "still open" in exc.message
+    else:
+        raise AssertionError("expected ValidationError")
+
+    # School untouched.
+    refreshed = await SchoolsService.get(db_session, SCHOOL_UUID)
+    assert refreshed.academic_year == "2025/2026"
+
+
+async def test_activate_next_year_succeeds_when_season_closed(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    db_session.add(
+        PromotionSeason(school_id=SCHOOL_UUID, academic_year="2025/2026", status="closed")
+    )
+    seed_school.current_term_override = 3
+    await db_session.flush()
+
+    updated = await SchoolsService.activate_next_year(db_session, SCHOOL_UUID, actor_user_id=ACTOR)
+
+    assert updated.academic_year == "2026/2027"
+    assert updated.current_term == 1
+    assert updated.current_term_override is None
+
+    audit = (
+        await db_session.execute(select(AuditLog).where(AuditLog.target_id == SCHOOL_UUID))
+    ).scalar_one()
+    assert audit.action == "SCHOOL_YEAR_ACTIVATED"
+    assert audit.after is not None
+    assert audit.after.get("academic_year") == "2026/2027"
+
+
+async def test_activate_next_year_succeeds_when_no_season_ever_opened(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """A school that never opened Promotions at all (no PromotionSeason
+    row exists) is just as valid to activate as an explicitly closed one."""
+    updated = await SchoolsService.activate_next_year(db_session, SCHOOL_UUID, actor_user_id=ACTOR)
+    assert updated.academic_year == "2026/2027"

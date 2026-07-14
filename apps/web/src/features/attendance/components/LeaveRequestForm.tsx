@@ -104,7 +104,9 @@ export function LeaveRequestForm({ staffId, staffName }: LeaveRequestFormProps) 
               value={leaveType ?? ""}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select leave type" />
+                <SelectValue placeholder="Select leave type">
+                  {(value: string) => LEAVE_TYPE_LABELS[value as keyof typeof LEAVE_TYPE_LABELS] ?? ""}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {LEAVE_TYPES.map((t) => (

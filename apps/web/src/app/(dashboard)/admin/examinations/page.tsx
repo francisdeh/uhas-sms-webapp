@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi } from "@/lib/api/server";
-import { getCurrentAcademicYear } from "@/lib/academic-year-server";
+import { getCurrentAcademicYear, getAcademicYearOptions } from "@/lib/academic-year-server";
 import { ExamsManager } from "@/features/exams/components/ExamsManager";
 import type { Exam } from "@/features/exams/types";
 
@@ -10,7 +10,11 @@ export default async function AdminExaminationsPage() {
   if (!user) redirect("/login");
 
   const api = await getApi();
-  const currentYear = await getCurrentAcademicYear();
+  const [currentYear, yearOptions, school] = await Promise.all([
+    getCurrentAcademicYear(),
+    getAcademicYearOptions(),
+    api.school.get(),
+  ]);
   const resp = await api.exams.list({ academicYear: currentYear, size: 100 });
   const exams: Exam[] = resp.items.map((e) => ({
     id: e.id,
@@ -24,5 +28,12 @@ export default async function AdminExaminationsPage() {
     createdAt: e.createdAt ?? new Date().toISOString(),
   }));
 
-  return <ExamsManager initialExams={exams} currentYear={currentYear} />;
+  return (
+    <ExamsManager
+      initialExams={exams}
+      currentYear={currentYear}
+      currentTerm={school.currentTerm}
+      yearOptions={yearOptions}
+    />
+  );
 }

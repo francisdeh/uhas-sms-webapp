@@ -144,6 +144,27 @@ class ClassesService:
         await session.flush()
         return row
 
+    @staticmethod
+    def next_year_slug(
+        current_slug: str, current_academic_year: str, next_academic_year: str
+    ) -> str:
+        """Derive next year's slug from this year's, per the seed-data
+        convention (mirrors `computeSlug` in
+        `apps/web/src/features/classes/components/ClassCreateForm.tsx`):
+        a class's *first* year uses a bare slug (`class-jhs1`); every
+        subsequent year appends `-{endYear}` (`class-jhs1-2027`).
+
+        Strips the current year's own `-{endYear}` suffix first (if
+        present) so rolling forward repeatedly doesn't stack suffixes.
+        """
+        _, current_end = current_academic_year.split("/")
+        _, next_end = next_academic_year.split("/")
+        base = current_slug
+        suffix = f"-{current_end}"
+        if base.endswith(suffix):
+            base = base[: -len(suffix)]
+        return f"{base}-{next_end}"
+
 
 class ClassSubjectsService:
     @staticmethod

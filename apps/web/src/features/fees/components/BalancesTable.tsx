@@ -37,7 +37,11 @@ export function BalancesTable({ initialData }: BalancesTableProps) {
         </div>
         <Select value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
           <SelectTrigger className="w-full sm:w-48">
-            <SelectValue />
+            <SelectValue>
+              {(value: string) =>
+                value === "all" ? "All statuses" : LEARNER_FEE_STATUS_LABELS[value as LearnerFeeStatus]
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>

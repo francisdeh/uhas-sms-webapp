@@ -52,9 +52,12 @@ export type SchoolSettings = {
   email: string | null;
   principalName: string | null;
   logoUrl: string | null;
-  // Calendar
+  // Calendar. `currentTerm` is the resolved/effective value (auto-picked
+  // from `terms` dates, or `currentTermOverride` if an Admin pinned one)
+  // — never write it directly; PATCH `currentTermOverride` instead.
   academicYear: string;
   currentTerm: number;
+  currentTermOverride: number | null;
   terms: SchoolTerm[];
   // Grading — gradingBands/scoreWeights are always resolved (GES
   // defaults or a custom override), never null; `gradingScale` is what

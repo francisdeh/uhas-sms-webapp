@@ -13,10 +13,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { setAcademicYearAction } from "@/features/shell/actions/set-academic-year";
-import { ACADEMIC_YEARS } from "@/lib/academic-year";
 import { cn } from "@/lib/utils";
 
-export function AcademicYearSwitcher({ currentYear }: { currentYear: string }) {
+interface AcademicYearSwitcherProps {
+  currentYear: string;
+  yearOptions: string[];
+}
+
+export function AcademicYearSwitcher({ currentYear, yearOptions }: AcademicYearSwitcherProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -50,7 +54,7 @@ export function AcademicYearSwitcher({ currentYear }: { currentYear: string }) {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {ACADEMIC_YEARS.map((y) => (
+          {[...yearOptions].reverse().map((y) => (
             <DropdownMenuItem
               key={y}
               onClick={() => handleSelect(y)}

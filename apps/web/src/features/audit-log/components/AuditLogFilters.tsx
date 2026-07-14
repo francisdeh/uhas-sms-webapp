@@ -109,7 +109,13 @@ export function AuditLogFilters({ filters, actors }: Props) {
           onValueChange={(v) => pushParams({ userId: !v || v === "all" ? "" : v })}
         >
           <SelectTrigger>
-            <SelectValue placeholder="All users" />
+            <SelectValue placeholder="All users">
+              {(value: string) =>
+                value === "all" || !value
+                  ? "All users"
+                  : (actors.find((a) => a.userId === value)?.name ?? "")
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All users</SelectItem>
@@ -131,7 +137,13 @@ export function AuditLogFilters({ filters, actors }: Props) {
           onValueChange={(v) => pushParams({ targetTable: !v || v === "all" ? "" : v })}
         >
           <SelectTrigger>
-            <SelectValue placeholder="All targets" />
+            <SelectValue placeholder="All targets">
+              {(value: string) =>
+                value === "all" || !value
+                  ? "All targets"
+                  : AUDIT_TARGET_TABLE_LABELS[value as (typeof AUDIT_TARGET_TABLES)[number]]
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All targets</SelectItem>

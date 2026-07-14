@@ -36,10 +36,11 @@ import { useTheme } from "@/components/theme-provider";
 interface HeaderProps {
   user: SessionUser;
   currentYear: string;
+  yearOptions: string[];
   onMobileMenuOpen: () => void;
 }
 
-export function Header({ user, currentYear, onMobileMenuOpen }: HeaderProps) {
+export function Header({ user, currentYear, yearOptions, onMobileMenuOpen }: HeaderProps) {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -132,7 +133,7 @@ export function Header({ user, currentYear, onMobileMenuOpen }: HeaderProps) {
         </button>
 
         <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
-          <AcademicYearSwitcher currentYear={currentYear} />
+          <AcademicYearSwitcher currentYear={currentYear} yearOptions={yearOptions} />
 
           <DropdownMenu>
             <DropdownMenuTrigger
