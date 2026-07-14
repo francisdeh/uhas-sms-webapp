@@ -48,18 +48,24 @@ export default async function ParentPage() {
   const announcementsPage = await api.announcements.list({ size: 4 });
   const announcements = announcementsPage.items.slice(0, 4) as unknown as Announcement[];
 
-  const firstChild = linkedChildren[0];
-  let attendancePct: number | null = null;
-  if (firstChild && firstChild.classId) {
-    const { start, end } = academicYearRange(currentYear, termsResponse.items);
-    const records = await api.studentViews.attendanceCalendar(firstChild.id, {
-      termStart: start,
-      termEnd: end,
-    });
-    const total = records.length;
-    const present = records.filter((r) => r.status === "present").length;
-    if (total > 0) attendancePct = Math.round((present / total) * 100);
-  }
+  const { start, end } = academicYearRange(currentYear, termsResponse.items);
+  const childrenWithClass = linkedChildren.filter((c) => c.classId);
+  const perChildPct = await Promise.all(
+    childrenWithClass.map(async (child) => {
+      const records = await api.studentViews.attendanceCalendar(child.id, {
+        termStart: start,
+        termEnd: end,
+      });
+      const total = records.length;
+      // "At school" = present or late, matching the definition used by
+      // every other dashboard's attendance aggregate in the app.
+      const atSchool = records.filter((r) => r.status === "present" || r.status === "late").length;
+      return total > 0 ? (atSchool / total) * 100 : null;
+    }),
+  );
+  const validPct = perChildPct.filter((p): p is number => p !== null);
+  const attendancePct =
+    validPct.length > 0 ? Math.round(validPct.reduce((a, b) => a + b, 0) / validPct.length) : null;
 
   return (
     <ParentDashboardOverview
@@ -68,6 +74,7 @@ export default async function ParentPage() {
       currentTerm={school?.currentTerm ?? 1}
       linkedChildren={linkedChildren}
       announcements={announcements}
+      announcementsTotal={announcementsPage.total}
       attendancePct={attendancePct}
     />
   );

@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Users, GraduationCap, BookOpen, Bell, TrendingUp, ArrowRight } from "lucide-react";
+import {
+  Users,
+  GraduationCap,
+  BookOpen,
+  Bell,
+  TrendingUp,
+  ArrowRight,
+  ClipboardCheck,
+  FileText,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -12,13 +21,21 @@ import type { Announcement } from "@/features/announcements/types";
 
 // Icon names are passed as strings from the server page (React components
 // can't cross the server→client boundary as props); we map them here.
-export type StatIconName = "students" | "staff" | "classes" | "alerts";
+export type StatIconName =
+  | "students"
+  | "staff"
+  | "classes"
+  | "alerts"
+  | "attendance"
+  | "lessonPlans";
 
 const ICON_MAP = {
   students: GraduationCap,
   staff: Users,
   classes: BookOpen,
   alerts: Bell,
+  attendance: ClipboardCheck,
+  lessonPlans: FileText,
 } as const;
 
 interface StatCard {
@@ -74,7 +91,7 @@ export default function AdminDashboardOverview({
         </Badge>
       </motion.div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         {stats.map((stat, i) => (
           <motion.div
             key={stat.label}

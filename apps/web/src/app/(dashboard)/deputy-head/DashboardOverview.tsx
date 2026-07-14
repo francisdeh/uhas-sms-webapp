@@ -8,6 +8,7 @@ import {
   Users,
   School,
   ClipboardCheck,
+  FileText,
   TrendingUp,
   ArrowRight,
 } from "lucide-react";
@@ -24,9 +25,9 @@ interface Props {
   displayName: string;
   currentYear: string;
   currentTerm: number;
-  stats: { students: number; staff: number; classes: number };
+  stats: { students: number; staff: number; classes: number; pendingLessonPlans: number };
   staffList: Staff[];
-  staffAttendanceToday: boolean;
+  staffAttendanceToday: { present: number; total: number } | null;
 }
 
 const roleColors: Record<string, string> = {
@@ -63,7 +64,10 @@ export default function DeputyHeadDashboardOverview({
       value: stats.staff,
       icon: Users,
       iconClass: "bg-orange-50 text-accent-orange",
-      trend: "Active members",
+      trend:
+        stats.staff > 0
+          ? `1:${Math.round(stats.students / stats.staff)} student ratio`
+          : "No staff yet",
       href: "/deputy-head/attendance",
       animated: true,
     },
@@ -84,6 +88,15 @@ export default function DeputyHeadDashboardOverview({
       trend: "Today's session",
       href: "/deputy-head/attendance",
       animated: false,
+    },
+    {
+      label: "Pending Lesson Plans",
+      value: stats.pendingLessonPlans,
+      icon: FileText,
+      iconClass: "bg-teal-50 text-teal-600",
+      trend: "Awaiting review",
+      href: "/deputy-head/lesson-plans",
+      animated: true,
     },
   ];
 
@@ -106,7 +119,7 @@ export default function DeputyHeadDashboardOverview({
         </Badge>
       </motion.div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {statCards.map((card, i) => (
           <motion.div
             key={card.label}
@@ -129,13 +142,18 @@ export default function DeputyHeadDashboardOverview({
                     <p className="text-2xl font-bold tabular-nums">
                       <AnimatedNumber value={card.value} />
                     </p>
-                  ) : (
+                  ) : staffAttendanceToday ? (
                     <p className={cn(
-                      "text-sm font-semibold",
-                      staffAttendanceToday ? "text-green-600" : "text-amber-600"
+                      "text-2xl font-bold tabular-nums",
+                      staffAttendanceToday.total > 0 &&
+                        staffAttendanceToday.present === staffAttendanceToday.total
+                        ? "text-green-600"
+                        : "text-amber-600"
                     )}>
-                      {staffAttendanceToday ? "Submitted ✓" : "Not yet marked"}
+                      {staffAttendanceToday.present}/{staffAttendanceToday.total}
                     </p>
+                  ) : (
+                    <p className="text-sm font-semibold text-amber-600">Not yet marked</p>
                   )}
                   <p className="text-xs font-medium mt-0.5">{card.label}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{card.trend}</p>

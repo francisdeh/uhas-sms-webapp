@@ -46,9 +46,11 @@ from app.features.students.model import Student, StudentGuardian
 from app.features.subjects.model import Subject
 
 # ─── Attendance status literals ────────────────────────────────────────────
-# Mirror the TS `"present" | "late"` set. The FE tile treats both as
-# "at school" for the last-7 attendance strip.
-_ATTENDANCE_AT_SCHOOL: set[str] = {"present", "late"}
+# Matches AttendanceStatus's stored values (attendance/constants.py) —
+# capitalized, since attendance_records.status is a plain varchar with
+# no DB enum. Both "Present" and "Late" count as "at school" for the
+# last-7 attendance strip.
+_ATTENDANCE_AT_SCHOOL: set[str] = {"Present", "Late"}
 
 # Gender labels — the DB stores raw strings ("Male" / "Female"); no
 # closed set exists yet in the students module, so keep the literals

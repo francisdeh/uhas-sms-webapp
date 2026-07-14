@@ -33,6 +33,15 @@ export default async function DeputyHeadPage() {
     .filter((s) => s.division === division && s.isActive)
     .sort((a, b) => a.lastName.localeCompare(b.lastName));
 
+  const staffAttendanceToday = todayStaffSession
+    ? {
+        present: todayStaffSession.records.filter((r) =>
+          ["Present", "Late"].includes(r.status),
+        ).length,
+        total: todayStaffSession.records.length,
+      }
+    : null;
+
   return (
     <DeputyHeadDashboardOverview
       division={division}
@@ -43,9 +52,10 @@ export default async function DeputyHeadPage() {
         students: stats.students,
         staff: stats.staff,
         classes: stats.classes,
+        pendingLessonPlans: stats.lessonPlans.submitted,
       }}
       staffList={divisionStaff.slice(0, 5)}
-      staffAttendanceToday={todayStaffSession !== null}
+      staffAttendanceToday={staffAttendanceToday}
     />
   );
 }
