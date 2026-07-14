@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import {
   Building2,
   CalendarRange,
@@ -37,6 +38,9 @@ export function SettingsPage({
   settings: SchoolSettings;
   gradingDefaults: GradingDefaults;
 }) {
+  const requestedTab = useSearchParams().get("tab");
+  const initialTab = TABS.some((t) => t.id === requestedTab) ? requestedTab! : "identity";
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
@@ -46,7 +50,7 @@ export function SettingsPage({
         </p>
       </div>
 
-      <Tabs defaultValue="identity" className="flex flex-col gap-0">
+      <Tabs defaultValue={initialTab} className="flex flex-col gap-0">
         <div className="bg-card dark:bg-slate-800/60 border border-border/60 rounded-xl rounded-b-none px-4 pt-3 overflow-x-auto">
           <TabsList variant="line" className="w-full justify-start gap-0 min-w-max">
             {TABS.map(({ id, label, icon: Icon }) => (

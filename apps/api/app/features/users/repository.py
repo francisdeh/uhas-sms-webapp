@@ -13,6 +13,7 @@ from uuid import UUID
 from sqlalchemy import and_, asc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.roles import ACCOUNTANT, DEPUTY_HEAD, TEACHER
 from app.features.guardians.model import Guardian
 from app.features.staff.model import Staff
 from app.features.users.model import User
@@ -132,6 +133,20 @@ class UsersRepository:
             and_(Guardian.id == guardian_id, Guardian.school_id == school_id)
         )
         return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
+    async def has_non_admin_staff_login(session: AsyncSession, school_id: UUID | str) -> bool:
+        """Onboarding-checklist "staff invited" check — at least one
+        non-Admin staff member (Deputy Head/Teacher/Accountant) has a
+        provisioned login, beyond the seeded Admin account itself."""
+        stmt = select(User.id).where(
+            and_(
+                User.school_id == school_id,
+                User.role.in_([DEPUTY_HEAD, TEACHER, ACCOUNTANT]),
+            )
+        )
+        result = await session.execute(stmt.limit(1))
+        return result.scalar_one_or_none() is not None
 
     @staticmethod
     async def find_by_email(session: AsyncSession, email: str) -> User | None:

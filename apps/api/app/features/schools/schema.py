@@ -285,6 +285,22 @@ class PrepareNextYearRead(BaseModel):
     terms_created: int
 
 
+class OnboardingStatusRead(BaseModel):
+    """Response for `GET /school/onboarding-status` — five live-computed
+    setup-step checks, backing the Admin dashboard's onboarding widget.
+    `all_done` is server-computed so the frontend never has to reduce the
+    five booleans itself (and can't drift out of sync if a step is added)."""
+
+    model_config = _CAMEL_CONFIG
+
+    identity_done: bool
+    grading_done: bool
+    calendar_done: bool
+    classes_done: bool
+    staff_done: bool
+    all_done: bool
+
+
 class GradingDefaultsRead(BaseModel):
     """The GES-standard grading config, independent of any school.
 

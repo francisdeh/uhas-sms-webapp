@@ -44,12 +44,14 @@ from app.features.schools.repository import SchoolsRepository
 from app.features.schools.schema import (
     GradingBand,
     GradingDefaultsRead,
+    OnboardingStatusRead,
     PrepareNextYearRead,
     SchoolRead,
     SchoolUpdate,
     ScoreWeights,
 )
 from app.features.schools.term_resolver import resolve_current_term
+from app.features.users.repository import UsersRepository
 
 
 def _dump(value: Any) -> Any:
@@ -308,3 +310,42 @@ class SchoolsService:
             after=after,
         )
         return school
+
+    @staticmethod
+    async def get_onboarding_status(
+        session: AsyncSession, school_id: UUID | str
+    ) -> OnboardingStatusRead:
+        """Five live-computed setup-step checks backing the Admin
+        dashboard's onboarding widget — see `OnboardingStatusRead` for
+        what each field means. Checked against the raw `schools` row
+        (not `get_resolved()`'s always-resolved grading fields), since
+        "resolved to GES defaults for display" and "Admin actually
+        saved this tab" are deliberately different questions here.
+        """
+        school = await SchoolsService.get(session, school_id)
+
+        current_year_terms = [
+            t
+            for t in await SchoolTermsRepository.list_for_school(session, school_id)
+            if t.academic_year == school.academic_year
+        ]
+        calendar_done = {1, 2, 3}.issubset({t.term for t in current_year_terms})
+
+        current_year_classes = await ClassesRepository.list_plain_for_year(
+            session, school_id, school.academic_year
+        )
+
+        identity_done = school.logo_url is not None
+        grading_done = school.grading_bands is not None
+        classes_done = len(current_year_classes) > 0
+        staff_done = await UsersRepository.has_non_admin_staff_login(session, school_id)
+        all_done = identity_done and grading_done and calendar_done and classes_done and staff_done
+
+        return OnboardingStatusRead(
+            identity_done=identity_done,
+            grading_done=grading_done,
+            calendar_done=calendar_done,
+            classes_done=classes_done,
+            staff_done=staff_done,
+            all_done=all_done,
+        )

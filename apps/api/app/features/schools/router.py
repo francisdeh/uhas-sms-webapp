@@ -28,6 +28,7 @@ from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
 from app.features.schools.schema import (
     GradingDefaultsRead,
+    OnboardingStatusRead,
     PrepareNextYearRead,
     SchoolPublicRead,
     SchoolRead,
@@ -130,6 +131,23 @@ async def patch_school(
     # raw row's `current_term` column is the resolver's fallback value,
     # not the effective one (see SchoolBase docstring).
     return await SchoolsService.get_resolved(session, school_id)
+
+
+@router.get(
+    "/onboarding-status",
+    response_model=OnboardingStatusRead,
+    response_model_by_alias=True,
+    summary="Fetch first-time-setup checklist status",
+)
+async def get_onboarding_status(
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> OnboardingStatusRead:
+    """Five live-computed setup-step checks backing the Admin dashboard's
+    onboarding widget. Any authenticated role may call this — only the
+    Admin-facing UI actually renders it."""
+    return await SchoolsService.get_onboarding_status(session, school_id)
 
 
 @router.post(
