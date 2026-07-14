@@ -129,6 +129,28 @@ export interface paths {
         patch: operations["patch_school_school_patch"];
         trace?: never;
     };
+    "/school/onboarding-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch first-time-setup checklist status
+         * @description Five live-computed setup-step checks backing the Admin dashboard's
+         *     onboarding widget. Any authenticated role may call this — only the
+         *     Admin-facing UI actually renders it.
+         */
+        get: operations["get_onboarding_status_school_onboarding_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/school/prepare-next-year": {
         parameters: {
             query?: never;
@@ -5116,6 +5138,27 @@ export interface components {
             createdAt: string;
         };
         /**
+         * OnboardingStatusRead
+         * @description Response for `GET /school/onboarding-status` — five live-computed
+         *     setup-step checks, backing the Admin dashboard's onboarding widget.
+         *     `all_done` is server-computed so the frontend never has to reduce the
+         *     five booleans itself (and can't drift out of sync if a step is added).
+         */
+        OnboardingStatusRead: {
+            /** Identitydone */
+            identityDone: boolean;
+            /** Gradingdone */
+            gradingDone: boolean;
+            /** Calendardone */
+            calendarDone: boolean;
+            /** Classesdone */
+            classesDone: boolean;
+            /** Staffdone */
+            staffDone: boolean;
+            /** Alldone */
+            allDone: boolean;
+        };
+        /**
          * OverviewResponse
          * @description Paginated wrapper — even though every list currently fits on one
          *     page, staying paginated matches the rest of the API.
@@ -7674,6 +7717,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SchoolRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_onboarding_status_school_onboarding_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStatusRead"];
                 };
             };
             /** @description Validation Error */

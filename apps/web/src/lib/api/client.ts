@@ -143,6 +143,12 @@ export function createApiClient(getAuthToken: TokenGetter) {
           "/school/activate-next-year",
           { method: "POST" },
         ),
+      /** Five live-computed first-time-setup checklist checks. Any authenticated role. */
+      getOnboardingStatus: () =>
+        apiFetch<components["schemas"]["OnboardingStatusRead"]>(
+          getAuthToken,
+          "/school/onboarding-status",
+        ),
     },
     schoolTerms: {
       /** List every configured term row for the caller's school. Any role. */

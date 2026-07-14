@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi } from "@/lib/api/server";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
+import { OnboardingChecklist } from "@/features/onboarding/components/OnboardingChecklist";
 import AdminDashboardOverview from "./DashboardOverview";
 import type { Announcement } from "@/features/announcements/types";
 
@@ -11,11 +12,12 @@ export default async function AdminDashboardPage() {
 
   const api = await getApi();
   const currentYear = await getCurrentAcademicYear();
-  const [stats, school, classesResp, announcementsResp] = await Promise.all([
+  const [stats, school, classesResp, announcementsResp, onboardingStatus] = await Promise.all([
     api.reports.getSchoolStats(),
     api.school.get(),
     api.classes.list({ academicYear: currentYear, size: 200 }),
     api.announcements.list({ size: 100 }),
+    api.school.getOnboardingStatus(),
   ]);
 
   const currentTerm = school.currentTerm ?? 1;
@@ -86,14 +88,17 @@ export default async function AdminDashboardPage() {
     }));
 
   return (
-    <AdminDashboardOverview
-      currentYear={currentYear}
-      currentTerm={currentTerm}
-      totalActiveStudents={totalActiveStudents}
-      stats={statCards}
-      recentAnnouncements={recentAnnouncements}
-      classOptions={classOptions}
-      divisionBreakdown={divisionBreakdown}
-    />
+    <>
+      <OnboardingChecklist status={onboardingStatus} />
+      <AdminDashboardOverview
+        currentYear={currentYear}
+        currentTerm={currentTerm}
+        totalActiveStudents={totalActiveStudents}
+        stats={statCards}
+        recentAnnouncements={recentAnnouncements}
+        classOptions={classOptions}
+        divisionBreakdown={divisionBreakdown}
+      />
+    </>
   );
 }

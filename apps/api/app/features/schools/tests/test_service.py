@@ -25,6 +25,7 @@ from app.features.schools.model import School
 from app.features.schools.schema import SchoolUpdate
 from app.features.schools.service import SchoolsService
 from app.features.schools.tests.conftest import SCHOOL_UUID, USER_UUID
+from app.features.users.model import User
 
 ACTOR = USER_UUID
 
@@ -252,3 +253,155 @@ async def test_activate_next_year_succeeds_when_no_season_ever_opened(
     row exists) is just as valid to activate as an explicitly closed one."""
     updated = await SchoolsService.activate_next_year(db_session, SCHOOL_UUID, actor_user_id=ACTOR)
     assert updated.academic_year == "2026/2027"
+
+
+async def test_onboarding_status_all_false_for_bare_school(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """A freshly-seeded school (no logo, no grading save, no terms, no
+    classes, no non-Admin staff login) fails every check."""
+    status = await SchoolsService.get_onboarding_status(db_session, SCHOOL_UUID)
+    assert status.identity_done is False
+    assert status.grading_done is False
+    assert status.calendar_done is False
+    assert status.classes_done is False
+    assert status.staff_done is False
+    assert status.all_done is False
+
+
+async def test_onboarding_status_identity_done_when_logo_set(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    seed_school.logo_url = "https://storage.example.com/logo.png"
+    await db_session.flush()
+    status = await SchoolsService.get_onboarding_status(db_session, SCHOOL_UUID)
+    assert status.identity_done is True
+
+
+async def test_onboarding_status_grading_done_when_bands_saved(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    seed_school.grading_bands = [{"min": 0, "max": 100, "grade": "1", "interpretation": "Highest"}]
+    await db_session.flush()
+    status = await SchoolsService.get_onboarding_status(db_session, SCHOOL_UUID)
+    assert status.grading_done is True
+
+
+async def test_onboarding_status_calendar_done_requires_all_three_terms(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    db_session.add_all(
+        [
+            SchoolTerm(
+                school_id=SCHOOL_UUID,
+                academic_year="2025/2026",
+                term=1,
+                start_date=date(2025, 9, 1),
+                end_date=date(2025, 12, 1),
+            ),
+            SchoolTerm(
+                school_id=SCHOOL_UUID,
+                academic_year="2025/2026",
+                term=2,
+                start_date=date(2026, 1, 5),
+                end_date=date(2026, 4, 1),
+            ),
+        ]
+    )
+    await db_session.flush()
+    partial = await SchoolsService.get_onboarding_status(db_session, SCHOOL_UUID)
+    assert partial.calendar_done is False
+
+    db_session.add(
+        SchoolTerm(
+            school_id=SCHOOL_UUID,
+            academic_year="2025/2026",
+            term=3,
+            start_date=date(2026, 4, 20),
+            end_date=date(2026, 7, 20),
+        )
+    )
+    await db_session.flush()
+    complete = await SchoolsService.get_onboarding_status(db_session, SCHOOL_UUID)
+    assert complete.calendar_done is True
+
+
+async def test_onboarding_status_classes_done_when_class_exists_for_current_year(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    db_session.add(
+        Class(
+            slug="class-jhs1",
+            school_id=SCHOOL_UUID,
+            name="JHS 1",
+            division="JHS",
+            academic_year="2025/2026",
+        )
+    )
+    await db_session.flush()
+    status = await SchoolsService.get_onboarding_status(db_session, SCHOOL_UUID)
+    assert status.classes_done is True
+
+
+async def test_onboarding_status_staff_done_when_non_admin_login_exists(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    db_session.add(
+        User(
+            id=UUID("22222222-2222-4222-8222-222222222201"),
+            school_id=SCHOOL_UUID,
+            email="teacher@example.com",
+            role="Teacher",
+        )
+    )
+    await db_session.flush()
+    status = await SchoolsService.get_onboarding_status(db_session, SCHOOL_UUID)
+    assert status.staff_done is True
+
+
+async def test_onboarding_status_all_done_when_every_check_passes(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    seed_school.logo_url = "https://storage.example.com/logo.png"
+    seed_school.grading_bands = [{"min": 0, "max": 100, "grade": "1", "interpretation": "Highest"}]
+    db_session.add_all(
+        [
+            SchoolTerm(
+                school_id=SCHOOL_UUID,
+                academic_year="2025/2026",
+                term=1,
+                start_date=date(2025, 9, 1),
+                end_date=date(2025, 12, 1),
+            ),
+            SchoolTerm(
+                school_id=SCHOOL_UUID,
+                academic_year="2025/2026",
+                term=2,
+                start_date=date(2026, 1, 5),
+                end_date=date(2026, 4, 1),
+            ),
+            SchoolTerm(
+                school_id=SCHOOL_UUID,
+                academic_year="2025/2026",
+                term=3,
+                start_date=date(2026, 4, 20),
+                end_date=date(2026, 7, 20),
+            ),
+            Class(
+                slug="class-jhs1",
+                school_id=SCHOOL_UUID,
+                name="JHS 1",
+                division="JHS",
+                academic_year="2025/2026",
+            ),
+            User(
+                id=UUID("22222222-2222-4222-8222-222222222201"),
+                school_id=SCHOOL_UUID,
+                email="teacher@example.com",
+                role="Teacher",
+            ),
+        ]
+    )
+    await db_session.flush()
+    status = await SchoolsService.get_onboarding_status(db_session, SCHOOL_UUID)
+    assert status.all_done is True
