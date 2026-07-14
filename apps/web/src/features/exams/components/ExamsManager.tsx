@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, Plus, Lock, Unlock, ClipboardCheck } from "lucide-react";
+import { Loader2, Plus, Pencil, Lock, Unlock, ClipboardCheck } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -46,20 +47,21 @@ import {
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import {
   useCreateExam,
+  useUpdateExam,
   usePublishExam,
   useUnpublishExam,
 } from "@/features/exams/hooks/use-exams";
-import { EXAM_TYPE, EXAM_TYPES, type Exam } from "@/features/exams/types";
+import { EXAM_TYPE, EXAM_TYPES, TERMS, type Exam } from "@/features/exams/types";
 import type { AcademicYear } from "@/lib/academic-year";
 
-const createSchema = z.object({
+const examSchema = z.object({
   name: z.string().min(2, { message: "Name required" }),
   type: z.enum(EXAM_TYPES, { message: "Select a type" }),
   term: z.number().int().min(1).max(3),
   academicYear: z.string().min(1, { message: "Select an academic year" }),
 });
 
-type CreateFormValues = z.infer<typeof createSchema>;
+type ExamFormValues = z.infer<typeof examSchema>;
 
 export function ExamsManager({
   initialExams,
@@ -74,26 +76,58 @@ export function ExamsManager({
   currentTerm: number;
   yearOptions: AcademicYear[];
 }) {
+  const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Exam | null>(null);
   const [publishTarget, setPublishTarget] = useState<Exam | null>(null);
   const [unpublishTarget, setUnpublishTarget] = useState<Exam | null>(null);
 
   const createExam = useCreateExam();
+  const updateExam = useUpdateExam();
   const publishExam = usePublishExam();
   const unpublishExam = useUnpublishExam();
   const isPending =
-    createExam.isPending || publishExam.isPending || unpublishExam.isPending;
+    createExam.isPending ||
+    updateExam.isPending ||
+    publishExam.isPending ||
+    unpublishExam.isPending;
 
-  const form = useForm<CreateFormValues>({
-    resolver: zodResolver(createSchema),
+  const form = useForm<ExamFormValues>({
+    resolver: zodResolver(examSchema),
     defaultValues: { term: currentTerm, academicYear: currentYear },
   });
 
-  async function onCreate(data: CreateFormValues) {
+  const editForm = useForm<ExamFormValues>({
+    resolver: zodResolver(examSchema),
+  });
+
+  useEffect(() => {
+    if (editTarget) {
+      editForm.reset({
+        name: editTarget.name,
+        type: editTarget.type,
+        term: editTarget.term,
+        academicYear: editTarget.academicYear,
+      });
+    }
+  }, [editTarget, editForm]);
+
+  async function onCreate(data: ExamFormValues) {
     try {
       await createExam.mutateAsync(data);
       setCreateOpen(false);
       form.reset({ term: currentTerm, academicYear: currentYear });
+    } catch {
+      /* toast already fired inside the hook */
+    }
+  }
+
+  async function onEdit(data: ExamFormValues) {
+    if (!editTarget) return;
+    try {
+      await updateExam.mutateAsync({ id: editTarget.id, payload: data });
+      setEditTarget(null);
+      router.refresh();
     } catch {
       /* toast already fired inside the hook */
     }
@@ -178,6 +212,16 @@ export function ExamsManager({
                           <ClipboardCheck size={12} className="mr-1.5" /> Review
                         </Button>
                       </Link>
+                      {!exam.isPublished && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditTarget(exam)}
+                          disabled={isPending}
+                        >
+                          <Pencil size={12} className="mr-1.5" /> Edit
+                        </Button>
+                      )}
                       {exam.isPublished ? (
                         <Button
                           variant="outline"
@@ -269,9 +313,11 @@ export function ExamsManager({
                           <SelectValue placeholder="Term">{(value: string) => `Term ${value}`}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1">Term 1</SelectItem>
-                          <SelectItem value="2">Term 2</SelectItem>
-                          <SelectItem value="3">Term 3</SelectItem>
+                          {TERMS.map((t) => (
+                            <SelectItem key={t} value={String(t)}>
+                              Term {t}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}
@@ -310,6 +356,119 @@ export function ExamsManager({
               <Button type="submit" variant="brand" disabled={isPending}>
                 {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
                 Create
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit examination</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={editForm.handleSubmit(onEdit)}>
+            <FieldGroup className="gap-4">
+              <Field>
+                <FieldLabel htmlFor="edit-exam-name">Name</FieldLabel>
+                <Input
+                  id="edit-exam-name"
+                  placeholder="e.g. Mid-Term 1"
+                  {...editForm.register("name")}
+                />
+                <FieldError errors={[editForm.formState.errors.name]} />
+              </Field>
+
+              <Field>
+                <FieldLabel>Type</FieldLabel>
+                <Controller
+                  name="type"
+                  control={editForm.control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ?? ""}
+                      onValueChange={(v) => { if (v) field.onChange(v); }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a type">
+                          {(value: string) =>
+                            value === EXAM_TYPE.MID_TERM
+                              ? "Mid-Term (raw 100)"
+                              : value === EXAM_TYPE.END_OF_TERM
+                                ? "End of Term (composite)"
+                                : ""
+                          }
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={EXAM_TYPE.MID_TERM}>Mid-Term (raw 100)</SelectItem>
+                        <SelectItem value={EXAM_TYPE.END_OF_TERM}>End of Term (composite)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError errors={[editForm.formState.errors.type]} />
+              </Field>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field>
+                  <FieldLabel>Term</FieldLabel>
+                  <Controller
+                    name="term"
+                    control={editForm.control}
+                    render={({ field }) => (
+                      <Select
+                        value={String(field.value)}
+                        onValueChange={(v) => { if (v) field.onChange(Number(v)); }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Term">{(value: string) => `Term ${value}`}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TERMS.map((t) => (
+                            <SelectItem key={t} value={String(t)}>
+                              Term {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel>Academic Year</FieldLabel>
+                  <Controller
+                    name="academicYear"
+                    control={editForm.control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={(v) => { if (v) field.onChange(v); }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Academic year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {yearOptions.map((year) => (
+                            <SelectItem key={year} value={year}>
+                              {year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <FieldError errors={[editForm.formState.errors.academicYear]} />
+                </Field>
+              </div>
+            </FieldGroup>
+
+            <DialogFooter className="mt-4">
+              <Button type="submit" variant="brand" disabled={isPending}>
+                {isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
+                Save changes
               </Button>
             </DialogFooter>
           </form>

@@ -9,6 +9,9 @@ export type ExamType = (typeof EXAM_TYPE)[keyof typeof EXAM_TYPE];
 
 export const EXAM_TYPES: readonly ExamType[] = [EXAM_TYPE.MID_TERM, EXAM_TYPE.END_OF_TERM];
 
+// The school year is fixed at 3 terms — mirrors term_resolver.py's term range.
+export const TERMS: readonly number[] = [1, 2, 3];
+
 // One row of the school's grade-band table + the score-component
 // weighting — mirrors `apps/api/app/features/schools/schema.py`'s
 // `GradingBand`/`ScoreWeights`. Duplicated locally (rather than

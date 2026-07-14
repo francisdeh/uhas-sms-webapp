@@ -68,8 +68,7 @@ async def mark_all_read(
     session: Annotated[AsyncSession, Depends(get_session)],
     user: CurrentUserDep,
 ) -> MarkReadResponse:
-    """Idempotent. Called on dropdown open — the chosen UX is
-    "open = saw it"."""
+    """Idempotent. Called by the explicit "Mark all as read" button."""
     marked = await NotificationsService.mark_all_read(session, UUID(user.user_id))
     return MarkReadResponse(marked=marked)
 

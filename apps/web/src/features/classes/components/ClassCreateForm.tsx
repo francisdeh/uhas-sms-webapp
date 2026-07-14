@@ -19,22 +19,8 @@ import {
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { useCreateClass } from "@/features/classes/hooks/use-classes";
 import { ApiError } from "@/lib/api/browser";
-import type { Division } from "@/features/classes/types";
+import { CLASS_NAMES } from "@/features/classes/types";
 import type { AcademicYear } from "@/lib/academic-year";
-
-const CLASS_NAMES: Array<{ name: string; division: Division; slug: string }> = [
-  { name: "KG 1", division: "KG", slug: "class-kg1" },
-  { name: "KG 2", division: "KG", slug: "class-kg2" },
-  { name: "Primary 1", division: "Lower Primary", slug: "class-p1" },
-  { name: "Primary 2", division: "Lower Primary", slug: "class-p2" },
-  { name: "Primary 3", division: "Lower Primary", slug: "class-p3" },
-  { name: "Primary 4", division: "Upper Primary", slug: "class-p4" },
-  { name: "Primary 5", division: "Upper Primary", slug: "class-p5" },
-  { name: "Primary 6", division: "Upper Primary", slug: "class-p6" },
-  { name: "JHS 1", division: "JHS", slug: "class-jhs1" },
-  { name: "JHS 2", division: "JHS", slug: "class-jhs2" },
-  { name: "JHS 3", division: "JHS", slug: "class-jhs3" },
-];
 
 const schema = z.object({
   name: z.string().min(1, { message: "Select a class" }),

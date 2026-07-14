@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { BookOpen, BookMarked, Sparkles, Loader2, Plus } from "lucide-react";
+import { BookOpen, BookMarked, Sparkles, Loader2, Plus, Pencil } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/ui/data-table";
@@ -27,10 +27,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
-import { useSubjects, useCreateSubject } from "@/features/subjects/hooks/use-subjects";
+import {
+  useSubjects,
+  useCreateSubject,
+  useUpdateSubject,
+} from "@/features/subjects/hooks/use-subjects";
 import { ApiError } from "@/lib/api/browser";
 import type { components } from "@/types/api";
-import type { Division } from "@/features/classes/types";
+import {
+  SUBJECT_CATEGORY,
+  SUBJECT_CATEGORIES,
+  type Division,
+  type SubjectCategory,
+} from "@/features/classes/types";
 import { DIVISIONS } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
@@ -43,10 +52,10 @@ const DIVISION_PILL: Record<Division, string> = {
   JHS: "bg-orange-100 text-accent-orange",
 };
 
-const CATEGORY_PILL: Record<string, string> = {
-  Core: "bg-blue-100 text-blue-700",
-  Elective: "bg-orange-100 text-accent-orange",
-  Optional: "bg-slate-100 text-slate-700",
+const CATEGORY_PILL: Record<SubjectCategory, string> = {
+  [SUBJECT_CATEGORY.CORE]: "bg-blue-100 text-blue-700",
+  [SUBJECT_CATEGORY.ELECTIVE]: "bg-orange-100 text-accent-orange",
+  [SUBJECT_CATEGORY.OPTIONAL]: "bg-slate-100 text-slate-700",
 };
 
 type DivisionFilter = Division | "All" | "Cross";
@@ -61,13 +70,22 @@ const createSchema = z.object({
     }),
   name: z.string().min(2, { message: "Min 2 characters" }),
   division: z.string().min(1, { message: "Select a division" }),
-  category: z.enum(["Core", "Elective"], { message: "Select a category" }),
+  category: z.enum(SUBJECT_CATEGORIES, { message: "Select a category" }),
 });
 
 type CreateFormValues = z.infer<typeof createSchema>;
 
+const editSchema = z.object({
+  name: z.string().min(2, { message: "Min 2 characters" }),
+  division: z.string().min(1, { message: "Select a division" }),
+  category: z.enum(SUBJECT_CATEGORIES, { message: "Select a category" }),
+});
+
+type EditFormValues = z.infer<typeof editSchema>;
+
 export default function SubjectsTable() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<SubjectRead | null>(null);
   const [divisionFilter, setDivisionFilter] = useState<DivisionFilter>("All");
 
   // Server-side filter — pass `division` to the API when the user picks
@@ -90,10 +108,11 @@ export default function SubjectsTable() {
   });
 
   const totalCount = data?.total ?? 0;
-  const coreCount = subjects.filter((s) => s.category === "Core").length;
-  const electiveCount = subjects.filter((s) => s.category === "Elective").length;
+  const coreCount = subjects.filter((s) => s.category === SUBJECT_CATEGORY.CORE).length;
+  const electiveCount = subjects.filter((s) => s.category === SUBJECT_CATEGORY.ELECTIVE).length;
 
   const createSubject = useCreateSubject();
+  const updateSubject = useUpdateSubject(editTarget?.id ?? "");
 
   const {
     register,
@@ -106,9 +125,36 @@ export default function SubjectsTable() {
     defaultValues: { slug: "", name: "", division: "", category: undefined },
   });
 
+  const editForm = useForm<EditFormValues>({
+    resolver: zodResolver(editSchema),
+  });
+
   function closeDialog() {
     setCreateOpen(false);
     reset();
+  }
+
+  function openEditDialog(subject: SubjectRead) {
+    editForm.reset({
+      name: subject.name,
+      division: subject.division ?? "all",
+      category: (subject.category ?? SUBJECT_CATEGORY.CORE) as EditFormValues["category"],
+    });
+    setEditTarget(subject);
+  }
+
+  async function onEditSubmit(values: EditFormValues) {
+    if (!editTarget) return;
+    const division: Division | null =
+      values.division === "all" ? null : (values.division as Division);
+
+    try {
+      await updateSubject.mutateAsync({ name: values.name, division, category: values.category });
+      toast.success("Subject updated.");
+      setEditTarget(null);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update subject.");
+    }
   }
 
   async function onSubmit(values: CreateFormValues) {
@@ -167,7 +213,7 @@ export default function SubjectsTable() {
       accessorKey: "category",
       header: "Category",
       cell: ({ row }) => {
-        const cat = row.original.category ?? "Core";
+        const cat = row.original.category ?? SUBJECT_CATEGORY.CORE;
         return (
           <span
             className={cn(
@@ -179,6 +225,23 @@ export default function SubjectsTable() {
           </span>
         );
       },
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => (
+        <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => openEditDialog(row.original)}
+            title="Edit"
+          >
+            <Pencil size={13} />
+          </Button>
+        </div>
+      ),
     },
   ];
 
@@ -315,15 +378,16 @@ export default function SubjectsTable() {
                     <Select
                       value={field.value ?? ""}
                       onValueChange={(v) => {
-                        if (v) field.onChange(v as "Core" | "Elective");
+                        if (v) field.onChange(v as CreateFormValues["category"]);
                       }}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Core">Core</SelectItem>
-                        <SelectItem value="Elective">Elective</SelectItem>
+                        {SUBJECT_CATEGORIES.map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}
@@ -342,6 +406,82 @@ export default function SubjectsTable() {
                   <Loader2 size={15} className="animate-spin mr-2" />
                 )}
                 {createSubject.isPending || isSubmitting ? "Adding…" : "Add Subject"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Subject</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={editForm.handleSubmit(onEditSubmit)}>
+            <FieldGroup className="gap-4">
+              <Field>
+                <FieldLabel htmlFor="editSubjectName">Name</FieldLabel>
+                <Input id="editSubjectName" type="text" {...editForm.register("name")} />
+                <FieldError errors={[editForm.formState.errors.name]} />
+              </Field>
+
+              <Field>
+                <FieldLabel>Division</FieldLabel>
+                <Controller
+                  name="division"
+                  control={editForm.control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(v) => { if (v) field.onChange(v); }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a division" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DIVISIONS.map((d) => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                        <SelectItem value="all">All divisions</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError errors={[editForm.formState.errors.division]} />
+              </Field>
+
+              <Field>
+                <FieldLabel>Category</FieldLabel>
+                <Controller
+                  name="category"
+                  control={editForm.control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ?? ""}
+                      onValueChange={(v) => {
+                        if (v) field.onChange(v as EditFormValues["category"]);
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUBJECT_CATEGORIES.map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError errors={[editForm.formState.errors.category]} />
+              </Field>
+            </FieldGroup>
+
+            <DialogFooter className="mt-4">
+              <Button type="submit" disabled={updateSubject.isPending} variant="brand">
+                {updateSubject.isPending && <Loader2 size={15} className="animate-spin mr-2" />}
+                Save changes
               </Button>
             </DialogFooter>
           </form>

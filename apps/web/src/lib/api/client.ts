@@ -285,16 +285,10 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           `/guardians${buildQuery(params)}`,
         ),
-      get: (id: string) =>
-        apiFetch<components["schemas"]["GuardianRead"]>(
-          getAuthToken,
-          `/guardians/${id}`,
-        ),
-      create: (payload: components["schemas"]["GuardianCreate"]) =>
-        apiFetch<components["schemas"]["GuardianRead"]>(getAuthToken, "/guardians", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        }),
+      /** Admin-driven edit of an existing guardian's own contact info
+       *  (name/phone/email) — syncs phone/email straight to Supabase Auth
+       *  when the guardian has a login. Distinct from the relation/primary
+       *  link fields, which go through `students.updateGuardianLink`. */
       update: (id: string, payload: components["schemas"]["GuardianUpdate"]) =>
         apiFetch<components["schemas"]["GuardianRead"]>(
           getAuthToken,
@@ -368,12 +362,6 @@ export function createApiClient(getAuthToken: TokenGetter) {
         apiFetch<components["schemas"]["EnrollmentsListResponse"]>(
           getAuthToken,
           `/students/${studentId}/enrollments${buildQuery(params)}`,
-        ),
-      /** First linked guardian, or null if none. */
-      guardian: (studentId: string) =>
-        apiFetch<components["schemas"]["StudentGuardianRead"] | null>(
-          getAuthToken,
-          `/students/${studentId}/guardian`,
         ),
       /** All guardians linked to a student. */
       guardians: (studentId: string) =>
@@ -572,11 +560,6 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           "/enrollments",
           { method: "POST", body: JSON.stringify(payload) },
-        ),
-      get: (id: string) =>
-        apiFetch<components["schemas"]["EnrollmentRead"]>(
-          getAuthToken,
-          `/enrollments/${id}`,
         ),
       changeStatus: (
         id: string,
@@ -920,11 +903,6 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           `/fees/learner-fees${buildQuery(params)}`,
         ),
-      getLearnerFee: (id: string) =>
-        apiFetch<components["schemas"]["LearnerFeeRead"]>(
-          getAuthToken,
-          `/fees/learner-fees/${id}`,
-        ),
       updateLearnerFee: (
         id: string,
         payload: components["schemas"]["LearnerFeeUpdate"],
@@ -1159,7 +1137,7 @@ export function createApiClient(getAuthToken: TokenGetter) {
           "/notifications/bell",
         ),
       /** Marks every unread notification for the caller as read.
-       *  Idempotent; used when the bell dropdown opens. */
+       *  Idempotent; triggered by the explicit "Mark all as read" button. */
       markAllRead: () =>
         apiFetch<components["schemas"]["MarkReadResponse"]>(
           getAuthToken,

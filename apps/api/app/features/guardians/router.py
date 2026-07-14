@@ -16,7 +16,6 @@ from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
 from app.features.classes.model import Class
 from app.features.guardians.schema import (
-    GuardianCreate,
     GuardianRead,
     GuardiansListResponse,
     GuardianUpdate,
@@ -65,16 +64,6 @@ async def list_guardians(
     )
 
 
-@router.get("/{guardian_id}", response_model=GuardianRead, response_model_by_alias=True)
-async def get_guardian(
-    guardian_id: UUID,
-    school_id: CurrentSchoolIdDep,
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> GuardianRead:
-    row = await GuardiansService.get(session, school_id, guardian_id)
-    return GuardianRead.model_validate(row)
-
-
 @router.get(
     "/{guardian_id}/children",
     response_model=GuardianChildrenResponse,
@@ -88,25 +77,9 @@ async def list_guardian_children(
     user: CurrentUserDep,
 ) -> GuardianChildrenResponse:
     """A Parent may only look up their own linked guardian row — every
-    other role can look up any guardian, matching `/guardians/{id}`."""
+    other role can look up any guardian, matching `/guardians/{id}/login`."""
     rows = await StudentsService.list_for_guardian(session, school_id, guardian_id, user=user)
     return GuardianChildrenResponse(items=[_to_student_read(s, c) for (s, c) in rows])
-
-
-@router.post(
-    "",
-    response_model=GuardianRead,
-    response_model_by_alias=True,
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_guardian(
-    payload: GuardianCreate,
-    school_id: CurrentSchoolIdDep,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    user: RequireAdmin,
-) -> GuardianRead:
-    row = await GuardiansService.create(session, school_id, payload)
-    return GuardianRead.model_validate(row)
 
 
 @router.post(

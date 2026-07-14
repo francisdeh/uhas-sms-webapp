@@ -156,5 +156,23 @@ export function useGuardianLinkMutations(studentId: string) {
     onError,
   });
 
-  return { add, update, remove, createLogin };
+  // Edits the guardian's own name/phone/email — distinct from `update`,
+  // which only edits the relation/isPrimary fields on the student↔guardian
+  // link row.
+  const editContact = useMutation({
+    mutationFn: ({
+      guardianId,
+      payload,
+    }: {
+      guardianId: string;
+      payload: components["schemas"]["GuardianUpdate"];
+    }) => api.guardians.update(guardianId, payload),
+    onSuccess: () => {
+      toast.success("Guardian contact info updated.");
+      invalidate();
+    },
+    onError,
+  });
+
+  return { add, update, remove, createLogin, editContact };
 }

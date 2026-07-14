@@ -277,20 +277,6 @@ async def list_learner_fees(
     )
 
 
-@router.get(
-    "/learner-fees/{learner_fee_id}", response_model=LearnerFeeRead, response_model_by_alias=True
-)
-async def get_learner_fee(
-    learner_fee_id: UUID,
-    school_id: CurrentSchoolIdDep,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    _user: RequireAccountant,
-) -> LearnerFeeRead:
-    row, student, item = await FeesService.get_learner_fee(session, school_id, learner_fee_id)
-    payments = await FeesService.list_payments(session, row.id)
-    return _learner_fee_read(row, student, item, payments)
-
-
 @router.patch(
     "/learner-fees/{learner_fee_id}", response_model=LearnerFeeRead, response_model_by_alias=True
 )

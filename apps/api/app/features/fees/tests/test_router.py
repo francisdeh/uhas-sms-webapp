@@ -213,13 +213,18 @@ async def test_cannot_edit_a_waived_fee(client: AsyncClient) -> None:
 
 
 async def test_exclude_learner_fee_without_payments(client: AsyncClient) -> None:
-    learner_fee_id = await _assign_one(client, student_id=STUDENT1_UUID)
+    create = await client.post("/fees/items", json=_school_fee_item(), headers=auth_header())
+    item_id = create.json()["id"]
+    assign = await client.post(f"/fees/items/{item_id}/assign", headers=auth_header())
+    learner_fee_id = next(
+        lf["id"] for lf in assign.json()["learnerFees"] if lf["studentId"] == str(STUDENT1_UUID)
+    )
 
     resp = await client.delete(f"/fees/learner-fees/{learner_fee_id}", headers=auth_header())
     assert resp.status_code == 204
 
-    get_resp = await client.get(f"/fees/learner-fees/{learner_fee_id}", headers=auth_header())
-    assert get_resp.status_code == 404
+    roster = await client.get(f"/fees/items/{item_id}/learner-fees", headers=auth_header())
+    assert learner_fee_id not in {lf["id"] for lf in roster.json()}
 
 
 async def test_exclude_learner_fee_with_payments_conflicts(client: AsyncClient) -> None:

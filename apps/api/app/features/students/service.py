@@ -14,7 +14,6 @@ Two non-trivial flows:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, select
@@ -195,15 +194,6 @@ class StudentsService:
         if not row:
             raise NotFoundError(f"Student {student_id!r} not found.")
         return row
-
-    @staticmethod
-    async def get_primary_guardian(
-        session: AsyncSession, school_id: UUID | str, student_id: UUID | str
-    ) -> tuple[Any, str | None] | None:
-        """First linked guardian for a student, or `None`. Read-open to any
-        authenticated user in the school — matches `/students/{id}` and
-        `/guardians/{id}`, which carry the same posture."""
-        return await StudentsRepository.get_primary_guardian(session, school_id, student_id)
 
     @staticmethod
     async def create(

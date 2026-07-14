@@ -1,13 +1,22 @@
-"""HTTP-level tests for /guardians."""
+"""HTTP-level tests for /guardians.
+
+`POST /guardians` and `GET /guardians/{id}` were removed (dead code —
+guardians are always created/fetched through the student-scoped
+`POST/GET /students/{id}/guardians` flow, see
+`students/tests/test_guardian_links.py` for create/dedup coverage).
+Tests here that need an existing guardian row seed it directly via the
+model, matching this file's own existing pattern for seeding `User` rows.
+"""
 
 from __future__ import annotations
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.guardians.model import Guardian
 from app.features.guardians.tests.conftest import (
     OTHER_SCHOOL_UUID,
     SCHOOL_UUID,
@@ -25,64 +34,45 @@ _BODY = {
 }
 
 
+async def _seed_guardian(
+    db_session: AsyncSession,
+    *,
+    school_id: UUID = SCHOOL_UUID,
+    slug: str = "GUARDIAN-001",
+    first_name: str = "Abena",
+    last_name: str = "Mensah",
+    email: str | None = "abena@example.com",
+    phone: str | None = "+233241112233",
+) -> Guardian:
+    guardian = Guardian(
+        id=uuid4(),
+        slug=slug,
+        school_id=school_id,
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
+        phone=phone,
+    )
+    db_session.add(guardian)
+    await db_session.flush()
+    return guardian
+
+
 async def test_list_requires_auth(client: AsyncClient) -> None:
     res = await client.get("/guardians")
     assert res.status_code == 401
 
 
-async def test_create_requires_admin(client: AsyncClient, seed_school: School) -> None:
-    for role in ("Teacher", "Parent", "DeputyHead"):
-        res = await client.post("/guardians", json=_BODY, headers=auth_header(role=role))
-        assert res.status_code == 403
-
-
-async def test_create_round_trips(client: AsyncClient, seed_school: School) -> None:
-    res = await client.post("/guardians", json=_BODY, headers=auth_header(role="Admin"))
-    assert res.status_code == 201
-    body = res.json()
-    assert body["slug"] == "GUARDIAN-001"
-    assert body["firstName"] == "Abena"
-
-    listed = await client.get("/guardians", headers=auth_header(role="Admin"))
-    assert listed.status_code == 200
-    assert len(listed.json()["items"]) == 1
-
-
-async def test_create_rejects_missing_both_identifiers(
-    client: AsyncClient, seed_school: School
+async def test_search_filters(
+    client: AsyncClient, db_session: AsyncSession, seed_school: School
 ) -> None:
-    bad = {"firstName": "X", "lastName": "Y"}
-    res = await client.post("/guardians", json=bad, headers=auth_header(role="Admin"))
-    assert res.status_code == 422  # Pydantic model_validator
-
-
-async def test_create_409_on_duplicate_email(client: AsyncClient, seed_school: School) -> None:
-    await client.post("/guardians", json=_BODY, headers=auth_header(role="Admin"))
-    res = await client.post(
-        "/guardians",
-        json={**_BODY, "phone": "+233500000000"},
-        headers=auth_header(role="Admin"),
+    await _seed_guardian(
+        db_session, slug="GUARDIAN-001", last_name="Mensah", email="u0@x.gh", phone="+233241112200"
     )
-    assert res.status_code == 409
-
-
-async def test_create_409_on_duplicate_phone(client: AsyncClient, seed_school: School) -> None:
-    await client.post("/guardians", json=_BODY, headers=auth_header(role="Admin"))
-    res = await client.post(
-        "/guardians",
-        json={**_BODY, "email": "other@example.com"},
-        headers=auth_header(role="Admin"),
+    await _seed_guardian(
+        db_session, slug="GUARDIAN-002", last_name="Boateng", email="u1@x.gh", phone="+233241112201"
     )
-    assert res.status_code == 409
 
-
-async def test_search_filters(client: AsyncClient, seed_school: School) -> None:
-    for i, last in enumerate(["Mensah", "Boateng"]):
-        await client.post(
-            "/guardians",
-            json={**_BODY, "lastName": last, "email": f"u{i}@x.gh", "phone": f"+23324111220{i}"},
-            headers=auth_header(role="Admin"),
-        )
     res = await client.get("/guardians?q=boa", headers=auth_header(role="Admin"))
     assert res.status_code == 200
     items = res.json()["items"]
@@ -90,12 +80,11 @@ async def test_search_filters(client: AsyncClient, seed_school: School) -> None:
     assert items[0]["lastName"] == "Boateng"
 
 
-async def test_cross_school_scoping(client: AsyncClient, seed_school: School) -> None:
-    await client.post(
-        "/guardians",
-        json=_BODY,
-        headers=auth_header(role="Admin", school_id=SCHOOL_UUID),
-    )
+async def test_cross_school_scoping(
+    client: AsyncClient, db_session: AsyncSession, seed_school: School
+) -> None:
+    await _seed_guardian(db_session, school_id=SCHOOL_UUID)
+
     res = await client.get(
         "/guardians", headers=auth_header(role="Admin", school_id=OTHER_SCHOOL_UUID)
     )
@@ -103,17 +92,32 @@ async def test_cross_school_scoping(client: AsyncClient, seed_school: School) ->
     assert res.json()["items"] == []
 
 
-async def test_patch_updates_basic_fields(client: AsyncClient, seed_school: School) -> None:
-    created = (
-        await client.post("/guardians", json=_BODY, headers=auth_header(role="Admin"))
-    ).json()
+async def test_patch_updates_basic_fields(
+    client: AsyncClient, db_session: AsyncSession, seed_school: School
+) -> None:
+    guardian = await _seed_guardian(db_session)
+
     res = await client.patch(
-        f"/guardians/{created['id']}",
+        f"/guardians/{guardian.id}",
         json={"firstName": "Akua"},
         headers=auth_header(role="Admin"),
     )
     assert res.status_code == 200
     assert res.json()["firstName"] == "Akua"
+
+
+async def test_patch_requires_admin(
+    client: AsyncClient, db_session: AsyncSession, seed_school: School
+) -> None:
+    guardian = await _seed_guardian(db_session)
+
+    for role in ("Teacher", "Parent", "DeputyHead"):
+        res = await client.patch(
+            f"/guardians/{guardian.id}",
+            json={"firstName": "Akua"},
+            headers=auth_header(role=role),
+        )
+        assert res.status_code == 403
 
 
 async def test_patch_phone_syncs_supabase_when_login_exists(
@@ -122,9 +126,7 @@ async def test_patch_phone_syncs_supabase_when_login_exists(
     seed_school: School,
     fake_supabase: FakeSupabaseAdminClient,
 ) -> None:
-    created = (
-        await client.post("/guardians", json=_BODY, headers=auth_header(role="Admin"))
-    ).json()
+    guardian = await _seed_guardian(db_session)
     guardian_user_id = uuid4()
     db_session.add(
         User(
@@ -132,14 +134,14 @@ async def test_patch_phone_syncs_supabase_when_login_exists(
             school_id=SCHOOL_UUID,
             email=_BODY["email"],
             role="Parent",
-            linked_id=created["id"],
+            linked_id=guardian.id,
             is_active=True,
         )
     )
     await db_session.flush()
 
     res = await client.patch(
-        f"/guardians/{created['id']}",
+        f"/guardians/{guardian.id}",
         json={"phone": "0244000999"},
         headers=auth_header(role="Admin"),
     )
@@ -159,9 +161,7 @@ async def test_patch_email_syncs_supabase_and_users_row_when_login_exists(
     seed_school: School,
     fake_supabase: FakeSupabaseAdminClient,
 ) -> None:
-    created = (
-        await client.post("/guardians", json=_BODY, headers=auth_header(role="Admin"))
-    ).json()
+    guardian = await _seed_guardian(db_session)
     guardian_user_id = uuid4()
     db_session.add(
         User(
@@ -169,14 +169,14 @@ async def test_patch_email_syncs_supabase_and_users_row_when_login_exists(
             school_id=SCHOOL_UUID,
             email=_BODY["email"],
             role="Parent",
-            linked_id=created["id"],
+            linked_id=guardian.id,
             is_active=True,
         )
     )
     await db_session.flush()
 
     res = await client.patch(
-        f"/guardians/{created['id']}",
+        f"/guardians/{guardian.id}",
         json={"email": "new-guardian@example.com"},
         headers=auth_header(role="Admin"),
     )
@@ -195,13 +195,15 @@ async def test_patch_email_syncs_supabase_and_users_row_when_login_exists(
 
 
 async def test_patch_phone_skips_supabase_when_no_login(
-    client: AsyncClient, seed_school: School, fake_supabase: FakeSupabaseAdminClient
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    fake_supabase: FakeSupabaseAdminClient,
 ) -> None:
-    created = (
-        await client.post("/guardians", json=_BODY, headers=auth_header(role="Admin"))
-    ).json()
+    guardian = await _seed_guardian(db_session)
+
     res = await client.patch(
-        f"/guardians/{created['id']}",
+        f"/guardians/{guardian.id}",
         json={"phone": "0244000999"},
         headers=auth_header(role="Admin"),
     )

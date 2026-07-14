@@ -65,6 +65,11 @@ export default async function DeputyHeadStudentDetailPage({
   }));
 
   return (
-    <StudentDetail student={student} classes={classes} basePath="/deputy-head/students" />
+    <StudentDetail
+      student={student}
+      classes={classes}
+      basePath="/deputy-head/students"
+      canEdit={false}
+    />
   );
 }
