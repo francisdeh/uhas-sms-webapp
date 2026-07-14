@@ -207,9 +207,7 @@ async def test_prepare_next_year_is_idempotent(
 async def test_activate_next_year_blocked_while_season_open(
     db_session: AsyncSession, seed_school: School
 ) -> None:
-    db_session.add(
-        PromotionSeason(school_id=SCHOOL_UUID, academic_year="2025/2026", status="open")
-    )
+    db_session.add(PromotionSeason(school_id=SCHOOL_UUID, academic_year="2025/2026", status="open"))
     await db_session.flush()
 
     try:
@@ -240,9 +238,7 @@ async def test_activate_next_year_succeeds_when_season_closed(
     assert updated.current_term_override is None
 
     audit = (
-        await db_session.execute(
-            select(AuditLog).where(AuditLog.target_id == SCHOOL_UUID)
-        )
+        await db_session.execute(select(AuditLog).where(AuditLog.target_id == SCHOOL_UUID))
     ).scalar_one()
     assert audit.action == "SCHOOL_YEAR_ACTIVATED"
     assert audit.after is not None
