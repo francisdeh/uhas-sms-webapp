@@ -1,6 +1,21 @@
 import type { Division } from "@/features/auth/types";
 
-export type AttendanceStatus = "present" | "absent" | "late";
+// Mirrors app/features/attendance/constants.py's AttendanceStatus Literal.
+export const ATTENDANCE_STATUS = {
+  PRESENT: "present",
+  ABSENT: "absent",
+  LATE: "late",
+  EXCUSED: "excused",
+} as const;
+
+export type AttendanceStatus = (typeof ATTENDANCE_STATUS)[keyof typeof ATTENDANCE_STATUS];
+
+export const ATTENDANCE_STATUSES: readonly AttendanceStatus[] = [
+  ATTENDANCE_STATUS.PRESENT,
+  ATTENDANCE_STATUS.ABSENT,
+  ATTENDANCE_STATUS.LATE,
+  ATTENDANCE_STATUS.EXCUSED,
+];
 
 // "At school" sets for two endpoints with genuinely different wire
 // casings — `get_student_calendar` (parent dashboard) translates DB

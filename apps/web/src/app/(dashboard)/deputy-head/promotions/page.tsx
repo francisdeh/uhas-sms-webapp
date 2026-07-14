@@ -90,18 +90,26 @@ export default async function DeputyHeadPromotionsPage() {
                 href={`/deputy-head/promotions/${row.submission.id}`}
                 className="flex items-center justify-between py-2.5 px-2 -mx-2 rounded-md hover:bg-muted/50 transition-colors group"
               >
-                <div className="min-w-0 flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-medium">{row.className}</p>
-                  {statusPill(row.submission.status as PromotionSubmissionStatus)}
-                  {row.submission.submittedByName && (
-                    <span className="text-xs text-muted-foreground">
-                      by {row.submission.submittedByName}
-                    </span>
-                  )}
-                  {row.submission.submittedAt && (
-                    <span className="text-xs text-muted-foreground">
-                      · {new Date(row.submission.submittedAt).toLocaleDateString()}
-                    </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium">{row.className}</p>
+                    {statusPill(row.submission.status as PromotionSubmissionStatus)}
+                    {row.submission.submittedByName && (
+                      <span className="text-xs text-muted-foreground">
+                        by {row.submission.submittedByName}
+                      </span>
+                    )}
+                    {row.submission.submittedAt && (
+                      <span className="text-xs text-muted-foreground">
+                        · {new Date(row.submission.submittedAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  {row.classTeacherNames.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Class teacher{row.classTeacherNames.length === 1 ? "" : "s"}:{" "}
+                      {row.classTeacherNames.join(", ")}
+                    </p>
                   )}
                 </div>
                 <ChevronRight
