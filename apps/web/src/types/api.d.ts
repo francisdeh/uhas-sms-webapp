@@ -5226,6 +5226,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Slug */
+            slug: string;
             /** Name */
             name: string;
             /** Rank */

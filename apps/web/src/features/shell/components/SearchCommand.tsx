@@ -85,8 +85,8 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
       try {
         const r = await api.search.global(q);
         setResults({
-          students: r.students.map((s) => ({ id: s.id, name: s.name })),
-          staff: r.staff.map((s) => ({ id: s.id, name: s.name, email: "" })),
+          students: r.students.map((s) => ({ id: s.id, slug: s.slug, name: s.name })),
+          staff: r.staff.map((s) => ({ id: s.id, slug: s.slug, name: s.name })),
           classes: r.classes.map((c) => ({ id: c.id, name: c.name })),
           announcements: [],
         });
@@ -175,7 +175,7 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
                   >
                     <GraduationCap size={14} className="mr-2 text-muted-foreground" />
                     <span>{s.name}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{s.id}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{s.slug}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -194,7 +194,7 @@ export function SearchCommand({ open, onOpenChange, user }: SearchCommandProps) 
                   >
                     <Users size={14} className="mr-2 text-muted-foreground" />
                     <span>{s.name}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{s.email}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{s.slug}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>

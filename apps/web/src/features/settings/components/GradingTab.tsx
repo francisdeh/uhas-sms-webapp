@@ -211,7 +211,7 @@ export function GradingTab({
           </Field>
 
           <div>
-            <Button onClick={onSave} disabled={saving} variant="ink">
+            <Button onClick={onSave} disabled={saving} variant="brand">
               {saving && <Loader2 size={14} className="animate-spin mr-2" />}
               Save Grading
             </Button>

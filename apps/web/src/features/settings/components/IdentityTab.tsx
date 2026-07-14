@@ -152,7 +152,7 @@ export function IdentityTab({ settings }: { settings: SchoolSettings }) {
             </Field>
 
             <div>
-              <Button type="submit" disabled={isSubmitting} variant="ink">
+              <Button type="submit" disabled={isSubmitting} variant="brand">
                 {isSubmitting && <Loader2 size={14} className="animate-spin mr-2" />}
                 Save Identity
               </Button>

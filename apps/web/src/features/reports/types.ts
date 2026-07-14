@@ -85,7 +85,7 @@ export type PscClassRow = {
 
 export type PscDivisionStaff = {
   division: Division | "Cross";
-  staff: { id: string; name: string; rank: string; isUnitHead: boolean }[];
+  staff: { id: string; slug: string; name: string; rank: string; isUnitHead: boolean }[];
 };
 
 export type PscReportData = {

@@ -192,6 +192,7 @@ class PscStaffEntry(BaseModel):
     model_config = _CAMEL_CONFIG
 
     id: UUID
+    slug: str
     name: str
     rank: str
     is_unit_head: bool

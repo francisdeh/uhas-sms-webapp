@@ -32,6 +32,7 @@ import {
   useSubmitPromotionList,
   useEnsurePromotionSubmission,
 } from "@/features/promotions/hooks/use-promotions";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import {
   PROMOTION_DECISION_KIND,
   type DecisionRowView,
@@ -125,6 +126,10 @@ export function PromotionDecisionTable({
   const [submissionId, setSubmissionId] = useState<string | null>(
     initialSubmissionId ?? null,
   );
+
+  useBreadcrumbLabel(classId, className);
+  useBreadcrumbLabel(submissionId ?? undefined, className);
+
   const ensureMut = useEnsurePromotionSubmission();
   const saveMut = useSavePromotionDraft();
   const submitMut = useSubmitPromotionList();

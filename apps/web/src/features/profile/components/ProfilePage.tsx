@@ -18,7 +18,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { ImageUploadField } from "@/features/uploads/components/ImageUploadField";
 import { TwoFactorCard } from "@/features/profile/components/TwoFactorCard";
 import { PhoneChangeCard } from "@/features/profile/components/PhoneChangeCard";
 import { EmailChangeCard } from "@/features/profile/components/EmailChangeCard";
@@ -58,7 +57,6 @@ type PasswordValues = z.infer<typeof passwordSchema>;
 
 interface ProfilePageProps {
   user: SessionUser;
-  currentPhotoUrl?: string | null;
 }
 
 const PROFILE_TABS = ["profile", "security", "notifications", "danger"] as const;
@@ -74,7 +72,7 @@ export function ProfilePage(props: ProfilePageProps) {
   );
 }
 
-function ProfilePageContent({ user, currentPhotoUrl = null }: ProfilePageProps) {
+function ProfilePageContent({ user }: ProfilePageProps) {
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
   const initialTab: ProfileTab = PROFILE_TABS.includes(requestedTab as ProfileTab)
@@ -101,7 +99,7 @@ function ProfilePageContent({ user, currentPhotoUrl = null }: ProfilePageProps) 
         <TabsContent value="profile">
           <AnimatePresence mode="wait">
             <motion.div key="profile" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
-              <ProfileTab user={user} currentPhotoUrl={currentPhotoUrl} />
+              <ProfileTab user={user} />
             </motion.div>
           </AnimatePresence>
         </TabsContent>
@@ -134,25 +132,11 @@ function ProfilePageContent({ user, currentPhotoUrl = null }: ProfilePageProps) 
   );
 }
 
-function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhotoUrl: string | null }) {
+function ProfileTab({ user }: { user: SessionUser }) {
   const router = useRouter();
-  const [photoUrl, setPhotoUrl] = useState<string | null>(currentPhotoUrl);
-  const canEditPhoto = !!user.linkedId && user.role !== PARENT;
-
-  async function onPhotoChange(next: string | null) {
-    setPhotoUrl(next);
-    if (!user.linkedId) {
-      toast.error("No linked staff record.");
-      return;
-    }
-    try {
-      await api.staff.update(user.linkedId, { photoUrl: next });
-      toast.success(next ? "Photo updated." : "Photo removed.");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to update photo.");
-    }
-  }
+  // Documents (view-only) are still shown for staff — separate from, and
+  // unaffected by, the photo-upload removal below.
+  const hasLinkedStaffRecord = !!user.linkedId && user.role !== PARENT;
 
   const {
     register,
@@ -183,7 +167,7 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
       <CardContent>
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
           <UserAvatar
-            photoUrl={photoUrl}
+            photoUrl={null}
             firstName={user.displayName?.split(" ")[0] ?? "?"}
             lastName={user.displayName?.split(" ").slice(1).join(" ") ?? ""}
             size="lg"
@@ -198,18 +182,6 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
             <Badge variant="secondary" className="mt-1.5 text-xs">{user.role}</Badge>
           </div>
         </div>
-
-        {canEditPhoto && (
-          <div className="mb-6 max-w-sm">
-            <ImageUploadField
-              ownerId={user.linkedId}
-              kind="staff/photo"
-              value={photoUrl}
-              onChange={onPhotoChange}
-              label="Update profile photo"
-            />
-          </div>
-        )}
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <FieldGroup className="gap-4 max-w-sm">
@@ -228,16 +200,17 @@ function ProfileTab({ user, currentPhotoUrl }: { user: SessionUser; currentPhoto
 
         <div className="max-w-sm mt-4 space-y-4">
           <EmailChangeCard currentEmail={user.email ?? null} />
-          <PhoneChangeCard currentPhone={user.phone ?? null} />
+          <PhoneChangeCard currentPhone={user.phone ?? null} usedForLogin={user.role === PARENT} />
           <p className="text-xs text-muted-foreground">
-            Your email or phone number is also how you sign in — changing either one changes what
-            you use to log in next time.
+            {user.role === PARENT
+              ? "Your email or phone number is also how you sign in — changing either one changes what you use to log in next time."
+              : "Your email is also how you sign in — changing it changes what you use to log in next time. Your phone number is for contact and SMS notifications only."}
           </p>
         </div>
       </CardContent>
     </Card>
 
-    {canEditPhoto && user.linkedId && (
+    {hasLinkedStaffRecord && user.linkedId && (
       <StaffDocumentsCard staffId={user.linkedId} canManage={false} />
     )}
     </div>

@@ -5,6 +5,7 @@ import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi, ApiError } from "@/lib/api/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { BreadcrumbLabel } from "@/features/shell/components/BreadcrumbLabel";
 
 interface PageProps {
   params: Promise<{ examId: string }>;
@@ -36,6 +37,7 @@ export default async function AdminReviewListPage({ params }: PageProps) {
 
   return (
     <div className="space-y-5">
+      <BreadcrumbLabel segment={examId} label={exam.name} />
       <Link
         href="/admin/examinations"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"

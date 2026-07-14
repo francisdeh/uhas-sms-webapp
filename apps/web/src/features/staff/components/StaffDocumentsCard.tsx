@@ -65,14 +65,25 @@ export function StaffDocumentsCard({ staffId, canManage }: StaffDocumentsCardPro
   return (
     <Card>
       <CardContent className="pt-5 space-y-3">
-        <h3 className="text-sm font-semibold flex items-center gap-1.5">
-          <FileStack size={14} /> Documents
-        </h3>
+        <div>
+          <h3 className="text-sm font-semibold flex items-center gap-1.5">
+            <FileStack size={14} /> Documents
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {canManage
+              ? "Certificates, contract, ID, and other files kept on this staff member's record."
+              : "Certificates, contract, ID, and other files your administrator has uploaded to your record — view and download only."}
+          </p>
+        </div>
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : docs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
+          <p className="text-sm text-muted-foreground">
+            {canManage
+              ? "No documents uploaded yet."
+              : "Your administrator hasn't uploaded any documents for you yet."}
+          </p>
         ) : (
           <div className="space-y-2">
             {docs.map((doc) => (

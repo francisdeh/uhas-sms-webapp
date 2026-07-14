@@ -35,7 +35,7 @@ export function StudentIdCard({ student }: Props) {
             {student.firstName} {student.lastName}
           </p>
 
-          <p className="text-xs text-muted-foreground">{student.id}</p>
+          <p className="text-xs text-muted-foreground">{student.slug}</p>
 
           <p className="text-xs text-muted-foreground">
             {student.className}&nbsp;·&nbsp;{student.division}

@@ -16,7 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { ROLE_DASHBOARD, USER_ROLES, type UserRole } from "@/features/auth/types";
+import { PARENT, ROLE_DASHBOARD, USER_ROLES, type UserRole } from "@/features/auth/types";
 
 // E.164: leading `+`, 1-9 country code, total digits 7-15.
 const E164_REGEX = /^\+[1-9]\d{6,14}$/;
@@ -288,7 +288,21 @@ export default function LoginForm() {
       }
       return;
     }
-    if (data.user) await proceedAfterAuth(data.user);
+    if (!data.user) return;
+
+    // Phone-OTP is a Parent-only login path — Supabase Auth itself has no
+    // concept of role, so a staff account with a confirmed phone could
+    // otherwise complete this same flow. Enforce the role boundary here,
+    // the same way applyAuthedUserOrSignOut already rejects unconfigured
+    // roles, rather than relying on identifier shape alone.
+    const role = data.user.app_metadata?.role as UserRole | undefined;
+    if (role && role !== PARENT) {
+      toast.error("Phone sign-in is only available for parent accounts. Sign in with your email and password instead.");
+      await supabase.auth.signOut();
+      handleBackFromOtp();
+      return;
+    }
+    await proceedAfterAuth(data.user);
   }
 
   function handleBackFromOtp() {

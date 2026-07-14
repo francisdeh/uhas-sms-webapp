@@ -124,7 +124,7 @@ export function PscReport({ data }: { data: PscReportData }) {
                 <tbody>
                   {d.staff.map((s) => (
                     <tr key={s.id}>
-                      <td className="border border-black p-1.5 font-mono text-xs">{s.id}</td>
+                      <td className="border border-black p-1.5 font-mono text-xs">{s.slug}</td>
                       <td className="border border-black p-1.5">{s.name}</td>
                       <td className="border border-black p-1.5">{s.rank}</td>
                       <td className="border border-black p-1.5">

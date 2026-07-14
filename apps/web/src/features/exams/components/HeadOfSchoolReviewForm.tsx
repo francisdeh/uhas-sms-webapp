@@ -12,10 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { api, ApiError } from "@/lib/api/browser";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import type { Exam, ClassReportSubmission } from "@/features/exams/types";
 
 interface HeadOfSchoolReviewFormProps {
   exam: Exam;
+  classId: string;
   className: string;
   submission: ClassReportSubmission | null;
   initialRows: {
@@ -29,6 +31,7 @@ interface HeadOfSchoolReviewFormProps {
 
 export function HeadOfSchoolReviewForm({
   exam,
+  classId: routeClassId,
   className,
   submission,
   initialRows,
@@ -36,6 +39,9 @@ export function HeadOfSchoolReviewForm({
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   const [savingId, setSavingId] = useState<string | null>(null);
+
+  useBreadcrumbLabel(exam.id, exam.name);
+  useBreadcrumbLabel(routeClassId, className);
 
   const locked = exam.isPublished;
   const classId = submission?.classId ?? null;

@@ -93,6 +93,7 @@ export default async function AdminReviewClassPage({ params }: PageProps) {
       </div>
       <HeadOfSchoolReviewForm
         exam={exam}
+        classId={classId}
         className={classRead.name}
         submission={submission}
         initialRows={initialRows}

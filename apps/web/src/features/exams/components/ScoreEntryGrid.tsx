@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useUpsertScores } from "@/features/exams/hooks/use-exams";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import {
   computeTotalScore,
   computeGrade,
@@ -83,6 +84,10 @@ export function ScoreEntryGrid({
   scoreWeights,
   passMark,
 }: ScoreEntryGridProps) {
+  useBreadcrumbLabel(exam.id, exam.name);
+  useBreadcrumbLabel(classId, className);
+  useBreadcrumbLabel(subjectId, subjectName);
+
   const [rows, setRows] = useState<Row[]>(() => initialRows.map(toRow));
   const upsertScores = useUpsertScores();
   const isPending = upsertScores.isPending;

@@ -20,6 +20,7 @@ import type { Division } from "@/features/auth/types";
 
 interface ChildInfo {
   id: string;
+  slug: string;
   name: string;
   classId: string;
   className: string;
@@ -194,7 +195,7 @@ export default function ParentDashboardOverview({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{child.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono mt-0.5">{child.id}</p>
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5">{child.slug}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <Badge

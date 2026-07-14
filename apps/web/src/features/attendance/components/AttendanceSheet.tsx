@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 import { useUpsertAttendanceSession } from "@/features/attendance/hooks/use-attendance";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { formatDateLong } from "@/lib/dates";
 import type {
   AttendanceStatus,
@@ -91,6 +92,8 @@ export function AttendanceSheet({
   editable,
   submittedById,
 }: AttendanceSheetProps) {
+  useBreadcrumbLabel(classId, className);
+
   const upsert = useUpsertAttendanceSession();
   const isPending = upsert.isPending;
   const [rows, setRows] = useState<Record<string, RowState>>(() =>
@@ -308,7 +311,7 @@ const AttendanceRow = memo(function AttendanceRow({
             <p className="text-sm font-medium">
               {student.firstName} {student.lastName}
             </p>
-            <p className="hidden sm:block text-xs text-muted-foreground font-mono">{student.id}</p>
+            <p className="hidden sm:block text-xs text-muted-foreground font-mono">{student.slug}</p>
           </div>
         </div>
 
