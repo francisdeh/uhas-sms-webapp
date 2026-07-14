@@ -80,6 +80,7 @@ export function toParentFeePayment(
     amountMinor: p.amountMinor,
     method: p.method,
     paidAt: p.paidAt,
+    receiptFileUrls: p.receiptFileUrls ?? [],
   };
 }
 

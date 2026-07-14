@@ -2,6 +2,20 @@
 
 Full development history for the UHAS SMS project, newest first. `README.md`'s Development Phases table is a slim index into this file — this is the canonical place for detailed "what shipped and why" narrative.
 
+## Parent-facing fee receipts — ✅ Done
+
+Closed the last remaining Phase 5/6 fee-management gap. Originally brainstormed as a system-generated, sequentially-numbered PDF receipt, but the actual intent was simpler and more direct: `FeePayment.receipt_file_urls` (whatever proof-of-payment the Accountant already uploads — a photo of a paper receipt, a MoMo screenshot) already existed, but a prior, deliberate design decision (`ParentFeePaymentRead`'s docstring) explicitly excluded it from the parent-facing view: "the Accountant's proof-of-payment, not the parent's document." Reversed that exclusion instead of building a parallel PDF pipeline — the Accountant's uploaded file *is* the parent's receipt.
+
+Backend: `ParentFeePaymentRead` gained `receiptFileUrls`; `FeesService.my_children_fees`'s mapping now passes the field through, mirroring the Accountant-side `_payment_read`. Frontend: `ParentFeePayment`/`toParentFeePayment` widened to match; the parent fees page now renders a `ClientDocumentDownloadLink` per uploaded file next to each payment — reusing the same generic, already-shared signed-URL download mechanism used for leave documents, scheme resources, and staff/student documents (no new endpoint, no new server action). New pytest coverage confirms the round-trip; manually verified end-to-end in-browser: uploaded a file as Accountant, downloaded the identical file as that student's parent via a real Supabase signed URL.
+
+Drive-by fixes, flagged mid-testing while reviewing this PR — a broader look at the whole Accountant section against the Staff/Classes reference pages turned up four real layout gaps, all fixed together:
+- The Fee Items and Balances tables were missing the standard `bg-card border border-border/60 rounded-xl p-4` wrapper every other list page (Classes, Staff) uses around its `DataTable` — fixed in `FeeItemsTable.tsx` and `LearnerFeesTable.tsx` (shared by both Balances and the fee-item detail page, so one fix covers both; `LearnerFeesTable` gained a `bare` prop for callers that supply their own `Card` wrapper instead).
+- Fee Items and Balances had no `StatCard` summary row at all, unlike every other list page — added Total/Active/Inactive/This-Year to Fee Items and Total/Outstanding/Paid/Waived to Balances. Balances now fetches the full unfiltered set once and filters client-side (mirroring `StaffTable`'s pattern) so the stat counts stay accurate regardless of which status the dropdown is showing.
+- The fee-item detail page (`FeeItemRoster.tsx`) had a redundant hand-rolled "Back to fee items" link — every other detail page (Staff, Class) relies solely on the shell breadcrumb, which this page already wires up via `useBreadcrumbLabel`. Removed the dead link and the now-unused `backHref` prop.
+- The same page's roster table sat bare under the header with no section title — wrapped it in a `Card` with an "Assigned Roster (N)" title + live count badge, matching `ClassDetail.tsx`'s "Student Roster (N)" pattern.
+
+See `docs/superpowers/specs/2026-07-14-fee-receipts-design.md`.
+
 ## First-time-setup onboarding checklist — ✅ Done
 
 Closed the last item from Phase 6's original checklist (`v2/UHAS_Migration_Execution_Plan.md`). A pre-design audit found no onboarding/setup-guidance UI existed anywhere — a new school's Admin had no ordered path through the real dependency chain (school identity → academic year/terms → classes → staff logins) beyond unguided use of ordinary CRUD pages.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Wallet, CircleDollarSign, CheckCircle2, Ban } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -8,8 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { StatCard } from "@/components/ui/stat-card";
 import { useLearnerFees } from "@/features/fees/hooks/use-fees";
-import { LEARNER_FEE_STATUS_LABELS, type LearnerFee, type LearnerFeeStatus } from "@/features/fees/types";
+import {
+  OUTSTANDING,
+  PAID,
+  WAIVED,
+  LEARNER_FEE_STATUS_LABELS,
+  type LearnerFee,
+  type LearnerFeeStatus,
+} from "@/features/fees/types";
 import { LearnerFeesTable } from "./LearnerFeesTable";
 
 type StatusFilter = LearnerFeeStatus | "all";
@@ -20,11 +29,16 @@ interface BalancesTableProps {
 
 export function BalancesTable({ initialData }: BalancesTableProps) {
   const [status, setStatus] = useState<StatusFilter>("all");
-  const params = status === "all" ? { size: 200 } : { status, size: 200 };
-  const { data, isLoading } = useLearnerFees(
-    params,
-    status === "all" ? { initialData } : undefined,
-  );
+  // Unfiltered — mirrors StaffTable/StudentsTable: fetch the full set once,
+  // filter client-side, so the stat cards stay accurate regardless of the
+  // currently-selected status.
+  const { data, isLoading } = useLearnerFees({ size: 200 }, { initialData });
+  const learnerFees = data?.items ?? [];
+  const displayed = status === "all" ? learnerFees : learnerFees.filter((lf) => lf.status === status);
+
+  const outstandingCount = learnerFees.filter((lf) => lf.status === OUTSTANDING).length;
+  const paidCount = learnerFees.filter((lf) => lf.status === PAID).length;
+  const waivedCount = learnerFees.filter((lf) => lf.status === WAIVED).length;
 
   return (
     <div className="space-y-5">
@@ -54,7 +68,34 @@ export function BalancesTable({ initialData }: BalancesTableProps) {
         </Select>
       </div>
 
-      <LearnerFeesTable data={data?.items ?? []} isLoading={isLoading} showFeeItemColumn />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard
+          label="Total Balances"
+          value={learnerFees.length}
+          icon={<Wallet size={17} className="text-slate-600 dark:text-slate-300" />}
+          iconBg="bg-slate-100 dark:bg-slate-800"
+        />
+        <StatCard
+          label="Outstanding"
+          value={outstandingCount}
+          icon={<CircleDollarSign size={17} className="text-accent-orange" />}
+          iconBg="bg-orange-50 dark:bg-orange-950/40"
+        />
+        <StatCard
+          label="Paid"
+          value={paidCount}
+          icon={<CheckCircle2 size={17} className="text-green-600" />}
+          iconBg="bg-green-50 dark:bg-green-950/40"
+        />
+        <StatCard
+          label="Waived"
+          value={waivedCount}
+          icon={<Ban size={17} className="text-gray-500" />}
+          iconBg="bg-gray-100 dark:bg-gray-800"
+        />
+      </div>
+
+      <LearnerFeesTable data={displayed} isLoading={isLoading} showFeeItemColumn />
     </div>
   );
 }

@@ -5201,10 +5201,10 @@ export interface components {
         };
         /**
          * ParentFeePaymentRead
-         * @description A payment as a parent sees it — deliberately narrower than
-         *     `FeePaymentRead`: no `recordedBy*` (Accountant-internal) and no
-         *     `receiptFileUrls` (the Accountant's proof-of-payment, not the
-         *     parent's document).
+         * @description A payment as a parent sees it — narrower than `FeePaymentRead`:
+         *     no `recordedBy*` (Accountant-internal). `receiptFileUrls` IS
+         *     included — whatever proof-of-payment the Accountant uploaded is
+         *     also the parent's own receipt.
          */
         ParentFeePaymentRead: {
             /**
@@ -5224,6 +5224,8 @@ export interface components {
              * Format: date-time
              */
             paidAt: string;
+            /** Receiptfileurls */
+            receiptFileUrls?: string[];
         };
         /** ParentLearnerFeeRead */
         ParentLearnerFeeRead: {

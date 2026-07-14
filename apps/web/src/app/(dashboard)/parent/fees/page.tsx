@@ -7,6 +7,7 @@ import { PAID, WAIVED } from "@/features/fees/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LearnerFeeStatusPill } from "@/features/fees/components/LearnerFeeStatusPill";
+import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
 import { formatCedis } from "@/lib/currency";
 import { formatDate } from "@/lib/dates";
 
@@ -84,14 +85,24 @@ export default async function ParentFeesPage() {
                       {fee.payments.length > 0 && (
                         <ul className="mt-2 space-y-1 border-t border-border/50 pt-2">
                           {fee.payments.map((p) => (
-                            <li
-                              key={p.id}
-                              className="flex items-center justify-between text-xs text-muted-foreground"
-                            >
-                              <span>
-                                Paid {formatCedis(p.amountMinor)} · {p.method}
-                              </span>
-                              <span>{formatDate(p.paidAt)}</span>
+                            <li key={p.id} className="text-xs text-muted-foreground">
+                              <div className="flex items-center justify-between">
+                                <span>
+                                  Paid {formatCedis(p.amountMinor)} · {p.method}
+                                </span>
+                                <span>{formatDate(p.paidAt)}</span>
+                              </div>
+                              {p.receiptFileUrls.length > 0 && (
+                                <div className="mt-1 flex flex-wrap gap-3">
+                                  {p.receiptFileUrls.map((path, i) => (
+                                    <ClientDocumentDownloadLink
+                                      key={path}
+                                      storagePath={path}
+                                      label={p.receiptFileUrls.length > 1 ? `Receipt ${i + 1}` : "Receipt"}
+                                    />
+                                  ))}
+                                </div>
+                              )}
                             </li>
                           ))}
                         </ul>

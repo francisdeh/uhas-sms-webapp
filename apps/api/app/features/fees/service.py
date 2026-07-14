@@ -355,10 +355,11 @@ class FeesService:
         session: AsyncSession, school_id: UUID | str, *, user: CurrentUser
     ) -> list[ChildFeesRead]:
         """A Parent's own children's fee balances + payment history — no
-        recorder identity, no receipt files (see `ParentFeePaymentRead`
-        docstring). Every other role is refused; there's no legitimate
-        reason for Admin/Accountant/Teacher to hit this specific view
-        (they already have the full picture via the other endpoints)."""
+        recorder identity (see `ParentFeePaymentRead` docstring), but
+        receipt files ARE included. Every other role is refused;
+        there's no legitimate reason for Admin/Accountant/Teacher to
+        hit this specific view (they already have the full picture via
+        the other endpoints)."""
         if user.role != PARENT or not user.linked_id:
             raise ForbiddenError("Only a parent can view this.")
 
@@ -395,6 +396,7 @@ class FeesService:
                             amount_minor=p.amount_minor,
                             method=p.method,
                             paid_at=p.paid_at,
+                            receipt_file_urls=p.receipt_file_urls or [],
                         )
                         for p in payments_by_learner_fee.get(lf.id, [])
                     ],

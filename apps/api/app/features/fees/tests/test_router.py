@@ -382,13 +382,44 @@ async def test_parent_sees_only_own_children_with_correct_totals(client: AsyncCl
     payment = child1["fees"][0]["payments"][0]
     assert payment["amountMinor"] == 2000
     assert payment["method"] == "momo"
-    assert "receiptFileUrls" not in payment
+    assert payment["receiptFileUrls"] == []
     assert "recordedById" not in payment
     assert "recordedByName" not in payment
     assert "reference" not in payment
 
     student_ids = {c["studentId"] for c in body["children"]}
     assert str(STUDENT_JHS2_UUID) not in student_ids
+
+
+async def test_parent_sees_receipt_files_uploaded_by_accountant(client: AsyncClient) -> None:
+    """The Accountant's uploaded proof-of-payment file(s) ARE the
+    parent's own receipt — `ParentFeePaymentRead` deliberately widened
+    to include `receiptFileUrls` (unlike `recordedBy*`, which stays
+    Accountant-internal)."""
+    create = await client.post("/fees/items", json=_school_fee_item(), headers=auth_header())
+    item_id = create.json()["id"]
+    assign = await client.post(f"/fees/items/{item_id}/assign", headers=auth_header())
+    student1_lf = next(
+        lf for lf in assign.json()["learnerFees"] if lf["studentId"] == str(STUDENT1_UUID)
+    )
+    await client.post(
+        f"/fees/learner-fees/{student1_lf['id']}/payments",
+        json={
+            "amountMinor": 2000,
+            "method": "cash",
+            "receiptFileUrls": ["fees/receipts/school-1/receipt-scan.jpg"],
+        },
+        headers=auth_header(),
+    )
+
+    resp = await client.get(
+        "/fees/my-children",
+        headers=auth_header(role="Parent", linked_id=GUARDIAN_UUID),
+    )
+    assert resp.status_code == 200, resp.text
+    child1 = next(c for c in resp.json()["children"] if c["studentId"] == str(STUDENT1_UUID))
+    payment = child1["fees"][0]["payments"][0]
+    assert payment["receiptFileUrls"] == ["fees/receipts/school-1/receipt-scan.jpg"]
 
 
 async def test_parent_cannot_see_other_guardians_children(client: AsyncClient) -> None:

@@ -301,6 +301,7 @@ Full narrative for each row (the "why" behind every deliverable) lives in [`docs
 | Tier 4 follow-on bug sweep | ✅ Done | Staff email-edit confirmed already safe; UUID leaks fixed via new breadcrumb-label mechanism + one-offs; Profile "Documents" card labeled; staff phone-login restricted to Parents; broken self-service photo upload removed for initials-only avatars; Settings page buttons fixed. |
 | Academic-year / term management deep-dive | ✅ Done | Removed the hardcoded academic-year array (was blocking any new year without a code deploy); added an explicit Prepare/Activate rollover workflow on the Calendar tab; `current_term` is now auto-picked from real term dates with a manual override; fixed the parent dashboard's hardcoded Sept–Aug date range and exam creation's always-Term-1 default. |
 | 6 item 6 — First-time-setup onboarding checklist | ✅ Done | Persistent, auto-hiding Admin dashboard widget with 5 live-computed setup checks (identity, grading, calendar, classes, staff); no stored flag, disappears once all pass. |
+| Parent-facing fee receipts | ✅ Done | Parent fees page now downloads the Accountant's uploaded proof-of-payment file(s) per payment, reversing a prior deliberate exclusion; drive-by fixes brought the whole Accountant section (Card wrapper, StatCards, roster section header, redundant back-link) in line with the rest of the app's list/detail page conventions. |
 
 ## Roadmap & audits
 
