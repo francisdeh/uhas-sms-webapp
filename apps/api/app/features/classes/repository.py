@@ -65,6 +65,7 @@ class ClassesRepository:
         q: str | None = None,
         division: str | None = None,
         academic_year: str | None = None,
+        class_teacher_id: UUID | str | None = None,
         page: int = 1,
         size: int = 50,
     ) -> tuple[list[tuple[Class, int, str | None]], int]:
@@ -74,6 +75,12 @@ class ClassesRepository:
             where.append(Class.division == division)
         if academic_year:
             where.append(Class.academic_year == academic_year)
+        if class_teacher_id:
+            where.append(
+                Class.id.in_(
+                    select(ClassTeacher.class_id).where(ClassTeacher.staff_id == class_teacher_id)
+                )
+            )
         if q:
             like = f"%{q}%"
             where.append(

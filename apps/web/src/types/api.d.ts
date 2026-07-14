@@ -9462,6 +9462,7 @@ export interface operations {
                 q?: string | null;
                 division?: string | null;
                 academicYear?: string | null;
+                classTeacherId?: string | null;
                 page?: number;
                 size?: number;
             };

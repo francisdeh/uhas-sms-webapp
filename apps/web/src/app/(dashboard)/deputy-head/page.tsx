@@ -4,6 +4,7 @@ import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-he
 import { getApi, ApiError } from "@/lib/api/server";
 import DeputyHeadDashboardOverview from "./DashboardOverview";
 import type { Staff } from "@/features/staff/types";
+import { STAFF_SESSION_AT_SCHOOL_STATUSES } from "@/features/attendance/types";
 
 export default async function DeputyHeadPage() {
   const user = await getSessionUser();
@@ -33,6 +34,15 @@ export default async function DeputyHeadPage() {
     .filter((s) => s.division === division && s.isActive)
     .sort((a, b) => a.lastName.localeCompare(b.lastName));
 
+  const staffAttendanceToday = todayStaffSession
+    ? {
+        present: todayStaffSession.records.filter((r) =>
+          STAFF_SESSION_AT_SCHOOL_STATUSES.includes(r.status),
+        ).length,
+        total: todayStaffSession.records.length,
+      }
+    : null;
+
   return (
     <DeputyHeadDashboardOverview
       division={division}
@@ -43,9 +53,10 @@ export default async function DeputyHeadPage() {
         students: stats.students,
         staff: stats.staff,
         classes: stats.classes,
+        pendingLessonPlans: stats.lessonPlans.submitted,
       }}
       staffList={divisionStaff.slice(0, 5)}
-      staffAttendanceToday={todayStaffSession !== null}
+      staffAttendanceToday={staffAttendanceToday}
     />
   );
 }

@@ -3,6 +3,7 @@ import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi } from "@/lib/api/server";
 import TeacherDashboardOverview from "./DashboardOverview";
 import type { SchoolClass } from "@/features/classes/types";
+import { LESSON_PLAN_STATUS } from "@/features/lesson-plans/types";
 
 export default async function TeacherPage() {
   const user = await getSessionUser();
@@ -11,52 +12,44 @@ export default async function TeacherPage() {
   const teacherId = user.linkedId;
 
   const api = await getApi();
-  const [school, allClassesPage, todaySessionsPage] = await Promise.all([
+  const [school, myClassesPage, todaySessionsPage, lessonPlansPage] = await Promise.all([
     api.school.get(),
-    api.classes.list({ size: 500 }),
+    teacherId
+      ? api.classes.list({ classTeacherId: teacherId, size: 500 })
+      : Promise.resolve({ items: [], total: 0, page: 1, size: 0 }),
     api.attendance.listSessions({ size: 500 }),
+    teacherId
+      ? api.lessonPlans.list({ teacherId, size: 200 })
+      : Promise.resolve({ items: [], total: 0, page: 1, size: 0 }),
   ]);
 
-  // Fetch teachers for every class in parallel and keep those where the
-  // current user is a class teacher. There's no direct API to list
-  // "classes I class-teach" today (see GAPs).
-  const perClass = await Promise.all(
-    allClassesPage.items.map(async (c) => ({
-      class: c,
-      teachers: (await api.classes.teachers.list(c.id)).items,
-    })),
-  );
-
-  const myClassEntries = perClass.filter((e) =>
-    e.teachers.some((t) => t.staffId === teacherId),
-  );
-
-  const myClasses: SchoolClass[] = myClassEntries.map(({ class: c, teachers }) => ({
+  const myClasses: SchoolClass[] = myClassesPage.items.map((c) => ({
     id: c.id,
     schoolId: c.schoolId,
     name: c.name,
     division: c.division,
     academicYear: c.academicYear,
-    classTeachers: teachers.map((t) => ({
-      staffId: t.staffId,
-      staffName: `${t.staffFirstName} ${t.staffLastName}`.trim(),
-      isPrimary: t.isPrimary,
-    })),
+    classTeachers: [],
   }));
 
   const studentCountByClass: Record<string, number> = {};
   let myStudents = 0;
-  for (const c of myClasses) {
-    const count =
-      myClassEntries.find((e) => e.class.id === c.id)?.class.studentCount ?? 0;
-    studentCountByClass[c.id] = count;
-    myStudents += count;
+  for (const c of myClassesPage.items) {
+    studentCountByClass[c.id] = c.studentCount ?? 0;
+    myStudents += c.studentCount ?? 0;
   }
 
   const today = new Date().toISOString().slice(0, 10);
   const todaySessions = todaySessionsPage.items.filter((s) => s.date === today);
   const submittedClassIds = new Set(todaySessions.map((s) => s.classId));
   const submittedCount = myClasses.filter((c) => submittedClassIds.has(c.id)).length;
+
+  const pendingLessonPlans = lessonPlansPage.items.filter(
+    (p) => p.status === LESSON_PLAN_STATUS.DRAFT || p.status === LESSON_PLAN_STATUS.SUBMITTED,
+  ).length;
+  const rejectedLessonPlans = lessonPlansPage.items.filter(
+    (p) => p.status === LESSON_PLAN_STATUS.REJECTED,
+  ).length;
 
   return (
     <TeacherDashboardOverview
@@ -67,6 +60,7 @@ export default async function TeacherPage() {
       myClasses={myClasses}
       studentCountByClass={studentCountByClass}
       todayAttendance={{ submitted: submittedCount, total: myClasses.length }}
+      lessonPlans={{ pending: pendingLessonPlans, rejected: rejectedLessonPlans }}
     />
   );
 }

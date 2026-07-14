@@ -81,6 +81,42 @@ async def test_filter_by_division_and_year(client: AsyncClient, seed_school: Sch
     assert len(yr.json()["items"]) == 2
 
 
+async def test_filter_by_class_teacher_id(
+    client: AsyncClient, seed_school: School, seed_teacher: Staff
+) -> None:
+    cls = (
+        await client.post("/classes", json=_CLASS_BODY, headers=auth_header(role="Admin"))
+    ).json()
+    await client.post(
+        "/classes",
+        json={"slug": "class-kg1", "name": "KG 1", "division": "KG", "academicYear": "2025/2026"},
+        headers=auth_header(role="Admin"),
+    )
+    await client.post(
+        f"/classes/{cls['id']}/teachers",
+        json={"staffId": str(STAFF_UUID)},
+        headers=auth_header(role="Admin"),
+    )
+
+    res = await client.get(
+        f"/classes?classTeacherId={STAFF_UUID}", headers=auth_header(role="Admin")
+    )
+    assert res.status_code == 200
+    items = res.json()["items"]
+    assert len(items) == 1
+    assert items[0]["id"] == cls["id"]
+
+
+async def test_filter_by_class_teacher_id_empty_for_unassigned_staff(
+    client: AsyncClient, seed_school: School
+) -> None:
+    await client.post("/classes", json=_CLASS_BODY, headers=auth_header(role="Admin"))
+    ghost = "00000000-0000-4000-8000-000000000000"
+    res = await client.get(f"/classes?classTeacherId={ghost}", headers=auth_header(role="Admin"))
+    assert res.status_code == 200
+    assert res.json()["items"] == []
+
+
 async def test_deputy_head_list_ignores_wider_division_param(
     client: AsyncClient, seed_school: School, seed_teacher: Staff
 ) -> None:

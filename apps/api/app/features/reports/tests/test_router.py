@@ -29,6 +29,7 @@ from app.features.reports.tests.conftest import (
     FOREIGN_TEACHER_USER,
     TEACHER_JHS_STAFF,
     TEACHER_JHS_USER,
+    TODAY,
     auth_header,
 )
 
@@ -136,6 +137,12 @@ async def test_division_stats_deputy_ok(client: AsyncClient, seed: None) -> None
     assert body["division"] == "JHS"
     assert body["students"] == 4
     assert len(body["attendanceLast7"]) == 7
+    # Today: 2 Present + 1 Late count as "at school" (3), 1 Absent doesn't —
+    # regression check for the Present/Late casing bug (case-sensitive
+    # Postgres string match against attendance_records.status).
+    today_entry = next(d for d in body["attendanceLast7"] if d["date"] == str(TODAY))
+    assert today_entry["present"] == 3
+    assert today_entry["total"] == 4
     # Lesson plans on JHS classes: 1 draft, 1 submitted, 1 approved,
     # 0 rejected. `unit_head_approved` folds into `approved` — 1 here.
     assert body["lessonPlans"]["draft"] == 1
@@ -193,6 +200,9 @@ async def test_class_stats_teacher_ok(client: AsyncClient, seed: None) -> None:
     assert body["className"] == "JHS 1"
     assert body["students"] == 4
     assert len(body["attendanceLast7"]) == 7
+    today_entry = next(d for d in body["attendanceLast7"] if d["date"] == str(TODAY))
+    assert today_entry["present"] == 3
+    assert today_entry["total"] == 4
     # Subject averages: Maths has 3 samples (90, 60, 55 → avg 68);
     # English has 1 sample (85 → avg 85).
     by_subject = {s["subjectName"]: s for s in body["subjectAverages"]}

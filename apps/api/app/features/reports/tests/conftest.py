@@ -496,7 +496,7 @@ async def seed(db_session: AsyncSession) -> None:
     )
     await db_session.flush()
 
-    # Today's attendance for JHS 1 — 3 present, 1 absent.
+    # Today's attendance for JHS 1 — 2 present, 1 late (both "at school"), 1 absent.
     session_row = AttendanceSession(
         school_id=SCHOOL_UUID,
         class_id=CLASS_JHS1,
@@ -507,10 +507,10 @@ async def seed(db_session: AsyncSession) -> None:
     await db_session.flush()
     db_session.add_all(
         [
-            AttendanceRecord(session_id=session_row.id, student_id=STUDENT_M1, status="present"),
-            AttendanceRecord(session_id=session_row.id, student_id=STUDENT_M2, status="late"),
-            AttendanceRecord(session_id=session_row.id, student_id=STUDENT_F1, status="present"),
-            AttendanceRecord(session_id=session_row.id, student_id=STUDENT_F2, status="absent"),
+            AttendanceRecord(session_id=session_row.id, student_id=STUDENT_M1, status="Present"),
+            AttendanceRecord(session_id=session_row.id, student_id=STUDENT_M2, status="Late"),
+            AttendanceRecord(session_id=session_row.id, student_id=STUDENT_F1, status="Present"),
+            AttendanceRecord(session_id=session_row.id, student_id=STUDENT_F2, status="Absent"),
         ]
     )
     await db_session.flush()

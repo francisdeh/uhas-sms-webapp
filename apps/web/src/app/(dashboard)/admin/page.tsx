@@ -35,6 +35,7 @@ export default async function AdminDashboardPage() {
 
   const totalActiveStudents = stats.totals.activeStudents;
   const criticalCount = announcementsResp.items.filter((a) => a.isCritical).length;
+  const pendingLessonPlans = stats.lessonPlans.submitted + stats.lessonPlans.unitHeadApproved;
 
   const statCards = [
     {
@@ -42,7 +43,7 @@ export default async function AdminDashboardPage() {
       value: totalActiveStudents,
       icon: "students" as const,
       iconClass: "bg-blue-50 text-blue-600",
-      trend: "+3 this term",
+      trend: `${stats.totals.activeStudents}/${stats.totals.students} active`,
       href: "/admin/students",
     },
     {
@@ -50,7 +51,7 @@ export default async function AdminDashboardPage() {
       value: stats.totals.activeStaff,
       icon: "staff" as const,
       iconClass: "bg-orange-50 text-accent-orange",
-      trend: "Fully staffed",
+      trend: `${stats.totals.activeStaff}/${stats.totals.staff} active`,
       href: "/admin/staff",
     },
     {
@@ -58,7 +59,7 @@ export default async function AdminDashboardPage() {
       value: stats.totals.classes,
       icon: "classes" as const,
       iconClass: "bg-green-50 text-green-600",
-      trend: `${currentYear} · KG · Primary · JHS`,
+      trend: `${stats.totals.subjects} subjects`,
       href: "/admin/classes",
     },
     {
@@ -68,6 +69,22 @@ export default async function AdminDashboardPage() {
       iconClass: "bg-red-50 text-red-500",
       trend: "Requires attention",
       href: "/admin/announcements",
+    },
+    {
+      label: "Today's Attendance",
+      value: stats.todayAttendance.sessionsRecorded,
+      icon: "attendance" as const,
+      iconClass: "bg-teal-50 text-teal-600",
+      trend: `of ${stats.todayAttendance.classes} classes recorded`,
+      href: "/admin/reports",
+    },
+    {
+      label: "Pending Lesson Plans",
+      value: pendingLessonPlans,
+      icon: "lessonPlans" as const,
+      iconClass: "bg-purple-50 text-purple-600",
+      trend: "Awaiting review",
+      href: "/admin/lesson-plans",
     },
   ];
 

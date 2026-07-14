@@ -25,6 +25,7 @@ interface Props {
   myClasses: SchoolClass[];
   studentCountByClass: Record<string, number>;
   todayAttendance: { submitted: number; total: number };
+  lessonPlans: { pending: number; rejected: number };
 }
 
 type StatCard =
@@ -45,6 +46,7 @@ export default function TeacherDashboardOverview({
   myClasses,
   studentCountByClass,
   todayAttendance,
+  lessonPlans,
 }: Props) {
   const statCards: StatCard[] = [
     {
@@ -75,12 +77,12 @@ export default function TeacherDashboardOverview({
       href: "/teacher/attendance",
     },
     {
-      animated: false,
-      value: null,
+      animated: true,
+      value: lessonPlans.pending,
       label: "Lesson Plans",
       icon: BookOpen,
       iconClass: "bg-orange-50 text-accent-orange",
-      trend: "Create & submit",
+      trend: lessonPlans.rejected > 0 ? `${lessonPlans.rejected} rejected` : "All caught up",
       href: "/teacher/lesson-plans",
     },
   ];
@@ -125,7 +127,7 @@ export default function TeacherDashboardOverview({
                     <p className="text-2xl font-bold tabular-nums">
                       <AnimatedNumber value={card.value} />
                     </p>
-                  ) : card.label === "Attendance" ? (
+                  ) : (
                     <p className={cn(
                       "text-2xl font-bold tabular-nums",
                       todayAttendance.total > 0 && todayAttendance.submitted === todayAttendance.total
@@ -136,8 +138,6 @@ export default function TeacherDashboardOverview({
                     )}>
                       {todayAttendance.submitted}/{todayAttendance.total}
                     </p>
-                  ) : (
-                    <p className="text-lg font-bold">My Plans →</p>
                   )}
                   <p className="text-xs font-medium mt-0.5">{card.label}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{card.trend}</p>

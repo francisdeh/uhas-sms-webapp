@@ -2,6 +2,14 @@ import type { Division } from "@/features/auth/types";
 
 export type AttendanceStatus = "present" | "absent" | "late";
 
+// "At school" sets for two endpoints with genuinely different wire
+// casings — `get_student_calendar` (parent dashboard) translates DB
+// status to lowercase via `_DB_STATUS_TO_WIRE`, while the staff
+// attendance session endpoint returns the raw capitalized DB value.
+// Mirrors the backend's `reports/repository.py` `_ATTENDANCE_AT_SCHOOL`.
+export const STUDENT_CALENDAR_AT_SCHOOL_STATUSES: readonly string[] = ["present", "late"];
+export const STAFF_SESSION_AT_SCHOOL_STATUSES: readonly string[] = ["Present", "Late"];
+
 export type AttendanceRecord = {
   sessionId: string;
   studentId: string;

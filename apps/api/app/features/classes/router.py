@@ -75,6 +75,7 @@ async def list_classes(
     q: Annotated[str | None, Query()] = None,
     division: Annotated[str | None, Query()] = None,
     academic_year: Annotated[str | None, Query(alias="academicYear")] = None,
+    class_teacher_id: Annotated[UUID | None, Query(alias="classTeacherId")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     # Classes are bounded by school structure, not row-count risk — several
     # frontend pages fetch "all classes" for a dropdown/lookup in one page
@@ -89,6 +90,7 @@ async def list_classes(
         q=q,
         division=division,
         academic_year=academic_year,
+        class_teacher_id=class_teacher_id,
         page=page,
         size=size,
     )

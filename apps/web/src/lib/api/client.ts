@@ -478,6 +478,7 @@ export function createApiClient(getAuthToken: TokenGetter) {
           q?: string;
           division?: string;
           academicYear?: string;
+          classTeacherId?: string;
           page?: number;
           size?: number;
         } = {},

@@ -60,6 +60,7 @@ class ClassesService:
         q: str | None = None,
         division: str | None = None,
         academic_year: str | None = None,
+        class_teacher_id: UUID | str | None = None,
         page: int = 1,
         size: int = 50,
     ) -> tuple[list[tuple[Class, int, str | None]], int]:
@@ -73,6 +74,7 @@ class ClassesService:
             q=q,
             division=division,
             academic_year=academic_year,
+            class_teacher_id=class_teacher_id,
             page=page,
             size=size,
         )

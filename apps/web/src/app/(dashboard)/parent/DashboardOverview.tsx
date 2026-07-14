@@ -33,6 +33,7 @@ interface Props {
   currentTerm: number;
   linkedChildren: ChildInfo[];
   announcements: MockAnnouncement[];
+  announcementsTotal: number;
   attendancePct: number | null;
 }
 
@@ -52,6 +53,7 @@ export default function ParentDashboardOverview({
   currentTerm,
   linkedChildren,
   announcements,
+  announcementsTotal,
   attendancePct,
 }: Props) {
   const classLabel =
@@ -60,6 +62,8 @@ export default function ParentDashboardOverview({
       : linkedChildren.length > 1
       ? "Multiple classes"
       : "—";
+  const attendanceSubtitle =
+    linkedChildren.length > 1 ? `Avg across ${linkedChildren.length} children` : "Present rate";
 
   const statCards: StatCard[] = [
     {
@@ -91,7 +95,7 @@ export default function ParentDashboardOverview({
     },
     {
       animated: true,
-      value: announcements.length,
+      value: announcementsTotal,
       label: "Announcements",
       icon: Bell,
       iconClass: "bg-orange-50 text-accent-orange",
@@ -155,7 +159,7 @@ export default function ParentDashboardOverview({
                   <p className="text-xs font-medium mt-0.5">{card.label}</p>
                   {(card.animated || (card.label === "Attendance" && attendancePct !== null)) && (
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {card.label === "Attendance" ? "Present rate" : card.trend}
+                      {card.label === "Attendance" ? attendanceSubtitle : card.trend}
                     </p>
                   )}
                 </CardContent>
