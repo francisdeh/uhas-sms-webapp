@@ -1,5 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
+import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
 import { getApi, ApiError } from "@/lib/api/server";
 import StaffDetail from "@/features/staff/components/StaffDetail";
 import type { Staff, StaffSystemRole, TeacherRank } from "@/features/staff/types";
@@ -11,7 +12,7 @@ function normalizeRank(rank: string | null | undefined): TeacherRank | null {
   return rank && TEACHER_RANKS_SET.has(rank) ? (rank as TeacherRank) : null;
 }
 
-export default async function AdminStaffDetailPage({
+export default async function DeputyHeadStaffDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -20,6 +21,8 @@ export default async function AdminStaffDetailPage({
   if (!user) redirect("/login");
 
   const { id } = await params;
+  const division = await getDeputyHeadDivision(user.linkedId);
+
   const api = await getApi();
   let row;
   try {
@@ -27,6 +30,10 @@ export default async function AdminStaffDetailPage({
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
+  }
+  // Only staff in this Deputy Head's own division are visible.
+  if (division && row.division && row.division !== division) {
+    notFound();
   }
 
   const staff: Staff = {
@@ -49,5 +56,5 @@ export default async function AdminStaffDetailPage({
     createdAt: row.createdAt ?? new Date().toISOString(),
   };
 
-  return <StaffDetail staff={staff} />;
+  return <StaffDetail staff={staff} readOnly />;
 }

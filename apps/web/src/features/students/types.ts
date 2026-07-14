@@ -1,5 +1,10 @@
 import type { Division } from "@/features/auth/types";
 
+export const MALE = "Male" as const;
+export const FEMALE = "Female" as const;
+export const GENDERS: readonly Gender[] = [MALE, FEMALE];
+export type Gender = typeof MALE | typeof FEMALE;
+
 export type Student = {
   id: string;
   slug: string;
@@ -8,7 +13,7 @@ export type Student = {
   middleName?: string;
   lastName: string;
   dob: string;
-  gender: "Male" | "Female";
+  gender: Gender;
   classId: string;
   className: string;
   division: Division;
@@ -26,7 +31,7 @@ export type CreateStudentInput = {
   middleName?: string;
   lastName: string;
   dob: string;
-  gender: "Male" | "Female";
+  gender: Gender;
   classId: string;
   phone?: string;
   address?: string;
@@ -40,7 +45,7 @@ export type UpdateStudentInput = {
   middleName?: string;
   lastName?: string;
   dob?: string;
-  gender?: "Male" | "Female";
+  gender?: Gender;
   phone?: string;
   address?: string;
   nationality?: string;

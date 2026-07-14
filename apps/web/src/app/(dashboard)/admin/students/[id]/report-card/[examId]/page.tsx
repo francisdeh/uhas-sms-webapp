@@ -4,7 +4,7 @@ import { getApi, ApiError } from "@/lib/api/server";
 import { ReportCardPage } from "@/features/exams/components/ReportCardPage";
 import { computeAggregate } from "@/features/exams/utils";
 import type { ReportCardData } from "@/features/exams/types";
-import type { Student } from "@/features/students/types";
+import { MALE, type Student } from "@/features/students/types";
 import type { Exam } from "@/features/exams/types";
 import type { Division } from "@/features/auth/types";
 
@@ -58,7 +58,7 @@ export default async function AdminReportCardRoute({ params }: PageProps) {
     middleName: card.student.middleName ?? undefined,
     lastName: card.student.lastName,
     dob: "",
-    gender: (card.student.gender as "Male" | "Female") ?? "Male",
+    gender: (card.student.gender as Student["gender"]) ?? MALE,
     classId: "",
     className: card.student.className,
     division: card.student.division as Division,

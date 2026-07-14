@@ -3,6 +3,7 @@ import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi } from "@/lib/api/server";
 import { AdminSchemeReview } from "@/features/schemes/components/AdminSchemeReview";
 import { toScheme } from "@/features/schemes/mappers";
+import { SCHEME_STATUS } from "@/features/schemes/types";
 
 export default async function AdminSchemesPage() {
   const user = await getSessionUser();
@@ -10,8 +11,8 @@ export default async function AdminSchemesPage() {
 
   const api = await getApi();
   const [pendingResp, acknowledgedResp] = await Promise.all([
-    api.schemes.list({ status: "submitted", size: 100 }),
-    api.schemes.list({ status: "acknowledged", size: 100 }),
+    api.schemes.list({ status: SCHEME_STATUS.SUBMITTED, size: 100 }),
+    api.schemes.list({ status: SCHEME_STATUS.ACKNOWLEDGED, size: 100 }),
   ]);
   const pending = pendingResp.items.map(toScheme);
   const acknowledged = acknowledgedResp.items.map(toScheme);

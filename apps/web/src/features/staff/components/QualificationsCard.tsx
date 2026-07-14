@@ -23,9 +23,13 @@ import {
 
 interface QualificationsCardProps {
   staffId: string;
+  /** Admin-only mutation (`POST/DELETE /staff/{id}/qualifications`
+   *  requires Admin) — defaults `true` to preserve existing behavior;
+   *  the read-only Deputy Head staff profile passes `false`. */
+  canManage?: boolean;
 }
 
-export function QualificationsCard({ staffId }: QualificationsCardProps) {
+export function QualificationsCard({ staffId, canManage = true }: QualificationsCardProps) {
   const { data, isLoading } = useStaffQualifications(staffId);
   const { add, remove } = useStaffQualificationMutations(staffId);
   const [name, setName] = useState("");
@@ -75,46 +79,50 @@ export function QualificationsCard({ staffId }: QualificationsCardProps) {
                     {[q.institution, q.yearObtained].filter(Boolean).join(" · ") || "—"}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-7 w-7 text-rose-600 hover:text-rose-700 flex-shrink-0"
-                  onClick={() => setRemoveId(q.id)}
-                >
-                  <X size={13} />
-                </Button>
+                {canManage && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-7 w-7 text-rose-600 hover:text-rose-700 flex-shrink-0"
+                    onClick={() => setRemoveId(q.id)}
+                  >
+                    <X size={13} />
+                  </Button>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        <div className="space-y-2 pt-2 border-t border-border/40">
-          <Label className="text-xs">Add a qualification</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <Input
-              placeholder="e.g. B.Ed Mathematics"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="sm:col-span-1"
-            />
-            <Input
-              placeholder="Institution (optional)"
-              value={institution}
-              onChange={(e) => setInstitution(e.target.value)}
-            />
-            <Input
-              placeholder="Year (optional)"
-              type="number"
-              value={yearObtained}
-              onChange={(e) => setYearObtained(e.target.value)}
-            />
+        {canManage && (
+          <div className="space-y-2 pt-2 border-t border-border/40">
+            <Label className="text-xs">Add a qualification</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Input
+                placeholder="e.g. B.Ed Mathematics"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="sm:col-span-1"
+              />
+              <Input
+                placeholder="Institution (optional)"
+                value={institution}
+                onChange={(e) => setInstitution(e.target.value)}
+              />
+              <Input
+                placeholder="Year (optional)"
+                type="number"
+                value={yearObtained}
+                onChange={(e) => setYearObtained(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button variant="brand" size="sm" disabled={!name.trim() || add.isPending} onClick={onAdd}>
+                Add
+              </Button>
+            </div>
           </div>
-          <div className="flex justify-end">
-            <Button variant="brand" size="sm" disabled={!name.trim() || add.isPending} onClick={onAdd}>
-              Add
-            </Button>
-          </div>
-        </div>
+        )}
       </CardContent>
 
       <AlertDialog open={removeId !== null} onOpenChange={(open) => !open && setRemoveId(null)}>

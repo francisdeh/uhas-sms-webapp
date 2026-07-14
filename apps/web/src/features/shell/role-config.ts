@@ -79,6 +79,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
         groupLabel: "People",
         items: [
           { label: "Students", href: "/deputy-head/students", icon: GraduationCap },
+          { label: "Staff", href: "/deputy-head/staff", icon: UserCog },
           { label: "Leave", href: "/deputy-head/leave", icon: CalendarOff },
         ],
       },
@@ -116,6 +117,7 @@ export const ROLE_CONFIG: Record<UserRole, ShellConfig> = {
         groupLabel: "Teaching",
         items: [
           { label: "My Classes", href: "/teacher/classes", icon: School },
+          { label: "Students", href: "/teacher/students", icon: GraduationCap },
           { label: "Attendance", href: "/teacher/attendance", icon: ClipboardCheck },
           { label: "Lesson Plans", href: "/teacher/lesson-plans", icon: BookOpen },
           { label: "Schemes", href: "/teacher/schemes", icon: ClipboardList },

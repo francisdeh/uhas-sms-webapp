@@ -33,7 +33,7 @@ import { useStaffList } from "@/features/staff/hooks/use-staff";
 import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/dates";
-import type { LeaveRequest, LeaveRequestStatus, LeaveType } from "@/features/attendance/types";
+import { LEAVE_REQUEST_STATUS, type LeaveRequest, type LeaveRequestStatus, type LeaveType } from "@/features/attendance/types";
 
 interface LeaveRequestListProps {
   requests: LeaveRequest[];
@@ -135,7 +135,7 @@ export function LeaveRequestList({
 
   async function handleApprove(id: string) {
     try {
-      await updateStatus.mutateAsync({ id, payload: { status: "approved" } });
+      await updateStatus.mutateAsync({ id, payload: { status: LEAVE_REQUEST_STATUS.APPROVED } });
       setApproveDialogId(null);
       router.refresh();
     } catch {
@@ -147,7 +147,7 @@ export function LeaveRequestList({
     try {
       await updateStatus.mutateAsync({
         id,
-        payload: { status: "rejected", rejectionReason: reason || null },
+        payload: { status: LEAVE_REQUEST_STATUS.REJECTED, rejectionReason: reason || null },
       });
       setRejectDialogId(null);
       router.refresh();
@@ -162,7 +162,7 @@ export function LeaveRequestList({
   return (
     <div>
       <div className="flex gap-2 mb-4">
-        {(["all", "pending", "approved", "rejected", "cancelled"] as const).map((f) => (
+        {(["all", LEAVE_REQUEST_STATUS.PENDING, LEAVE_REQUEST_STATUS.APPROVED, LEAVE_REQUEST_STATUS.REJECTED, LEAVE_REQUEST_STATUS.CANCELLED] as const).map((f) => (
           <Button
             key={f}
             size="sm"
@@ -215,7 +215,7 @@ export function LeaveRequestList({
                       {request.status}
                     </span>
 
-                    {request.status === "pending" && (
+                    {request.status === LEAVE_REQUEST_STATUS.PENDING && (
                       <>
                         <Button
                           size="sm"
@@ -250,11 +250,11 @@ export function LeaveRequestList({
                   </div>
                 )}
 
-                {request.status === "rejected" && request.rejectionReason && (
+                {request.status === LEAVE_REQUEST_STATUS.REJECTED && request.rejectionReason && (
                   <p className="text-xs text-red-600 mt-1">Reason: {request.rejectionReason}</p>
                 )}
 
-                {(request.status === "pending" || request.status === "approved") && (
+                {(request.status === LEAVE_REQUEST_STATUS.PENDING || request.status === LEAVE_REQUEST_STATUS.APPROVED) && (
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/40">
                     <span className="text-xs text-muted-foreground">Cover:</span>
                     <SubstitutePicker request={request} />

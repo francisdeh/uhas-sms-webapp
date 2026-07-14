@@ -19,6 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.classes.model import Class
 from app.features.enrollments.constants import ACTIVE
 from app.features.enrollments.model import Enrollment
+from app.features.fees.model import FeeItem
+from app.features.lesson_plans.model import LessonPlan
+from app.features.schemes.model import Scheme
 from app.features.staff.model import Staff
 from app.features.students.model import Student, StudentGuardian
 
@@ -184,3 +187,77 @@ class SearchRepository:
         ct_ids = set((await session.execute(ct_stmt)).scalars())
         cs_ids = set((await session.execute(cs_stmt)).scalars())
         return list(ct_ids | cs_ids)
+
+    @staticmethod
+    async def find_fee_items(
+        session: AsyncSession,
+        *,
+        school_id: UUID | str,
+        q: str,
+        limit: int = 8,
+    ) -> list[FeeItem]:
+        like = f"%{q}%"
+        stmt = (
+            select(FeeItem)
+            .where(
+                and_(
+                    FeeItem.school_id == school_id,
+                    func.lower(FeeItem.name).like(func.lower(like)),
+                )
+            )
+            .order_by(asc(FeeItem.name))
+            .limit(limit)
+        )
+        return list((await session.execute(stmt)).scalars())
+
+    @staticmethod
+    async def find_lesson_plans(
+        session: AsyncSession,
+        *,
+        school_id: UUID | str,
+        q: str,
+        teacher_id: UUID | None = None,
+        allowed_division: str | None = None,
+        limit: int = 8,
+    ) -> list[LessonPlan]:
+        like = f"%{q}%"
+        stmt = select(LessonPlan).where(
+            and_(
+                LessonPlan.school_id == school_id,
+                func.lower(LessonPlan.topic).like(func.lower(like)),
+            )
+        )
+        if teacher_id is not None:
+            stmt = stmt.where(LessonPlan.teacher_id == teacher_id)
+        if allowed_division is not None:
+            stmt = stmt.join(Class, Class.id == LessonPlan.class_id).where(
+                Class.division == allowed_division
+            )
+        stmt = stmt.order_by(asc(LessonPlan.topic)).limit(limit)
+        return list((await session.execute(stmt)).scalars())
+
+    @staticmethod
+    async def find_schemes(
+        session: AsyncSession,
+        *,
+        school_id: UUID | str,
+        q: str,
+        teacher_id: UUID | None = None,
+        allowed_division: str | None = None,
+        limit: int = 8,
+    ) -> list[Scheme]:
+        like = f"%{q}%"
+        stmt = select(Scheme).where(
+            and_(
+                Scheme.school_id == school_id,
+                func.lower(Scheme.title).like(func.lower(like)),
+            )
+        )
+        if teacher_id is not None:
+            stmt = stmt.where(Scheme.teacher_id == teacher_id)
+        if allowed_division is not None:
+            stmt = stmt.join(Class, Class.id == Scheme.class_id).where(
+                Class.division == allowed_division
+            )
+        stmt = stmt.order_by(asc(Scheme.title)).limit(limit)
+        return list((await session.execute(stmt)).scalars())

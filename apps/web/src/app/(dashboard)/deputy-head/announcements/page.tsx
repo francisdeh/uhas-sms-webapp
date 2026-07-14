@@ -7,7 +7,7 @@ import {
   type AudienceOption,
 } from "@/features/announcements/components/AnnouncementsView";
 import { Card, CardContent } from "@/components/ui/card";
-import type { Announcement } from "@/features/announcements/types";
+import { divisionAudience, type Announcement } from "@/features/announcements/types";
 
 export default async function DeputyHeadAnnouncementsPage() {
   const user = await getSessionUser();
@@ -35,7 +35,7 @@ export default async function DeputyHeadAnnouncementsPage() {
   const announcements = announcementsPage.items as unknown as Announcement[];
 
   const audienceOptions: AudienceOption[] = [
-    { value: `division:${division}`, label: `Division — ${division}` },
+    { value: divisionAudience(division), label: `Division — ${division}` },
   ];
 
   return (
@@ -43,7 +43,7 @@ export default async function DeputyHeadAnnouncementsPage() {
       authorId={user.linkedId}
       announcements={announcements}
       audienceOptions={audienceOptions}
-      defaultAudience={`division:${division}`}
+      defaultAudience={divisionAudience(division)}
       classes={classesPage.items.map((c) => ({ id: c.id, name: c.name }))}
     />
   );

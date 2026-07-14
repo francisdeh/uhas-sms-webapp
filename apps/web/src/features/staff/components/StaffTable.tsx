@@ -38,7 +38,7 @@ import {
 import type { SchoolClass } from "@/features/classes/types";
 import type { StaffSystemRole } from "@/features/staff/types";
 import { STAFF_ROLE_AVATAR, STAFF_ROLE_PILL } from "@/features/staff/role-styles";
-import { ROLE_LABELS } from "@/features/auth/types";
+import { ROLE_LABELS, ADMIN, DEPUTY_HEAD, TEACHER, type Division } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
 type RoleFilter = StaffSystemRole | "All";
@@ -47,9 +47,23 @@ interface StaffTableProps {
   initialData: StaffListResponse;
   classes?: SchoolClass[];
   listHref: string;
+  /** Restrict the table to one division — there's no server-side
+   *  `division` filter on `GET /staff`, so this filters the fetched
+   *  page client-side. Used by the Deputy Head staff list. */
+  division?: Division;
+  /** Hides "Register staff" and the activate/deactivate action — the
+   *  Deputy Head staff list is view-only (role/activation changes stay
+   *  Admin-only). Defaults `false`; Admin's page is unaffected. */
+  readOnly?: boolean;
 }
 
-export default function StaffTable({ initialData, classes, listHref }: StaffTableProps) {
+export default function StaffTable({
+  initialData,
+  classes,
+  listHref,
+  division,
+  readOnly = false,
+}: StaffTableProps) {
   const router = useRouter();
   // FastAPI is now the source of truth. TanStack handles cache + invalidation;
   // mutations call `onSuccess` → invalidate, which triggers a refetch.
@@ -71,7 +85,10 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
     return map;
   }, [classes]);
 
-  const staff = data?.items ?? [];
+  const staff = useMemo(() => {
+    const allStaff = data?.items ?? [];
+    return division ? allStaff.filter((s) => s.division === division) : allStaff;
+  }, [data, division]);
   const total = staff.length;
   const activeCount = staff.filter((s) => s.isActive).length;
   const inactiveCount = staff.filter((s) => !s.isActive).length;
@@ -115,7 +132,7 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
               firstName={s.firstName}
               lastName={s.lastName}
               size="sm"
-              gradient={STAFF_ROLE_AVATAR[(s.systemRole ?? "Teacher") as StaffSystemRole]}
+              gradient={STAFF_ROLE_AVATAR[(s.systemRole ?? TEACHER) as StaffSystemRole]}
             />
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">
@@ -131,7 +148,7 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
       accessorKey: "systemRole",
       header: "Role",
       cell: ({ row }) => {
-        const role = (row.original.systemRole ?? "Teacher") as StaffSystemRole;
+        const role = (row.original.systemRole ?? TEACHER) as StaffSystemRole;
         return (
           <span
             className={cn(
@@ -227,25 +244,27 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
             >
               <Eye size={13} />
             </Link>
-            <button
-              onClick={() => {
-                if (s.isActive) {
-                  setDeactivateTarget(s);
-                } else {
-                  doReactivate(s.id);
-                }
-              }}
-              disabled={isPending}
-              title={s.isActive ? "Deactivate" : "Reactivate"}
-              className={cn(
-                "p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-40",
-                s.isActive
-                  ? "text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
-                  : "text-muted-foreground hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-950/30"
-              )}
-            >
-              {s.isActive ? <UserX size={13} /> : <UserCheck size={13} />}
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => {
+                  if (s.isActive) {
+                    setDeactivateTarget(s);
+                  } else {
+                    doReactivate(s.id);
+                  }
+                }}
+                disabled={isPending}
+                title={s.isActive ? "Deactivate" : "Reactivate"}
+                className={cn(
+                  "p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-40",
+                  s.isActive
+                    ? "text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
+                    : "text-muted-foreground hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-950/30"
+                )}
+              >
+                {s.isActive ? <UserX size={13} /> : <UserCheck size={13} />}
+              </button>
+            )}
           </div>
         );
       },
@@ -257,14 +276,18 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Staff</h1>
+          <h1 className="text-xl font-bold">{division ? `Staff — ${division}` : "Staff"}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Manage staff records and system access.
+            {readOnly
+              ? "Staff in your division."
+              : "Manage staff records and system access."}
           </p>
         </div>
-        <Button variant="brand" nativeButton={false} render={<Link href={`${listHref}/new`} />}>
-          <Plus size={14} /> Register staff
-        </Button>
+        {!readOnly && (
+          <Button variant="brand" nativeButton={false} render={<Link href={`${listHref}/new`} />}>
+            <Plus size={14} /> Register staff
+          </Button>
+        )}
       </div>
 
       {/* Stats */}
@@ -300,7 +323,7 @@ export default function StaffTable({ initialData, classes, listHref }: StaffTabl
         {/* Filter pills */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {(["All", "Admin", "DeputyHead", "Teacher"] as const).map((r) => (
+            {(["All", ADMIN, DEPUTY_HEAD, TEACHER] as RoleFilter[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setRoleFilter(r)}

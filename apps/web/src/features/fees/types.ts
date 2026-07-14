@@ -26,6 +26,8 @@ export const MOMO: PaymentMethod = "momo";
 export const BANK: PaymentMethod = "bank";
 export const CHEQUE: PaymentMethod = "cheque";
 
+export const PAYMENT_METHODS: readonly PaymentMethod[] = [CASH, MOMO, BANK, CHEQUE];
+
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "Cash",
   momo: "Mobile Money",

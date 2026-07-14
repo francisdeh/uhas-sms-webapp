@@ -6,7 +6,7 @@ import {
   computeAggregate,
   hasAnyComponentScore,
 } from "./utils";
-import type { GradingBand, ScoreWeights } from "./types";
+import { EXAM_TYPE, type GradingBand, type ScoreWeights } from "./types";
 
 // computeGrade/computeTotalScore take bands/weights as required params
 // (the real values come from the school's settings, resolved
@@ -53,18 +53,18 @@ describe("computeGrade", () => {
 
 describe("computeTotalScore", () => {
   it("MidTerm returns rounded examScore", () => {
-    expect(computeTotalScore("MidTerm", { examScore: 75 }, EVEN_WEIGHTS)).toBe(75);
-    expect(computeTotalScore("MidTerm", { examScore: 75.6 }, EVEN_WEIGHTS)).toBe(76);
+    expect(computeTotalScore(EXAM_TYPE.MID_TERM, { examScore: 75 }, EVEN_WEIGHTS)).toBe(75);
+    expect(computeTotalScore(EXAM_TYPE.MID_TERM, { examScore: 75.6 }, EVEN_WEIGHTS)).toBe(76);
   });
 
   it("MidTerm returns null when examScore missing", () => {
-    expect(computeTotalScore("MidTerm", { examScore: null }, EVEN_WEIGHTS)).toBeNull();
+    expect(computeTotalScore(EXAM_TYPE.MID_TERM, { examScore: null }, EVEN_WEIGHTS)).toBeNull();
   });
 
   it("EndOfTerm returns null when all components missing", () => {
     expect(
       computeTotalScore(
-        "EndOfTerm",
+        EXAM_TYPE.END_OF_TERM,
         {
           cat1: null,
           cat2: null,
@@ -81,7 +81,7 @@ describe("computeTotalScore", () => {
     // (10 + 10 + 10 + 10) × 0.1 = 4, exam 50 × 0.6 = 30 → 34
     expect(
       computeTotalScore(
-        "EndOfTerm",
+        EXAM_TYPE.END_OF_TERM,
         {
           cat1: 10,
           cat2: 10,
@@ -98,7 +98,7 @@ describe("computeTotalScore", () => {
     // exam alone, 100 × 0.6 = 60
     expect(
       computeTotalScore(
-        "EndOfTerm",
+        EXAM_TYPE.END_OF_TERM,
         {
           cat1: null,
           cat2: null,
@@ -116,7 +116,7 @@ describe("computeTotalScore", () => {
     const examOnly: ScoreWeights = { exam: 100, cat1: 0, cat2: 0, groupWork: 0, projectWork: 0 };
     expect(
       computeTotalScore(
-        "EndOfTerm",
+        EXAM_TYPE.END_OF_TERM,
         { cat1: 100, cat2: 100, projectWork: 100, groupWork: 100, examScore: 42 },
         examOnly
       )

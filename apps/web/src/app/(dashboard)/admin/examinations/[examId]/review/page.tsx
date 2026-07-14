@@ -6,6 +6,7 @@ import { getApi, ApiError } from "@/lib/api/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbLabel } from "@/features/shell/components/BreadcrumbLabel";
+import { CLASS_REPORT_SUBMISSION_STATUS } from "@/features/exams/types";
 
 interface PageProps {
   params: Promise<{ examId: string }>;
@@ -71,7 +72,7 @@ export default async function AdminReviewListPage({ params }: PageProps) {
                 <div className="min-w-0 flex items-center gap-2">
                   <p className="text-sm font-medium">{cls.name}</p>
                   <Badge variant="secondary" className="text-[10px]">{cls.division}</Badge>
-                  {sub?.status === "submitted" ? (
+                  {sub?.status === CLASS_REPORT_SUBMISSION_STATUS.SUBMITTED ? (
                     <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px]">
                       <Check size={10} className="mr-1" /> Submitted
                     </Badge>

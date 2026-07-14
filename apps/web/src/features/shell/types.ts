@@ -21,5 +21,7 @@ export type GlobalSearchResults = {
   students: { id: string; slug: string; name: string }[];
   staff: { id: string; slug: string; name: string }[];
   classes: { id: string; name: string }[];
-  announcements: { id: string; title: string }[];
+  feeItems: { id: string; name: string }[];
+  lessonPlans: { id: string; topic: string }[];
+  schemes: { id: string; title: string }[];
 };

@@ -75,17 +75,28 @@ async def _assert_can_view_student(
     cls: Class | None,
 ) -> None:
     """Read gate for a student's guardian/sibling/document data: Admin
-    sees any; a Deputy Head only within their own division. Parent
-    access is handled by each caller's own bypass check (a parent may
-    only see their own child, never siblings' guardians etc.), not
-    here."""
+    sees any; a Deputy Head only within their own division; a Teacher
+    who class-teaches or subject-teaches the student's current class
+    (same check `_assert_can_view_medical` uses). Parent access is
+    handled by each caller's own bypass check (a parent may only see
+    their own child, never siblings' guardians etc.), not here."""
     if user.role == ADMIN:
         return
     if user.role == DEPUTY_HEAD and user.linked_id and cls is not None:
         staff = await StaffRepository.get_by_id(session, school_id, user.linked_id)
         if staff and staff.division == cls.division:
             return
-    raise ForbiddenError("You may only view students in your own division.")
+    if user.role == TEACHER and user.linked_id and cls is not None:
+        ct_stmt = select(ClassTeacher.class_id).where(
+            and_(ClassTeacher.staff_id == user.linked_id, ClassTeacher.class_id == cls.id)
+        )
+        cs_stmt = select(ClassSubject.class_id).where(
+            and_(ClassSubject.teacher_id == user.linked_id, ClassSubject.class_id == cls.id)
+        )
+        found = (await session.execute(ct_stmt.union(cs_stmt))).first()
+        if found is not None:
+            return
+    raise ForbiddenError("You may only view students in your own division or classes you teach.")
 
 
 async def _is_parent_of(session: AsyncSession, student_id: UUID | str, user: CurrentUser) -> bool:

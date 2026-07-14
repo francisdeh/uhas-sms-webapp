@@ -56,7 +56,7 @@ import { api, ApiError } from "@/lib/api/browser";
 import { TEACHER_RANKS, type Staff } from "@/features/staff/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
-import { STAFF_SYSTEM_ROLES, ROLE_LABELS, ADMIN, DEPUTY_HEAD, TEACHER } from "@/features/auth/types";
+import { STAFF_SYSTEM_ROLES, ROLE_LABELS, ADMIN, DEPUTY_HEAD, TEACHER, DIVISIONS } from "@/features/auth/types";
 import { STAFF_ROLE_AVATAR, STAFF_ROLE_PILL } from "@/features/staff/role-styles";
 import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { SubjectExpertiseCard } from "@/features/staff/components/SubjectExpertiseCard";
@@ -80,7 +80,7 @@ const changeRoleSchema = z
     systemRole: z.enum(STAFF_SYSTEM_ROLES, {
       message: "Select a role",
     }),
-    division: z.enum(["KG", "Lower Primary", "Upper Primary", "JHS"]).optional(),
+    division: z.enum(DIVISIONS).optional(),
   })
   .refine(
     (data) => {
@@ -115,9 +115,13 @@ function InfoRow({
 
 interface StaffDetailProps {
   staff: Staff;
+  /** Read-only view (Deputy Head's staff profile page): hides Edit
+   *  Info/Deactivate/Reactivate and the Access tab entirely. Defaults
+   *  `false` — Admin's page is unaffected. */
+  readOnly?: boolean;
 }
 
-export default function StaffDetail({ staff }: StaffDetailProps) {
+export default function StaffDetail({ staff, readOnly = false }: StaffDetailProps) {
   useBreadcrumbLabel(staff.id, `${staff.firstName} ${staff.lastName}`);
 
   const router = useRouter();
@@ -286,34 +290,36 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-            <Pencil size={13} className="mr-1.5" /> Edit Info
-          </Button>
-          {staff.isActive ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setDeactivateOpen(true)}
-            >
-              <UserX size={13} className="mr-1.5" /> Deactivate
+        {!readOnly && (
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil size={13} className="mr-1.5" /> Edit Info
             </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleReactivate}
-              disabled={roleIsPending}
-            >
-              {roleIsPending ? (
-                <Loader2 size={13} className="animate-spin mr-1.5" />
-              ) : (
-                <UserCheck size={13} className="mr-1.5" />
-              )}
-              Reactivate
-            </Button>
-          )}
-        </div>
+            {staff.isActive ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeactivateOpen(true)}
+              >
+                <UserX size={13} className="mr-1.5" /> Deactivate
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReactivate}
+                disabled={roleIsPending}
+              >
+                {roleIsPending ? (
+                  <Loader2 size={13} className="animate-spin mr-1.5" />
+                ) : (
+                  <UserCheck size={13} className="mr-1.5" />
+                )}
+                Reactivate
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -323,9 +329,11 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
             <TabsTrigger value="profile" className="cursor-pointer px-4">
               <UserCircle size={14} className="mr-1.5" /> Profile
             </TabsTrigger>
-            <TabsTrigger value="access" className="cursor-pointer px-4">
-              <ShieldCheck size={14} className="mr-1.5" /> Access
-            </TabsTrigger>
+            {!readOnly && (
+              <TabsTrigger value="access" className="cursor-pointer px-4">
+                <ShieldCheck size={14} className="mr-1.5" /> Access
+              </TabsTrigger>
+            )}
             <TabsTrigger value="depth" className="cursor-pointer px-4">
               <GraduationCap size={14} className="mr-1.5" /> Qualifications
             </TabsTrigger>
@@ -360,45 +368,47 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
           </AnimatePresence>
         </TabsContent>
 
-        <TabsContent value="access">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key="access"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18 }}
-            >
-              <Card className="rounded-t-none border-t-0">
-                <CardContent className="pt-5 space-y-5">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
-                    <InfoRow label="Staff ID" value={staff.slug} mono />
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">System Role</p>
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-                          STAFF_ROLE_PILL[staff.systemRole]
-                        )}
-                      >
-                        {ROLE_LABELS[staff.systemRole]}
-                      </span>
+        {!readOnly && (
+          <TabsContent value="access">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key="access"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18 }}
+              >
+                <Card className="rounded-t-none border-t-0">
+                  <CardContent className="pt-5 space-y-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
+                      <InfoRow label="Staff ID" value={staff.slug} mono />
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">System Role</p>
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                            STAFF_ROLE_PILL[staff.systemRole]
+                          )}
+                        >
+                          {ROLE_LABELS[staff.systemRole]}
+                        </span>
+                      </div>
+                      <InfoRow label="Division" value={staff.division ?? "—"} />
                     </div>
-                    <InfoRow label="Division" value={staff.division ?? "—"} />
-                  </div>
-                  <div className="pt-2 border-t border-border/60">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setRoleOpen(true)}
-                    >
-                      <RefreshCw size={13} className="mr-1.5" /> Change Role
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </AnimatePresence>
-        </TabsContent>
+                    <div className="pt-2 border-t border-border/60">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setRoleOpen(true)}
+                      >
+                        <RefreshCw size={13} className="mr-1.5" /> Change Role
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </AnimatePresence>
+          </TabsContent>
+        )}
 
         <TabsContent value="depth">
           <AnimatePresence mode="wait">
@@ -409,9 +419,9 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
               transition={{ duration: 0.18 }}
               className="space-y-4"
             >
-              <SubjectExpertiseCard staffId={staff.id} />
-              <QualificationsCard staffId={staff.id} />
-              <StaffDocumentsCard staffId={staff.id} canManage />
+              <SubjectExpertiseCard staffId={staff.id} canManage={!readOnly} />
+              <QualificationsCard staffId={staff.id} canManage={!readOnly} />
+              <StaffDocumentsCard staffId={staff.id} canManage={!readOnly} />
             </motion.div>
           </AnimatePresence>
         </TabsContent>
@@ -543,9 +553,9 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Admin">{ROLE_LABELS.Admin}</SelectItem>
-                        <SelectItem value="DeputyHead">{ROLE_LABELS.DeputyHead}</SelectItem>
-                        <SelectItem value="Teacher">{ROLE_LABELS.Teacher}</SelectItem>
+                        <SelectItem value={ADMIN}>{ROLE_LABELS[ADMIN]}</SelectItem>
+                        <SelectItem value={DEPUTY_HEAD}>{ROLE_LABELS[DEPUTY_HEAD]}</SelectItem>
+                        <SelectItem value={TEACHER}>{ROLE_LABELS[TEACHER]}</SelectItem>
                       </SelectContent>
                     </Select>
                   )}
@@ -568,10 +578,9 @@ export default function StaffDetail({ staff }: StaffDetailProps) {
                           <SelectValue placeholder="Select a division" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="KG">KG</SelectItem>
-                          <SelectItem value="Lower Primary">Lower Primary</SelectItem>
-                          <SelectItem value="Upper Primary">Upper Primary</SelectItem>
-                          <SelectItem value="JHS">JHS</SelectItem>
+                          {DIVISIONS.map((d) => (
+                            <SelectItem key={d} value={d}>{d}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}

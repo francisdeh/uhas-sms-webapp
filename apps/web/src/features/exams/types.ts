@@ -1,6 +1,13 @@
 import type { Student } from "@/features/students/types";
 
-export type ExamType = "MidTerm" | "EndOfTerm";
+export const EXAM_TYPE = {
+  MID_TERM: "MidTerm",
+  END_OF_TERM: "EndOfTerm",
+} as const;
+
+export type ExamType = (typeof EXAM_TYPE)[keyof typeof EXAM_TYPE];
+
+export const EXAM_TYPES: readonly ExamType[] = [EXAM_TYPE.MID_TERM, EXAM_TYPE.END_OF_TERM];
 
 // One row of the school's grade-band table + the score-component
 // weighting — mirrors `apps/api/app/features/schools/schema.py`'s
@@ -79,7 +86,13 @@ export type StudentExamSummary = {
   aggregate: number | null;
 };
 
-export type SubmissionStatus = "draft" | "submitted";
+export const CLASS_REPORT_SUBMISSION_STATUS = {
+  DRAFT: "draft",
+  SUBMITTED: "submitted",
+} as const;
+
+export type SubmissionStatus =
+  (typeof CLASS_REPORT_SUBMISSION_STATUS)[keyof typeof CLASS_REPORT_SUBMISSION_STATUS];
 
 export type ClassReportSubmission = {
   id: string;
@@ -177,7 +190,13 @@ export type ReportCardData = {
   reopeningDate: string | null;
 };
 
-export type BatchJobStatus = "pending" | "complete" | "failed";
+export const BATCH_JOB_STATUS = {
+  PENDING: "pending",
+  COMPLETE: "complete",
+  FAILED: "failed",
+} as const;
+
+export type BatchJobStatus = (typeof BATCH_JOB_STATUS)[keyof typeof BATCH_JOB_STATUS];
 
 export type ReportCardBatchJob = {
   id: string;
@@ -188,9 +207,20 @@ export type ReportCardBatchJob = {
   errorMessage: string | null;
 };
 
-export type ReportCardVariant = "summary" | "full";
+export const REPORT_CARD_VARIANT = {
+  SUMMARY: "summary",
+  FULL: "full",
+} as const;
 
-export type ScoreEntryStatus = "not_started" | "partial" | "complete";
+export type ReportCardVariant = (typeof REPORT_CARD_VARIANT)[keyof typeof REPORT_CARD_VARIANT];
+
+export const SCORE_ENTRY_STATUS = {
+  NOT_STARTED: "not_started",
+  PARTIAL: "partial",
+  COMPLETE: "complete",
+} as const;
+
+export type ScoreEntryStatus = (typeof SCORE_ENTRY_STATUS)[keyof typeof SCORE_ENTRY_STATUS];
 
 export type ScoreCompletenessRow = {
   subjectId: string;

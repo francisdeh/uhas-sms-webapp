@@ -5,7 +5,7 @@ import {
   AnnouncementsView,
   type AudienceOption,
 } from "@/features/announcements/components/AnnouncementsView";
-import type { Announcement } from "@/features/announcements/types";
+import { ALL_AUDIENCE, divisionAudience, classAudience, type Announcement } from "@/features/announcements/types";
 import { DIVISIONS } from "@/features/auth/types";
 
 export default async function AdminAnnouncementsPage() {
@@ -31,9 +31,9 @@ export default async function AdminAnnouncementsPage() {
   const classes = classesResp.items;
 
   const audienceOptions: AudienceOption[] = [
-    { value: "all", label: "All school" },
-    ...DIVISIONS.map((d) => ({ value: `division:${d}`, label: `Division — ${d}` })),
-    ...classes.map((c) => ({ value: `class:${c.id}`, label: `Class — ${c.name}` })),
+    { value: ALL_AUDIENCE, label: "All school" },
+    ...DIVISIONS.map((d) => ({ value: divisionAudience(d), label: `Division — ${d}` })),
+    ...classes.map((c) => ({ value: classAudience(c.id), label: `Class — ${c.name}` })),
   ];
 
   return (
@@ -41,7 +41,7 @@ export default async function AdminAnnouncementsPage() {
       authorId={user.linkedId}
       announcements={announcements}
       audienceOptions={audienceOptions}
-      defaultAudience="all"
+      defaultAudience={ALL_AUDIENCE}
       canDeleteAny
       classes={classes.map((c) => ({ id: c.id, name: c.name }))}
     />

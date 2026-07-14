@@ -5,7 +5,7 @@ import { ChevronLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi, ApiError } from "@/lib/api/server";
 import { AttendanceSheet } from "@/features/attendance/components/AttendanceSheet";
-import type { Student } from "@/features/students/types";
+import { MALE, type Student } from "@/features/students/types";
 import type {
   AttendanceStatus,
   SessionWithRecords,
@@ -60,7 +60,7 @@ export default async function AdminAttendanceClassPage({
       firstName: e.studentFirstName ?? "",
       lastName: e.studentLastName ?? "",
       dob: "",
-      gender: (e.studentGender as "Male" | "Female") ?? "Male",
+      gender: (e.studentGender as Student["gender"]) ?? MALE,
       classId: e.classId,
       className: e.className ?? schoolClass.name,
       division: (e.division as Division) ?? schoolClass.division,

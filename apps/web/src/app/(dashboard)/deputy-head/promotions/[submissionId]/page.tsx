@@ -8,7 +8,7 @@ import { PromotionDecisionTable } from "@/features/promotions/components/Promoti
 import { ReviewFooter } from "@/features/promotions/components/ReviewFooter";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { DecisionRowView } from "@/features/promotions/types";
+import { PROMOTION_SUBMISSION_STATUS, type DecisionRowView } from "@/features/promotions/types";
 import { DEPUTY_HEAD } from "@/features/auth/types";
 
 export default async function DeputyHeadPromotionReviewPage({
@@ -36,7 +36,7 @@ export default async function DeputyHeadPromotionReviewPage({
   if (detail.division !== division) redirect("/deputy-head/promotions");
 
   const season = await api.promotions.getSeason();
-  const isSubmitted = detail.submission.status === "submitted";
+  const isSubmitted = detail.submission.status === PROMOTION_SUBMISSION_STATUS.SUBMITTED;
 
   return (
     <div className="space-y-4">
@@ -62,7 +62,7 @@ export default async function DeputyHeadPromotionReviewPage({
         </p>
       </div>
 
-      {detail.submission.status === "approved" && (
+      {detail.submission.status === PROMOTION_SUBMISSION_STATUS.APPROVED && (
         <Alert className="border-green-200 bg-green-50 text-green-800">
           <AlertDescription>
             Approved on{" "}
@@ -74,7 +74,7 @@ export default async function DeputyHeadPromotionReviewPage({
         </Alert>
       )}
 
-      {detail.submission.status === "sent_back" && detail.submission.reviewerComment && (
+      {detail.submission.status === PROMOTION_SUBMISSION_STATUS.SENT_BACK && detail.submission.reviewerComment && (
         <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/20">
           <AlertDescription>
             <span className="font-medium">Sent back:</span> {detail.submission.reviewerComment}

@@ -7,30 +7,34 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { PromotionSubmissionStatus } from "@/features/promotions/types";
+import {
+  PROMOTION_SEASON_STATUS,
+  PROMOTION_SUBMISSION_STATUS,
+  type PromotionSubmissionStatus,
+} from "@/features/promotions/types";
 import { TEACHER } from "@/features/auth/types";
 
 function statusPill(status: PromotionSubmissionStatus | undefined) {
   switch (status) {
-    case "submitted":
+    case PROMOTION_SUBMISSION_STATUS.SUBMITTED:
       return (
         <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-[10px]">
           Submitted
         </Badge>
       );
-    case "approved":
+    case PROMOTION_SUBMISSION_STATUS.APPROVED:
       return (
         <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px]">
           <Check size={10} className="mr-1" /> Approved
         </Badge>
       );
-    case "sent_back":
+    case PROMOTION_SUBMISSION_STATUS.SENT_BACK:
       return (
         <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px]">
           Sent back
         </Badge>
       );
-    case "draft":
+    case PROMOTION_SUBMISSION_STATUS.DRAFT:
       return <Badge variant="secondary" className="text-[10px]">Draft</Badge>;
     default:
       return <Badge variant="outline" className="text-[10px]">Not started</Badge>;
@@ -48,7 +52,7 @@ export default async function TeacherPromotionsPage() {
   ]);
   const classes = classesRes.items;
 
-  if (season?.status !== "open") {
+  if (season?.status !== PROMOTION_SEASON_STATUS.OPEN) {
     return (
       <div className="space-y-6">
         <div>

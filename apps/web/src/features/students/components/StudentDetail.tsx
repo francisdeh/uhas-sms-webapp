@@ -55,7 +55,7 @@ import {
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { api, ApiError } from "@/lib/api/browser";
 import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
-import type { Student, ClassRecord } from "@/features/students/types";
+import { GENDERS, type Student, type ClassRecord } from "@/features/students/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { StudentIdCard } from "./StudentIdCard";
 import { GuardianTab } from "./GuardianTab";
@@ -88,7 +88,7 @@ const editSchema = z.object({
     const age = today.getFullYear() - d.getFullYear();
     return age >= 3 && age <= 20;
   }, { message: "Age must be between 3 and 20" }),
-  gender: z.enum(["Male", "Female"], { message: "Select a gender" }),
+  gender: z.enum(GENDERS, { message: "Select a gender" }),
   phone: z.string().optional(),
   address: z.string().optional(),
   nationality: z.string().optional(),
@@ -115,12 +115,16 @@ interface ExamSummary {
 interface Props {
   student: Student;
   classes: ClassRecord[];
-  /** Base path for the student list/detail routes (admin vs deputy-head),
-   *  used for sibling profile links. */
+  /** Base path for the student list/detail routes (admin/deputy-head/
+   *  teacher), used for sibling profile links. */
   basePath: string;
   /** Admin-only: exams to link report cards for. Deputy Head has no
    *  per-student report-card route, so this is omitted there. */
   exams?: ExamSummary[];
+  /** Whether Edit/Transfer Class are available. Defaults `true` to
+   *  preserve existing Admin/DeputyHead behavior unchanged; the new
+   *  read-only Teacher view passes `false`. */
+  canEdit?: boolean;
 }
 
 function InfoRow({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
@@ -132,7 +136,13 @@ function InfoRow({ label, value, mono }: { label: string; value?: string | null;
   );
 }
 
-export default function StudentDetail({ student, classes, basePath, exams = [] }: Props) {
+export default function StudentDetail({
+  student,
+  classes,
+  basePath,
+  exams = [],
+  canEdit = true,
+}: Props) {
   useBreadcrumbLabel(student.id, `${student.firstName} ${student.lastName}`);
 
   const router = useRouter();
@@ -261,12 +271,16 @@ export default function StudentDetail({ student, classes, basePath, exams = [] }
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-            Edit
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>
-            Transfer Class
-          </Button>
+          {canEdit && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                Edit
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>
+                Transfer Class
+              </Button>
+            </>
+          )}
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer size={14} />
             Print ID Card
@@ -443,7 +457,7 @@ export default function StudentDetail({ student, classes, basePath, exams = [] }
                   <CardTitle className="text-base">Guardians &amp; Siblings</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <GuardianTab studentId={student.id} basePath={basePath} />
+                  <GuardianTab studentId={student.id} basePath={basePath} canEdit={canEdit} />
                 </CardContent>
               </Card>
             </motion.div>
@@ -518,8 +532,9 @@ export default function StudentDetail({ student, classes, basePath, exams = [] }
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Male">Male</SelectItem>
-                          <SelectItem value="Female">Female</SelectItem>
+                          {GENDERS.map((g) => (
+                            <SelectItem key={g} value={g}>{g}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}

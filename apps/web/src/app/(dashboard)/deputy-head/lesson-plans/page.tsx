@@ -4,7 +4,7 @@ import { getApi } from "@/lib/api/server";
 import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
 import { ReviewQueue } from "@/features/lesson-plans/components/ReviewQueue";
 import { Card, CardContent } from "@/components/ui/card";
-import type { LessonPlan } from "@/features/lesson-plans/types";
+import { LESSON_PLAN_REVIEWER_ROLE, LESSON_PLAN_STATUS, type LessonPlan } from "@/features/lesson-plans/types";
 
 export default async function DeputyHeadLessonPlansPage() {
   const user = await getSessionUser();
@@ -26,9 +26,9 @@ export default async function DeputyHeadLessonPlansPage() {
 
   const api = await getApi();
   const [pendingPage, approvedPage, rejectedPage] = await Promise.all([
-    api.lessonPlans.list({ division, status: "unit_head_approved", size: 200 }),
-    api.lessonPlans.list({ division, status: "approved", size: 200 }),
-    api.lessonPlans.list({ division, status: "rejected", size: 200 }),
+    api.lessonPlans.list({ division, status: LESSON_PLAN_STATUS.UNIT_HEAD_APPROVED, size: 200 }),
+    api.lessonPlans.list({ division, status: LESSON_PLAN_STATUS.APPROVED, size: 200 }),
+    api.lessonPlans.list({ division, status: LESSON_PLAN_STATUS.REJECTED, size: 200 }),
   ]);
 
   const pending = pendingPage.items as unknown as LessonPlan[];
@@ -41,7 +41,7 @@ export default async function DeputyHeadLessonPlansPage() {
   return (
     <ReviewQueue
       reviewerId={user.linkedId}
-      reviewerRole="DeputyHead"
+      reviewerRole={LESSON_PLAN_REVIEWER_ROLE.DEPUTY_HEAD}
       pending={pending}
       recent={recentMine}
     />

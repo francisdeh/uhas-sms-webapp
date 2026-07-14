@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 
@@ -41,6 +42,12 @@ interface AttendanceSheetProps {
   existingSession: SessionWithRecords | null;
   editable: boolean;
   submittedById: string;
+  /** When provided, the student's name links to `{studentBasePath}/{id}`
+   *  — e.g. Teacher's `/teacher/students` (a page Admin/DeputyHead reach
+   *  a different way, so they omit this prop). A plain string, not a
+   *  function — this prop crosses the Server→Client Component boundary
+   *  from a Server Component page, which can't pass functions. */
+  studentBasePath?: string;
 }
 
 type RowState = {
@@ -91,6 +98,7 @@ export function AttendanceSheet({
   existingSession,
   editable,
   submittedById,
+  studentBasePath,
 }: AttendanceSheetProps) {
   useBreadcrumbLabel(classId, className);
 
@@ -248,6 +256,7 @@ export function AttendanceSheet({
                 onToggleExpanded={toggleExpanded}
                 onUpdateLateReason={updateLateReason}
                 onUpdateNote={updateNote}
+                studentBasePath={studentBasePath}
               />
             );
           })}
@@ -282,6 +291,7 @@ interface AttendanceRowProps {
   onToggleExpanded: (studentId: string) => void;
   onUpdateLateReason: (studentId: string, lateReason: string) => void;
   onUpdateNote: (studentId: string, note: string) => void;
+  studentBasePath?: string;
 }
 
 // Memoized so a single row only re-renders when its own row state or the
@@ -293,6 +303,7 @@ const AttendanceRow = memo(function AttendanceRow({
   editable,
   onSetStatus,
   onToggleExpanded,
+  studentBasePath,
   onUpdateLateReason,
   onUpdateNote,
 }: AttendanceRowProps) {
@@ -308,9 +319,19 @@ const AttendanceRow = memo(function AttendanceRow({
             gradient={avatarGradient(student.division)}
           />
           <div>
-            <p className="text-sm font-medium">
-              {student.firstName} {student.lastName}
-            </p>
+            {studentBasePath ? (
+              <Link
+                href={`${studentBasePath}/${student.id}`}
+                className="text-sm font-medium hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {student.firstName} {student.lastName}
+              </Link>
+            ) : (
+              <p className="text-sm font-medium">
+                {student.firstName} {student.lastName}
+              </p>
+            )}
             <p className="hidden sm:block text-xs text-muted-foreground font-mono">{student.slug}</p>
           </div>
         </div>

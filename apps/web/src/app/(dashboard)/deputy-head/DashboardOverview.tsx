@@ -180,9 +180,10 @@ export default function DeputyHeadDashboardOverview({
                 <p className="text-sm text-muted-foreground">No staff in this division.</p>
               ) : (
                 staffList.map((member) => (
-                  <div
+                  <Link
                     key={member.id}
-                    className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-0"
+                    href={`/deputy-head/staff/${member.id}`}
+                    className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-0 hover:bg-muted/30 rounded transition-colors"
                   >
                     <UserAvatar
                       photoUrl={member.photoUrl}
@@ -206,7 +207,7 @@ export default function DeputyHeadDashboardOverview({
                     >
                       {member.systemRole}
                     </Badge>
-                  </div>
+                  </Link>
                 ))
               )}
             </CardContent>

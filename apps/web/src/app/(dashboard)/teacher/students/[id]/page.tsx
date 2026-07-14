@@ -1,16 +1,11 @@
 import { redirect, notFound } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
 import { getApi, ApiError } from "@/lib/api/server";
 import StudentDetail from "@/features/students/components/StudentDetail";
-import {
-  MALE,
-  type Student,
-  type ClassRecord,
-} from "@/features/students/types";
+import { MALE, type Student } from "@/features/students/types";
 import { KG } from "@/features/auth/types";
 
-export default async function DeputyHeadStudentDetailPage({
+export default async function TeacherStudentDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -20,22 +15,14 @@ export default async function DeputyHeadStudentDetailPage({
 
   const { id } = await params;
 
-  const division = await getDeputyHeadDivision(user.linkedId);
-
   const api = await getApi();
   let studentRead;
   try {
     studentRead = await api.students.get(id);
   } catch (err) {
-    if (err instanceof ApiError && err.status === 404) notFound();
+    if (err instanceof ApiError && (err.status === 404 || err.status === 403)) notFound();
     throw err;
   }
-  // 403 if the student isn't in this DH's division.
-  if (division && studentRead.division && studentRead.division !== division) {
-    notFound();
-  }
-
-  const classesPage = await api.classes.list({ division, size: 200 });
 
   const student: Student = {
     id: studentRead.id,
@@ -58,13 +45,12 @@ export default async function DeputyHeadStudentDetailPage({
     createdAt: studentRead.createdAt ?? new Date().toISOString(),
   };
 
-  const classes: ClassRecord[] = classesPage.items.map((c) => ({
-    id: c.id,
-    name: c.name,
-    division: c.division,
-  }));
-
   return (
-    <StudentDetail student={student} classes={classes} basePath="/deputy-head/students" />
+    <StudentDetail
+      student={student}
+      classes={[]}
+      basePath="/teacher/students"
+      canEdit={false}
+    />
   );
 }

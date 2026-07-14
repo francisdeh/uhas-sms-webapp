@@ -4,6 +4,8 @@ import {
   CONDUCT_TRAIT_LABELS,
   KG_DOMAINS,
   KG_DOMAIN_LABELS,
+  EXAM_TYPE,
+  REPORT_CARD_VARIANT,
 } from "@/features/exams/types";
 import type {
   ReportCardData,
@@ -27,7 +29,7 @@ function formatExamMonth(createdAt: string): string {
 }
 
 function isMidTerm(reportType: string): boolean {
-  return reportType === "MidTerm";
+  return reportType === EXAM_TYPE.MID_TERM;
 }
 
 function reportTitle(reportType: string, term: number): string {
@@ -35,9 +37,9 @@ function reportTitle(reportType: string, term: number): string {
   return `END OF TERM REPORT — TERM ${term}`;
 }
 
-export function ReportCard({ data, variant = "summary" }: ReportCardProps) {
+export function ReportCard({ data, variant = REPORT_CARD_VARIANT.SUMMARY }: ReportCardProps) {
   const isMid = isMidTerm(data.exam.type);
-  const full = variant === "full";
+  const full = variant === REPORT_CARD_VARIANT.FULL;
   const colSpan = full ? 10 : 5;
   const title = reportTitle(data.exam.type, data.exam.term);
   const monthYear = formatExamMonth(data.exam.createdAt);

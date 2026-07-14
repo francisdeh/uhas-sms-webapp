@@ -6,7 +6,7 @@ import { getApi } from "@/lib/api/server";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Exam } from "@/features/exams/types";
+import { EXAM_TYPE, type Exam } from "@/features/exams/types";
 
 export default async function TeacherExaminationsPage() {
   const user = await getSessionUser();
@@ -88,7 +88,7 @@ export default async function TeacherExaminationsPage() {
                   <CardTitle className="text-base">{exam.name}</CardTitle>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Term {exam.term} · {exam.academicYear} ·{" "}
-                    {exam.type === "MidTerm" ? "Mid-Term (raw 100)" : "End of Term (composite)"}
+                    {exam.type === EXAM_TYPE.MID_TERM ? "Mid-Term (raw 100)" : "End of Term (composite)"}
                   </p>
                 </div>
                 {exam.isPublished ? (

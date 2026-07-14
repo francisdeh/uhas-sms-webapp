@@ -17,12 +17,19 @@ import pytest
 from httpx import AsyncClient
 
 from app.features.search.tests.conftest import (
+    ACCOUNTANT_USER,
     ADMIN_STAFF,
     ADMIN_USER,
     DEPUTY_JHS_STAFF,
     DEPUTY_JHS_USER,
+    EMAIL_ONLY_STAFF,
+    FEE_ITEM_UUID,
     GUARDIAN_UUID,
+    LESSON_PLAN_JHS_UUID,
+    LESSON_PLAN_KG_UUID,
     PARENT_USER,
+    SCHEME_JHS_UUID,
+    SCHEME_KG_UUID,
     STUDENT_CHILD,
     STUDENT_JHS1_A,
     STUDENT_JHS1_B,
@@ -43,7 +50,14 @@ async def test_empty_q_returns_empty_payload(client: AsyncClient) -> None:
         headers=auth_header(role="Admin", user_id=ADMIN_USER, linked_id=ADMIN_STAFF),
     )
     assert r.status_code == 200
-    assert r.json() == {"students": [], "staff": [], "classes": []}
+    assert r.json() == {
+        "students": [],
+        "staff": [],
+        "classes": [],
+        "feeItems": [],
+        "lessonPlans": [],
+        "schemes": [],
+    }
 
 
 async def test_single_char_q_returns_empty_payload(client: AsyncClient) -> None:
@@ -53,7 +67,14 @@ async def test_single_char_q_returns_empty_payload(client: AsyncClient) -> None:
         headers=auth_header(role="Admin", user_id=ADMIN_USER, linked_id=ADMIN_STAFF),
     )
     assert r.status_code == 200
-    assert r.json() == {"students": [], "staff": [], "classes": []}
+    assert r.json() == {
+        "students": [],
+        "staff": [],
+        "classes": [],
+        "feeItems": [],
+        "lessonPlans": [],
+        "schemes": [],
+    }
 
 
 async def test_admin_sees_students_staff_and_classes(client: AsyncClient, seed: None) -> None:
@@ -202,3 +223,70 @@ async def test_per_domain_cap_of_eight(client: AsyncClient, seed: None) -> None:
     assert r.status_code == 200, r.text
     body = r.json()
     assert len(body["students"]) == 8
+
+
+async def test_admin_sees_lesson_plans_and_schemes_unrestricted(
+    client: AsyncClient, seed: None
+) -> None:
+    """Admin sees both JHS and KG lesson plans/schemes — no division filter."""
+    _ = seed
+    r = await client.get(
+        "/search?q=amaru",
+        headers=auth_header(role="Admin", user_id=ADMIN_USER, linked_id=ADMIN_STAFF),
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    lesson_plan_ids = {lp["id"] for lp in body["lessonPlans"]}
+    assert lesson_plan_ids == {str(LESSON_PLAN_JHS_UUID), str(LESSON_PLAN_KG_UUID)}
+    scheme_ids = {s["id"] for s in body["schemes"]}
+    assert scheme_ids == {str(SCHEME_JHS_UUID), str(SCHEME_KG_UUID)}
+    # Fee items aren't an Admin concern.
+    assert body["feeItems"] == []
+
+
+async def test_deputy_only_sees_own_division_lesson_plans_and_schemes(
+    client: AsyncClient, seed: None
+) -> None:
+    """JHS deputy sees the JHS lesson plan/scheme only, never the KG ones."""
+    _ = seed
+    r = await client.get(
+        "/search?q=amaru",
+        headers=auth_header(role="DeputyHead", user_id=DEPUTY_JHS_USER, linked_id=DEPUTY_JHS_STAFF),
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert {lp["id"] for lp in body["lessonPlans"]} == {str(LESSON_PLAN_JHS_UUID)}
+    assert {s["id"] for s in body["schemes"]} == {str(SCHEME_JHS_UUID)}
+
+
+async def test_teacher_only_sees_own_lesson_plans_and_schemes(
+    client: AsyncClient, seed: None
+) -> None:
+    """The JHS teacher sees only their own lesson plan/scheme, not the KG teacher's."""
+    _ = seed
+    r = await client.get(
+        "/search?q=amaru",
+        headers=auth_header(role="Teacher", user_id=TEACHER_JHS_USER, linked_id=TEACHER_JHS_STAFF),
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert {lp["id"] for lp in body["lessonPlans"]} == {str(LESSON_PLAN_JHS_UUID)}
+    assert {s["id"] for s in body["schemes"]} == {str(SCHEME_JHS_UUID)}
+    assert body["feeItems"] == []
+
+
+async def test_accountant_sees_fee_items_only(client: AsyncClient, seed: None) -> None:
+    """Accountant gets fee-item hits, school-wide, and nothing else."""
+    _ = seed
+    r = await client.get(
+        "/search?q=amaru",
+        headers=auth_header(role="Accountant", user_id=ACCOUNTANT_USER, linked_id=EMAIL_ONLY_STAFF),
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert {f["id"] for f in body["feeItems"]} == {str(FEE_ITEM_UUID)}
+    assert body["students"] == []
+    assert body["staff"] == []
+    assert body["classes"] == []
+    assert body["lessonPlans"] == []
+    assert body["schemes"] == []

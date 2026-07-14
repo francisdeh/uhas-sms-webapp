@@ -26,6 +26,8 @@ SCHOOL_UUID = UUID("5ca1ab1e-5ca1-45ca-85ca-5ca1ab1e0001")
 ADMIN_UUID = UUID("5ca1ab1e-5ca1-45ca-85ca-5ca1ab1e0101")
 TEACHER_UUID = UUID("5ca1ab1e-5ca1-45ca-85ca-5ca1ab1e0102")
 OTHER_TEACHER_UUID = UUID("5ca1ab1e-5ca1-45ca-85ca-5ca1ab1e0103")
+DEPUTY_JHS_UUID = UUID("5ca1ab1e-5ca1-45ca-85ca-5ca1ab1e0104")
+DEPUTY_KG_UUID = UUID("5ca1ab1e-5ca1-45ca-85ca-5ca1ab1e0105")
 
 MATH_UUID = UUID("5ca1ab1e-5ca1-45ca-85ca-5ca1ab1e0201")
 SCIENCE_UUID = UUID("5ca1ab1e-5ca1-45ca-85ca-5ca1ab1e0202")
@@ -33,6 +35,8 @@ SCIENCE_UUID = UUID("5ca1ab1e-5ca1-45ca-85ca-5ca1ab1e0202")
 ADMIN_USER = UUID("00000000-0000-0000-0000-00000000ac01")
 TEACHER_USER = UUID("00000000-0000-0000-0000-00000000ac02")
 OTHER_TEACHER_USER = UUID("00000000-0000-0000-0000-00000000ac03")
+DEPUTY_JHS_USER = UUID("00000000-0000-0000-0000-00000000ac04")
+DEPUTY_KG_USER = UUID("00000000-0000-0000-0000-00000000ac05")
 
 
 @pytest_asyncio.fixture
@@ -99,9 +103,37 @@ async def seed_staff(db_session: AsyncSession, seed_school: School) -> dict[str,
         rank="Teacher",
         is_active=True,
     )
-    db_session.add_all([admin, teacher, other_teacher])
+    deputy_jhs = Staff(
+        id=DEPUTY_JHS_UUID,
+        slug="STAFF-DEPTH-004",
+        school_id=SCHOOL_UUID,
+        first_name="Efua",
+        last_name="Deputy",
+        system_role="DeputyHead",
+        division="JHS",
+        email="efua-depth@uhas.edu.gh",
+        is_active=True,
+    )
+    deputy_kg = Staff(
+        id=DEPUTY_KG_UUID,
+        slug="STAFF-DEPTH-005",
+        school_id=SCHOOL_UUID,
+        first_name="Yaw",
+        last_name="Deputy",
+        system_role="DeputyHead",
+        division="KG",
+        email="yaw-depth@uhas.edu.gh",
+        is_active=True,
+    )
+    db_session.add_all([admin, teacher, other_teacher, deputy_jhs, deputy_kg])
     await db_session.flush()
-    return {"admin": admin, "teacher": teacher, "other_teacher": other_teacher}
+    return {
+        "admin": admin,
+        "teacher": teacher,
+        "other_teacher": other_teacher,
+        "deputy_jhs": deputy_jhs,
+        "deputy_kg": deputy_kg,
+    }
 
 
 @pytest_asyncio.fixture
@@ -302,6 +334,33 @@ async def test_staff_cannot_view_others_documents(client: AsyncClient) -> None:
         headers=auth_header(
             role="Teacher", user_id=OTHER_TEACHER_USER, linked_id=OTHER_TEACHER_UUID
         ),
+    )
+    assert resp.status_code == 403
+
+
+async def test_deputy_head_same_division_can_view_documents(client: AsyncClient) -> None:
+    await client.post(
+        f"/staff/{TEACHER_UUID}/documents",
+        json={"label": "Certificate", "storagePath": "staff/documents/x/cert.pdf"},
+        headers=auth_header(),
+    )
+    resp = await client.get(
+        f"/staff/{TEACHER_UUID}/documents",
+        headers=auth_header(role="DeputyHead", user_id=DEPUTY_JHS_USER, linked_id=DEPUTY_JHS_UUID),
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+
+
+async def test_deputy_head_other_division_cannot_view_documents(client: AsyncClient) -> None:
+    await client.post(
+        f"/staff/{TEACHER_UUID}/documents",
+        json={"label": "Certificate", "storagePath": "staff/documents/x/cert.pdf"},
+        headers=auth_header(),
+    )
+    resp = await client.get(
+        f"/staff/{TEACHER_UUID}/documents",
+        headers=auth_header(role="DeputyHead", user_id=DEPUTY_KG_USER, linked_id=DEPUTY_KG_UUID),
     )
     assert resp.status_code == 403
 

@@ -304,6 +304,7 @@ Full narrative for each row (the "why" behind every deliverable) lives in [`docs
 | Parent-facing fee receipts | ✅ Done | Parent fees page now downloads the Accountant's uploaded proof-of-payment file(s) per payment, reversing a prior deliberate exclusion; drive-by fixes brought the whole Accountant section (Card wrapper, StatCards, roster section header, redundant back-link) in line with the rest of the app's list/detail page conventions. |
 | Dashboard data enrichment/validation | ✅ Done | Fixed a real bug zeroing out attendance stats app-wide (Present/Late casing); wired already-computed lesson-plan/attendance data into Admin + Deputy Head Overviews; eliminated Teacher dashboard's N+1 class lookup with a new `classTeacherId` filter; fixed Parent's capped announcement count and single-child-only attendance %. |
 | Teacher classes page N+1 fix | ✅ Done | Repointed `/teacher/classes` to the same `classTeacherId` filter, closing the follow-up left open by the dashboard-enrichment PR. |
+| Search navigation revisit | ✅ Done | Removed dead Announcements search branch; fixed broken student/staff search-result navigation; new read-only Teacher student & Deputy Head staff detail + list pages (with sidebar nav); search expanded to fee items/lesson plans/schemes with `?focus=` deep-linking into the existing review pages. |
 
 ## Roadmap & audits
 

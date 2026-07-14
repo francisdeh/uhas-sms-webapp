@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { api, ApiError } from "@/lib/api/browser";
 import type { ManagedUser } from "@/features/auth/types";
-import { USER_ROLES, ROLE_LABELS, ADMIN, PARENT, type UserRole } from "@/features/auth/types";
+import { USER_ROLES, ROLE_LABELS, ADMIN, PARENT, TEACHER, type UserRole } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
 const ROLES = USER_ROLES;
@@ -71,7 +71,7 @@ const EMPTY_FORM: FormState = {
   displayName: "",
   email: "",
   phone: "",
-  role: "Teacher",
+  role: TEACHER,
   linkedId: "",
 };
 

@@ -23,7 +23,7 @@ import {
   computeGrade,
   hasAnyComponentScore,
 } from "@/features/exams/utils";
-import type { Exam, GradingBand, Score, ScoreWeights } from "@/features/exams/types";
+import { EXAM_TYPE, type Exam, type GradingBand, type Score, type ScoreWeights } from "@/features/exams/types";
 import { cn } from "@/lib/utils";
 
 type Row = {
@@ -92,7 +92,7 @@ export function ScoreEntryGrid({
   const upsertScores = useUpsertScores();
   const isPending = upsertScores.isPending;
 
-  const isMidTerm = exam.type === "MidTerm";
+  const isMidTerm = exam.type === EXAM_TYPE.MID_TERM;
   const locked = exam.isPublished;
 
   const computed = useMemo(

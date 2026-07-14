@@ -54,9 +54,33 @@ class ClassHit(BaseModel):
     division: str
 
 
+class FeeItemHit(BaseModel):
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    name: str
+
+
+class LessonPlanHit(BaseModel):
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    topic: str
+
+
+class SchemeHit(BaseModel):
+    model_config = _CAMEL_CONFIG
+
+    id: UUID
+    title: str
+
+
 class SearchResults(BaseModel):
     model_config = _CAMEL_CONFIG
 
     students: list[StudentHit]
     staff: list[StaffHit]
     classes: list[ClassHit]
+    fee_items: list[FeeItemHit]
+    lesson_plans: list[LessonPlanHit]
+    schemes: list[SchemeHit]

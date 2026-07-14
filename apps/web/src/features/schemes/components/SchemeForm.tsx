@@ -38,7 +38,7 @@ import {
   useSubmitScheme,
   useUpdateScheme,
 } from "@/features/schemes/hooks/use-schemes";
-import { LEARNING, SCHEME_TYPE_LABELS, type Scheme } from "@/features/schemes/types";
+import { WORK, LEARNING, SCHEME_TYPES, SCHEME_STATUS, SCHEME_TYPE_LABELS, type Scheme } from "@/features/schemes/types";
 import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { SchemeStatusPill } from "./SchemeStatusPill";
 import { SchemeCommentThread } from "./SchemeCommentThread";
@@ -46,7 +46,7 @@ import { SchemeWeeklyEntries } from "./SchemeWeeklyEntries";
 
 const schema = z
   .object({
-    type: z.enum(["work", "learning"], { message: "Select a type" }),
+    type: z.enum(SCHEME_TYPES, { message: "Select a type" }),
     classId: z.string().min(1, { message: "Select a class" }),
     subjectId: z.string().min(1, { message: "Select a subject" }),
     term: z.number().int().min(1).max(3),
@@ -104,7 +104,7 @@ export function SchemeForm({
   // Teacher identity is now derived from the JWT server-side.
   void teacherId;
 
-  const locked = existing?.status === "acknowledged";
+  const locked = existing?.status === SCHEME_STATUS.ACKNOWLEDGED;
 
   const uniqueClasses = Array.from(
     new Map(assignments.map((a) => [a.classId, a.className])).entries()
@@ -113,7 +113,7 @@ export function SchemeForm({
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      type: existing?.type ?? "work",
+      type: existing?.type ?? WORK,
       classId: existing?.classId ?? "",
       subjectId: existing?.subjectId ?? "",
       term: existing?.term ?? 1,
@@ -127,7 +127,7 @@ export function SchemeForm({
   const subjectsForClass = assignments.filter((a) => a.classId === selectedClassId);
   const selectedType = useWatch({ control: form.control, name: "type" });
   const isLearning = selectedType === LEARNING;
-  const canEditEntries = existing?.status === "draft";
+  const canEditEntries = existing?.status === SCHEME_STATUS.DRAFT;
 
   async function onSave(values: FormValues) {
     const cleaned = {
@@ -199,7 +199,7 @@ export function SchemeForm({
         {existing && <SchemeStatusPill status={existing.status} />}
       </div>
 
-      {existing && existing.status !== "draft" && (
+      {existing && existing.status !== SCHEME_STATUS.DRAFT && (
         <Card>
           <CardContent className="py-4">
             <SchemeCommentThread
@@ -243,8 +243,8 @@ export function SchemeForm({
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="work">{SCHEME_TYPE_LABELS.work}</SelectItem>
-                          <SelectItem value="learning">{SCHEME_TYPE_LABELS.learning}</SelectItem>
+                          <SelectItem value={WORK}>{SCHEME_TYPE_LABELS[WORK]}</SelectItem>
+                          <SelectItem value={LEARNING}>{SCHEME_TYPE_LABELS[LEARNING]}</SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -428,7 +428,7 @@ export function SchemeForm({
             </FieldGroup>
 
             <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              {existing && existing.status !== "acknowledged" && (
+              {existing && existing.status !== SCHEME_STATUS.ACKNOWLEDGED && (
                 <Button
                   type="button"
                   variant="outline"
@@ -446,7 +446,7 @@ export function SchemeForm({
                     Save draft
                   </Button>
                 )}
-                {existing && existing.status === "draft" && (
+                {existing && existing.status === SCHEME_STATUS.DRAFT && (
                   <Button type="button" variant="brand" onClick={onSubmitForReview} disabled={isPending}>
                     <Send size={14} className="mr-1.5" /> Submit to Head of School
                   </Button>

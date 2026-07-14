@@ -45,6 +45,7 @@ import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { ApiError } from "@/lib/api/browser";
 import type { components } from "@/types/api";
 import type { Division } from "@/features/classes/types";
+import { KG } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
 type ClassSubjectRead = components["schemas"]["ClassSubjectRead"];
@@ -229,7 +230,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
         `${row.studentFirstName ?? ""} ${row.studentLastName ?? ""}`.trim(),
       cell: ({ row }) => {
         const s = row.original;
-        const div = (s.division ?? "KG") as Division;
+        const div = (s.division ?? KG) as Division;
         return (
           <div className="flex items-center gap-3 py-0.5">
             <UserAvatar

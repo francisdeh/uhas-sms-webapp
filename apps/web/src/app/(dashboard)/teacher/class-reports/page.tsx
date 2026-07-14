@@ -5,6 +5,7 @@ import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi } from "@/lib/api/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CLASS_REPORT_SUBMISSION_STATUS } from "@/features/exams/types";
 
 export default async function TeacherClassReportsPage() {
   const user = await getSessionUser();
@@ -108,7 +109,7 @@ export default async function TeacherClassReportsPage() {
                 >
                   <div className="min-w-0 flex items-center gap-2">
                     <p className="text-sm font-medium truncate">{cls.className}</p>
-                    {cls.submission?.status === "submitted" ? (
+                    {cls.submission?.status === CLASS_REPORT_SUBMISSION_STATUS.SUBMITTED ? (
                       <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px]">
                         <Check size={10} className="mr-1" /> Submitted
                       </Badge>

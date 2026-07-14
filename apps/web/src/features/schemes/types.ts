@@ -1,11 +1,20 @@
 import type { Division } from "@/features/auth/types";
 
 export type SchemeType = "work" | "learning";
-export type SchemeStatus = "draft" | "submitted" | "acknowledged";
+
+// Mirrors app/features/schemes/constants.py's status enum.
+export const SCHEME_STATUS = {
+  DRAFT: "draft",
+  SUBMITTED: "submitted",
+  ACKNOWLEDGED: "acknowledged",
+} as const;
+
+export type SchemeStatus = (typeof SCHEME_STATUS)[keyof typeof SCHEME_STATUS];
 
 // Mirrors app/features/schemes/constants.py WORK / LEARNING.
 export const WORK: SchemeType = "work";
 export const LEARNING: SchemeType = "learning";
+export const SCHEME_TYPES: readonly SchemeType[] = [WORK, LEARNING];
 
 export const SCHEME_TYPE_LABELS: Record<SchemeType, string> = {
   work: "Scheme of Work",
