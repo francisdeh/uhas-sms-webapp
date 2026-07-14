@@ -2135,8 +2135,7 @@ export interface paths {
         put?: never;
         /**
          * Mark All Read
-         * @description Idempotent. Called on dropdown open — the chosen UX is
-         *     "open = saw it".
+         * @description Idempotent. Called by the explicit "Mark all as read" button.
          */
         post: operations["mark_all_read_notifications_mark_all_read_post"];
         delete?: never;
