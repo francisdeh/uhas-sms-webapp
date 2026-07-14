@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { ScoreCompletenessRow, ScoreEntryStatus } from "@/features/exams/types";
+import { SCORE_ENTRY_STATUS, type ScoreCompletenessRow, type ScoreEntryStatus } from "@/features/exams/types";
 
 const STATUS_META: Record<ScoreEntryStatus, { label: string; className: string }> = {
   complete: { label: "Complete", className: "bg-green-100 text-green-700 border border-green-300" },
@@ -29,7 +29,7 @@ export function ScoreCompletenessPanel({
   rows: ScoreCompletenessRow[];
   rosterCount: number;
 }) {
-  const pending = rows.filter((r) => r.status !== "complete").length;
+  const pending = rows.filter((r) => r.status !== SCORE_ENTRY_STATUS.COMPLETE).length;
 
   return (
     <Card>

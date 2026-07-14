@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { api, ApiError } from "@/lib/api/browser";
 import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
-import type { Exam, ClassReportSubmission } from "@/features/exams/types";
+import { CLASS_REPORT_SUBMISSION_STATUS, type Exam, type ClassReportSubmission } from "@/features/exams/types";
 
 interface HeadOfSchoolReviewFormProps {
   exam: Exam;
@@ -94,7 +94,7 @@ export function HeadOfSchoolReviewForm({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {submission?.status === "submitted" && (
+          {submission?.status === CLASS_REPORT_SUBMISSION_STATUS.SUBMITTED && (
             <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Submitted</Badge>
           )}
           {locked && (

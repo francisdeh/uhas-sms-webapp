@@ -1,3 +1,5 @@
+import { PROMOTION_DECISION_KIND } from "@/features/promotions/types";
+
 // Minimal shape needed to pick a class — works for both Drizzle rows and
 // hydrated view types.
 type ClassLike = { id: string; name: string; division: string };
@@ -23,10 +25,12 @@ export function sameLevelName(currentClassName: string): string {
 export function autoPickTargetClass(
   currentClassName: string,
   candidateClasses: ClassLike[],
-  mode: "promote" | "repeat"
+  mode: typeof PROMOTION_DECISION_KIND.PROMOTE | typeof PROMOTION_DECISION_KIND.REPEAT
 ): string | null {
   const target =
-    mode === "promote" ? nextLevelName(currentClassName) : sameLevelName(currentClassName);
+    mode === PROMOTION_DECISION_KIND.PROMOTE
+      ? nextLevelName(currentClassName)
+      : sameLevelName(currentClassName);
   if (!target) return null;
   return candidateClasses.find((c) => c.name === target)?.id ?? null;
 }

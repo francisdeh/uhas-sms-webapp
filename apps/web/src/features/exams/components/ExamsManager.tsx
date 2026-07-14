@@ -49,12 +49,12 @@ import {
   usePublishExam,
   useUnpublishExam,
 } from "@/features/exams/hooks/use-exams";
-import type { Exam } from "@/features/exams/types";
+import { EXAM_TYPE, EXAM_TYPES, type Exam } from "@/features/exams/types";
 import type { AcademicYear } from "@/lib/academic-year";
 
 const createSchema = z.object({
   name: z.string().min(2, { message: "Name required" }),
-  type: z.enum(["MidTerm", "EndOfTerm"], { message: "Select a type" }),
+  type: z.enum(EXAM_TYPES, { message: "Select a type" }),
   term: z.number().int().min(1).max(3),
   academicYear: z.string().min(1, { message: "Select an academic year" }),
 });
@@ -158,7 +158,7 @@ export function ExamsManager({
                 <TableRow key={exam.id}>
                   <TableCell className="font-medium text-sm">{exam.name}</TableCell>
                   <TableCell className="text-sm">
-                    {exam.type === "MidTerm" ? "Mid-Term" : "End of Term"}
+                    {exam.type === EXAM_TYPE.MID_TERM ? "Mid-Term" : "End of Term"}
                   </TableCell>
                   <TableCell className="text-sm">Term {exam.term}</TableCell>
                   <TableCell className="text-sm">{exam.academicYear}</TableCell>
@@ -236,17 +236,17 @@ export function ExamsManager({
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a type">
                           {(value: string) =>
-                            value === "MidTerm"
+                            value === EXAM_TYPE.MID_TERM
                               ? "Mid-Term (raw 100)"
-                              : value === "EndOfTerm"
+                              : value === EXAM_TYPE.END_OF_TERM
                                 ? "End of Term (composite)"
                                 : ""
                           }
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="MidTerm">Mid-Term (raw 100)</SelectItem>
-                        <SelectItem value="EndOfTerm">End of Term (composite)</SelectItem>
+                        <SelectItem value={EXAM_TYPE.MID_TERM}>Mid-Term (raw 100)</SelectItem>
+                        <SelectItem value={EXAM_TYPE.END_OF_TERM}>End of Term (composite)</SelectItem>
                       </SelectContent>
                     </Select>
                   )}

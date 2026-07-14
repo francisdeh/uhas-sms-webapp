@@ -12,12 +12,23 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT, TEACHER
+from app.core.roles import ACCOUNTANT, ADMIN, DEPUTY_HEAD, PARENT, TEACHER
 from app.core.security import CurrentUser
 from app.features.classes.model import Class
+from app.features.fees.model import FeeItem
+from app.features.lesson_plans.model import LessonPlan
+from app.features.schemes.model import Scheme
 from app.features.schools.service import SchoolsService
 from app.features.search.repository import SearchRepository
-from app.features.search.schema import ClassHit, SearchResults, StaffHit, StudentHit
+from app.features.search.schema import (
+    ClassHit,
+    FeeItemHit,
+    LessonPlanHit,
+    SchemeHit,
+    SearchResults,
+    StaffHit,
+    StudentHit,
+)
 from app.features.staff.model import Staff
 from app.features.staff.repository import StaffRepository
 from app.features.students.model import Student
@@ -27,7 +38,9 @@ _PER_DOMAIN_CAP = 8
 
 
 def _empty() -> SearchResults:
-    return SearchResults(students=[], staff=[], classes=[])
+    return SearchResults(
+        students=[], staff=[], classes=[], fee_items=[], lesson_plans=[], schemes=[]
+    )
 
 
 def _student_hits(rows: list[tuple[Student, str | None]]) -> list[StudentHit]:
@@ -56,6 +69,18 @@ def _staff_hits(rows: list[Staff]) -> list[StaffHit]:
 
 def _class_hits(rows: list[Class]) -> list[ClassHit]:
     return [ClassHit(id=c.id, name=c.name, slug=c.slug, division=c.division) for c in rows]
+
+
+def _fee_item_hits(rows: list[FeeItem]) -> list[FeeItemHit]:
+    return [FeeItemHit(id=f.id, name=f.name) for f in rows]
+
+
+def _lesson_plan_hits(rows: list[LessonPlan]) -> list[LessonPlanHit]:
+    return [LessonPlanHit(id=lp.id, topic=lp.topic or "Untitled") for lp in rows]
+
+
+def _scheme_hits(rows: list[Scheme]) -> list[SchemeHit]:
+    return [SchemeHit(id=s.id, title=s.title) for s in rows]
 
 
 class SearchService:
@@ -97,10 +122,19 @@ class SearchService:
             classes = await SearchRepository.find_classes(
                 session, school_id=school_id, q=trimmed, limit=_PER_DOMAIN_CAP
             )
+            lesson_plans = await SearchRepository.find_lesson_plans(
+                session, school_id=school_id, q=trimmed, limit=_PER_DOMAIN_CAP
+            )
+            schemes = await SearchRepository.find_schemes(
+                session, school_id=school_id, q=trimmed, limit=_PER_DOMAIN_CAP
+            )
             return SearchResults(
                 students=_student_hits(students),
                 staff=_staff_hits(staff),
                 classes=_class_hits(classes),
+                fee_items=[],
+                lesson_plans=_lesson_plan_hits(lesson_plans),
+                schemes=_scheme_hits(schemes),
             )
 
         if role == DEPUTY_HEAD:
@@ -135,10 +169,27 @@ class SearchService:
                 allowed_division=division,
                 limit=_PER_DOMAIN_CAP,
             )
+            lesson_plans = await SearchRepository.find_lesson_plans(
+                session,
+                school_id=school_id,
+                q=trimmed,
+                allowed_division=division,
+                limit=_PER_DOMAIN_CAP,
+            )
+            schemes = await SearchRepository.find_schemes(
+                session,
+                school_id=school_id,
+                q=trimmed,
+                allowed_division=division,
+                limit=_PER_DOMAIN_CAP,
+            )
             return SearchResults(
                 students=_student_hits(students),
                 staff=_staff_hits(staff),
                 classes=_class_hits(classes),
+                fee_items=[],
+                lesson_plans=_lesson_plan_hits(lesson_plans),
+                schemes=_scheme_hits(schemes),
             )
 
         if role == TEACHER:
@@ -155,10 +206,40 @@ class SearchService:
                 allowed_class_ids=class_ids,
                 limit=_PER_DOMAIN_CAP,
             )
+            lesson_plans = await SearchRepository.find_lesson_plans(
+                session,
+                school_id=school_id,
+                q=trimmed,
+                teacher_id=UUID(user.linked_id),
+                limit=_PER_DOMAIN_CAP,
+            )
+            schemes = await SearchRepository.find_schemes(
+                session,
+                school_id=school_id,
+                q=trimmed,
+                teacher_id=UUID(user.linked_id),
+                limit=_PER_DOMAIN_CAP,
+            )
             return SearchResults(
                 students=_student_hits(students),
                 staff=[],
                 classes=[],
+                fee_items=[],
+                lesson_plans=_lesson_plan_hits(lesson_plans),
+                schemes=_scheme_hits(schemes),
+            )
+
+        if role == ACCOUNTANT:
+            fee_items = await SearchRepository.find_fee_items(
+                session, school_id=school_id, q=trimmed, limit=_PER_DOMAIN_CAP
+            )
+            return SearchResults(
+                students=[],
+                staff=[],
+                classes=[],
+                fee_items=_fee_item_hits(fee_items),
+                lesson_plans=[],
+                schemes=[],
             )
 
         if role == PARENT:
@@ -176,6 +257,9 @@ class SearchService:
                 students=_student_hits(students),
                 staff=[],
                 classes=[],
+                fee_items=[],
+                lesson_plans=[],
+                schemes=[],
             )
 
         return _empty()

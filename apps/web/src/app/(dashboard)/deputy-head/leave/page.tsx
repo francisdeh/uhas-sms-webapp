@@ -5,6 +5,7 @@ import { getApi } from "@/lib/api/server";
 import { Badge } from "@/components/ui/badge";
 import { LeaveRequestList } from "@/features/attendance/components/LeaveRequestList";
 import { toLeaveRequest } from "@/features/leave-requests/mappers";
+import { LEAVE_REQUEST_STATUS } from "@/features/attendance/types";
 
 export default async function DeputyHeadLeavePage() {
   const user = await getSessionUser();
@@ -16,7 +17,7 @@ export default async function DeputyHeadLeavePage() {
   // Server infers division scope from the deputy's JWT.
   const api = await getApi();
   const requests = (await api.leaveRequests.list({ size: 200 })).items.map(toLeaveRequest);
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
+  const pendingCount = requests.filter((r) => r.status === LEAVE_REQUEST_STATUS.PENDING).length;
 
   return (
     <div className="space-y-5">

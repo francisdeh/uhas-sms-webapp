@@ -4,6 +4,7 @@ import { getApi } from "@/lib/api/server";
 import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
 import { AdminSchemeReview } from "@/features/schemes/components/AdminSchemeReview";
 import { toScheme } from "@/features/schemes/mappers";
+import { SCHEME_STATUS } from "@/features/schemes/types";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default async function DeputyHeadSchemesPage() {
@@ -26,8 +27,8 @@ export default async function DeputyHeadSchemesPage() {
 
   const api = await getApi();
   const [pendingResp, acknowledgedResp] = await Promise.all([
-    api.schemes.list({ division, status: "submitted", size: 100 }),
-    api.schemes.list({ division, status: "acknowledged", size: 100 }),
+    api.schemes.list({ division, status: SCHEME_STATUS.SUBMITTED, size: 100 }),
+    api.schemes.list({ division, status: SCHEME_STATUS.ACKNOWLEDGED, size: 100 }),
   ]);
   const pending = pendingResp.items.map(toScheme);
   const acknowledged = acknowledgedResp.items.map(toScheme);

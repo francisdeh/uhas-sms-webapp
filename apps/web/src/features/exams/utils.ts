@@ -1,4 +1,4 @@
-import type { ExamType, GradingBand, Score, ScoreInput, ScoreWeights } from "./types";
+import { EXAM_TYPE, type ExamType, type GradingBand, type Score, type ScoreInput, type ScoreWeights } from "./types";
 
 // Both bands and weights are required, not defaulted — the school's
 // real values (GES defaults or a custom override) are always resolved
@@ -26,7 +26,7 @@ export function computeTotalScore(
   components: Pick<ScoreInput, "cat1" | "cat2" | "projectWork" | "groupWork" | "examScore">,
   weights: ScoreWeights
 ): number | null {
-  if (examType === "MidTerm") {
+  if (examType === EXAM_TYPE.MID_TERM) {
     return components.examScore == null ? null : Math.round(components.examScore);
   }
 

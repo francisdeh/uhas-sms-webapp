@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRecordPayment } from "@/features/fees/hooks/use-fees";
-import { CASH, PAYMENT_METHOD_LABELS, type LearnerFee, type PaymentMethod } from "@/features/fees/types";
+import { CASH, PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type LearnerFee, type PaymentMethod } from "@/features/fees/types";
 import { formatCedis } from "@/lib/currency";
 import { PaymentReceiptFiles } from "./PaymentReceiptFiles";
 
@@ -32,7 +32,7 @@ const formSchema = z.object({
     .string()
     .min(1, { message: "Amount is required" })
     .refine((v) => Number(v) > 0, { message: "Amount must be greater than 0" }),
-  method: z.enum(["cash", "momo", "bank", "cheque"] as const),
+  method: z.enum(PAYMENT_METHODS),
   reference: z.string().optional(),
   receiptFileUrls: z.array(z.string()),
 });

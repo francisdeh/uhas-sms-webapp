@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/lib/api/browser";
-import type { ReportCardBatchJob } from "@/features/exams/types";
+import { BATCH_JOB_STATUS, type BatchJobStatus, type ReportCardBatchJob } from "@/features/exams/types";
 
 interface BatchPrintButtonProps {
   examId: string;
@@ -19,7 +19,7 @@ function toBatchJob(read: {
   id: string;
   examId: string;
   classId: string;
-  status: "pending" | "complete" | "failed";
+  status: BatchJobStatus;
   downloadUrl?: string | null;
   errorMessage?: string | null;
 }): ReportCardBatchJob {
@@ -56,7 +56,7 @@ export function BatchPrintButton({ examId, classId }: BatchPrintButtonProps) {
   }, [examId, classId]);
 
   useEffect(() => {
-    if (job?.status !== "pending") {
+    if (job?.status !== BATCH_JOB_STATUS.PENDING) {
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
@@ -88,7 +88,7 @@ export function BatchPrintButton({ examId, classId }: BatchPrintButtonProps) {
     }
   }
 
-  if (job?.status === "complete" && job.downloadUrl) {
+  if (job?.status === BATCH_JOB_STATUS.COMPLETE && job.downloadUrl) {
     return (
       <div className="flex items-center gap-2">
         <a
@@ -105,7 +105,7 @@ export function BatchPrintButton({ examId, classId }: BatchPrintButtonProps) {
     );
   }
 
-  if (job?.status === "pending") {
+  if (job?.status === BATCH_JOB_STATUS.PENDING) {
     return (
       <Button variant="outline" size="sm" disabled>
         <Loader2 size={13} className="mr-1.5 animate-spin" /> Generating class PDFs…
@@ -113,7 +113,7 @@ export function BatchPrintButton({ examId, classId }: BatchPrintButtonProps) {
     );
   }
 
-  if (job?.status === "failed") {
+  if (job?.status === BATCH_JOB_STATUS.FAILED) {
     return (
       <div className="flex items-center gap-2">
         <span className="text-xs text-destructive inline-flex items-center gap-1">

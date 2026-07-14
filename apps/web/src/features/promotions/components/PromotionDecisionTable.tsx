@@ -71,13 +71,13 @@ const DECISION_OPTIONS: Record<
   { value: PromotionDecisionKind; label: string }[]
 > = {
   primary: [
-    { value: "promote", label: "Promote" },
-    { value: "repeat", label: "Repeat" },
-    { value: "withdraw", label: "Withdraw" },
+    { value: PROMOTION_DECISION_KIND.PROMOTE, label: "Promote" },
+    { value: PROMOTION_DECISION_KIND.REPEAT, label: "Repeat" },
+    { value: PROMOTION_DECISION_KIND.WITHDRAW, label: "Withdraw" },
   ],
   jhs3: [
-    { value: "graduate", label: "Graduate" },
-    { value: "repeat", label: "Repeat" },
+    { value: PROMOTION_DECISION_KIND.GRADUATE, label: "Graduate" },
+    { value: PROMOTION_DECISION_KIND.REPEAT, label: "Repeat" },
   ],
 };
 
@@ -87,26 +87,26 @@ function isJhs3(className: string): boolean {
 
 function decisionPillClass(decision: PromotionDecisionKind): string {
   switch (decision) {
-    case "promote":
+    case PROMOTION_DECISION_KIND.PROMOTE:
       return "bg-green-100 text-green-700 hover:bg-green-100";
-    case "graduate":
+    case PROMOTION_DECISION_KIND.GRADUATE:
       return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-    case "repeat":
+    case PROMOTION_DECISION_KIND.REPEAT:
       return "bg-amber-100 text-amber-700 hover:bg-amber-100";
-    case "withdraw":
+    case PROMOTION_DECISION_KIND.WITHDRAW:
       return "bg-rose-100 text-rose-700 hover:bg-rose-100";
   }
 }
 
 function decisionIcon(decision: PromotionDecisionKind) {
   switch (decision) {
-    case "promote":
+    case PROMOTION_DECISION_KIND.PROMOTE:
       return Sparkles;
-    case "graduate":
+    case PROMOTION_DECISION_KIND.GRADUATE:
       return GraduationCap;
-    case "repeat":
+    case PROMOTION_DECISION_KIND.REPEAT:
       return RotateCcw;
-    case "withdraw":
+    case PROMOTION_DECISION_KIND.WITHDRAW:
       return XCircle;
   }
 }
@@ -276,13 +276,17 @@ export function PromotionDecisionTable({
                       onValueChange={(v) => {
                         const next = v as PromotionDecisionKind;
                         const targetClassId =
-                          next === "promote"
+                          next === PROMOTION_DECISION_KIND.PROMOTE
                             ? row.targetClassId ?? nextYearClasses[0]?.id ?? null
                             : null;
                         patch(row.studentId, {
                           decision: next,
                           targetClassId,
-                          reason: next === "promote" || next === "graduate" ? "" : row.reason,
+                          reason:
+                            next === PROMOTION_DECISION_KIND.PROMOTE ||
+                            next === PROMOTION_DECISION_KIND.GRADUATE
+                              ? ""
+                              : row.reason,
                         });
                       }}
                     >
@@ -303,7 +307,7 @@ export function PromotionDecisionTable({
                     </Select>
                   </div>
 
-                  {row.decision === "promote" && (
+                  {row.decision === PROMOTION_DECISION_KIND.PROMOTE && (
                     <div>
                       <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1 block">
                         Target class ({nextAcademicYear})
@@ -331,7 +335,8 @@ export function PromotionDecisionTable({
                     </div>
                   )}
 
-                  {(row.decision === "repeat" || row.decision === "withdraw") && (
+                  {(row.decision === PROMOTION_DECISION_KIND.REPEAT ||
+                    row.decision === PROMOTION_DECISION_KIND.WITHDRAW) && (
                     <div>
                       <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1 block">
                         Reason ({row.decision})
@@ -341,7 +346,7 @@ export function PromotionDecisionTable({
                         value={row.reason}
                         disabled={readonly}
                         placeholder={
-                          row.decision === "repeat"
+                          row.decision === PROMOTION_DECISION_KIND.REPEAT
                             ? "Why is this student repeating?"
                             : "Why is this student withdrawing?"
                         }
@@ -350,7 +355,7 @@ export function PromotionDecisionTable({
                     </div>
                   )}
 
-                  {row.decision === "graduate" && (
+                  {row.decision === PROMOTION_DECISION_KIND.GRADUATE && (
                     <p className="text-xs text-muted-foreground self-center">
                       Student will complete basic school. No next-year enrollment.
                     </p>

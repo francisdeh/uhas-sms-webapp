@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import type { Division } from "@/features/auth/types";
+import { KG, type Division } from "@/features/auth/types";
 import { formatDate } from "@/lib/dates";
 import { getApi } from "@/lib/api/server";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -73,7 +73,7 @@ export default async function ParentChildDetailPage({ params }: PageProps) {
             <span
               className={cn(
                 "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium flex-shrink-0",
-                DIVISION_PILL[(student.division ?? "KG") as Division],
+                DIVISION_PILL[(student.division ?? KG) as Division],
               )}
             >
               {student.division}

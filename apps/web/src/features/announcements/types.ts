@@ -6,6 +6,18 @@ import type { Division } from "@/features/auth/types";
 //   "class:<classId>"   → one specific class
 export type AnnouncementAudience = string;
 
+export const ALL_AUDIENCE = "all" as const;
+const DIVISION_AUDIENCE_PREFIX = "division:";
+const CLASS_AUDIENCE_PREFIX = "class:";
+
+export function divisionAudience(division: Division): AnnouncementAudience {
+  return `${DIVISION_AUDIENCE_PREFIX}${division}`;
+}
+
+export function classAudience(classId: string): AnnouncementAudience {
+  return `${CLASS_AUDIENCE_PREFIX}${classId}`;
+}
+
 export type Announcement = {
   id: string;
   schoolId: string;
@@ -29,10 +41,11 @@ export function parseAudience(audience: AnnouncementAudience):
   | { kind: "all" }
   | { kind: "division"; division: Division }
   | { kind: "class"; classId: string } {
-  if (audience === "all") return { kind: "all" };
-  if (audience.startsWith("division:"))
-    return { kind: "division", division: audience.slice("division:".length) as Division };
-  if (audience.startsWith("class:")) return { kind: "class", classId: audience.slice("class:".length) };
+  if (audience === ALL_AUDIENCE) return { kind: "all" };
+  if (audience.startsWith(DIVISION_AUDIENCE_PREFIX))
+    return { kind: "division", division: audience.slice(DIVISION_AUDIENCE_PREFIX.length) as Division };
+  if (audience.startsWith(CLASS_AUDIENCE_PREFIX))
+    return { kind: "class", classId: audience.slice(CLASS_AUDIENCE_PREFIX.length) };
   return { kind: "all" };
 }
 

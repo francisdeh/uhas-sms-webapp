@@ -329,13 +329,71 @@ async def test_deputy_can_view_documents_but_not_upload(
     assert upload.status_code == 403
 
 
-async def test_teacher_forbidden_to_view_documents(
+async def test_teacher_assigned_to_class_can_view_documents(
+    client: AsyncClient, seed_profile_depth: None
+) -> None:
+    """A Teacher who class-teaches or subject-teaches the student's
+    current class can view documents — same gate `_assert_can_view_medical`
+    already used, extended to `_assert_can_view_student`."""
+    _ = seed_profile_depth
+    res = await client.get(
+        f"/students/{STUDENT_UUID}/documents",
+        headers=auth_header(role="Teacher", linked_id=str(TEACHER_ASSIGNED_UUID)),
+    )
+    assert res.status_code == 200
+
+
+async def test_teacher_not_assigned_forbidden_documents(
     client: AsyncClient, seed_profile_depth: None
 ) -> None:
     _ = seed_profile_depth
     res = await client.get(
         f"/students/{STUDENT_UUID}/documents",
+        headers=auth_header(role="Teacher", linked_id=str(TEACHER_UNASSIGNED_UUID)),
+    )
+    assert res.status_code == 403
+
+
+async def test_teacher_assigned_to_class_can_view_guardians(
+    client: AsyncClient, seed_profile_depth: None
+) -> None:
+    _ = seed_profile_depth
+    res = await client.get(
+        f"/students/{STUDENT_UUID}/guardians",
         headers=auth_header(role="Teacher", linked_id=str(TEACHER_ASSIGNED_UUID)),
+    )
+    assert res.status_code == 200
+
+
+async def test_teacher_not_assigned_forbidden_guardians(
+    client: AsyncClient, seed_profile_depth: None
+) -> None:
+    _ = seed_profile_depth
+    res = await client.get(
+        f"/students/{STUDENT_UUID}/guardians",
+        headers=auth_header(role="Teacher", linked_id=str(TEACHER_UNASSIGNED_UUID)),
+    )
+    assert res.status_code == 403
+
+
+async def test_teacher_assigned_to_class_can_view_siblings(
+    client: AsyncClient, seed_profile_depth: None
+) -> None:
+    _ = seed_profile_depth
+    res = await client.get(
+        f"/students/{STUDENT_UUID}/siblings",
+        headers=auth_header(role="Teacher", linked_id=str(TEACHER_ASSIGNED_UUID)),
+    )
+    assert res.status_code == 200
+
+
+async def test_teacher_not_assigned_forbidden_siblings(
+    client: AsyncClient, seed_profile_depth: None
+) -> None:
+    _ = seed_profile_depth
+    res = await client.get(
+        f"/students/{STUDENT_UUID}/siblings",
+        headers=auth_header(role="Teacher", linked_id=str(TEACHER_UNASSIGNED_UUID)),
     )
     assert res.status_code == 403
 

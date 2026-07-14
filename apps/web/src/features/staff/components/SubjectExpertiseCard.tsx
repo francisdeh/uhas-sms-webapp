@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { GraduationCap, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useSubjects } from "@/features/subjects/hooks/use-subjects";
@@ -14,10 +15,17 @@ import type { SubjectExpertise } from "@/features/staff/types";
 
 interface SubjectExpertiseCardProps {
   staffId: string;
+  /** Admin-only mutation (`PUT /staff/{id}/subjects` requires Admin) —
+   *  defaults `true` to preserve existing behavior; the read-only
+   *  Deputy Head staff profile passes `false`. */
+  canManage?: boolean;
 }
 
-export function SubjectExpertiseCard({ staffId }: SubjectExpertiseCardProps) {
-  const { data: allSubjects, isLoading: subjectsLoading } = useSubjects({ size: 200 });
+export function SubjectExpertiseCard({
+  staffId,
+  canManage = true,
+}: SubjectExpertiseCardProps) {
+  const { data: allSubjects, isLoading: subjectsLoading } = useSubjects({ size: 100 });
   const { data: expertise, isLoading: expertiseLoading } = useStaffSubjects(staffId);
   const replace = useReplaceStaffSubjects(staffId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -59,6 +67,18 @@ export function SubjectExpertiseCard({ staffId }: SubjectExpertiseCardProps) {
 
         {subjectsLoading || expertiseLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : !canManage ? (
+          (expertise ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No subject expertise on file.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {(expertise ?? []).map((s) => (
+                <Badge key={s.id} variant="secondary">
+                  {s.name}
+                </Badge>
+              ))}
+            </div>
+          )
         ) : (allSubjects?.items.length ?? 0) === 0 ? (
           <p className="text-sm text-muted-foreground">No subjects set up yet.</p>
         ) : (
@@ -78,16 +98,18 @@ export function SubjectExpertiseCard({ staffId }: SubjectExpertiseCardProps) {
           </div>
         )}
 
-        <div className="flex justify-end pt-1">
-          <Button
-            size="sm"
-            disabled={!isDirty || replace.isPending}
-            onClick={() => replace.mutate([...selected])}
-          >
-            {replace.isPending && <Loader2 size={13} className="animate-spin mr-1.5" />}
-            Save
-          </Button>
-        </div>
+        {canManage && (
+          <div className="flex justify-end pt-1">
+            <Button
+              size="sm"
+              disabled={!isDirty || replace.isPending}
+              onClick={() => replace.mutate([...selected])}
+            >
+              {replace.isPending && <Loader2 size={13} className="animate-spin mr-1.5" />}
+              Save
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

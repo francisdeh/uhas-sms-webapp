@@ -29,7 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { ApiError } from "@/lib/api/browser";
 import { useStudentMutations } from "@/features/students/hooks/use-students";
-import type { ClassRecord } from "@/features/students/types";
+import { GENDERS, type ClassRecord } from "@/features/students/types";
 import {
   GuardianField,
   emptyGuardianDraft,
@@ -53,7 +53,7 @@ const schema = z.object({
       },
       { message: "Student must be between 3 and 20 years old" }
     ),
-  gender: z.enum(["Male", "Female"], { message: "Select a gender" }),
+  gender: z.enum(GENDERS, { message: "Select a gender" }),
   classId: z.string().min(1, { message: "Select a class" }),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -199,8 +199,9 @@ export default function StudentRegistrationForm({
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Male">Male</SelectItem>
-                          <SelectItem value="Female">Female</SelectItem>
+                          {GENDERS.map((g) => (
+                            <SelectItem key={g} value={g}>{g}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}

@@ -4168,6 +4168,16 @@ export interface components {
             /** Amountminor */
             amountMinor: number;
         };
+        /** FeeItemHit */
+        FeeItemHit: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /** FeeItemRead */
         FeeItemRead: {
             /**
@@ -4731,6 +4741,16 @@ export interface components {
             assessmentPlan?: string | null;
             /** Fileurl */
             fileUrl?: string | null;
+        };
+        /** LessonPlanHit */
+        LessonPlanHit: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Topic */
+            topic: string;
         };
         /**
          * LessonPlanRead
@@ -5629,6 +5649,16 @@ export interface components {
             /** Content */
             content?: string | null;
         };
+        /** SchemeHit */
+        SchemeHit: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+        };
         /**
          * SchemeRead
          * @description Read shape includes joined display fields.
@@ -6203,6 +6233,12 @@ export interface components {
             staff: components["schemas"]["StaffHit"][];
             /** Classes */
             classes: components["schemas"]["ClassHit"][];
+            /** Feeitems */
+            feeItems: components["schemas"]["FeeItemHit"][];
+            /** Lessonplans */
+            lessonPlans: components["schemas"]["LessonPlanHit"][];
+            /** Schemes */
+            schemes: components["schemas"]["SchemeHit"][];
         };
         /**
          * SeasonOpenRequest

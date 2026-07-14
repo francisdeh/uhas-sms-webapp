@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Check, Inbox, History } from "lucide-react";
 import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
@@ -23,11 +24,30 @@ interface AdminSchemeReviewProps {
 }
 
 export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeReviewProps) {
+  const focusId = useSearchParams().get("focus");
   const [openId, setOpenId] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [actingId, setActingId] = useState<string | null>(null);
   const acknowledge = useAcknowledgeScheme();
   const isPending = acknowledge.isPending;
+
+  // A search hit lands here with `?focus=<id>` — open it. Adjusted
+  // during render (not an effect) so clicking a new search result while
+  // this page is already mounted still re-opens the newly-focused card,
+  // matching React's getDerivedStateFromProps replacement:
+  // https://react.dev/learn/you-might-not-need-an-effect
+  const [syncedFocusId, setSyncedFocusId] = useState<string | null>(null);
+  if (focusId && focusId !== syncedFocusId) {
+    setSyncedFocusId(focusId);
+    setOpenId(focusId);
+  }
+
+  // Scrolling the DOM is a genuine side effect, so it stays in a
+  // `useEffect` — only the `openId` derivation above moved to render time.
+  useEffect(() => {
+    if (!focusId) return;
+    document.getElementById(`scheme-${focusId}`)?.scrollIntoView({ block: "center" });
+  }, [focusId]);
 
   async function handleAcknowledge(scheme: Scheme) {
     setActingId(scheme.id);
@@ -69,7 +89,7 @@ export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeRe
           pending.map((scheme) => {
             const isOpen = openId === scheme.id;
             return (
-              <Card key={scheme.id}>
+              <Card key={scheme.id} id={`scheme-${scheme.id}`}>
                 <CardContent className="py-4">
                   <button
                     type="button"
@@ -172,7 +192,7 @@ export function AdminSchemeReview({ reviewerId, pending, recent }: AdminSchemeRe
           recent.map((scheme) => {
             const isOpen = openId === scheme.id;
             return (
-              <Card key={scheme.id}>
+              <Card key={scheme.id} id={`scheme-${scheme.id}`}>
                 <CardContent className="py-3">
                   <button
                     type="button"

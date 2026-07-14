@@ -38,6 +38,7 @@ import {
   KG_DOMAINS,
   KG_DOMAIN_LABELS,
   RATINGS,
+  CLASS_REPORT_SUBMISSION_STATUS,
   type ConductTrait,
   type KgDomain,
   type Rating,
@@ -82,7 +83,7 @@ export function ClassReportSubmitForm({
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const locked = exam.isPublished;
-  const submitted = submission?.status === "submitted";
+  const submitted = submission?.status === CLASS_REPORT_SUBMISSION_STATUS.SUBMITTED;
   const isKg = division === KG;
 
   function buildRemarksPayload() {

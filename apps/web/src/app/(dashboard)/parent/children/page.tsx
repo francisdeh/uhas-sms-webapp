@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
-import type { Division } from "@/features/auth/types";
+import { KG, type Division } from "@/features/auth/types";
+import { MALE } from "@/features/students/types";
 import { formatDate } from "@/lib/dates";
 import { getApi } from "@/lib/api/server";
 import Link from "next/link";
@@ -42,9 +43,9 @@ export default async function ParentChildrenPage() {
       slug: s.slug,
       firstName: s.firstName,
       lastName: s.lastName,
-      gender: s.gender ?? "Male",
+      gender: s.gender ?? MALE,
       dob: s.dob ?? "",
-      division: (s.division ?? "KG") as Division,
+      division: (s.division ?? KG) as Division,
       isActive: s.isActive ?? true,
       nationality: s.nationality,
       religion: s.religion,

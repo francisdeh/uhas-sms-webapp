@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown, Search, BookOpen, Filter } from "lucide-react";
 import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,10 +34,29 @@ interface LessonPlansOversightProps {
 }
 
 export function LessonPlansOversight({ plans }: LessonPlansOversightProps) {
+  const focusId = useSearchParams().get("focus");
   const [statusFilter, setStatusFilter] = useState<"all" | LessonPlanStatus>("all");
   const [divisionFilter, setDivisionFilter] = useState<"all" | Division>("all");
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+
+  // A search hit lands here with `?focus=<id>` — open it. Adjusted
+  // during render (not an effect) so clicking a new search result while
+  // this page is already mounted still re-opens the newly-focused card,
+  // matching React's getDerivedStateFromProps replacement:
+  // https://react.dev/learn/you-might-not-need-an-effect
+  const [syncedFocusId, setSyncedFocusId] = useState<string | null>(null);
+  if (focusId && focusId !== syncedFocusId) {
+    setSyncedFocusId(focusId);
+    setOpenId(focusId);
+  }
+
+  // Scrolling the DOM is a genuine side effect, so it stays in a
+  // `useEffect` — only the `openId` derivation above moved to render time.
+  useEffect(() => {
+    if (!focusId) return;
+    document.getElementById(`lesson-plan-${focusId}`)?.scrollIntoView({ block: "center" });
+  }, [focusId]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -138,7 +158,7 @@ export function LessonPlansOversight({ plans }: LessonPlansOversightProps) {
           {filtered.map((plan) => {
             const isOpen = openId === plan.id;
             return (
-              <Card key={plan.id}>
+              <Card key={plan.id} id={`lesson-plan-${plan.id}`}>
                 <CardContent className="py-3.5">
                   <button
                     type="button"

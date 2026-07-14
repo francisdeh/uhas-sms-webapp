@@ -48,9 +48,14 @@ interface GuardianTabProps {
   studentId: string;
   /** Base path for sibling profile links, e.g. "/admin/students". */
   basePath: string;
+  /** Whether guardian-link mutations (add/unlink/set primary/create
+   *  login) are available. Defaults `true` to preserve existing
+   *  Admin/DeputyHead behavior unchanged; the read-only Teacher
+   *  student profile passes `false`. */
+  canEdit?: boolean;
 }
 
-export function GuardianTab({ studentId, basePath }: GuardianTabProps) {
+export function GuardianTab({ studentId, basePath, canEdit = true }: GuardianTabProps) {
   const guardians = useStudentGuardians(studentId);
   const siblings = useStudentSiblings(studentId);
   const { add, update, remove, createLogin } = useGuardianLinkMutations(studentId);
@@ -87,9 +92,11 @@ export function GuardianTab({ studentId, basePath }: GuardianTabProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Guardians ({list.length}/{MAX_GUARDIANS})</h3>
-          <Button size="sm" variant="outline" disabled={atMax} onClick={() => setAddOpen(true)}>
-            <Plus size={14} className="mr-1.5" /> Add guardian
-          </Button>
+          {canEdit && (
+            <Button size="sm" variant="outline" disabled={atMax} onClick={() => setAddOpen(true)}>
+              <Plus size={14} className="mr-1.5" /> Add guardian
+            </Button>
+          )}
         </div>
 
         {guardians.isLoading ? (
@@ -127,70 +134,76 @@ export function GuardianTab({ studentId, basePath }: GuardianTabProps) {
                     {[g.phone, g.email, g.slug].filter(Boolean).join(" · ")}
                   </p>
                 </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => setUnlinkId(g.id)}
-                >
-                  <Trash2 size={14} />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={
-                    RELATION_TYPES.includes(g.relationship as RelationType)
-                      ? (g.relationship as RelationType)
-                      : "Other"
-                  }
-                  onValueChange={(v) =>
-                    update.mutate({ guardianId: g.id, payload: { relation: v as RelationType } })
-                  }
-                >
-                  <SelectTrigger size="sm" className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RELATION_TYPES.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {r}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {!g.isPrimary && (
+                {canEdit && (
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="ghost"
-                    onClick={() =>
-                      update.mutate({ guardianId: g.id, payload: { isPrimary: true } })
-                    }
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => setUnlinkId(g.id)}
                   >
-                    Make primary
-                  </Button>
-                )}
-                {!g.hasLogin && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={createLogin.isPending}
-                    onClick={() => createLogin.mutate(g.id)}
-                    title={
-                      g.phone || g.email
-                        ? "Provision a login (phone-OTP and/or email invite)"
-                        : "Add a phone or email to this guardian first"
-                    }
-                    className="text-brand"
-                  >
-                    {createLogin.isPending && createLogin.variables === g.id ? (
-                      <Loader2 size={13} className="mr-1.5 animate-spin" />
-                    ) : (
-                      <KeyRound size={13} className="mr-1.5" />
-                    )}
-                    Create login
+                    <Trash2 size={14} />
                   </Button>
                 )}
               </div>
+              {canEdit ? (
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={
+                      RELATION_TYPES.includes(g.relationship as RelationType)
+                        ? (g.relationship as RelationType)
+                        : "Other"
+                    }
+                    onValueChange={(v) =>
+                      update.mutate({ guardianId: g.id, payload: { relation: v as RelationType } })
+                    }
+                  >
+                    <SelectTrigger size="sm" className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RELATION_TYPES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!g.isPrimary && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        update.mutate({ guardianId: g.id, payload: { isPrimary: true } })
+                      }
+                    >
+                      Make primary
+                    </Button>
+                  )}
+                  {!g.hasLogin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={createLogin.isPending}
+                      onClick={() => createLogin.mutate(g.id)}
+                      title={
+                        g.phone || g.email
+                          ? "Provision a login (phone-OTP and/or email invite)"
+                          : "Add a phone or email to this guardian first"
+                      }
+                      className="text-brand"
+                    >
+                      {createLogin.isPending && createLogin.variables === g.id ? (
+                        <Loader2 size={13} className="mr-1.5 animate-spin" />
+                      ) : (
+                        <KeyRound size={13} className="mr-1.5" />
+                      )}
+                      Create login
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">{g.relationship}</p>
+              )}
             </div>
           ))
         )}

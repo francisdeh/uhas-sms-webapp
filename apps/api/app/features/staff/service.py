@@ -310,11 +310,15 @@ class StaffService:
     async def list_documents(
         session: AsyncSession, school_id: UUID | str, staff_id: UUID | str, *, user: CurrentUser
     ) -> list[tuple[StaffDocument, Staff]]:
-        await StaffService.get(session, school_id, staff_id)  # 404 if missing
+        target = await StaffService.get(session, school_id, staff_id)  # 404 if missing
         is_self = user.linked_id is not None and str(user.linked_id) == str(staff_id)
-        if user.role != ADMIN and not is_self:
-            raise ForbiddenError("You may only view your own documents.")
-        return await StaffRepository.list_documents(session, staff_id)
+        if user.role == ADMIN or is_self:
+            return await StaffRepository.list_documents(session, staff_id)
+        if user.role == DEPUTY_HEAD and user.linked_id and target.division:
+            caller = await StaffRepository.get_by_id(session, school_id, user.linked_id)
+            if caller and caller.division == target.division:
+                return await StaffRepository.list_documents(session, staff_id)
+        raise ForbiddenError("You may only view your own documents.")
 
     @staticmethod
     async def add_document(

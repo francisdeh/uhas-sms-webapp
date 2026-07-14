@@ -31,6 +31,7 @@ import { useSubjects, useCreateSubject } from "@/features/subjects/hooks/use-sub
 import { ApiError } from "@/lib/api/browser";
 import type { components } from "@/types/api";
 import type { Division } from "@/features/classes/types";
+import { DIVISIONS } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
 type SubjectRead = components["schemas"]["SubjectRead"];
@@ -294,10 +295,9 @@ export default function SubjectsTable() {
                         <SelectValue placeholder="Select a division" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="KG">KG</SelectItem>
-                        <SelectItem value="Lower Primary">Lower Primary</SelectItem>
-                        <SelectItem value="Upper Primary">Upper Primary</SelectItem>
-                        <SelectItem value="JHS">JHS</SelectItem>
+                        {DIVISIONS.map((d) => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
                         <SelectItem value="all">All divisions</SelectItem>
                       </SelectContent>
                     </Select>

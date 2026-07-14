@@ -7,7 +7,8 @@ import type {
   AttendanceSession,
   SessionWithRecords,
 } from "@/features/attendance/types";
-import type { Student } from "@/features/students/types";
+import { MALE, type Student } from "@/features/students/types";
+import { KG } from "@/features/auth/types";
 
 export default async function TeacherAttendanceClassPage({
   params,
@@ -53,10 +54,10 @@ export default async function TeacherAttendanceClassPage({
     firstName: e.studentFirstName ?? "",
     lastName: e.studentLastName ?? "",
     dob: "",
-    gender: (e.studentGender ?? "Male") as "Male" | "Female",
+    gender: (e.studentGender ?? MALE) as Student["gender"],
     classId: e.classId,
     className: e.className ?? "",
-    division: (e.division ?? "KG") as Student["division"],
+    division: (e.division ?? KG) as Student["division"],
     photoUrl: e.studentPhotoUrl ?? undefined,
     isActive: e.studentIsActive ?? true,
     createdAt: new Date().toISOString(),
@@ -73,6 +74,7 @@ export default async function TeacherAttendanceClassPage({
         existingSession={existingSession as unknown as SessionWithRecords | null}
         editable={editable}
         submittedById={user.linkedId}
+        studentBasePath="/teacher/students"
       />
       <SessionHistory
         sessions={allSessionsPage.items as unknown as AttendanceSession[]}

@@ -3,7 +3,7 @@ import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { getApi } from "@/lib/api/server";
 import type { Announcement } from "@/features/announcements/types";
-import type { Division } from "@/features/auth/types";
+import { KG, type Division } from "@/features/auth/types";
 import { STUDENT_CALENDAR_AT_SCHOOL_STATUSES } from "@/features/attendance/types";
 import ParentDashboardOverview from "./DashboardOverview";
 
@@ -43,7 +43,7 @@ export default async function ParentPage() {
     name: `${s.firstName} ${s.lastName}`,
     classId: s.classId ?? "",
     className: s.className ?? "",
-    division: (s.division as Division) ?? "KG",
+    division: (s.division as Division) ?? KG,
   }));
 
   const announcementsPage = await api.announcements.list({ size: 4 });

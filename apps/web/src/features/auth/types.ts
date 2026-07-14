@@ -68,7 +68,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export type Division = "KG" | "Lower Primary" | "Upper Primary" | "JHS";
 
-export const DIVISIONS: Division[] = ["KG", "Lower Primary", "Upper Primary", "JHS"];
+export const DIVISIONS: readonly Division[] = ["KG", "Lower Primary", "Upper Primary", "JHS"];
 
 export const KG: Division = "KG";
 export const LOWER_PRIMARY: Division = "Lower Primary";

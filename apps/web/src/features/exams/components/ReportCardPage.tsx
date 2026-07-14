@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ReportCard } from "./ReportCard";
-import type { ReportCardData, ReportCardVariant } from "@/features/exams/types";
+import { REPORT_CARD_VARIANT, type ReportCardData, type ReportCardVariant } from "@/features/exams/types";
 import { api, ApiError } from "@/lib/api/browser";
 import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 
@@ -29,8 +29,8 @@ export function ReportCardPage({
   unpublishedNotice,
 }: ReportCardPageProps) {
   const [downloading, setDownloading] = useState(false);
-  const [variant, setVariant] = useState<ReportCardVariant>("summary");
-  const full = variant === "full";
+  const [variant, setVariant] = useState<ReportCardVariant>(REPORT_CARD_VARIANT.SUMMARY);
+  const full = variant === REPORT_CARD_VARIANT.FULL;
 
   useBreadcrumbLabel(studentId, `${data.student.firstName} ${data.student.lastName}`);
   useBreadcrumbLabel(examId, data.exam.name);
@@ -73,7 +73,7 @@ export function ReportCardPage({
             <Switch
               id="full-report"
               checked={full}
-              onCheckedChange={(checked) => setVariant(checked ? "full" : "summary")}
+              onCheckedChange={(checked) => setVariant(checked ? REPORT_CARD_VARIANT.FULL : REPORT_CARD_VARIANT.SUMMARY)}
             />
             <Label htmlFor="full-report" className="text-sm text-muted-foreground cursor-pointer">
               Show score breakdown

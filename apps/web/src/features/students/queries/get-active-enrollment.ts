@@ -1,5 +1,5 @@
 import { getApi } from "@/lib/api/server";
-import type { Division } from "@/features/auth/types";
+import { KG, type Division } from "@/features/auth/types";
 
 export type EnrollmentView = {
   classId: string;
@@ -21,7 +21,7 @@ export async function getActiveEnrollment(
   return {
     classId: active.classId,
     className: active.className ?? "",
-    division: (active.division as Division) ?? "KG",
+    division: (active.division as Division) ?? KG,
   };
 }
 

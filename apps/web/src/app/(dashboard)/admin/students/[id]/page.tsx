@@ -2,8 +2,8 @@ import { redirect, notFound } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi, ApiError } from "@/lib/api/server";
 import StudentDetail from "@/features/students/components/StudentDetail";
-import type { Student, ClassRecord } from "@/features/students/types";
-import type { Division } from "@/features/auth/types";
+import { MALE, type Student, type ClassRecord } from "@/features/students/types";
+import { KG, type Division } from "@/features/auth/types";
 
 export default async function AdminStudentDetailPage({
   params,
@@ -48,10 +48,10 @@ export default async function AdminStudentDetailPage({
     middleName: studentRead.middleName ?? undefined,
     lastName: studentRead.lastName,
     dob: studentRead.dob ?? "",
-    gender: (studentRead.gender as "Male" | "Female") ?? "Male",
+    gender: (studentRead.gender as Student["gender"]) ?? MALE,
     classId: studentRead.classId ?? "",
     className: studentRead.className ?? "",
-    division: (studentRead.division as Division) ?? "KG",
+    division: (studentRead.division as Division) ?? KG,
     phone: studentRead.phone ?? undefined,
     address: studentRead.address ?? undefined,
     nationality: studentRead.nationality ?? undefined,

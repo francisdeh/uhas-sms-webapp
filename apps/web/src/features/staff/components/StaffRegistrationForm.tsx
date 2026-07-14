@@ -36,7 +36,7 @@ import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { api, ApiError } from "@/lib/api/browser";
 import { useStaffMutations } from "@/features/staff/hooks/use-staff";
-import { STAFF_SYSTEM_ROLES, DEPUTY_HEAD, TEACHER, ROLE_LABELS } from "@/features/auth/types";
+import { STAFF_SYSTEM_ROLES, ADMIN, DEPUTY_HEAD, TEACHER, ROLE_LABELS, DIVISIONS } from "@/features/auth/types";
 import { TEACHER_RANKS } from "@/features/staff/types";
 
 const schema = z
@@ -260,11 +260,9 @@ export default function StaffRegistrationForm({
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Admin">Admin</SelectItem>
-                          <SelectItem value="DeputyHead">
-                            Deputy Head
-                          </SelectItem>
-                          <SelectItem value="Teacher">Teacher</SelectItem>
+                          <SelectItem value={ADMIN}>{ROLE_LABELS[ADMIN]}</SelectItem>
+                          <SelectItem value={DEPUTY_HEAD}>{ROLE_LABELS[DEPUTY_HEAD]}</SelectItem>
+                          <SelectItem value={TEACHER}>{ROLE_LABELS[TEACHER]}</SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -289,10 +287,9 @@ export default function StaffRegistrationForm({
                             <SelectValue placeholder="Select division" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="KG">KG</SelectItem>
-                            <SelectItem value="Lower Primary">Lower Primary</SelectItem>
-                            <SelectItem value="Upper Primary">Upper Primary</SelectItem>
-                            <SelectItem value="JHS">JHS</SelectItem>
+                            {DIVISIONS.map((d) => (
+                              <SelectItem key={d} value={d}>{d}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       )}
@@ -345,10 +342,9 @@ export default function StaffRegistrationForm({
                               <SelectValue placeholder="Select unit" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="KG">KG</SelectItem>
-                              <SelectItem value="Lower Primary">Lower Primary</SelectItem>
-                              <SelectItem value="Upper Primary">Upper Primary</SelectItem>
-                              <SelectItem value="JHS">JHS</SelectItem>
+                              {DIVISIONS.map((d) => (
+                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         )}

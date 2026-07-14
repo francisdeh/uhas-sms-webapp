@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Check, X, Inbox, History } from "lucide-react";
 import { ClientDocumentDownloadLink } from "@/features/uploads/components/ClientDocumentDownloadLink";
@@ -38,6 +39,7 @@ interface ReviewQueueProps {
 }
 
 export function ReviewQueue({ reviewerId, reviewerRole, pending, recent }: ReviewQueueProps) {
+  const focusId = useSearchParams().get("focus");
   const [openId, setOpenId] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [rejectTarget, setRejectTarget] = useState<LessonPlan | null>(null);
@@ -48,6 +50,24 @@ export function ReviewQueue({ reviewerId, reviewerRole, pending, recent }: Revie
   // props for backward-compat with the Server Component that renders
   // this queue.
   void reviewerId;
+
+  // A search hit for a lesson plan lands here with `?focus=<id>` — open
+  // it (if it's in the pending queue). Adjusted during render (not an
+  // effect) so clicking a new search result while this page is already
+  // mounted still re-opens the newly-focused card, matching React's
+  // getDerivedStateFromProps replacement: https://react.dev/learn/you-might-not-need-an-effect
+  const [syncedFocusId, setSyncedFocusId] = useState<string | null>(null);
+  if (focusId && focusId !== syncedFocusId) {
+    setSyncedFocusId(focusId);
+    setOpenId(focusId);
+  }
+
+  // Scrolling the DOM is a genuine side effect, so it stays in a
+  // `useEffect` — only the `openId` derivation above moved to render time.
+  useEffect(() => {
+    if (!focusId) return;
+    document.getElementById(`lesson-plan-${focusId}`)?.scrollIntoView({ block: "center" });
+  }, [focusId]);
 
   async function handleApprove(plan: LessonPlan) {
     setActingId(plan.id);
@@ -130,7 +150,7 @@ export function ReviewQueue({ reviewerId, reviewerRole, pending, recent }: Revie
           pending.map((plan) => {
             const isOpen = openId === plan.id;
             return (
-              <Card key={plan.id}>
+              <Card key={plan.id} id={`lesson-plan-${plan.id}`}>
                 <CardContent className="py-4">
                   <button
                     type="button"
@@ -227,7 +247,7 @@ export function ReviewQueue({ reviewerId, reviewerRole, pending, recent }: Revie
           />
         ) : (
           recent.map((plan) => (
-            <Card key={plan.id}>
+            <Card key={plan.id} id={`lesson-plan-${plan.id}`}>
               <CardContent className="py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">

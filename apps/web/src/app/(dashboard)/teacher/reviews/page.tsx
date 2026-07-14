@@ -4,7 +4,7 @@ import { getApi } from "@/lib/api/server";
 import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { ReviewQueue } from "@/features/lesson-plans/components/ReviewQueue";
 import { Card, CardContent } from "@/components/ui/card";
-import type { LessonPlan } from "@/features/lesson-plans/types";
+import { LESSON_PLAN_REVIEWER_ROLE, LESSON_PLAN_STATUS, type LessonPlan } from "@/features/lesson-plans/types";
 import type { components } from "@/types/api";
 
 function toLessonPlan(
@@ -61,14 +61,14 @@ export default async function TeacherReviewsPage() {
   const [currentYear, pendingPage, unitHeadApprovedPage, rejectedPage, approvedPage] =
     await Promise.all([
       getCurrentAcademicYear(),
-      api.lessonPlans.list({ division: user.unitHeadOf, status: "submitted", size: 200 }),
+      api.lessonPlans.list({ division: user.unitHeadOf, status: LESSON_PLAN_STATUS.SUBMITTED, size: 200 }),
       api.lessonPlans.list({
         division: user.unitHeadOf,
-        status: "unit_head_approved",
+        status: LESSON_PLAN_STATUS.UNIT_HEAD_APPROVED,
         size: 200,
       }),
-      api.lessonPlans.list({ division: user.unitHeadOf, status: "rejected", size: 200 }),
-      api.lessonPlans.list({ division: user.unitHeadOf, status: "approved", size: 200 }),
+      api.lessonPlans.list({ division: user.unitHeadOf, status: LESSON_PLAN_STATUS.REJECTED, size: 200 }),
+      api.lessonPlans.list({ division: user.unitHeadOf, status: LESSON_PLAN_STATUS.APPROVED, size: 200 }),
     ]);
 
   const pending = pendingPage.items.map((p) => toLessonPlan(p, currentYear));
@@ -86,7 +86,7 @@ export default async function TeacherReviewsPage() {
   return (
     <ReviewQueue
       reviewerId={user.linkedId}
-      reviewerRole="UnitHead"
+      reviewerRole={LESSON_PLAN_REVIEWER_ROLE.UNIT_HEAD}
       pending={pending}
       recent={recentMine}
     />

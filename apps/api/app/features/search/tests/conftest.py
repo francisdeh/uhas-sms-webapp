@@ -32,10 +32,14 @@ from app.core.config import settings
 from app.core.db import engine, get_session
 from app.features.classes.model import Class, ClassTeacher
 from app.features.enrollments.model import Enrollment
+from app.features.fees.model import FeeItem
 from app.features.guardians.model import Guardian
+from app.features.lesson_plans.model import LessonPlan
+from app.features.schemes.model import Scheme
 from app.features.schools.model import School
 from app.features.staff.model import Staff
 from app.features.students.model import Student, StudentGuardian
+from app.features.subjects.model import Subject
 from app.features.users.model import User
 from app.main import app
 
@@ -52,6 +56,7 @@ ADMIN_STAFF = UUID("30303030-3030-4303-8303-303030300301")
 DEPUTY_JHS_STAFF = UUID("30303030-3030-4303-8303-303030300302")
 TEACHER_JHS_STAFF = UUID("30303030-3030-4303-8303-303030300303")
 EMAIL_ONLY_STAFF = UUID("30303030-3030-4303-8303-303030300304")
+TEACHER_KG_STAFF = UUID("30303030-3030-4303-8303-303030300305")
 
 # Users.
 ADMIN_USER = UUID("30303030-3030-4303-8303-303030300401")
@@ -68,6 +73,16 @@ STUDENT_CHILD = UUID("30303030-3030-4303-8303-303030300505")
 
 # Guardian for the Parent scope test.
 GUARDIAN_UUID = UUID("30303030-3030-4303-8303-303030300601")
+
+ACCOUNTANT_USER = UUID("30303030-3030-4303-8303-303030300405")
+
+# Fee item / lesson plan / scheme fixtures for the 3 new search domains.
+FEE_ITEM_UUID = UUID("30303030-3030-4303-8303-303030300701")
+LESSON_PLAN_JHS_UUID = UUID("30303030-3030-4303-8303-303030300702")
+LESSON_PLAN_KG_UUID = UUID("30303030-3030-4303-8303-303030300703")
+SCHEME_JHS_UUID = UUID("30303030-3030-4303-8303-303030300704")
+SCHEME_KG_UUID = UUID("30303030-3030-4303-8303-303030300705")
+SUBJECT_UUID = UUID("30303030-3030-4303-8303-303030300706")
 
 ACADEMIC_YEAR = "2025/2026"
 
@@ -183,6 +198,87 @@ async def seed(db_session: AsyncSession) -> None:
                 email="findme@special.test",
                 is_active=True,
             ),
+            # Owns the KG-division lesson plan/scheme — proves JHS
+            # Teacher/DeputyHead scoping excludes them.
+            Staff(
+                id=TEACHER_KG_STAFF,
+                slug="STAFF-T-KG",
+                school_id=SCHOOL_UUID,
+                first_name="Akosua",
+                last_name="TeacherKg",
+                system_role="Teacher",
+                division="KG",
+                email="teacherkg@sea.test",
+                is_active=True,
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    db_session.add(
+        Subject(
+            id=SUBJECT_UUID, slug="MATH", school_id=SCHOOL_UUID, name="Mathematics", category="Core"
+        )
+    )
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            FeeItem(
+                id=FEE_ITEM_UUID,
+                school_id=SCHOOL_UUID,
+                name="Amaru PTA Dues",
+                scope="school",
+                academic_year=ACADEMIC_YEAR,
+                amount_minor=5000,
+                is_active=True,
+            ),
+            LessonPlan(
+                id=LESSON_PLAN_JHS_UUID,
+                school_id=SCHOOL_UUID,
+                teacher_id=TEACHER_JHS_STAFF,
+                subject_id=SUBJECT_UUID,
+                class_id=CLASS_JHS1,
+                term=2,
+                week=1,
+                topic="Amaru Fractions",
+                status="draft",
+            ),
+            LessonPlan(
+                id=LESSON_PLAN_KG_UUID,
+                school_id=SCHOOL_UUID,
+                teacher_id=TEACHER_KG_STAFF,
+                subject_id=SUBJECT_UUID,
+                class_id=CLASS_KG1,
+                term=2,
+                week=1,
+                topic="Amaru Shapes",
+                status="draft",
+            ),
+            Scheme(
+                id=SCHEME_JHS_UUID,
+                school_id=SCHOOL_UUID,
+                teacher_id=TEACHER_JHS_STAFF,
+                subject_id=SUBJECT_UUID,
+                class_id=CLASS_JHS1,
+                type="work",
+                term=2,
+                academic_year=ACADEMIC_YEAR,
+                title="Amaru Term Scheme",
+                status="draft",
+            ),
+            Scheme(
+                id=SCHEME_KG_UUID,
+                school_id=SCHOOL_UUID,
+                teacher_id=TEACHER_KG_STAFF,
+                subject_id=SUBJECT_UUID,
+                class_id=CLASS_KG1,
+                type="work",
+                term=2,
+                academic_year=ACADEMIC_YEAR,
+                title="Amaru KG Scheme",
+                status="draft",
+            ),
         ]
     )
     await db_session.flush()
@@ -228,6 +324,14 @@ async def seed(db_session: AsyncSession) -> None:
                 email="teacher@sea.test",
                 role="Teacher",
                 linked_id=TEACHER_JHS_STAFF,
+                is_active=True,
+            ),
+            User(
+                id=ACCOUNTANT_USER,
+                school_id=SCHOOL_UUID,
+                email="findme@special.test",
+                role="Accountant",
+                linked_id=EMAIL_ONLY_STAFF,
                 is_active=True,
             ),
             User(

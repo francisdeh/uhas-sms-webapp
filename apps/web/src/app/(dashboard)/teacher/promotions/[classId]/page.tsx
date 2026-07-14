@@ -7,7 +7,12 @@ import { PromotionDecisionTable } from "@/features/promotions/components/Promoti
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { DecisionRowView, PromotionSubmission } from "@/features/promotions/types";
+import {
+  PROMOTION_SEASON_STATUS,
+  PROMOTION_SUBMISSION_STATUS,
+  type DecisionRowView,
+  type PromotionSubmission,
+} from "@/features/promotions/types";
 import { TEACHER } from "@/features/auth/types";
 
 export default async function TeacherPromotionClassPage({
@@ -26,7 +31,7 @@ export default async function TeacherPromotionClassPage({
     api.promotions.getTeacherClasses(),
   ]);
 
-  if (!season || season.status !== "open") redirect("/teacher/promotions");
+  if (!season || season.status !== PROMOTION_SEASON_STATUS.OPEN) redirect("/teacher/promotions");
 
   const myClass = myClassesResp.items.find((c) => c.classId === classId);
   if (!myClass) notFound();
@@ -88,10 +93,10 @@ export default async function TeacherPromotionClassPage({
     decisions,
   };
 
-  const readonly = !myClass.isPrimary || detail.submission.status !== "draft";
-  const isSubmitted = detail.submission.status === "submitted";
-  const isApproved = detail.submission.status === "approved";
-  const isSentBack = detail.submission.status === "sent_back";
+  const readonly = !myClass.isPrimary || detail.submission.status !== PROMOTION_SUBMISSION_STATUS.DRAFT;
+  const isSubmitted = detail.submission.status === PROMOTION_SUBMISSION_STATUS.SUBMITTED;
+  const isApproved = detail.submission.status === PROMOTION_SUBMISSION_STATUS.APPROVED;
+  const isSentBack = detail.submission.status === PROMOTION_SUBMISSION_STATUS.SENT_BACK;
 
   // Sent-back state should remain editable for the primary teacher.
   const finalMode = isSentBack && myClass.isPrimary ? "edit" : readonly ? "readonly" : "edit";
