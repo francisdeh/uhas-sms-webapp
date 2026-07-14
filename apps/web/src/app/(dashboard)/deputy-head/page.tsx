@@ -4,6 +4,7 @@ import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-he
 import { getApi, ApiError } from "@/lib/api/server";
 import DeputyHeadDashboardOverview from "./DashboardOverview";
 import type { Staff } from "@/features/staff/types";
+import { STAFF_SESSION_AT_SCHOOL_STATUSES } from "@/features/attendance/types";
 
 export default async function DeputyHeadPage() {
   const user = await getSessionUser();
@@ -36,7 +37,7 @@ export default async function DeputyHeadPage() {
   const staffAttendanceToday = todayStaffSession
     ? {
         present: todayStaffSession.records.filter((r) =>
-          ["Present", "Late"].includes(r.status),
+          STAFF_SESSION_AT_SCHOOL_STATUSES.includes(r.status),
         ).length,
         total: todayStaffSession.records.length,
       }

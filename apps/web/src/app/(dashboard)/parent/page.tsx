@@ -4,6 +4,7 @@ import { getCurrentAcademicYear } from "@/lib/academic-year-server";
 import { getApi } from "@/lib/api/server";
 import type { Announcement } from "@/features/announcements/types";
 import type { Division } from "@/features/auth/types";
+import { STUDENT_CALENDAR_AT_SCHOOL_STATUSES } from "@/features/attendance/types";
 import ParentDashboardOverview from "./DashboardOverview";
 
 /** First term's start date to last term's end date for `year` — the
@@ -57,9 +58,9 @@ export default async function ParentPage() {
         termEnd: end,
       });
       const total = records.length;
-      // "At school" = present or late, matching the definition used by
-      // every other dashboard's attendance aggregate in the app.
-      const atSchool = records.filter((r) => r.status === "present" || r.status === "late").length;
+      const atSchool = records.filter((r) =>
+        STUDENT_CALENDAR_AT_SCHOOL_STATUSES.includes(r.status),
+      ).length;
       return total > 0 ? (atSchool / total) * 100 : null;
     }),
   );

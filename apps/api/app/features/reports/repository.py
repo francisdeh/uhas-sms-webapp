@@ -19,6 +19,7 @@ from sqlalchemy import and_, asc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.roles import ADMIN, TEACHER
+from app.features.attendance.constants import LATE, PRESENT
 from app.features.attendance.model import AttendanceRecord, AttendanceSession
 from app.features.classes.model import Class, ClassSubject
 from app.features.enrollments.constants import ACTIVE as ENROLLMENT_ACTIVE
@@ -46,11 +47,8 @@ from app.features.students.model import Student, StudentGuardian
 from app.features.subjects.model import Subject
 
 # ─── Attendance status literals ────────────────────────────────────────────
-# Matches AttendanceStatus's stored values (attendance/constants.py) —
-# capitalized, since attendance_records.status is a plain varchar with
-# no DB enum. Both "Present" and "Late" count as "at school" for the
-# last-7 attendance strip.
-_ATTENDANCE_AT_SCHOOL: set[str] = {"Present", "Late"}
+# Both PRESENT and LATE count as "at school" for the last-7 attendance strip.
+_ATTENDANCE_AT_SCHOOL: set[str] = {PRESENT, LATE}
 
 # Gender labels — the DB stores raw strings ("Male" / "Female"); no
 # closed set exists yet in the students module, so keep the literals
