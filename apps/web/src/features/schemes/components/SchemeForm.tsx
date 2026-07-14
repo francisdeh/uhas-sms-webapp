@@ -39,6 +39,7 @@ import {
   useUpdateScheme,
 } from "@/features/schemes/hooks/use-schemes";
 import { WORK, LEARNING, SCHEME_TYPES, SCHEME_STATUS, SCHEME_TYPE_LABELS, type Scheme } from "@/features/schemes/types";
+import { TERMS } from "@/features/exams/types";
 import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { SchemeStatusPill } from "./SchemeStatusPill";
 import { SchemeCommentThread } from "./SchemeCommentThread";
@@ -266,9 +267,11 @@ export function SchemeForm({
                           <SelectValue>{(value: string) => `Term ${value}`}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1">Term 1</SelectItem>
-                          <SelectItem value="2">Term 2</SelectItem>
-                          <SelectItem value="3">Term 3</SelectItem>
+                          {TERMS.map((t) => (
+                            <SelectItem key={t} value={String(t)}>
+                              Term {t}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}

@@ -71,16 +71,6 @@ async def enroll_student(
     return _to_read(enrollment, cls, student)
 
 
-@router.get("/{enrollment_id}", response_model=EnrollmentRead, response_model_by_alias=True)
-async def get_enrollment(
-    enrollment_id: UUID,
-    school_id: CurrentSchoolIdDep,
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> EnrollmentRead:
-    enrollment, cls, student = await EnrollmentsService.get(session, school_id, enrollment_id)
-    return _to_read(enrollment, cls, student)
-
-
 @router.patch("/{enrollment_id}", response_model=EnrollmentRead, response_model_by_alias=True)
 async def change_enrollment_status(
     enrollment_id: UUID,

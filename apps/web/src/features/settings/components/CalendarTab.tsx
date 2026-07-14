@@ -19,6 +19,7 @@ import {
 import { api, ApiError } from "@/lib/api/browser";
 import { nextAcademicYear } from "@/features/promotions/lib/academic-year";
 import type { SchoolSettings, SchoolTerm } from "@/features/settings/types";
+import { TERMS } from "@/features/exams/types";
 
 const TERM_LABEL: Record<number, string> = { 1: "First Term", 2: "Second Term", 3: "Third Term" };
 
@@ -263,7 +264,7 @@ function YearRolloverCard({ settings }: { settings: SchoolSettings }) {
 // Build a 3-term array for `year`, prefilling from existing rows where available.
 function seedTerms(allTerms: SchoolTerm[], year: string) {
   const forYear = allTerms.filter((t) => t.academicYear === year);
-  return [1, 2, 3].map((term) => {
+  return TERMS.map((term) => {
     const found = forYear.find((t) => t.term === term);
     return {
       term,

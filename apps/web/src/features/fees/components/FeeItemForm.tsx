@@ -25,6 +25,7 @@ import {
 import { useCreateFeeItem } from "@/features/fees/hooks/use-fees";
 import { CLASS_SCOPE, DIVISION_SCOPE, SCHOOL_SCOPE } from "@/features/fees/types";
 import { DIVISIONS } from "@/features/auth/types";
+import { TERMS } from "@/features/exams/types";
 import { useClasses } from "@/features/classes/hooks/use-classes";
 
 const SCOPE_LABELS = {
@@ -243,9 +244,11 @@ export function FeeItemForm({ currentYear, yearOptions }: FeeItemFormProps) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="annual">Annual</SelectItem>
-                      <SelectItem value="1">Term 1</SelectItem>
-                      <SelectItem value="2">Term 2</SelectItem>
-                      <SelectItem value="3">Term 3</SelectItem>
+                      {TERMS.map((t) => (
+                        <SelectItem key={t} value={String(t)}>
+                          Term {t}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}

@@ -17,6 +17,7 @@ import {
 import {
   useBellData,
   useMarkAllNotificationsRead,
+  useMarkNotificationsRead,
 } from "@/features/notifications/hooks/use-notifications";
 
 const MAX_BADGE = 9;
@@ -28,26 +29,19 @@ export function NotificationsDropdown() {
   const { data, isPending } = useBellData();
 
   const markAll = useMarkAllNotificationsRead();
+  const markRead = useMarkNotificationsRead();
 
   const unreadCount = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
 
-  // "Open = saw it." When the dropdown opens, mark everything unread as read.
-  // We do this once per transition to open, not on every render.
-  function onOpenChange(next: boolean) {
-    setOpen(next);
-    if (next && unreadCount > 0) {
-      markAll.mutate();
-    }
-  }
-
-  function onItemClick(link: string | null) {
+  function onItemClick(id: string, isUnread: boolean, link: string | null) {
     setOpen(false);
+    if (isUnread) markRead.mutate([id]);
     if (link) router.push(link);
   }
 
   return (
-    <DropdownMenu open={open} onOpenChange={onOpenChange}>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         className="relative h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
@@ -100,7 +94,7 @@ export function NotificationsDropdown() {
               <DropdownMenuGroup key={n.id}>
                 <DropdownMenuItem
                   className="flex-col items-start gap-0.5 py-3 cursor-pointer px-3"
-                  onClick={() => onItemClick(n.link ?? null)}
+                  onClick={() => onItemClick(n.id, isUnread, n.link ?? null)}
                 >
                   <div className="flex items-center gap-2 w-full">
                     {isUnread && (
@@ -134,10 +128,7 @@ export function NotificationsDropdown() {
             <DropdownMenuGroup>
               <DropdownMenuItem
                 className="justify-center cursor-pointer py-2.5"
-                onSelect={(e) => {
-                  e.preventDefault();
-                  markAll.mutate();
-                }}
+                onClick={() => markAll.mutate()}
               >
                 <CheckCheck size={13} className="mr-1.5 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Mark all as read</span>

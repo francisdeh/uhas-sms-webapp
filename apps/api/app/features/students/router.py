@@ -117,31 +117,6 @@ async def get_student(
 
 
 @router.get(
-    "/{student_id}/guardian",
-    response_model=StudentGuardianRead | None,
-    response_model_by_alias=True,
-    summary="First linked guardian for a student, or null",
-)
-async def get_student_guardian(
-    student_id: UUID,
-    school_id: CurrentSchoolIdDep,
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> StudentGuardianRead | None:
-    row = await StudentsService.get_primary_guardian(session, school_id, student_id)
-    if not row:
-        return None
-    guardian, relation = row
-    return StudentGuardianRead(
-        id=guardian.id,
-        slug=guardian.slug,
-        name=f"{guardian.first_name} {guardian.last_name}".strip(),
-        relationship=relation or "Guardian",
-        phone=guardian.phone,
-        email=guardian.email,
-    )
-
-
-@router.get(
     "/{student_id}/guardians",
     response_model=list[StudentGuardianRead],
     response_model_by_alias=True,

@@ -287,28 +287,6 @@ class StudentsRepository:
         return [(s, c) for s, c in rows]
 
     @staticmethod
-    async def get_primary_guardian(
-        session: AsyncSession, school_id: UUID | str, student_id: UUID | str
-    ) -> tuple[Any, str | None] | None:
-        """First linked guardian for this student — `(Guardian, relation)`,
-        or `None` if no guardian is linked. Matches the legacy TS action's
-        `.limit(1)` behaviour (a student may have multiple guardians; only
-        one is shown in the detail-panel "Guardian" card)."""
-        stmt = (
-            select(Guardian, StudentGuardian.relation)
-            .join(StudentGuardian, StudentGuardian.guardian_id == Guardian.id)
-            .where(
-                and_(
-                    StudentGuardian.student_id == student_id,
-                    Guardian.school_id == school_id,
-                )
-            )
-            .limit(1)
-        )
-        row = (await session.execute(stmt)).first()
-        return (row[0], row[1]) if row else None
-
-    @staticmethod
     async def list_documents(
         session: AsyncSession, student_id: UUID | str
     ) -> list[tuple[StudentDocument, Staff]]:

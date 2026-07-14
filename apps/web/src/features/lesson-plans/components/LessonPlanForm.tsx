@@ -38,6 +38,7 @@ import {
   useUpdateLessonPlan,
 } from "@/features/lesson-plans/hooks/use-lesson-plans";
 import { LESSON_PLAN_STATUS, type LessonPlan } from "@/features/lesson-plans/types";
+import { TERMS } from "@/features/exams/types";
 import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { StatusPill } from "./StatusPill";
 
@@ -311,9 +312,11 @@ export function LessonPlanForm({ teacherId, existing, assignments, backHref }: L
                           <SelectValue>{(value: string) => `Term ${value}`}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1">Term 1</SelectItem>
-                          <SelectItem value="2">Term 2</SelectItem>
-                          <SelectItem value="3">Term 3</SelectItem>
+                          {TERMS.map((t) => (
+                            <SelectItem key={t} value={String(t)}>
+                              Term {t}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}

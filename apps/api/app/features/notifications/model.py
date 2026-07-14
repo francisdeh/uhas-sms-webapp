@@ -1,9 +1,10 @@
 """SQLAlchemy model for the `notifications` table.
 
 One row per (recipient, event). `read_at` is NULL until the recipient
-acknowledges — via the bell dropdown opening (mark-all) or an explicit
-mark-read call. Soft-delete is intentionally NOT supported: notifications
-are ephemeral, and a delivered notification stays as a historical record.
+acknowledges — via an explicit "mark all as read" action or clicking an
+individual notification. Soft-delete is intentionally NOT supported:
+notifications are ephemeral, and a delivered notification stays as a
+historical record.
 
 Table was created in the Drizzle baseline; hot-path indexes ship in
 migration `<TBD>_notifications_indexes.py`.

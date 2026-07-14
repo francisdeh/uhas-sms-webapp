@@ -37,6 +37,7 @@ import {
   useRemoveClassSubject,
   useRemoveClassTeacher,
   useSetClassSubjectTeacher,
+  useUpdateClass,
 } from "@/features/classes/hooks/use-classes";
 import { useSubjects } from "@/features/subjects/hooks/use-subjects";
 import { useStaffList } from "@/features/staff/hooks/use-staff";
@@ -44,7 +45,7 @@ import { useClassRoster } from "@/features/classes/hooks/use-class-roster";
 import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { ApiError } from "@/lib/api/browser";
 import type { components } from "@/types/api";
-import type { Division } from "@/features/classes/types";
+import { CLASS_NAMES, type Division } from "@/features/classes/types";
 import { KG } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
@@ -76,6 +77,12 @@ const selectSchema = z.object({
 });
 
 type SelectFormValues = z.infer<typeof selectSchema>;
+
+const editClassSchema = z.object({
+  name: z.string().min(1, { message: "Select a class" }),
+});
+
+type EditClassFormValues = z.infer<typeof editClassSchema>;
 
 interface ClassDetailProps {
   classId: string;
@@ -141,6 +148,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
   // ── Dialog state ────────────────────────────────────────────────────────
   const [teacherOpen, setTeacherOpen] = useState(false);
   const [subjectOpen, setSubjectOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<ClassSubjectRead | null>(null);
 
   const primaryClassTeacher =
@@ -158,13 +166,30 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
     resolver: zodResolver(selectSchema),
     defaultValues: { value: assignTarget?.teacherId ?? "none" },
   });
+  const editForm = useForm<EditClassFormValues>({
+    resolver: zodResolver(editClassSchema),
+    defaultValues: { name: schoolClass?.name ?? "" },
+  });
 
   // ── Mutations ────────────────────────────────────────────────────────────
+  const updateClass = useUpdateClass(classId);
   const assignClassTeacher = useAssignClassTeacher(classId);
   const removeClassTeacher = useRemoveClassTeacher(classId);
   const assignSubject = useAssignClassSubject(classId);
   const removeSubject = useRemoveClassSubject(classId);
   const setSubjectTeacher = useSetClassSubjectTeacher(classId);
+
+  async function onEditSubmit(data: EditClassFormValues) {
+    const entry = CLASS_NAMES.find((c) => c.name === data.name);
+    if (!entry) return;
+    try {
+      await updateClass.mutateAsync({ name: entry.name, division: entry.division });
+      toast.success("Class updated.");
+      setEditOpen(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update class.");
+    }
+  }
 
   async function onTeacherSubmit(data: SelectFormValues) {
     try {
@@ -342,16 +367,28 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
           </p>
         </div>
         {!readonly && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              teacherForm.reset({ value: primaryClassTeacher?.staffId ?? "none" });
-              setTeacherOpen(true);
-            }}
-          >
-            Change Class Teacher
-          </Button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                editForm.reset({ name: schoolClass.name });
+                setEditOpen(true);
+              }}
+            >
+              <Pencil size={13} className="mr-1.5" /> Edit
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                teacherForm.reset({ value: primaryClassTeacher?.staffId ?? "none" });
+                setTeacherOpen(true);
+              }}
+            >
+              Change Class Teacher
+            </Button>
+          </div>
         )}
       </div>
 
@@ -469,6 +506,56 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
           />
         </CardContent>
       </Card>
+
+      {/* Dialog — Edit Class */}
+      <Dialog open={editOpen} onOpenChange={(open) => { if (!open) setEditOpen(false); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit class</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={editForm.handleSubmit(onEditSubmit)}>
+            <FieldGroup className="py-1">
+              <Field>
+                <FieldLabel>Class Name</FieldLabel>
+                <Controller
+                  name="name"
+                  control={editForm.control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(v) => { if (v) field.onChange(v); }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CLASS_NAMES.map((entry) => (
+                          <SelectItem key={entry.name} value={entry.name}>
+                            {entry.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError errors={[editForm.formState.errors.name]} />
+              </Field>
+              <p className="text-xs text-muted-foreground">
+                Academic year can&apos;t be changed after creation.
+              </p>
+            </FieldGroup>
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="brand" disabled={updateClass.isPending}>
+                {updateClass.isPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
+                Save
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog A — Change Class Teacher */}
       <Dialog open={teacherOpen} onOpenChange={(open) => { if (!open) setTeacherOpen(false); }}>

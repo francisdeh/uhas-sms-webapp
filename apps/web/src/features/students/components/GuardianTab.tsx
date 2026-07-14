@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, Star, Users, KeyRound, Check, Briefcase } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Star, Users, KeyRound, Check, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,6 +23,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +40,7 @@ import {
   useStudentSiblings,
   useGuardianLinkMutations,
 } from "@/features/students/hooks/use-student-guardians";
-import { RELATION_TYPES, type RelationType } from "@/features/students/types";
+import { RELATION_TYPES, type RelationType, type GuardianLink } from "@/features/students/types";
 import {
   GuardianField,
   emptyGuardianDraft,
@@ -43,6 +48,23 @@ import {
 } from "./GuardianField";
 
 const MAX_GUARDIANS = 2;
+
+const editContactSchema = z.object({
+  firstName: z.string().min(1, { message: "First name is required" }),
+  lastName: z.string().min(1, { message: "Last name is required" }),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+});
+
+type EditContactFormValues = z.infer<typeof editContactSchema>;
+
+/** `GuardianLink.name` is a single combined string (the list endpoint
+ *  doesn't expose first/last separately) — split on the first space so
+ *  the edit form can still offer independent fields. */
+function splitName(name: string): { firstName: string; lastName: string } {
+  const [firstName, ...rest] = name.trim().split(/\s+/);
+  return { firstName: firstName ?? "", lastName: rest.join(" ") };
+}
 
 interface GuardianTabProps {
   studentId: string;
@@ -58,14 +80,42 @@ interface GuardianTabProps {
 export function GuardianTab({ studentId, basePath, canEdit = true }: GuardianTabProps) {
   const guardians = useStudentGuardians(studentId);
   const siblings = useStudentSiblings(studentId);
-  const { add, update, remove, createLogin } = useGuardianLinkMutations(studentId);
+  const { add, update, remove, createLogin, editContact } = useGuardianLinkMutations(studentId);
 
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState(() => emptyGuardianDraft(false));
   const [unlinkId, setUnlinkId] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<GuardianLink | null>(null);
+
+  const editForm = useForm<EditContactFormValues>({
+    resolver: zodResolver(editContactSchema),
+  });
 
   const list = guardians.data ?? [];
   const atMax = list.length >= MAX_GUARDIANS;
+
+  function openEditDialog(g: GuardianLink) {
+    editForm.reset({ ...splitName(g.name), phone: g.phone ?? "", email: g.email ?? "" });
+    setEditTarget(g);
+  }
+
+  async function onEditContact(data: EditContactFormValues) {
+    if (!editTarget) return;
+    try {
+      await editContact.mutateAsync({
+        guardianId: editTarget.id,
+        payload: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone || null,
+          email: data.email || null,
+        },
+      });
+      setEditTarget(null);
+    } catch {
+      /* toast fired in the hook */
+    }
+  }
 
   async function onAdd() {
     const payload = draftToPayload(draft);
@@ -135,14 +185,25 @@ export function GuardianTab({ studentId, basePath, canEdit = true }: GuardianTab
                   </p>
                 </div>
                 {canEdit && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => setUnlinkId(g.id)}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      title="Edit contact info"
+                      onClick={() => openEditDialog(g)}
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => setUnlinkId(g.id)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
                 )}
               </div>
               {canEdit ? (
@@ -254,6 +315,48 @@ export function GuardianTab({ studentId, basePath, canEdit = true }: GuardianTab
               Add
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit contact info */}
+      <Dialog open={editTarget !== null} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit contact info</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={editForm.handleSubmit(onEditContact)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="edit-guardian-first-name">First name</FieldLabel>
+                <Input id="edit-guardian-first-name" {...editForm.register("firstName")} />
+                <FieldError errors={[editForm.formState.errors.firstName]} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="edit-guardian-last-name">Last name</FieldLabel>
+                <Input id="edit-guardian-last-name" {...editForm.register("lastName")} />
+                <FieldError errors={[editForm.formState.errors.lastName]} />
+              </Field>
+            </div>
+
+            <Field>
+              <FieldLabel htmlFor="edit-guardian-phone">Phone</FieldLabel>
+              <Input id="edit-guardian-phone" {...editForm.register("phone")} />
+              <FieldError errors={[editForm.formState.errors.phone]} />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="edit-guardian-email">Email</FieldLabel>
+              <Input id="edit-guardian-email" type="email" {...editForm.register("email")} />
+              <FieldError errors={[editForm.formState.errors.email]} />
+            </Field>
+
+            <DialogFooter>
+              <Button type="submit" variant="brand" disabled={editContact.isPending}>
+                {editContact.isPending && <Loader2 size={14} className="mr-1.5 animate-spin" />}
+                Save changes
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

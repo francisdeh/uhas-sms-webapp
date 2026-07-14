@@ -464,30 +464,11 @@ export interface paths {
         /** List Guardians */
         get: operations["list_guardians_guardians_get"];
         put?: never;
-        /** Create Guardian */
-        post: operations["create_guardian_guardians_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/guardians/{guardian_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Guardian */
-        get: operations["get_guardian_guardians__guardian_id__get"];
-        put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Update Guardian */
-        patch: operations["update_guardian_guardians__guardian_id__patch"];
+        patch?: never;
         trace?: never;
     };
     "/guardians/{guardian_id}/children": {
@@ -500,7 +481,7 @@ export interface paths {
         /**
          * List the students linked to a guardian
          * @description A Parent may only look up their own linked guardian row — every
-         *     other role can look up any guardian, matching `/guardians/{id}`.
+         *     other role can look up any guardian, matching `/guardians/{id}/login`.
          */
         get: operations["list_guardian_children_guardians__guardian_id__children_get"];
         put?: never;
@@ -526,6 +507,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/guardians/{guardian_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Guardian */
+        patch: operations["update_guardian_guardians__guardian_id__patch"];
         trace?: never;
     };
     "/students": {
@@ -562,23 +560,6 @@ export interface paths {
         head?: never;
         /** Update Student */
         patch: operations["update_student_students__student_id__patch"];
-        trace?: never;
-    };
-    "/students/{student_id}/guardian": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** First linked guardian for a student, or null */
-        get: operations["get_student_guardian_students__student_id__guardian_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/students/{student_id}/guardians": {
@@ -905,8 +886,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Enrollment */
-        get: operations["get_enrollment_enrollments__enrollment_id__get"];
+        get?: never;
         put?: never;
         post?: never;
         delete?: never;
@@ -2666,8 +2646,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Learner Fee */
-        get: operations["get_learner_fee_fees_learner_fees__learner_fee_id__get"];
+        get?: never;
         put?: never;
         post?: never;
         /** Exclude Learner Fee */
@@ -8589,111 +8568,6 @@ export interface operations {
             };
         };
     };
-    create_guardian_guardians_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GuardianCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GuardianRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_guardian_guardians__guardian_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                guardian_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GuardianRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_guardian_guardians__guardian_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                guardian_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GuardianUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GuardianRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_guardian_children_guardians__guardian_id__children_get: {
         parameters: {
             query?: never;
@@ -8747,6 +8621,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_guardian_guardians__guardian_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                guardian_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuardianUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardianRead"];
                 };
             };
             /** @description Validation Error */
@@ -8890,39 +8801,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_student_guardian_students__student_id__guardian_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                student_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudentGuardianRead"] | null;
                 };
             };
             /** @description Validation Error */
@@ -9928,39 +9806,6 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnrollmentRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_enrollment_enrollments__enrollment_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                enrollment_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14094,39 +13939,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LearnerFeesListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_learner_fee_fees_learner_fees__learner_fee_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                learner_fee_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LearnerFeeRead"];
                 };
             };
             /** @description Validation Error */
