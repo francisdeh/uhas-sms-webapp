@@ -2,6 +2,12 @@
 
 Full development history for the UHAS SMS project, newest first. `README.md`'s Development Phases table is a slim index into this file — this is the canonical place for detailed "what shipped and why" narrative.
 
+## Teacher classes page N+1 fix — ✅ Done
+
+Fast follow-up to the dashboard-enrichment PR's `classTeacherId` filter on `GET /classes`, which fixed the Teacher dashboard's N+1 class lookup but deliberately left `/teacher/classes`'s identical pattern untouched as a scoped-out follow-up. Repointed it now: `teacher/classes/page.tsx` used to call `api.classes.teachers.list(c.id)` once per class in the *entire school* just to detect which ones this teacher class-teaches. Replaced with a single `api.classes.list({ classTeacherId })` call (same filter, no new backend work), unioned with the existing subject-teacher class IDs from `classSubjects.listByTeacher`. `SchoolClass.classTeachers` is set to `[]` for these entries since `TeacherClassesView` never actually renders that field — it only reads `isClassTeacher`, `subjectsTaught`, and `studentCount`, all already available without a teacher-name lookup.
+
+`tsc`/lint/Vitest/build all clean (no backend changes, so no new pytest run needed — the filter itself was already tested when it shipped). Manually verified in-browser: the same teacher account shows identical Class-Teacher/Subject-Teacher classification on `/teacher/classes` as it does on the dashboard Overview.
+
 ## Dashboard data enrichment/validation — ✅ Done
 
 Closed a Phase 6 backlog item the user flagged directly, with no further detail beyond the name. A full audit of all four role dashboards (Admin, DeputyHead, Teacher, Parent) surfaced one real, currently-shipping bug plus a consistent pattern across every dashboard: the backend already computes richer data than the Overview pages ever display.

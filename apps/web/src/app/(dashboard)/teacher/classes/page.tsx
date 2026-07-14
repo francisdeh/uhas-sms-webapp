@@ -11,9 +11,10 @@ export default async function TeacherClassesPage() {
   const teacherId = user.linkedId;
 
   const api = await getApi();
-  const [subjectRowsResp, allClassesPage] = await Promise.all([
+  const [subjectRowsResp, allClassesPage, classTeacherClassesPage] = await Promise.all([
     api.classSubjects.listByTeacher(teacherId),
     api.classes.list({ size: 500 }),
+    api.classes.list({ classTeacherId: teacherId, size: 500 }),
   ]);
 
   // Group subject-assignments by classId.
@@ -31,44 +32,22 @@ export default async function TeacherClassesPage() {
   }
 
   const subjectClassIds = new Set(subjectsByClass.keys());
+  const classTeacherClassIds = new Set(classTeacherClassesPage.items.map((c) => c.id));
+  const candidateIds = new Set<string>([...subjectClassIds, ...classTeacherClassIds]);
+  const involvedClasses = allClassesPage.items.filter((c) => candidateIds.has(c.id));
 
-  // Determine which of those (plus any class-teacher-only assignments) belong.
-  // Fetch teacher lists for each candidate class to derive class-teacher-ship
-  // and any additional classes where user is only a class teacher.
-  const candidateIds = new Set<string>(subjectClassIds);
-  // Also probe every class — teacher may class-teach a class without teaching
-  // any subject in it. Kept parallel for latency.
-  const teacherLookups = await Promise.all(
-    allClassesPage.items.map(async (c) => ({
-      class: c,
-      teachers: (await api.classes.teachers.list(c.id)).items,
-    })),
-  );
-
-  for (const entry of teacherLookups) {
-    if (entry.teachers.some((t) => t.staffId === teacherId)) {
-      candidateIds.add(entry.class.id);
-    }
-  }
-
-  const involvedClasses = teacherLookups.filter((e) => candidateIds.has(e.class.id));
-
-  const entries = involvedClasses.map(({ class: c, teachers }) => {
+  const entries = involvedClasses.map((c) => {
     const schoolClass: SchoolClass = {
       id: c.id,
       schoolId: c.schoolId,
       name: c.name,
       division: c.division,
       academicYear: c.academicYear,
-      classTeachers: teachers.map((t) => ({
-        staffId: t.staffId,
-        staffName: `${t.staffFirstName} ${t.staffLastName}`.trim(),
-        isPrimary: t.isPrimary,
-      })),
+      classTeachers: [],
     };
     return {
       schoolClass,
-      isClassTeacher: teachers.some((t) => t.staffId === teacherId),
+      isClassTeacher: classTeacherClassIds.has(c.id),
       subjectsTaught: subjectsByClass.get(c.id) ?? [],
       studentCount: c.studentCount ?? 0,
     };
