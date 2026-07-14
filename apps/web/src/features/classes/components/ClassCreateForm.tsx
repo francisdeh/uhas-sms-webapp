@@ -20,7 +20,7 @@ import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field
 import { useCreateClass } from "@/features/classes/hooks/use-classes";
 import { ApiError } from "@/lib/api/browser";
 import type { Division } from "@/features/classes/types";
-import { ACADEMIC_YEARS, type AcademicYear } from "@/lib/academic-year";
+import type { AcademicYear } from "@/lib/academic-year";
 
 const CLASS_NAMES: Array<{ name: string; division: Division; slug: string }> = [
   { name: "KG 1", division: "KG", slug: "class-kg1" },
@@ -38,7 +38,7 @@ const CLASS_NAMES: Array<{ name: string; division: Division; slug: string }> = [
 
 const schema = z.object({
   name: z.string().min(1, { message: "Select a class" }),
-  academicYear: z.enum(ACADEMIC_YEARS, { message: "Select an academic year" }),
+  academicYear: z.string().min(1, { message: "Select an academic year" }),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -47,6 +47,9 @@ interface ClassCreateFormProps {
   listHref: string;
   /** Current-year default for the form; comes from the school config. */
   currentYear: AcademicYear;
+  /** Selectable years — every year with school_terms data, plus the
+   *  school's real current + next year (see getAcademicYearOptions). */
+  yearOptions: AcademicYear[];
 }
 
 /**
@@ -65,6 +68,7 @@ function computeSlug(baseSlug: string, academicYear: string, defaultYear: string
 export default function ClassCreateForm({
   listHref,
   currentYear,
+  yearOptions,
 }: ClassCreateFormProps) {
   const router = useRouter();
   const createClass = useCreateClass();
@@ -167,7 +171,7 @@ export default function ClassCreateForm({
                         <SelectValue placeholder="Select an academic year" />
                       </SelectTrigger>
                       <SelectContent>
-                        {ACADEMIC_YEARS.map((year) => (
+                        {yearOptions.map((year) => (
                           <SelectItem key={year} value={year}>
                             {year}
                           </SelectItem>

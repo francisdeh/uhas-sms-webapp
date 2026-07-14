@@ -229,7 +229,9 @@ export default function StudentRegistrationForm({
                       }}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a class" />
+                        <SelectValue placeholder="Select a class">
+                          {(value: string) => availableClasses.find((c) => c.id === value)?.name ?? ""}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {availableClasses.map((c) => (

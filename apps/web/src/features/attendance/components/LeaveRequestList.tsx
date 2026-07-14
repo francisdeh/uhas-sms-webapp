@@ -98,7 +98,13 @@ function SubstitutePicker({ request }: { request: LeaveRequest }) {
       disabled={updateSubstitute.isPending}
     >
       <SelectTrigger className="h-7 text-xs w-[160px]">
-        <SelectValue placeholder="Assign cover" />
+        <SelectValue placeholder="Assign cover">
+          {(value: string) => {
+            if (value === "none") return "No substitute";
+            const s = options.find((o) => o.id === value);
+            return s ? `${s.firstName} ${s.lastName}` : "";
+          }}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="none">No substitute</SelectItem>

@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/select";
 import { useCreateFeeItem } from "@/features/fees/hooks/use-fees";
 import { CLASS_SCOPE, DIVISION_SCOPE, SCHOOL_SCOPE } from "@/features/fees/types";
-import { ACADEMIC_YEARS, DEFAULT_ACADEMIC_YEAR } from "@/lib/academic-year";
 import { DIVISIONS } from "@/features/auth/types";
 import { useClasses } from "@/features/classes/hooks/use-classes";
 
@@ -53,7 +52,12 @@ const formSchema = z
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function FeeItemForm() {
+interface FeeItemFormProps {
+  currentYear: string;
+  yearOptions: string[];
+}
+
+export function FeeItemForm({ currentYear, yearOptions }: FeeItemFormProps) {
   const [open, setOpen] = useState(false);
   const create = useCreateFeeItem();
   const { data: classesResp } = useClasses({ size: 200 });
@@ -70,7 +74,7 @@ export function FeeItemForm() {
       name: "",
       scope: SCHOOL_SCOPE,
       scopeRef: "",
-      academicYear: DEFAULT_ACADEMIC_YEAR,
+      academicYear: currentYear,
       term: "annual",
       amount: "",
     },
@@ -181,7 +185,11 @@ export function FeeItemForm() {
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a class" />
+                      <SelectValue placeholder="Select a class">
+                        {(value: string) =>
+                          (classesResp?.items ?? []).find((c) => c.id === value)?.name ?? ""
+                        }
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {(classesResp?.items ?? []).map((c) => (
@@ -211,7 +219,7 @@ export function FeeItemForm() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {ACADEMIC_YEARS.map((y) => (
+                      {yearOptions.map((y) => (
                         <SelectItem key={y} value={y}>
                           {y}
                         </SelectItem>

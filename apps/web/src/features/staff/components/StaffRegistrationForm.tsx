@@ -36,7 +36,7 @@ import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { api, ApiError } from "@/lib/api/browser";
 import { useStaffMutations } from "@/features/staff/hooks/use-staff";
-import { STAFF_SYSTEM_ROLES, DEPUTY_HEAD, TEACHER } from "@/features/auth/types";
+import { STAFF_SYSTEM_ROLES, DEPUTY_HEAD, TEACHER, ROLE_LABELS } from "@/features/auth/types";
 import { TEACHER_RANKS } from "@/features/staff/types";
 
 const schema = z
@@ -255,7 +255,9 @@ export default function StaffRegistrationForm({
                         }}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a role" />
+                          <SelectValue placeholder="Select a role">
+                            {(value: string) => ROLE_LABELS[value as keyof typeof ROLE_LABELS] ?? ""}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Admin">Admin</SelectItem>

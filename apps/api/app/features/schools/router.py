@@ -28,6 +28,7 @@ from app.core.db import get_session
 from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
 from app.features.schools.schema import (
     GradingDefaultsRead,
+    PrepareNextYearRead,
     SchoolPublicRead,
     SchoolRead,
     SchoolUpdate,
@@ -124,5 +125,41 @@ async def patch_school(
     """
     # `user.user_id` is the Supabase Auth UUID (from `sub`) — that's what
     # we record in the audit row.
-    updated = await SchoolsService.patch(session, school_id, payload, actor_user_id=user.user_id)
-    return SchoolRead.model_validate(updated)
+    await SchoolsService.patch(session, school_id, payload, actor_user_id=user.user_id)
+    # Re-resolve rather than `SchoolRead.model_validate(updated)` — the
+    # raw row's `current_term` column is the resolver's fallback value,
+    # not the effective one (see SchoolBase docstring).
+    return await SchoolsService.get_resolved(session, school_id)
+
+
+@router.post(
+    "/prepare-next-year",
+    response_model=PrepareNextYearRead,
+    response_model_by_alias=True,
+    summary="Scaffold next year's classes + term dates ahead of Promotions (Admin only)",
+)
+async def prepare_next_year(
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> PrepareNextYearRead:
+    """Copy this year's classes forward and pre-fill next year's term
+    dates. Idempotent — safe to call more than once."""
+    return await SchoolsService.prepare_next_year(session, school_id)
+
+
+@router.post(
+    "/activate-next-year",
+    response_model=SchoolRead,
+    response_model_by_alias=True,
+    summary="Roll the school over to its next academic year (Admin only)",
+)
+async def activate_next_year(
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> SchoolRead:
+    """Flip `schools.academic_year` forward. Refuses while a promotion
+    season is still open for the current year."""
+    await SchoolsService.activate_next_year(session, school_id, actor_user_id=user.user_id)
+    return await SchoolsService.get_resolved(session, school_id)

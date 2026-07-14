@@ -269,7 +269,12 @@ export function ParentAppointmentsView({
                               ? "No teachers found for this child"
                               : "Select a teacher"
                           }
-                        />
+                        >
+                          {(value: string) => {
+                            const t = teachersForChild.find((t) => t.id === value);
+                            return t ? `${t.name} (${t.subjects.join(", ")})` : "";
+                          }}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {teachersForChild.map((t) => (

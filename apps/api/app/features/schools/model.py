@@ -35,7 +35,13 @@ class School(Base):
     slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     academic_year: Mapped[str] = mapped_column(String(9), nullable=False)
+    # Fallback only — the resolved "current term" everyone reads comes from
+    # `term_resolver.resolve_current_term` (school_terms dates, or
+    # `current_term_override` if an Admin pinned one). This column is the
+    # last-resort value when neither source can answer, and what
+    # `activate_next_year` resets to `1` on rollover.
     current_term: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    current_term_override: Mapped[int | None] = mapped_column(Integer, nullable=True)
     grading_scale: Mapped[str | None] = mapped_column(
         String(50), nullable=True, default="GES_STANDARD"
     )

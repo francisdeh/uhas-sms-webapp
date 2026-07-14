@@ -15,6 +15,7 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
   user: SessionUser;
   currentYear: string;
+  yearOptions: string[];
   navBadges: Record<string, number>;
   schoolName?: string;
   schoolLogoUrl?: string | null;
@@ -24,6 +25,7 @@ export function DashboardLayout({
   children,
   user,
   currentYear,
+  yearOptions,
   navBadges,
   schoolName = "UHAS Basic School",
   schoolLogoUrl = null,
@@ -53,6 +55,7 @@ export function DashboardLayout({
           <Header
             user={user}
             currentYear={currentYear}
+            yearOptions={yearOptions}
             onMobileMenuOpen={() => setMobileOpen(true)}
           />
           <AnimatePresence mode="wait">

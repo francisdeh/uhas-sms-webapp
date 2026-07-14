@@ -125,10 +125,13 @@ class SchoolBase(BaseModel):
     principal_name: Annotated[str | None, Field(default=None, max_length=255)]
     logo_url: Annotated[str | None, Field(default=None, max_length=500)]
 
-    # Calendar (the per-term date ranges live in school_terms; this is just
-    # the "what term are we in right now" pointer)
+    # Calendar (the per-term date ranges live in school_terms). `current_term`
+    # is the *resolved* value (see `term_resolver.resolve_current_term`) —
+    # auto-picked from school_terms dates unless `current_term_override`
+    # pins one. Never write `current_term` directly; see SchoolUpdate.
     academic_year: Annotated[str, Field(pattern=r"^\d{4}/\d{4}$")]
     current_term: Annotated[int, Field(ge=1, le=3)]
+    current_term_override: Annotated[int | None, Field(default=None, ge=1, le=3)] = None
 
     # Grading
     grading_scale: GradingScale = "GES_STANDARD"
@@ -184,9 +187,13 @@ class SchoolUpdate(BaseModel):
     principal_name: Annotated[str | None, Field(default=None, max_length=255)] = None
     logo_url: Annotated[str | None, Field(default=None, max_length=500)] = None
 
-    # Calendar
+    # Calendar. `current_term` is deliberately absent here — it's a
+    # resolved, read-only value (see SchoolBase docstring); Admin pins a
+    # term via `current_term_override` instead. Sending an explicit
+    # `null` clears the pin and returns to date-based auto-pick; omitting
+    # the field leaves whatever override (if any) is already set.
     academic_year: Annotated[str | None, Field(default=None, pattern=r"^\d{4}/\d{4}$")] = None
-    current_term: Annotated[int | None, Field(default=None, ge=1, le=3)] = None
+    current_term_override: Annotated[int | None, Field(default=None, ge=1, le=3)] = None
 
     # Grading
     grading_scale: GradingScale | None = None
@@ -264,6 +271,18 @@ class SchoolPublicRead(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
+
+
+class PrepareNextYearRead(BaseModel):
+    """Response for `POST /school/prepare-next-year` — a summary of what
+    was scaffolded, not the created rows themselves (the Calendar tab
+    already re-fetches classes/terms after the call)."""
+
+    model_config = _CAMEL_CONFIG
+
+    next_academic_year: Annotated[str, Field(pattern=r"^\d{4}/\d{4}$")]
+    classes_created: int
+    terms_created: int
 
 
 class GradingDefaultsRead(BaseModel):

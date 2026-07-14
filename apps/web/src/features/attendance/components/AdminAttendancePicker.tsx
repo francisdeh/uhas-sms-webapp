@@ -48,7 +48,9 @@ export function AdminAttendancePicker({ classes }: AdminAttendancePickerProps) {
               }}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a class" />
+                <SelectValue placeholder="Select a class">
+                  {(value: string) => classes.find((c) => c.id === value)?.name ?? ""}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {kgClasses.length > 0 && (

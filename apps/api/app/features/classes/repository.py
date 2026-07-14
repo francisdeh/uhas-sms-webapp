@@ -135,6 +135,20 @@ class ClassesRepository:
         stmt = select(Class).where(and_(Class.school_id == school_id, Class.slug == slug))
         return (await session.execute(stmt)).scalar_one_or_none()
 
+    @staticmethod
+    async def list_plain_for_year(
+        session: AsyncSession, school_id: UUID | str, academic_year: str
+    ) -> list[Class]:
+        """Bare class rows for one year, no enrichment/pagination — for
+        internal cross-domain use (e.g. copying a year's classes forward)
+        rather than the paginated, enriched `list_for_school`."""
+        stmt = (
+            select(Class)
+            .where(and_(Class.school_id == school_id, Class.academic_year == academic_year))
+            .order_by(asc(Class.name))
+        )
+        return list((await session.execute(stmt)).scalars())
+
 
 class ClassSubjectsRepository:
     @staticmethod

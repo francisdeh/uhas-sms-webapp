@@ -59,6 +59,7 @@ export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {
     logoUrl: school.logoUrl ?? null,
     academicYear: school.academicYear,
     currentTerm: school.currentTerm,
+    currentTermOverride: school.currentTermOverride ?? null,
     terms: termsResponse.items.map((t) => ({
       id: t.id,
       academicYear: t.academicYear,

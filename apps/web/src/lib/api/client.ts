@@ -128,6 +128,21 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           "/school/grading-defaults",
         ),
+      /** Copy this year's classes + term dates forward one year. Admin only, idempotent. */
+      prepareNextYear: () =>
+        apiFetch<components["schemas"]["PrepareNextYearRead"]>(
+          getAuthToken,
+          "/school/prepare-next-year",
+          { method: "POST" },
+        ),
+      /** Roll the school over to its next academic year. Admin only — 400 if the
+       *  current year's promotion season is still open. */
+      activateNextYear: () =>
+        apiFetch<components["schemas"]["SchoolRead"]>(
+          getAuthToken,
+          "/school/activate-next-year",
+          { method: "POST" },
+        ),
     },
     schoolTerms: {
       /** List every configured term row for the caller's school. Any role. */

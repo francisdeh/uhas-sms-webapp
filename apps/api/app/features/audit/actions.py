@@ -46,6 +46,10 @@ USER_CREATED: Final = "USER_CREATED"
 # A leave request was approved or rejected (not written for cancel —
 # that's self-service, not a decision).
 LEAVE_DECIDED: Final = "LEAVE_DECIDED"
+# Admin flipped the school's active academic year (the "activate next
+# year" rollover step) — distinct from SCHOOL_SETTINGS_UPDATE since this
+# is a guarded, one-way-in-practice transition, not an ordinary field edit.
+SCHOOL_YEAR_ACTIVATED: Final = "SCHOOL_YEAR_ACTIVATED"
 
 AuditAction = Literal[
     "EXAM_PUBLISH",
@@ -65,6 +69,7 @@ AuditAction = Literal[
     "GUARDIAN_UNLINKED",
     "USER_CREATED",
     "LEAVE_DECIDED",
+    "SCHOOL_YEAR_ACTIVATED",
 ]
 """All audit_log.action values the API writes. Add new actions here
 *and* on the TS side before introducing them."""

@@ -16,29 +16,40 @@ UPDATE. Saves DB writes when the settings page submits unchanged forms.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import NotFoundError
-from app.features.audit.actions import SCHOOL_SETTINGS_UPDATE
+from app.core.errors import NotFoundError, ValidationError
+from app.features.audit.actions import SCHOOL_SETTINGS_UPDATE, SCHOOL_YEAR_ACTIVATED
 from app.features.audit.service import write_audit_log
+from app.features.classes.model import Class
+from app.features.classes.repository import ClassesRepository
+from app.features.classes.service import ClassesService
 from app.features.exams.constants import (
     DEFAULT_GRADE_BANDS,
     DEFAULT_PASS_MARK,
     DEFAULT_SCORE_WEIGHTS,
 )
+from app.features.promotions.academic_year import next_academic_year
+from app.features.promotions.constants import SEASON_OPEN
+from app.features.promotions.repository import PromotionsRepository
+from app.features.school_terms.model import SchoolTerm
+from app.features.school_terms.repository import SchoolTermsRepository
 from app.features.schools.model import School
 from app.features.schools.repository import SchoolsRepository
 from app.features.schools.schema import (
     GradingBand,
     GradingDefaultsRead,
+    PrepareNextYearRead,
     SchoolRead,
     SchoolUpdate,
     ScoreWeights,
 )
+from app.features.schools.term_resolver import resolve_current_term
 
 
 def _dump(value: Any) -> Any:
@@ -103,12 +114,14 @@ class SchoolsService:
         was fixed to avoid (see `report_card_svc.py`).
         """
         row = await SchoolsService.get(session, school_id)
+        terms = await SchoolTermsRepository.list_for_school(session, school_id)
         read = SchoolRead.model_validate(row)
         return read.model_copy(
             update={
                 "grading_bands": read.grading_bands
                 or [GradingBand(**band) for band in DEFAULT_GRADE_BANDS],
                 "score_weights": read.score_weights or ScoreWeights(**DEFAULT_SCORE_WEIGHTS),
+                "current_term": resolve_current_term(row, terms, date.today()),
             }
         )
 
@@ -186,3 +199,112 @@ class SchoolsService:
         )
 
         return current
+
+    @staticmethod
+    async def prepare_next_year(
+        session: AsyncSession, school_id: UUID | str
+    ) -> PrepareNextYearRead:
+        """Scaffold the school's next academic year ahead of Promotions:
+        copy this year's classes forward, and pre-fill next year's
+        `school_terms` by shifting this year's dates forward one year.
+
+        Idempotent — skips any class/term that already exists for the
+        target year, so it's safe to run more than once (e.g. an Admin
+        re-runs it after manually adding an extra class).
+
+        Both steps are read-then-selectively-insert; there is nothing to
+        "undo" if run repeatedly, so no dedicated audit row — the created
+        classes/terms are ordinary rows, indistinguishable from ones an
+        Admin created by hand (which also aren't individually audited).
+        """
+        school = await SchoolsService.get(session, school_id)
+        target_year = next_academic_year(school.academic_year)
+
+        current_classes = await ClassesRepository.list_plain_for_year(
+            session, school_id, school.academic_year
+        )
+        classes_created = 0
+        for cls in current_classes:
+            next_slug = ClassesService.next_year_slug(cls.slug, school.academic_year, target_year)
+            if await ClassesRepository.find_by_slug(session, school_id, next_slug):
+                continue
+            session.add(
+                Class(
+                    slug=next_slug,
+                    school_id=school_id,
+                    name=cls.name,
+                    division=cls.division,
+                    academic_year=target_year,
+                )
+            )
+            classes_created += 1
+
+        current_terms = [
+            t
+            for t in await SchoolTermsRepository.list_for_school(session, school_id)
+            if t.academic_year == school.academic_year
+        ]
+        terms_created = 0
+        for term in current_terms:
+            if await SchoolTermsRepository.find_one(session, school_id, target_year, term.term):
+                continue
+            session.add(
+                SchoolTerm(
+                    school_id=school_id,
+                    academic_year=target_year,
+                    term=term.term,
+                    start_date=term.start_date.replace(year=term.start_date.year + 1),
+                    end_date=term.end_date.replace(year=term.end_date.year + 1),
+                )
+            )
+            terms_created += 1
+
+        await session.flush()
+        return PrepareNextYearRead(
+            next_academic_year=target_year,
+            classes_created=classes_created,
+            terms_created=terms_created,
+        )
+
+    @staticmethod
+    async def activate_next_year(
+        session: AsyncSession, school_id: UUID | str, *, actor_user_id: UUID | str
+    ) -> School:
+        """Flip the school over to its next academic year — the missing
+        counterpart to Promotions' `approve()`, which creates next-year
+        enrolments but never touches `schools.academic_year`.
+
+        Guarded: refuses while a promotion season is still open for the
+        current year, so a school can't roll over with students not yet
+        promoted. Resets `current_term`/`current_term_override` so the
+        date-based auto-pick starts fresh for the new year.
+        """
+        school = await SchoolsService.get(session, school_id)
+        current_year = school.academic_year
+        target_year = next_academic_year(current_year)
+
+        season = await PromotionsRepository.find_season(session, school_id, current_year)
+        if season and season.status == SEASON_OPEN:
+            raise ValidationError(
+                f"Promotion season for {current_year} is still open — "
+                f"close it before activating {target_year}."
+            )
+
+        before = {"academic_year": current_year, "current_term": school.current_term}
+        school.academic_year = target_year
+        school.current_term = 1
+        school.current_term_override = None
+        after = {"academic_year": target_year, "current_term": 1}
+        await session.flush()
+
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=SCHOOL_YEAR_ACTIVATED,
+            target_table="schools",
+            target_id=school_id,
+            before=before,
+            after=after,
+        )
+        return school
