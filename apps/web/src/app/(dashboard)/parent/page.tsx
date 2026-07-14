@@ -25,6 +25,7 @@ export default async function ParentPage() {
 
   const linkedChildren = childRows.map((s) => ({
     id: s.id,
+    slug: s.slug,
     name: `${s.firstName} ${s.lastName}`,
     classId: s.classId ?? "",
     className: s.className ?? "",

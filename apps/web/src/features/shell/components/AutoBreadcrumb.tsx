@@ -11,6 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { useBreadcrumbLabels } from "@/features/shell/breadcrumb-context";
 
 const SEGMENT_LABELS: Record<string, string> = {
   students: "Students",
@@ -37,13 +38,14 @@ const NEW_LABELS: Record<string, string> = {
   classes: "New Class",
 };
 
-function segmentLabel(segment: string, parent?: string): string {
+function segmentLabel(segment: string, resolvedLabels: Record<string, string>, parent?: string): string {
   if (segment === "new") return (parent && NEW_LABELS[parent]) ?? "New";
-  return SEGMENT_LABELS[segment] ?? segment;
+  return SEGMENT_LABELS[segment] ?? resolvedLabels[segment] ?? segment;
 }
 
 export function AutoBreadcrumb() {
   const pathname = usePathname();
+  const resolvedLabels = useBreadcrumbLabels();
   const parts = pathname.split("/").filter(Boolean);
 
   if (parts.length === 0) return null;
@@ -59,7 +61,7 @@ export function AutoBreadcrumb() {
     const isLast = i === parts.length - 1;
     const href = "/" + parts.slice(0, i + 1).join("/");
     items.push({
-      label: segmentLabel(parts[i], parts[i - 1]),
+      label: segmentLabel(parts[i], resolvedLabels, parts[i - 1]),
       href: isLast ? undefined : href,
     });
   }

@@ -44,6 +44,7 @@ import {
 } from "@/features/exams/types";
 import { KG } from "@/features/auth/types";
 import type { Division } from "@/features/auth/types";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 
 interface ClassReportRow {
   studentId: string;
@@ -73,6 +74,9 @@ export function ClassReportSubmitForm({
   submission,
   initialRows,
 }: ClassReportSubmitFormProps) {
+  useBreadcrumbLabel(exam.id, exam.name);
+  useBreadcrumbLabel(classId, className);
+
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   const [confirmOpen, setConfirmOpen] = useState(false);

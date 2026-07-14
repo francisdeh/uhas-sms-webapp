@@ -18,8 +18,8 @@ export type ShellConfig = {
 };
 
 export type GlobalSearchResults = {
-  students: { id: string; name: string }[];
-  staff: { id: string; name: string; email: string }[];
+  students: { id: string; slug: string; name: string }[];
+  staff: { id: string; slug: string; name: string }[];
   classes: { id: string; name: string }[];
   announcements: { id: string; title: string }[];
 };

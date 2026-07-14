@@ -39,6 +39,7 @@ import {
   useDeleteAssignment,
 } from "@/features/assignments/hooks/use-assignments";
 import { ASSIGNMENT_STATUS, type Assignment } from "@/features/assignments/types";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 
 const schema = z.object({
   classId: z.string().min(1, { message: "Select a class" }),
@@ -59,6 +60,8 @@ interface AssignmentFormProps {
 }
 
 export function AssignmentForm({ teacherId, existing, assignments, backHref }: AssignmentFormProps) {
+  useBreadcrumbLabel(existing?.id, existing?.title);
+
   const router = useRouter();
   const createMut = useCreateAssignment();
   const updateMut = useUpdateAssignment();

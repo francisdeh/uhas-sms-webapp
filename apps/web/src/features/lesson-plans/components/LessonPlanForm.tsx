@@ -38,6 +38,7 @@ import {
   useUpdateLessonPlan,
 } from "@/features/lesson-plans/hooks/use-lesson-plans";
 import { LESSON_PLAN_STATUS, type LessonPlan } from "@/features/lesson-plans/types";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { StatusPill } from "./StatusPill";
 
 const schema = z.object({
@@ -63,6 +64,8 @@ interface LessonPlanFormProps {
 }
 
 export function LessonPlanForm({ teacherId, existing, assignments, backHref }: LessonPlanFormProps) {
+  useBreadcrumbLabel(existing?.id, existing?.topic ?? undefined);
+
   const router = useRouter();
   const createPlan = useCreateLessonPlan();
   const updatePlan = useUpdateLessonPlan();

@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { ReportCard } from "./ReportCard";
 import type { ReportCardData, ReportCardVariant } from "@/features/exams/types";
 import { api, ApiError } from "@/lib/api/browser";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 
 interface ReportCardPageProps {
   data: ReportCardData;
@@ -30,6 +31,9 @@ export function ReportCardPage({
   const [downloading, setDownloading] = useState(false);
   const [variant, setVariant] = useState<ReportCardVariant>("summary");
   const full = variant === "full";
+
+  useBreadcrumbLabel(studentId, `${data.student.firstName} ${data.student.lastName}`);
+  useBreadcrumbLabel(examId, data.exam.name);
 
   useEffect(() => {
     document.body.classList.add("print-mode-report-card");

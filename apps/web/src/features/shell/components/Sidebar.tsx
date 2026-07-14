@@ -23,7 +23,6 @@ interface SidebarProps {
   navBadges?: Record<string, number>;
   mobileOpen: boolean;
   onMobileClose: () => void;
-  userPhotoUrl?: string | null;
   schoolName?: string;
   schoolLogoUrl?: string | null;
 }
@@ -33,7 +32,6 @@ export function Sidebar({
   navBadges,
   mobileOpen,
   onMobileClose,
-  userPhotoUrl = null,
   schoolName = "UHAS Basic School",
   schoolLogoUrl = null,
 }: SidebarProps) {
@@ -83,7 +81,6 @@ export function Sidebar({
           config={config}
           collapsed={collapsed}
           onToggle={toggleCollapsed}
-          userPhotoUrl={userPhotoUrl}
           schoolName={schoolName}
           schoolLogoUrl={schoolLogoUrl}
         />
@@ -98,7 +95,6 @@ export function Sidebar({
             collapsed={false}
             onToggle={onMobileClose}
             onNavClick={onMobileClose}
-            userPhotoUrl={userPhotoUrl}
             schoolName={schoolName}
             schoolLogoUrl={schoolLogoUrl}
           />
@@ -114,7 +110,6 @@ function SidebarContent({
   collapsed,
   onToggle,
   onNavClick,
-  userPhotoUrl = null,
   schoolName,
   schoolLogoUrl,
 }: {
@@ -123,7 +118,6 @@ function SidebarContent({
   collapsed: boolean;
   onToggle: () => void;
   onNavClick?: () => void;
-  userPhotoUrl?: string | null;
   schoolName: string;
   schoolLogoUrl: string | null;
 }) {
@@ -198,7 +192,7 @@ function SidebarContent({
           className="flex items-center gap-2.5 rounded-lg p-2 hover:bg-muted/60 transition-colors group"
         >
           <UserAvatar
-            photoUrl={userPhotoUrl}
+            photoUrl={null}
             firstName={user.displayName?.split(" ")[0] ?? "?"}
             lastName={user.displayName?.split(" ").slice(1).join(" ") ?? ""}
             size="sm"

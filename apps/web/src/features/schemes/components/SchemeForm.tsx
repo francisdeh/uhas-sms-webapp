@@ -39,6 +39,7 @@ import {
   useUpdateScheme,
 } from "@/features/schemes/hooks/use-schemes";
 import { LEARNING, SCHEME_TYPE_LABELS, type Scheme } from "@/features/schemes/types";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { SchemeStatusPill } from "./SchemeStatusPill";
 import { SchemeCommentThread } from "./SchemeCommentThread";
 import { SchemeWeeklyEntries } from "./SchemeWeeklyEntries";
@@ -86,6 +87,8 @@ export function SchemeForm({
   backHref,
   currentAcademicYear,
 }: SchemeFormProps) {
+  useBreadcrumbLabel(existing?.id, existing?.title);
+
   const router = useRouter();
   const createScheme = useCreateScheme();
   const updateScheme = useUpdateScheme();

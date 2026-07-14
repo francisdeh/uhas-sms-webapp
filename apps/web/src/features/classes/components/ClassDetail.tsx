@@ -41,6 +41,7 @@ import {
 import { useSubjects } from "@/features/subjects/hooks/use-subjects";
 import { useStaffList } from "@/features/staff/hooks/use-staff";
 import { useClassRoster } from "@/features/classes/hooks/use-class-roster";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { ApiError } from "@/lib/api/browser";
 import type { components } from "@/types/api";
 import type { Division } from "@/features/classes/types";
@@ -87,6 +88,7 @@ interface ClassDetailProps {
 export default function ClassDetail({ classId, readonly = false }: ClassDetailProps) {
   // Detail — populates the header + drives the primary teacher assign dialog default.
   const { data: schoolClass, isLoading: classLoading, error: classError } = useClass(classId);
+  useBreadcrumbLabel(classId, schoolClass?.name);
 
   // Junctions + roster (all keyed under the class).
   const { data: subjectsData } = useClassSubjects(classId);

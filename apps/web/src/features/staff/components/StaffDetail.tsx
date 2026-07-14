@@ -58,6 +58,7 @@ import { formatStudentDate } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
 import { STAFF_SYSTEM_ROLES, ROLE_LABELS, ADMIN, DEPUTY_HEAD, TEACHER } from "@/features/auth/types";
 import { STAFF_ROLE_AVATAR, STAFF_ROLE_PILL } from "@/features/staff/role-styles";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { SubjectExpertiseCard } from "@/features/staff/components/SubjectExpertiseCard";
 import { QualificationsCard } from "@/features/staff/components/QualificationsCard";
 import { StaffDocumentsCard } from "@/features/staff/components/StaffDocumentsCard";
@@ -117,6 +118,8 @@ interface StaffDetailProps {
 }
 
 export default function StaffDetail({ staff }: StaffDetailProps) {
+  useBreadcrumbLabel(staff.id, `${staff.firstName} ${staff.lastName}`);
+
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);

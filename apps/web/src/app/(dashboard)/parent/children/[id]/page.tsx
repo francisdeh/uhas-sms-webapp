@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { MedicalInfoCard } from "@/features/students/components/MedicalInfoCard";
 import { StudentDocumentsCard } from "@/features/students/components/StudentDocumentsCard";
+import { BreadcrumbLabel } from "@/features/shell/components/BreadcrumbLabel";
 
 const DIVISION_PILL: Record<string, string> = {
   KG: "bg-purple-100 text-purple-700",
@@ -45,6 +46,7 @@ export default async function ParentChildDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-5">
+      <BreadcrumbLabel segment={id} label={`${student.firstName} ${student.lastName}`} />
       <Link
         href="/parent/children"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"

@@ -37,10 +37,9 @@ interface HeaderProps {
   user: SessionUser;
   currentYear: string;
   onMobileMenuOpen: () => void;
-  userPhotoUrl?: string | null;
 }
 
-export function Header({ user, currentYear, onMobileMenuOpen, userPhotoUrl = null }: HeaderProps) {
+export function Header({ user, currentYear, onMobileMenuOpen }: HeaderProps) {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -209,7 +208,7 @@ export function Header({ user, currentYear, onMobileMenuOpen, userPhotoUrl = nul
           <DropdownMenu>
             <DropdownMenuTrigger className="cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ml-0.5">
                 <UserAvatar
-                  photoUrl={userPhotoUrl}
+                  photoUrl={null}
                   firstName={user.displayName?.split(" ")[0] ?? "?"}
                   lastName={user.displayName?.split(" ").slice(1).join(" ") ?? ""}
                   size="xs"

@@ -297,6 +297,7 @@ class ReportsService:
                     staff=[
                         PscStaffEntry(
                             id=s.id,
+                            slug=s.slug,
                             name=f"{s.first_name} {s.last_name}",
                             rank=s.rank or "",
                             is_unit_head=bool(s.is_unit_head),
@@ -312,6 +313,7 @@ class ReportsService:
                 staff=[
                     PscStaffEntry(
                         id=s.id,
+                        slug=s.slug,
                         name=f"{s.first_name} {s.last_name}",
                         rank=s.rank or "",
                         is_unit_head=bool(s.is_unit_head),

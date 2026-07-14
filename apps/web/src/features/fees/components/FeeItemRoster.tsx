@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCedis } from "@/lib/currency";
 import { useAssignFeeItem, useFeeItemRoster } from "@/features/fees/hooks/use-fees";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import type { FeeItem, LearnerFee } from "@/features/fees/types";
 import { LearnerFeesTable } from "./LearnerFeesTable";
 
@@ -17,6 +18,8 @@ interface FeeItemRosterProps {
 }
 
 export function FeeItemRoster({ feeItem, initialRoster, backHref }: FeeItemRosterProps) {
+  useBreadcrumbLabel(feeItem.id, feeItem.name);
+
   const { data: roster, isLoading } = useFeeItemRoster(feeItem.id, {
     initialData: initialRoster,
   });

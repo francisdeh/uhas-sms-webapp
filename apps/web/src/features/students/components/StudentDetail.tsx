@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { api, ApiError } from "@/lib/api/browser";
+import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import type { Student, ClassRecord } from "@/features/students/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { StudentIdCard } from "./StudentIdCard";
@@ -132,6 +133,8 @@ function InfoRow({ label, value, mono }: { label: string; value?: string | null;
 }
 
 export default function StudentDetail({ student, classes, basePath, exams = [] }: Props) {
+  useBreadcrumbLabel(student.id, `${student.firstName} ${student.lastName}`);
+
   const router = useRouter();
   const isAdmin = basePath === "/admin/students";
   const [editOpen, setEditOpen] = useState(false);

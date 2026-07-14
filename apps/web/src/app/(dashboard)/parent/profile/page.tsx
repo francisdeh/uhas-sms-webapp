@@ -5,6 +5,5 @@ import { ProfilePage } from "@/features/profile/components/ProfilePage";
 export default async function ProfilePageRoute() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  // Parents don't have photos in the current data model (only Staff do).
-  return <ProfilePage user={user} currentPhotoUrl={null} />;
+  return <ProfilePage user={user} />;
 }

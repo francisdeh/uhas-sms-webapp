@@ -29,7 +29,7 @@ uhas-sms/
 
 ## Current State
 
-See `README.md`'s Development Phases table for feature history and `docs/implementation-spec.md` for the full feature plan.
+`README.md`'s Development Phases table is a slim, one-line-per-row index of what's shipped; `docs/CHANGELOG.md` has the full "what/why/how" narrative behind each row, newest first. `docs/implementation-spec.md` has the full feature plan.
 
 There is no mock-data mode anymore — `USE_MOCK_DATA` and `apps/web/src/lib/mock/` were removed when the app was cut over to a real database (pre-Strategy-A). Every read and mutation goes through the FastAPI backend today. Local demo data comes from two independent seed scripts — `pnpm seed:supabase` (Supabase Auth accounts) and `cd apps/api && uv run python -m app.scripts.seed` (business data: school, staff, students, classes, everything else) — see the root README's Getting Started.
 
@@ -186,6 +186,7 @@ Used for score calculation in `features/exams/`. Bands and interpretations come 
 | `apps/web/src/features/auth/queries/get-session-user.ts` | Resolves the current `SessionUser` via one call to FastAPI's `/me` |
 | `apps/web/src/components/ui/` | shadcn UI primitives |
 | `docs/implementation-spec.md` | Full feature spec and phase plan |
+| `docs/CHANGELOG.md` | Full "what shipped and why" narrative behind every row in README's Development Phases table, newest first |
 | `apps/web/scripts/seed-supabase-users.ts` | Seeds Supabase Auth with the 9 role-anchored test accounts — **auth only**; pair with `apps/api/app/scripts/seed/` for the `staff`/`schools`/`students` rows they're linked to |
 | `apps/api/app/scripts/seed/` | Business-data seed script (reset-only) — one school, staff, students, classes, and every other domain's demo data |
 | `supabase/config.toml` | Local Supabase CLI config (Auth providers, storage buckets, test_otp) |
