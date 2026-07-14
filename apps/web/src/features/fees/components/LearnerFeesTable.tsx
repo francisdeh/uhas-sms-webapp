@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import {
   DropdownMenu,
@@ -46,12 +46,16 @@ interface LearnerFeesTableProps {
   data: LearnerFee[];
   isLoading?: boolean;
   showFeeItemColumn?: boolean;
+  /** Skip the built-in card wrapper — for callers (e.g. `FeeItemRoster`)
+   *  that already render their own `Card`/`CardContent` around this table. */
+  bare?: boolean;
 }
 
 export function LearnerFeesTable({
   data,
   isLoading,
   showFeeItemColumn = false,
+  bare = false,
 }: LearnerFeesTableProps) {
   const [action, setAction] = useState<ActiveAction>(null);
   const waive = useWaiveLearnerFee();
@@ -142,9 +146,13 @@ export function LearnerFeesTable({
     },
   ];
 
+  const table = <DataTable columns={columns} data={data} isLoading={isLoading} searchKey="student" />;
+
   return (
     <>
-      <DataTable columns={columns} data={data} isLoading={isLoading} searchKey="student" />
+      {bare ? table : (
+        <div className="bg-card border border-border/60 rounded-xl p-4">{table}</div>
+      )}
 
       <RecordPaymentDialog
         learnerFee={action?.type === "payment" ? action.row : null}

@@ -24,10 +24,6 @@ export default async function AccountantFeeItemDetailPage({ params }: PageProps)
   const roster = await api.fees.listLearnerFeesForItem(id);
 
   return (
-    <FeeItemRoster
-      feeItem={toFeeItem(feeItemRead)}
-      initialRoster={roster.map(toLearnerFee)}
-      backHref="/accountant/fee-items"
-    />
+    <FeeItemRoster feeItem={toFeeItem(feeItemRead)} initialRoster={roster.map(toLearnerFee)} />
   );
 }

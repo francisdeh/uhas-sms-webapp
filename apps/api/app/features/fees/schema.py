@@ -148,10 +148,10 @@ class FeesSummary(BaseModel):
 
 
 class ParentFeePaymentRead(BaseModel):
-    """A payment as a parent sees it — deliberately narrower than
-    `FeePaymentRead`: no `recordedBy*` (Accountant-internal) and no
-    `receiptFileUrls` (the Accountant's proof-of-payment, not the
-    parent's document)."""
+    """A payment as a parent sees it — narrower than `FeePaymentRead`:
+    no `recordedBy*` (Accountant-internal). `receiptFileUrls` IS
+    included — whatever proof-of-payment the Accountant uploaded is
+    also the parent's own receipt."""
 
     model_config = _CAMEL_CONFIG
 
@@ -159,6 +159,7 @@ class ParentFeePaymentRead(BaseModel):
     amount_minor: int
     method: PaymentMethod
     paid_at: datetime
+    receipt_file_urls: list[str] = Field(default_factory=list)
 
 
 class ParentLearnerFeeRead(BaseModel):

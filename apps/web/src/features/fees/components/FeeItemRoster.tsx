@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, Users, Loader2 } from "lucide-react";
+import { Users, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCedis } from "@/lib/currency";
 import { useAssignFeeItem, useFeeItemRoster } from "@/features/fees/hooks/use-fees";
@@ -14,10 +14,9 @@ import { LearnerFeesTable } from "./LearnerFeesTable";
 interface FeeItemRosterProps {
   feeItem: FeeItem;
   initialRoster: LearnerFee[];
-  backHref: string;
 }
 
-export function FeeItemRoster({ feeItem, initialRoster, backHref }: FeeItemRosterProps) {
+export function FeeItemRoster({ feeItem, initialRoster }: FeeItemRosterProps) {
   useBreadcrumbLabel(feeItem.id, feeItem.name);
 
   const { data: roster, isLoading } = useFeeItemRoster(feeItem.id, {
@@ -27,13 +26,6 @@ export function FeeItemRoster({ feeItem, initialRoster, backHref }: FeeItemRoste
 
   return (
     <div className="space-y-5">
-      <Link
-        href={backHref}
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft size={14} className="mr-1" /> Back to fee items
-      </Link>
-
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -68,7 +60,17 @@ export function FeeItemRoster({ feeItem, initialRoster, backHref }: FeeItemRoste
           }
         />
       ) : (
-        <LearnerFeesTable data={roster ?? []} isLoading={isLoading} />
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 pb-3">
+            <CardTitle className="text-sm font-semibold">Assigned Roster</CardTitle>
+            <span className="text-xs rounded-full bg-muted px-2 py-0.5 font-medium">
+              {(roster ?? []).length}
+            </span>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <LearnerFeesTable data={roster ?? []} isLoading={isLoading} bare />
+          </CardContent>
+        </Card>
       )}
     </div>
   );

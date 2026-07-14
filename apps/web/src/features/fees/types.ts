@@ -116,14 +116,16 @@ export type RecordPaymentInput = {
   receiptFileUrls?: string[];
 };
 
-// Parent-facing shapes — deliberately narrower than FeePayment/LearnerFee:
-// no recordedBy*, no receiptFileUrls. Mirrors app/features/fees/schema.py's
-// Parent* read models.
+// Parent-facing shapes — narrower than FeePayment/LearnerFee: no
+// recordedBy*. receiptFileUrls IS included — the Accountant's uploaded
+// proof-of-payment is also the parent's own receipt. Mirrors
+// app/features/fees/schema.py's Parent* read models.
 export type ParentFeePayment = {
   id: string;
   amountMinor: number;
   method: PaymentMethod;
   paidAt: string;
+  receiptFileUrls: string[];
 };
 
 export type ParentLearnerFee = {
