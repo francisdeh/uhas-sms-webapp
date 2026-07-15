@@ -129,15 +129,21 @@ class Settings(BaseSettings):
     )
 
     # ── Outbound email ────────────────────────────────────────────────────
-    # Provider-agnostic — `get_email_provider()` prefers Resend (real
-    # production sends) when `resend_api_key` is set, else falls back to
+    # Provider-agnostic — `get_email_provider()` prefers Brevo (real
+    # production sends) when `brevo_api_key` is set, else falls back to
     # plain SMTP (local Mailpit in dev — no credentials needed — or a
     # real SMTP server if `smtp_user`/`smtp_password` are also set), else
     # the not-configured stub that logs + returns `skipped=True` so every
     # environment (dev, CI, tests) runs the same code path without
     # exploding. Same "missing config isn't an error" contract as SMS.
-    resend_api_key: str | None = Field(
+    brevo_api_key: str | None = Field(
         default=None, description="Production email provider — takes precedence over SMTP."
+    )
+    brevo_sender_email: str | None = Field(
+        default=None, description='e.g. "noreply@uhas.edu.gh" — Brevo requires a verified sender.'
+    )
+    brevo_sender_name: str | None = Field(
+        default="UHAS SMS", description="Display name for Brevo sends."
     )
     smtp_host: str | None = Field(
         default=None, description="e.g. localhost (Mailpit) or smtp.gmail.com"
@@ -158,12 +164,11 @@ class Settings(BaseSettings):
 
     # ── Outbound SMS ──────────────────────────────────────────────────────
     # Same "missing config isn't an error" contract as email above —
-    # `get_sms_provider()` falls back through Arkesel -> Hubtel -> the
+    # `get_sms_provider()` falls back through Hubtel -> Arkesel -> the
     # no-op `StubSmsProvider` depending on which of these are set, so
-    # every environment runs the same code path. Arkesel takes
-    # precedence when configured; Hubtel is kept as a fallback for any
-    # environment that already has it set up. Neither account has a
-    # live key registered yet; these stay unset until one is.
+    # every environment runs the same code path. Hubtel is the school's
+    # chosen provider and takes precedence when configured; Arkesel is
+    # kept as a fallback for any environment that already has it set up.
     arkesel_api_key: str | None = Field(default=None)
     arkesel_sender_id: str | None = Field(
         default=None, description='Approved Arkesel sender name, e.g. "UHAS".'

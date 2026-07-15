@@ -94,7 +94,7 @@ def test_factory_returns_arkesel_provider_when_configured(
     assert isinstance(get_sms_provider(), ArkeselSmsProvider)
 
 
-def test_factory_prefers_arkesel_over_hubtel_when_both_configured(
+def test_factory_prefers_hubtel_over_arkesel_when_both_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(settings, "arkesel_api_key", "key")
@@ -102,7 +102,7 @@ def test_factory_prefers_arkesel_over_hubtel_when_both_configured(
     monkeypatch.setattr(settings, "hubtel_client_id", "id")
     monkeypatch.setattr(settings, "hubtel_client_secret", "secret")
     monkeypatch.setattr(settings, "hubtel_sender_id", "UHAS")
-    assert isinstance(get_sms_provider(), ArkeselSmsProvider)
+    assert isinstance(get_sms_provider(), HubtelSmsProvider)
 
 
 @respx.mock

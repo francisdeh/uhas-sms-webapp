@@ -12,8 +12,8 @@ The Python side of the Strategy A architecture. Talks to Supabase Postgres via S
 - ✅ Supabase Auth JWT verification (`app/core/security.py`, `app/core/deps.py`) — every route is role/scope-gated
 - ✅ Inngest client + job runner (`app/core/inngest.py`) — jobs live in each feature's `jobs/` subfolder
 - ✅ Supabase Storage integration (`app/integrations/storage.py`) — public photos, signed document URLs
-- ✅ SMS domain — `SmsProvider` interface + `sms_log` table; stubbed pending Hubtel account/sender-ID registration
-- ✅ Outbound email (`app/integrations/email/`) — SMTP, provider-agnostic, logs instead of failing when unconfigured
+- ✅ SMS domain — `SmsProvider` interface + `sms_log` table; real `HubtelSmsProvider` (primary) + `ArkeselSmsProvider` (fallback), stub when neither is configured
+- ✅ Outbound email (`app/integrations/email/`) — real `BrevoEmailProvider` (primary) + SMTP/Mailpit fallback, provider-agnostic, logs instead of failing when unconfigured
 - ✅ Sentry (job + request error capture, PII-scrubbed) + Logfire — both no-op when credentials are unset
 - ✅ Tooling: `ruff` (lint + format), `mypy` (strict), `pytest` (+ asyncio, 510+ tests)
 - ✅ CI job runs lint + format-check + mypy + pytest + Alembic-upgrade-from-scratch + OpenAPI/TS drift check
@@ -21,7 +21,6 @@ The Python side of the Strategy A architecture. Talks to Supabase Postgres via S
 
 Not yet wired:
 
-- ❌ Real Hubtel SMS client — interface + stub exist; needs an account + sender-ID first
 - ❌ Real report-card PDF rendering — the Inngest jobs exist and write to Storage, but the body is a placeholder (nothing in the repo turns exam data into PDF bytes yet)
 - ❌ Pre-commit hooks (`ruff`, `mypy`) at repo root — still TODO (lefthook or husky-mono)
 - ❌ Rate limiting — no throttling middleware anywhere yet; needs an audit of auth-adjacent + SMS-triggering routes before real users hit them
@@ -104,7 +103,7 @@ apps/api/
 │   ├── integrations/         # Third-party service adapters — Protocol + real + stub
 │   │   ├── storage.py        # Supabase Storage (photos public, documents signed)
 │   │   ├── email/            # SMTP, provider-agnostic
-│   │   └── sms/              # SmsProvider interface + stub (Hubtel pending)
+│   │   └── sms/              # SmsProvider interface + real Hubtel/Arkesel providers + stub
 │   │
 │   └── features/             # 28 self-contained domains (per BA §4)
 │       └── <domain>/

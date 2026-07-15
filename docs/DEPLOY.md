@@ -65,24 +65,22 @@ Target stack: **Next.js + FastAPI on Railway** + **Supabase (Postgres, Auth, Sto
 
 ## 5. SMS (Hubtel)
 
-**Not yet live** — `SmsProvider` is currently the `StubSmsProvider` (see [apps/api/README.md](../apps/api/README.md#status)). Every SMS send gets logged to `sms_log` with a fake `stub-<id>` and never actually sends. This section is a placeholder for when a Hubtel account + sender-ID exist:
+`HubtelSmsProvider` is fully implemented and is the primary provider (`app/integrations/sms/provider.py`'s `get_sms_provider()` — Hubtel first, Arkesel fallback, `StubSmsProvider` if neither is configured). Every SMS send with no provider configured gets logged to `sms_log` with a fake `stub-<id>` and never actually sends — safe for dev/CI but **silently disables real SMS in prod if forgotten**.
 
 - [ ] Hubtel account + registered sender ID.
-- [ ] `app/integrations/sms/provider.py`'s `get_sms_provider()` swapped from the stub to a real `HubtelSmsProvider` (not yet implemented).
-- [ ] Hubtel API credentials as Railway env vars on `apps/api` (names TBD when this is built).
+- [ ] Hubtel API credentials as Railway env vars on `apps/api`: `HUBTEL_CLIENT_ID`, `HUBTEL_CLIENT_SECRET`, `HUBTEL_SENDER_ID`.
+- [ ] **Smoke test post-deploy**: trigger a fee reminder (or any SMS-sending flow) and confirm a real message arrives, not a `stub-` id in `sms_log`.
 
 ## 6. Outbound email
 
-Provider-agnostic (`apps/api/app/integrations/email/provider.py`) — SMTP today, swappable to a transactional provider (Resend, etc.) in one place later. Missing config isn't an error — emails are logged instead of sent, safe for dev/CI but **silently disables real email in prod if forgotten**.
+Provider-agnostic (`apps/api/app/integrations/email/provider.py`) — `BrevoEmailProvider` is the primary provider (`get_email_provider()` — Brevo first, SMTP/Mailpit fallback, not-configured stub last). Missing config isn't an error — emails are logged instead of sent, safe for dev/CI but **silently disables real email in prod if forgotten**.
 
-- [ ] **Enable 2FA** on the Gmail account that will send mail (Google Account → Security), or use a Workspace account with "Send mail as" + SPF/DKIM for `noreply@uhas.edu.gh`.
-- [ ] **Generate an App Password** (Google Account → Security → 2-Step Verification → App passwords).
+- [ ] Brevo account + a verified sender (Brevo dashboard → Senders, or full domain authentication via SPF/DKIM for `uhas.edu.gh`).
 - [ ] Railway env vars on `apps/api`:
-  - `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_USER=<address>`, `SMTP_PASSWORD=<16-char app password>` (not the account password)
-  - `EMAIL_FROM=UHAS SMS <noreply@uhas.edu.gh>`
+  - `BREVO_API_KEY=<from Brevo dashboard — Settings > SMTP & API > API Keys>`
+  - `BREVO_SENDER_EMAIL=<the verified sender>`, `BREVO_SENDER_NAME=UHAS SMS`
   - `APP_URL=https://<railway-or-custom-domain>` — links in emails land here
   - Do **not** set `EMAIL_DEV_REDIRECT` in production (it's a dev safety net)
-- [ ] **Gmail quota awareness**: ~500/day personal, ~2,000/day Workspace. Bulk sends (e.g. "results published" → every parent) will need a real transactional provider before that becomes routine.
 - [ ] **Smoke test post-deploy**: as a Unit Head, reject a submitted lesson plan with a comment. The teacher receives an email with the comment + a link to the plan.
 
 ## 7. Observability (optional but recommended)
@@ -141,8 +139,6 @@ If any step fails, **roll back** before investigating — don't leave a broken r
 
 ## Out of scope for now
 
-- **Real Hubtel SMS** — interface + stub exist; needs an account + sender-ID first (§5).
 - **Real report-card PDF rendering** — Inngest jobs write a placeholder to Storage today, not an actual PDF.
-- **Bulk/branded outbound email** (Resend, SendGrid, Postmark) — Gmail SMTP is fine at current volume; swap when bulk sends become routine.
 - **Multi-school tenancy** — the backend already resolves `school_id` per-JWT (not a hardcoded constant), but there's no onboarding flow to create a second school yet.
 - **Automating the `supabase db push` step in CI/CD** — currently manual by design, given how rarely Supabase-platform migrations change; revisit if that cadence increases.

@@ -2,6 +2,17 @@
 
 Full development history for the UHAS SMS project, newest first. `README.md`'s Development Phases table is a slim index into this file — this is the canonical place for detailed "what shipped and why" narrative.
 
+## Brevo email + Hubtel SMS provider wiring — ✅ Done
+
+First of two PRs kicking off an "email/SMS delivery gaps" initiative (Announcements/Assignments/Promotions/Schemes each still lack email or SMS — see the migration plan's item 8). This PR is the foundational piece: making the school's actually-chosen providers the real, primary ones, since every domain PR after this one will send through whichever provider is active.
+
+- **Brevo replaces Resend as the email provider.** `ResendEmailProvider` was never configured with real production credentials — the school has now set up a real Brevo account, so `ResendEmailProvider` and `resend_api_key` were removed entirely rather than kept as unused dead code, and a new `BrevoEmailProvider` (Brevo's transactional email API, `POST /v3/smtp/email`, `api-key` header auth) takes its place as the primary provider in `get_email_provider()`'s precedence, ahead of the existing SMTP/Mailpit fallback. New `brevo_api_key`/`brevo_sender_email`/`brevo_sender_name` settings, mirroring the existing Arkesel/Hubtel settings' shape (dedicated fields, not a reused "Name <email>" string).
+- **Hubtel becomes the primary SMS provider, Arkesel the fallback** — a one-line precedence swap in `get_sms_provider()`. `HubtelSmsProvider` was already fully implemented (built during an earlier Phase 5 fee-reminder PR) but sat behind Arkesel; the school has now settled on Hubtel as its chosen provider.
+- Both providers can be tested locally, not just in production — the existing provider-factory pattern (env var presence resolves which provider loads, in any environment) already supports this; setting real `BREVO_API_KEY`/`HUBTEL_*` values in a local `.env` sends through the real providers from a developer's own machine, same as production.
+- Fixed 3 places where documentation had gone stale on this exact subsystem: `docs/DEPLOY.md`'s SMS/email sections still described Hubtel as "not yet live" and email as "SMTP today, swappable to Resend/SendGrid/Postmark later" (both written before either provider existed in code); `apps/api/README.md`'s Phase 3 status table still listed Hubtel as "interface + stub exist, needs an account first."
+
+Backend: `ruff check`/`ruff format --check`/`mypy`/`pytest` all clean (892 passed). New `respx`-mocked tests cover `BrevoEmailProvider`'s request/response contract (success, HTTP error, exact request shape) — the original Resend tests only covered factory resolution, not the provider's actual send behavior, so this is stricter coverage than what it replaced. Provider-precedence tests updated for the new Hubtel-primary order.
+
 ## Promotions revisit — ✅ Done
 
 Closed the last of Phase 6's original two vague gap-audit items ("promotions revisit," previously undefined beyond its name — the other, "search navigation revisit," shipped earlier). Two fresh research passes — one auditing the feature for the same categories of issue found in past revisits (dead routes, dropped fields, navigation bugs, missing overviews), one comparing its depth against the more mature Lesson Plans/Schemes review flows — surfaced a genuinely large backlog for a feature that had never gotten a dedicated look:

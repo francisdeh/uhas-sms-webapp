@@ -4,11 +4,12 @@ contract: `get_email_provider()` never raises for missing config, it
 returns a provider that logs and reports `skipped=True` so every
 environment (dev, CI, tests) runs the same code path.
 
-`get_email_provider()` prefers Resend (real production sends) when
-configured, else falls back to plain SMTP — which in practice means
-local Mailpit in dev (no credentials) or a real SMTP server if one is
-configured — else the not-configured stub. Adding another provider is
-a new class + a one-line change here — no caller changes.
+`get_email_provider()` prefers Brevo (real production sends, the
+school's chosen provider) when configured, else falls back to plain
+SMTP — which in practice means local Mailpit in dev (no credentials)
+or a real SMTP server if one is configured — else the not-configured
+stub. Adding another provider is a new class + a one-line change here
+— no caller changes.
 """
 
 from __future__ import annotations
@@ -119,19 +120,21 @@ class SmtpEmailProvider:
             return EmailResult(success=False, error=str(exc))
 
 
-class ResendEmailProvider:
-    """Real production provider — Resend's HTTP API
-    (https://resend.com/docs/api-reference/emails/send-email).
+class BrevoEmailProvider:
+    """Real production provider — Brevo's transactional email API
+    (https://developers.brevo.com/reference/sendtransacemail).
 
-    `POST https://api.resend.com/emails`, Bearer-token auth, JSON body.
-    A successful response is `{"id": "..."}`; a non-2xx response or a
-    network error is `failed` — never raises."""
+    `POST https://api.brevo.com/v3/smtp/email`, authenticated with an
+    `api-key` header (not Bearer — Brevo's own convention), JSON body.
+    A successful response is `201` with `{"messageId": "..."}`; a
+    non-2xx response or a network error is `failed` — never raises."""
 
-    _SEND_URL = "https://api.resend.com/emails"
+    _SEND_URL = "https://api.brevo.com/v3/smtp/email"
 
-    def __init__(self, *, api_key: str, from_addr: str) -> None:
+    def __init__(self, *, api_key: str, sender_email: str, sender_name: str) -> None:
         self._api_key = api_key
-        self._from_addr = from_addr
+        self._sender_email = sender_email
+        self._sender_name = sender_name
 
     async def send(self, msg: EmailMessage) -> EmailResult:
         dev_redirect = settings.env != "production" and settings.email_dev_redirect
@@ -139,34 +142,39 @@ class ResendEmailProvider:
         subject = f"[dev → {msg.to}] {msg.subject}" if dev_redirect else msg.subject
 
         payload: dict[str, object] = {
-            "from": self._from_addr,
-            "to": [to],
+            "sender": {"name": self._sender_name, "email": self._sender_email},
+            "to": [{"email": to}],
             "subject": subject,
-            "text": msg.text,
+            "textContent": msg.text,
         }
         if msg.html:
-            payload["html"] = msg.html
+            payload["htmlContent"] = msg.html
 
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(
                     self._SEND_URL,
-                    headers={"Authorization": f"Bearer {self._api_key}"},
+                    headers={
+                        "api-key": self._api_key,
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                    },
                     json=payload,
                 )
             resp.raise_for_status()
         except httpx.HTTPError as exc:
-            logger.error("[email] Resend send to %s failed: %s", msg.to, exc)
+            logger.error("[email] Brevo send to %s failed: %s", msg.to, exc)
             return EmailResult(success=False, error=str(exc))
 
         return EmailResult(success=True)
 
 
 def get_email_provider() -> EmailProvider:
-    if settings.resend_api_key:
-        return ResendEmailProvider(
-            api_key=settings.resend_api_key,
-            from_addr=settings.email_from or "UHAS SMS <no-reply@uhas.edu.gh>",
+    if settings.brevo_api_key:
+        return BrevoEmailProvider(
+            api_key=settings.brevo_api_key,
+            sender_email=settings.brevo_sender_email or "no-reply@uhas.edu.gh",
+            sender_name=settings.brevo_sender_name or "UHAS SMS",
         )
     if settings.smtp_host:
         return SmtpEmailProvider(
