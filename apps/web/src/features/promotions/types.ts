@@ -38,6 +38,7 @@ export type PromotionSeason = {
   closedById: string | null;
   closedByName: string | null;
   closedAt: string | null;
+  hasPublishedTerm3EndOfTerm: boolean;
 };
 
 export type PromotionDecision = {
@@ -61,10 +62,17 @@ export type PromotionSubmission = {
   submittedById: string | null;
   submittedByName: string | null;
   submittedAt: string | null;
-  reviewerComment: string | null;
   reviewedById: string | null;
   reviewedByName: string | null;
   reviewedAt: string | null;
+};
+
+export type PromotionComment = {
+  id: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string | null;
 };
 
 export type DecisionRowView = {
@@ -81,6 +89,7 @@ export type PromotionSubmissionDetail = {
   nextYearClasses: { id: string; name: string }[];
   decisions: DecisionRowView[];
   classTeachers: { staffId: string; staffName: string; isPrimary: boolean }[];
+  comments: PromotionComment[];
 };
 
 export type ClassOverviewRow = {

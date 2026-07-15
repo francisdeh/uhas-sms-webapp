@@ -25,7 +25,8 @@ so historic queries still work.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import and_, literal, select, update
@@ -33,15 +34,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.core.roles import ADMIN, DEPUTY_HEAD, TEACHER
-from app.features.audit.actions import PROMOTION_APPROVED
+from app.features.audit.actions import PROMOTION_APPROVED as AUDIT_PROMOTION_APPROVED
 from app.features.audit.service import write_audit_log
 from app.features.classes.model import Class, ClassTeacher
 from app.features.enrollments.model import Enrollment
 from app.features.exams.constants import DEFAULT_PASS_MARK
-from app.features.notifications.audience import AllTeachersAudience
+from app.features.notifications.audience import (
+    AllAdminsAudience,
+    AllTeachersAudience,
+    StaffByDivisionAudience,
+    resolve_audience,
+)
 from app.features.notifications.constants import (
+    PROMOTION_APPROVED as NOTIF_PROMOTION_APPROVED,
+)
+from app.features.notifications.constants import (
+    PROMOTION_REMINDER,
     PROMOTION_SEASON_OPENED,
     PROMOTION_SENT_BACK,
+    PROMOTION_SUBMITTED,
 )
 from app.features.notifications.service import NotificationsService, NotifyPayload
 from app.features.promotions.academic_year import next_academic_year
@@ -82,6 +93,7 @@ from app.features.promotions.suggestion import (
 from app.features.schools.service import SchoolsService
 from app.features.staff.repository import StaffRepository
 from app.features.students.model import Student
+from app.features.users.model import User
 
 
 def _now() -> datetime:
@@ -258,7 +270,7 @@ class PromotionsService:
         if submission.status == SUB_APPROVED:
             raise ConflictError("Already approved; cannot edit.")
 
-        await _apply_decision_updates(session, submission.id, updates)
+        await _apply_decision_updates(session, school_id, submission, updates)
 
         if submission.status == SUB_SENT_BACK:
             submission.status = SUB_DRAFT
@@ -305,15 +317,23 @@ class PromotionsService:
                 f"No {next_year} classes exist for {cls.division}. Ask Admin to set them up first."
             )
 
-        await _apply_decision_updates(session, submission.id, updates)
+        await _apply_decision_updates(session, school_id, submission, updates)
 
         # Roster-completeness pre-flight: every decision must be
-        # actionable. Promote needs a target class; repeat/withdraw need
-        # a reason (graduate is terminal and doesn't need either).
+        # actionable. Promote needs a target class; repeat also needs
+        # one (auto-derived above, but a division with no matching
+        # next-year class leaves it unset — catch that here rather
+        # than at approve time); repeat/withdraw need a reason
+        # (graduate is terminal and doesn't need either).
         decisions = await PromotionsRepository.list_decisions_for_submission(session, submission.id)
         for d in decisions:
             if d.decision == DEC_PROMOTE and d.target_class_id is None:
                 raise ValidationError("Every promoted student needs a target class.")
+            if d.decision == DEC_REPEAT and d.target_class_id is None:
+                raise ValidationError(
+                    f"No {next_year} class exists for repeating this student's class. "
+                    "Ask Admin to set it up first."
+                )
             if d.decision in {DEC_REPEAT, DEC_WITHDRAW} and not (d.reason or "").strip():
                 raise ValidationError(f"Every {d.decision} decision needs a reason.")
 
@@ -323,6 +343,15 @@ class PromotionsService:
         submission.submitted_at = now
         submission.updated_at = now
         await session.flush()
+
+        await _notify_promotion_reviewers(
+            session,
+            school_id,
+            submission_id=submission.id,
+            division=cls.division,
+            class_name=cls.name,
+            academic_year=year,
+        )
         return submission
 
     @staticmethod
@@ -350,11 +379,17 @@ class PromotionsService:
 
         now = _now()
         submission.status = SUB_SENT_BACK
-        submission.reviewer_comment = comment.strip()
         submission.reviewed_by_id = _to_uuid(reviewer_staff_id)
         submission.reviewed_at = now
         submission.updated_at = now
         await session.flush()
+
+        await PromotionsRepository.insert_comment(
+            session,
+            submission_id=submission.id,
+            author_id=reviewer_staff_id,
+            body=comment.strip(),
+        )
 
         # Notify the teacher who submitted the list. Skip if there's no
         # `submitted_by_id` — shouldn't happen in practice (submit sets
@@ -468,7 +503,6 @@ class PromotionsService:
         submission.status = SUB_APPROVED
         submission.reviewed_by_id = _to_uuid(reviewer_staff_id)
         submission.reviewed_at = now
-        submission.reviewer_comment = None
         submission.updated_at = now
 
         # 5. Audit log — kind of hot-path but writes are cheap and this
@@ -484,17 +518,189 @@ class PromotionsService:
             session,
             school_id=school_id,
             user_id=actor_user_id,
-            action=PROMOTION_APPROVED,
+            action=AUDIT_PROMOTION_APPROVED,
             target_table="promotion_submissions",
             target_id=submission.id,
             after=counts,
         )
 
         await session.flush()
+
+        # Notify the teacher who submitted the list. Skip if there's no
+        # `submitted_by_id` — same defensive check as `send_back`.
+        if submission.submitted_by_id is not None:
+            teacher_user = await NotificationsService.find_user_for_linked(
+                session, school_id, submission.submitted_by_id
+            )
+            if teacher_user is not None:
+                await NotificationsService.notify_user(
+                    session,
+                    school_id,
+                    user_id=teacher_user.id,
+                    payload=NotifyPayload(
+                        kind=NOTIF_PROMOTION_APPROVED,
+                        title="Promotion list approved",
+                        body=f"{cls.name}'s promotion list was approved.",
+                        link=f"/teacher/promotions/{submission.class_id}",
+                    ),
+                )
         return submission
+
+    @staticmethod
+    async def bulk_approve(
+        session: AsyncSession,
+        school_id: UUID | str,
+        submission_ids: Sequence[UUID | str],
+        *,
+        reviewer_staff_id: UUID | str,
+        actor_user_id: UUID | str,
+        actor_role: str,
+    ) -> list[tuple[UUID, str, bool, str | None]]:
+        """Best-effort — each submission is attempted independently via a
+        SAVEPOINT, so one bad row (e.g. missing target class, wrong
+        division for this reviewer) rolls back only that submission's
+        changes, not the whole batch. Returns one
+        (submission_id, class_name, success, error) tuple per input id,
+        same order as given."""
+        results: list[tuple[UUID, str, bool, str | None]] = []
+        for submission_id in submission_ids:
+            sid = _to_uuid(submission_id)
+            cls_name = "Unknown class"
+            try:
+                async with session.begin_nested():
+                    submission = await _load_submission(session, school_id, sid)
+                    cls = await session.get(Class, submission.class_id)
+                    if cls:
+                        cls_name = cls.name
+                    await PromotionsService.approve(
+                        session,
+                        school_id,
+                        sid,
+                        reviewer_staff_id=reviewer_staff_id,
+                        actor_user_id=actor_user_id,
+                        actor_role=actor_role,
+                    )
+                results.append((sid, cls_name, True, None))
+            except (ConflictError, ValidationError, NotFoundError, ForbiddenError) as exc:
+                results.append((sid, cls_name, False, str(exc)))
+        return results
+
+    @staticmethod
+    async def send_unsubmitted_reminders(session: AsyncSession, school_id: UUID | str) -> int:
+        """Weekly job entry point. Reminds each class teacher whose
+        promotion list isn't yet submitted/approved while the season is
+        open — mirrors `FeesService.send_overdue_reminders`'s shape.
+        Returns the number of classes just reminded.
+
+        Classes with no submission row yet (the teacher never opened
+        the page) are created via `ensure_submission` first, so there's
+        always a row to stamp the cooldown on."""
+        school = await SchoolsService.get(session, school_id)
+        year = school.academic_year
+        open_season = await PromotionsRepository.find_open_season(session, school_id, year)
+        if not open_season:
+            return 0
+
+        now = _now()
+        candidates = await PromotionsRepository.classes_needing_reminder(
+            session, school_id, year, remind_again_after=now - _REMINDER_COOLDOWN
+        )
+        if not candidates:
+            return 0
+
+        reminded = 0
+        for cls, submission in candidates:
+            if submission is None:
+                submission = await PromotionsService.ensure_submission(
+                    session, school_id, class_id=cls.id
+                )
+
+            class_teachers = await PromotionsRepository.class_teachers_by_class(session, [cls.id])
+            for staff, _is_primary in class_teachers.get(str(cls.id), []):
+                teacher_user = await NotificationsService.find_user_for_linked(
+                    session, school_id, staff.id
+                )
+                if teacher_user is None:
+                    continue
+                await NotificationsService.notify_user(
+                    session,
+                    school_id,
+                    user_id=teacher_user.id,
+                    payload=NotifyPayload(
+                        kind=PROMOTION_REMINDER,
+                        title="Promotion list still pending",
+                        body=f"{cls.name}'s promotion list hasn't been submitted yet.",
+                        link=f"/teacher/promotions/{cls.id}",
+                    ),
+                )
+
+            submission.last_reminder_sent_at = now
+            reminded += 1
+
+        await session.flush()
+        return reminded
 
 
 # ─── Internal helpers ───────────────────────────────────────────────────────
+
+
+_REMINDER_COOLDOWN = timedelta(days=6)
+
+_PROMOTION_REVIEW_PATH: dict[str, str] = {
+    ADMIN: "/admin/promotions/{id}",
+    DEPUTY_HEAD: "/deputy-head/promotions/{id}",
+}
+
+
+async def _notify_promotion_reviewers(
+    session: AsyncSession,
+    school_id: UUID | str,
+    *,
+    submission_id: UUID | str,
+    division: str,
+    class_name: str,
+    academic_year: str,
+) -> None:
+    """Fans out `PROMOTION_SUBMITTED` to every eligible reviewer — every
+    Deputy Head of the class's division plus every Admin, both
+    simultaneously eligible to approve/send-back (mirrors
+    `LeaveRequestsService`'s dual-eligibility approver audience). In-app
+    only — promotions predates the email/SMS notification initiative,
+    so this matches the existing `PROMOTION_SEASON_OPENED`/
+    `PROMOTION_SENT_BACK` calls rather than introducing a new channel."""
+    approver_ids: set[UUID] = set(
+        await resolve_audience(
+            session,
+            school_id,
+            StaffByDivisionAudience(division=division, roles=[DEPUTY_HEAD]),
+            academic_year=academic_year,
+        )
+    )
+    approver_ids.update(
+        await resolve_audience(session, school_id, AllAdminsAudience(), academic_year=academic_year)
+    )
+    if not approver_ids:
+        return
+
+    approvers = (
+        (await session.execute(select(User).where(User.id.in_(approver_ids)))).scalars().all()
+    )
+    body = f"{class_name} submitted their promotion list for review."
+    for approver in approvers:
+        path_template = _PROMOTION_REVIEW_PATH.get(approver.role)
+        if not path_template:
+            continue
+        await NotificationsService.notify_user(
+            session,
+            school_id,
+            user_id=approver.id,
+            payload=NotifyPayload(
+                kind=PROMOTION_SUBMITTED,
+                title="Promotion list submitted",
+                body=body,
+                link=path_template.format(id=submission_id),
+            ),
+        )
 
 
 def _to_uuid(value: UUID | str) -> UUID:
@@ -573,25 +779,50 @@ async def _assert_reviewer_can_review(
 
 async def _apply_decision_updates(
     session: AsyncSession,
-    submission_id: UUID | str,
+    school_id: UUID | str,
+    submission: PromotionSubmission,
     updates: list[DecisionUpdate],
 ) -> None:
     """Per-row UPDATEs. One roundtrip per row is fine at class-size
     volumes (~30-50). Larger batches could switch to an INSERT ...
-    ON CONFLICT UPDATE, but that's over-engineering for now."""
+    ON CONFLICT UPDATE, but that's over-engineering for now.
+
+    A repeat decision's target class isn't a real choice — it's always
+    "the same class name, next year" — so unlike promote (which the UI
+    lets the teacher pick from a dropdown), the frontend never collects
+    one for repeat. Auto-derive it here the same way
+    `_ensure_decisions_for_roster` already does for the initial
+    algorithmic suggestion, so a teacher manually switching a decision
+    to Repeat doesn't submit successfully only to blow up at approve
+    time with "no target class"."""
+    cls = await session.get(Class, submission.class_id)
+    class_likes: list[ClassLike] = []
+    if cls is not None:
+        next_year_classes = await PromotionsRepository.next_year_classes_for_division(
+            session, school_id, next_academic_year(submission.academic_year), cls.division
+        )
+        class_likes = [
+            ClassLike(id=c.id, name=c.name, division=c.division) for c in next_year_classes
+        ]
+
     for u in updates:
         reason = (u.reason or "").strip() or None
+        target_class_id = u.target_class_id
+        if u.decision == DEC_REPEAT and target_class_id is None and cls is not None:
+            auto_id = auto_pick_target_class(cls.name, class_likes, DEC_REPEAT)
+            target_class_id = _to_uuid(auto_id) if auto_id else None
+
         await session.execute(
             update(PromotionDecision)
             .where(
                 and_(
-                    PromotionDecision.submission_id == submission_id,
+                    PromotionDecision.submission_id == submission.id,
                     PromotionDecision.student_id == u.student_id,
                 )
             )
             .values(
                 decision=u.decision,
-                target_class_id=u.target_class_id,
+                target_class_id=target_class_id,
                 reason=reason,
                 updated_at=_now(),
             )

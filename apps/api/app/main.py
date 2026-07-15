@@ -70,6 +70,7 @@ from app.features.lesson_plans.jobs import LESSON_PLANS_JOBS
 from app.features.lesson_plans.router import router as lesson_plans_router
 from app.features.me.router import router as me_router
 from app.features.notifications.router import router as notifications_router
+from app.features.promotions.jobs import PROMOTIONS_JOBS
 from app.features.promotions.router import router as promotions_router
 from app.features.reports.router import router as reports_router
 from app.features.schemes.router import router as schemes_router
@@ -208,6 +209,7 @@ def create_app() -> FastAPI:
             *LEAVE_REQUESTS_JOBS,
             *ATTENDANCE_JOBS,
             *USERS_JOBS,
+            *PROMOTIONS_JOBS,
         ],
     )
 

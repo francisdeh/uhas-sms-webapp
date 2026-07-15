@@ -192,3 +192,41 @@ export function useSendBackPromotionSubmission() {
     onError: (err) => toast.error(err.message),
   });
 }
+
+// Best-effort: the request itself always succeeds (200) even when some
+// submissions in the batch fail individually — inspect `results` for
+// the per-submission outcome rather than treating the whole call as a
+// single pass/fail.
+export function useBulkApprovePromotionSubmissions() {
+  const qc = useQueryClient();
+  return useMutation<
+    components["schemas"]["BulkApproveResponse"],
+    ApiError,
+    components["schemas"]["BulkApproveRequest"]
+  >({
+    mutationFn: (payload) => api.promotions.bulkApprove(payload),
+    onSuccess: (res) => {
+      const failed = res.results.filter((r) => !r.success);
+      const failureDetail = (r: (typeof failed)[number]) =>
+        `${r.className}${r.error ? ` (${r.error})` : ""}`;
+      if (failed.length === 0) {
+        toast.success(
+          res.results.length === 1
+            ? "Approved."
+            : `Approved all ${res.results.length} submissions.`,
+        );
+      } else if (failed.length === res.results.length) {
+        toast.error(
+          `None of the selected submissions could be approved — ${failed.map(failureDetail).join("; ")}`,
+        );
+      } else {
+        toast.error(
+          `Approved ${res.results.length - failed.length} of ${res.results.length} — ` +
+            `${failed.map(failureDetail).join("; ")} failed.`,
+        );
+      }
+      qc.invalidateQueries({ queryKey: KEYS.root });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}

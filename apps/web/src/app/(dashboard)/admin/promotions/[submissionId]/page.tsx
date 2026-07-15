@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi, ApiError } from "@/lib/api/server";
 import { PromotionDecisionTable } from "@/features/promotions/components/PromotionDecisionTable";
+import { PromotionCommentThread } from "@/features/promotions/components/PromotionCommentThread";
 import { Badge } from "@/components/ui/badge";
 import type {
   DecisionRowView,
@@ -38,7 +39,6 @@ export default async function AdminPromotionDetailPage({
     submittedById: raw.submission.submittedById ?? null,
     submittedByName: raw.submission.submittedByName ?? null,
     submittedAt: raw.submission.submittedAt ?? null,
-    reviewerComment: raw.submission.reviewerComment ?? null,
     reviewedById: raw.submission.reviewedById ?? null,
     reviewedByName: raw.submission.reviewedByName ?? null,
     reviewedAt: raw.submission.reviewedAt ?? null,
@@ -72,6 +72,13 @@ export default async function AdminPromotionDetailPage({
       staffName: t.staffName,
       isPrimary: t.isPrimary,
     })),
+    comments: raw.comments.map((c) => ({
+      id: c.id,
+      authorId: c.authorId,
+      authorName: c.authorName,
+      body: c.body,
+      createdAt: c.createdAt ?? null,
+    })),
   };
 
   return (
@@ -102,6 +109,8 @@ export default async function AdminPromotionDetailPage({
             : "No class teacher assigned"}
         </p>
       </div>
+
+      <PromotionCommentThread comments={detail.comments} />
 
       <PromotionDecisionTable
         mode="readonly"

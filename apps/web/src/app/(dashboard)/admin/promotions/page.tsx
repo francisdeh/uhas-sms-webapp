@@ -51,10 +51,11 @@ export default async function AdminPromotionsPage() {
   if (!user || user.role !== ADMIN) redirect("/login");
 
   const api = await getApi();
-  const [seasonRow, overviewResp, academicYear] = await Promise.all([
+  const [seasonRow, overviewResp, academicYear, term3ExamStatus] = await Promise.all([
     api.promotions.getSeason(),
     api.promotions.getOverview(),
     getCurrentAcademicYear(),
+    api.promotions.getTerm3ExamStatus(),
   ]);
 
   const season: PromotionSeason | null = seasonRow
@@ -70,6 +71,7 @@ export default async function AdminPromotionsPage() {
         closedById: seasonRow.closedById ?? null,
         closedByName: seasonRow.closedByName ?? null,
         closedAt: seasonRow.closedAt ?? null,
+        hasPublishedTerm3EndOfTerm: seasonRow.hasPublishedTerm3EndOfTerm,
       }
     : null;
 
@@ -84,7 +86,6 @@ export default async function AdminPromotionsPage() {
     submittedById: s.submittedById ?? null,
     submittedByName: s.submittedByName ?? null,
     submittedAt: s.submittedAt ?? null,
-    reviewerComment: s.reviewerComment ?? null,
     reviewedById: s.reviewedById ?? null,
     reviewedByName: s.reviewedByName ?? null,
     reviewedAt: s.reviewedAt ?? null,
@@ -100,11 +101,7 @@ export default async function AdminPromotionsPage() {
     submission: r.submission ? toSubmission(r.submission) : null,
   }));
 
-  // GAP: `hasPublishedTerm3EndOfTerm` is a server-side derivation that
-  // used to gate the "Override" affordance. No API surface exposes it
-  // yet — passing false here means the affordance always shows the
-  // override warning. Track and wire once endpoint lands.
-  const term3EndOfTermPublished = false;
+  const term3EndOfTermPublished = term3ExamStatus.hasPublishedTerm3EndOfTerm;
 
   const byDivision = DIVISION_ORDER.map((division) => ({
     division,
@@ -170,7 +167,11 @@ export default async function AdminPromotionsPage() {
                             · {row.decidedCount}/{row.totalStudents} decided
                           </span>
                         )}
-                        {!primary && (
+                        {primary ? (
+                          <span className="text-xs text-muted-foreground">
+                            · {primary.staffName}
+                          </span>
+                        ) : (
                           <Badge variant="outline" className="text-[10px]">
                             <Lock size={10} className="mr-1" /> No class teacher
                           </Badge>

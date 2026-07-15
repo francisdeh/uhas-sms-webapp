@@ -11,8 +11,10 @@ running, matching the SDK's own test suite convention.
 from __future__ import annotations
 
 import inngest
+import pytest
 from inngest.experimental import mocked
 
+from app.core.config import settings
 from app.features.lesson_plans.jobs import LESSON_PLANS_JOBS
 from app.features.lesson_plans.jobs.rejection_email import rejection_email_job
 
@@ -24,9 +26,16 @@ def test_job_is_registered() -> None:
     assert rejection_email_job.id == "uhas-sms-api-lesson-plan-rejection-email"
 
 
-def test_job_completes_and_reports_skipped_without_smtp_config() -> None:
-    """No SMTP env vars in the test process — proves the job doesn't
-    crash when the not-configured email provider is in play."""
+def test_job_completes_and_reports_skipped_without_smtp_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Not-configured email provider — proves the job doesn't crash.
+    Explicitly clears `smtp_host` rather than relying on it being unset
+    in the ambient environment: a developer's local `.env` (e.g. a
+    Mailpit `SMTP_HOST=localhost` for manual testing) would otherwise
+    make this "unconfigured" case untestable, same fix already applied
+    in `integrations/email/tests/test_provider.py`."""
+    monkeypatch.setattr(settings, "smtp_host", None)
     event = inngest.Event(
         name="email/lesson-plan-rejected.requested",
         data={
@@ -46,7 +55,8 @@ def test_job_completes_and_reports_skipped_without_smtp_config() -> None:
     assert res.output == {"success": True, "skipped": True, "error": None}
 
 
-def test_job_handles_missing_comment() -> None:
+def test_job_handles_missing_comment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "smtp_host", None)
     event = inngest.Event(
         name="email/lesson-plan-rejected.requested",
         data={

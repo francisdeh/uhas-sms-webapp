@@ -22,9 +22,10 @@ the service because it mutates cross-domain tables (`enrollments`,
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, asc, func, select
+from sqlalchemy import and_, asc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.classes.model import Class, ClassTeacher
@@ -40,6 +41,7 @@ from app.features.promotions.constants import (
     SUB_SUBMITTED,
 )
 from app.features.promotions.model import (
+    PromotionComment,
     PromotionDecision,
     PromotionSeason,
     PromotionSubmission,
@@ -392,3 +394,72 @@ class PromotionsRepository:
             rows,
             key=lambda r: (order.get(r[0].status, 99), r[1].name),
         )
+
+    # ─── Comment thread ─────────────────────────────────────────────────
+
+    @staticmethod
+    async def insert_comment(
+        session: AsyncSession,
+        *,
+        submission_id: UUID | str,
+        author_id: UUID | str,
+        body: str,
+    ) -> PromotionComment:
+        comment = PromotionComment(submission_id=submission_id, author_id=author_id, body=body)
+        session.add(comment)
+        await session.flush()
+        return comment
+
+    @staticmethod
+    async def list_comments_for_submission(
+        session: AsyncSession, submission_id: UUID | str
+    ) -> list[tuple[PromotionComment, Staff]]:
+        stmt = (
+            select(PromotionComment, Staff)
+            .join(Staff, Staff.id == PromotionComment.author_id)
+            .where(PromotionComment.submission_id == submission_id)
+            .order_by(PromotionComment.created_at.asc())
+        )
+        return [(c, s) for c, s in (await session.execute(stmt)).all()]
+
+    # ─── Weekly reminder job ────────────────────────────────────────────
+
+    @staticmethod
+    async def classes_needing_reminder(
+        session: AsyncSession,
+        school_id: UUID | str,
+        academic_year: str,
+        *,
+        remind_again_after: datetime,
+    ) -> list[tuple[Class, PromotionSubmission | None]]:
+        """Every current-year class whose promotion list isn't yet
+        submitted/approved, and hasn't been reminded within the cooldown
+        window. LEFT JOIN so classes with no submission row at all (the
+        teacher never opened the page) are included too."""
+        stmt = (
+            select(Class, PromotionSubmission)
+            .outerjoin(
+                PromotionSubmission,
+                and_(
+                    PromotionSubmission.class_id == Class.id,
+                    PromotionSubmission.academic_year == academic_year,
+                ),
+            )
+            .where(
+                and_(
+                    Class.school_id == school_id,
+                    Class.academic_year == academic_year,
+                    or_(
+                        PromotionSubmission.id.is_(None),
+                        and_(
+                            PromotionSubmission.status.notin_([SUB_SUBMITTED, SUB_APPROVED]),
+                            or_(
+                                PromotionSubmission.last_reminder_sent_at.is_(None),
+                                PromotionSubmission.last_reminder_sent_at < remind_again_after,
+                            ),
+                        ),
+                    ),
+                )
+            )
+        )
+        return [(cls, sub) for cls, sub in (await session.execute(stmt)).all()]
