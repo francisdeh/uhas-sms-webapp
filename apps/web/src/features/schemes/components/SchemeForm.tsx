@@ -451,7 +451,7 @@ export function SchemeForm({
                 )}
                 {existing && existing.status === SCHEME_STATUS.DRAFT && (
                   <Button type="button" variant="brand" onClick={onSubmitForReview} disabled={isPending}>
-                    <Send size={14} className="mr-1.5" /> Submit to Head of School
+                    <Send size={14} className="mr-1.5" /> Submit for review
                   </Button>
                 )}
               </div>

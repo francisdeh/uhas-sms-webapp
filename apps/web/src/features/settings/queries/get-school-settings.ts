@@ -40,6 +40,8 @@ const DEFAULT_NOTIFICATIONS: ApiNotificationDefaults = {
   // schema (apps/api/app/features/schools/schema.py).
   onAttendanceAbsent: false,
   onAssignmentCreated: true,
+  onSchemeActivity: true,
+  onSchemeDecided: true,
 };
 
 export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {

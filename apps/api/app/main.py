@@ -74,6 +74,7 @@ from app.features.notifications.router import router as notifications_router
 from app.features.promotions.jobs import PROMOTIONS_JOBS
 from app.features.promotions.router import router as promotions_router
 from app.features.reports.router import router as reports_router
+from app.features.schemes.jobs import SCHEMES_JOBS
 from app.features.schemes.router import router as schemes_router
 from app.features.school_terms.router import router as school_terms_router
 from app.features.schools.router import router as schools_router
@@ -212,6 +213,7 @@ def create_app() -> FastAPI:
             *USERS_JOBS,
             *PROMOTIONS_JOBS,
             *ASSIGNMENTS_JOBS,
+            *SCHEMES_JOBS,
         ],
     )
 

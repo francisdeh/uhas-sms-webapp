@@ -98,6 +98,8 @@ class NotificationDefaults(BaseModel):
     # above. A school opts in explicitly rather than starting on.
     on_attendance_absent: bool = False
     on_assignment_created: bool = True
+    on_scheme_activity: bool = True
+    on_scheme_decided: bool = True
 
 
 # ─── School-level schemas ────────────────────────────────────────────────────

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}New comment on {{ scheme_title }}{% endblock %}
+{% block content %}
+<p style="margin:0 0 16px;color:#111827;font-size:15px;">Hi,</p>
+<p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.5;">
+  {{ commenter_name }} commented on <strong>{{ scheme_title }}</strong> for <strong>{{ class_name }}</strong>.
+</p>
+{% if comment %}
+<p style="margin:0 0 20px;padding:12px 16px;background-color:#f9fafb;border-left:3px solid #1B6B3E;color:#374151;font-size:14px;line-height:1.5;">
+  {{ comment }}
+</p>
+{% endif %}
+<p style="margin:0;">
+  <a href="{{ link }}" style="display:inline-block;background-color:#1B6B3E;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">View scheme</a>
+</p>
+{% endblock %}

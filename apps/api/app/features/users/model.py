@@ -82,6 +82,12 @@ class UserPreferences(Base):
     # Parent-facing — a new assignment was published for their child's class.
     email_on_assignment_created: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sms_on_assignment_created: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Unit-Head-facing — a scheme was submitted, or the teacher commented.
+    email_on_scheme_activity: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sms_on_scheme_activity: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Teacher-facing — their own scheme was acknowledged, or a reviewer commented.
+    email_on_scheme_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sms_on_scheme_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
