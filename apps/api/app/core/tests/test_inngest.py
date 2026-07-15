@@ -21,6 +21,7 @@ from app.features.health.jobs.ping import ping_job
 from app.features.leave_requests.jobs import LEAVE_REQUESTS_JOBS
 from app.features.lesson_plans.jobs import LESSON_PLANS_JOBS
 from app.features.promotions.jobs import PROMOTIONS_JOBS
+from app.features.schemes.jobs import SCHEMES_JOBS
 from app.features.sms.jobs import SMS_JOBS
 from app.features.users.jobs import USERS_JOBS
 from app.main import app
@@ -39,6 +40,7 @@ _ALL_JOBS = [
     *USERS_JOBS,
     *PROMOTIONS_JOBS,
     *ASSIGNMENTS_JOBS,
+    *SCHEMES_JOBS,
 ]
 
 

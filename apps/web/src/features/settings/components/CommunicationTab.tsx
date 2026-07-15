@@ -144,6 +144,20 @@ export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
             checked={prefs.onAssignmentCreated}
             onToggle={() => togglePref("onAssignmentCreated")}
           />
+          <Separator />
+          <NotifRow
+            label="Scheme submitted or commented on"
+            description="Unit Heads get an email and SMS when a teacher submits a scheme or comments on one."
+            checked={prefs.onSchemeActivity}
+            onToggle={() => togglePref("onSchemeActivity")}
+          />
+          <Separator />
+          <NotifRow
+            label="Scheme acknowledged or commented on"
+            description="The submitting teacher gets an email and SMS when their scheme is acknowledged or a reviewer comments."
+            checked={prefs.onSchemeDecided}
+            onToggle={() => togglePref("onSchemeDecided")}
+          />
 
           <div>
             <Button onClick={onSave} disabled={saving} variant="brand">

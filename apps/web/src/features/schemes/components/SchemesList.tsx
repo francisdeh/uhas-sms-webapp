@@ -19,7 +19,7 @@ export function SchemesList({ schemes, baseHref }: SchemesListProps) {
         <div>
           <h1 className="text-xl font-bold">Schemes of Work / Learning</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Upload or write term-level schemes. Submit to Head of School for acknowledgement.
+            Upload or write term-level schemes. Submit for review and acknowledgement.
           </p>
         </div>
         <Link href={`${baseHref}/new`}>

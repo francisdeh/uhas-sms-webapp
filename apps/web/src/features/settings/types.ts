@@ -33,6 +33,8 @@ export type NotificationDefaults = {
   onLeaveDecided: boolean;
   onAttendanceAbsent: boolean;
   onAssignmentCreated: boolean;
+  onSchemeActivity: boolean;
+  onSchemeDecided: boolean;
 };
 
 export type SchoolTerm = {

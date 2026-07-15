@@ -386,7 +386,11 @@ type PreferenceField =
   | "emailOnAttendanceAbsent"
   | "smsOnAttendanceAbsent"
   | "emailOnAssignmentCreated"
-  | "smsOnAssignmentCreated";
+  | "smsOnAssignmentCreated"
+  | "emailOnSchemeActivity"
+  | "smsOnSchemeActivity"
+  | "emailOnSchemeDecided"
+  | "smsOnSchemeDecided";
 
 type PreferenceRowConfig = {
   field: PreferenceField;
@@ -409,6 +413,26 @@ const TEACHER_PREFERENCE_ROWS: PreferenceRowConfig[] = [
     field: "smsOnAppointmentActivity",
     label: "SMS — Appointment Requests",
     description: "Receive a text message when a parent requests or cancels a meeting with you.",
+  },
+  {
+    field: "emailOnSchemeActivity",
+    label: "Email — Scheme Submissions (Unit Head)",
+    description: "Receive an email when a teacher in your unit submits or comments on a scheme.",
+  },
+  {
+    field: "smsOnSchemeActivity",
+    label: "SMS — Scheme Submissions (Unit Head)",
+    description: "Receive a text message when a teacher in your unit submits or comments on a scheme.",
+  },
+  {
+    field: "emailOnSchemeDecided",
+    label: "Email — Your Scheme Reviews",
+    description: "Receive an email when your own scheme is acknowledged or a reviewer comments.",
+  },
+  {
+    field: "smsOnSchemeDecided",
+    label: "SMS — Your Scheme Reviews",
+    description: "Receive a text message when your own scheme is acknowledged or a reviewer comments.",
   },
 ];
 

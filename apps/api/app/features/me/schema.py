@@ -65,6 +65,10 @@ class MeRead(BaseModel):
     sms_on_attendance_absent: bool = True
     email_on_assignment_created: bool = True
     sms_on_assignment_created: bool = True
+    email_on_scheme_activity: bool = True
+    sms_on_scheme_activity: bool = True
+    email_on_scheme_decided: bool = True
+    sms_on_scheme_decided: bool = True
 
 
 class MeUpdate(BaseModel):
@@ -101,6 +105,10 @@ class MeUpdate(BaseModel):
     sms_on_attendance_absent: bool | None = None
     email_on_assignment_created: bool | None = None
     sms_on_assignment_created: bool | None = None
+    email_on_scheme_activity: bool | None = None
+    sms_on_scheme_activity: bool | None = None
+    email_on_scheme_decided: bool | None = None
+    sms_on_scheme_decided: bool | None = None
 
 
 class EmailChangeRequest(BaseModel):
