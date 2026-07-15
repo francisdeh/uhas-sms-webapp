@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.core.inngest import inngest_client
 from app.features.appointments.jobs import APPOINTMENTS_JOBS
+from app.features.assignments.jobs import ASSIGNMENTS_JOBS
 from app.features.attendance.jobs import ATTENDANCE_JOBS
 from app.features.exams.jobs import EXAMS_JOBS
 from app.features.fees.jobs import FEES_JOBS
@@ -37,6 +38,7 @@ _ALL_JOBS = [
     *ATTENDANCE_JOBS,
     *USERS_JOBS,
     *PROMOTIONS_JOBS,
+    *ASSIGNMENTS_JOBS,
 ]
 
 

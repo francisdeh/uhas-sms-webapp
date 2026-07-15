@@ -16,7 +16,8 @@ from the event payload's `school_id`, not a JWT.
 Event payload shape:
     {
       "school_id": "<uuid>",
-      "category": "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "other",
+      "category": "absence" | "results" | "fee_reminder" | "announcement"
+        | "onboarding" | "appointment" | "leave" | "assignment" | "other",
       "body": "<message text>",
       "recipients": [{"phone": "+233...", "guardian_id": "<uuid> | null"}, ...]
     }

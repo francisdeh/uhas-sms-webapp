@@ -14,9 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.assignments.model import Assignment
 from app.features.classes.model import Class
+from app.features.enrollments.constants import ACTIVE as ENROLLMENT_ACTIVE
 from app.features.enrollments.model import Enrollment
+from app.features.guardians.model import Guardian
 from app.features.staff.model import Staff
+from app.features.students.model import Student, StudentGuardian
 from app.features.subjects.model import Subject
+from app.features.users.model import User
 
 
 class AssignmentsRepository:
@@ -118,6 +122,44 @@ class AssignmentsRepository:
         )
         rows = [(a, t, s, c) for a, t, s, c in (await session.execute(rows_stmt)).all()]
         return rows, total
+
+    @staticmethod
+    async def list_primary_guardians_for_class(
+        session: AsyncSession,
+        school_id: UUID | str,
+        class_id: UUID | str,
+        *,
+        academic_year: str,
+    ) -> list[tuple[Student, Guardian, User | None]]:
+        """Every (student, primary guardian, guardian's app user if any)
+        for active students enrolled in the given class this academic
+        year — the fan-out list for `email/assignment-created.requested`
+        + the in-app `ASSIGNMENT_CREATED` notification. Skips students
+        with no primary guardian on file. Same join shape as
+        `AttendanceRepository.list_primary_guardians_for_students`."""
+        stmt = (
+            select(Student, Guardian, User)
+            .join(Enrollment, Enrollment.student_id == Student.id)
+            .join(
+                StudentGuardian,
+                and_(
+                    StudentGuardian.student_id == Student.id,
+                    StudentGuardian.is_primary.is_(True),
+                ),
+            )
+            .join(Guardian, Guardian.id == StudentGuardian.guardian_id)
+            .outerjoin(User, User.linked_id == Guardian.id)
+            .where(
+                and_(
+                    Student.school_id == school_id,
+                    Enrollment.class_id == class_id,
+                    Enrollment.academic_year == academic_year,
+                    Enrollment.status == ENROLLMENT_ACTIVE,
+                )
+            )
+        )
+        rows = (await session.execute(stmt)).all()
+        return [(s, g, u) for s, g, u in rows]
 
     @staticmethod
     async def get_by_id(

@@ -26,6 +26,7 @@ from app.core.rate_limit import limiter
 from app.features.announcements.router import router as announcements_router
 from app.features.appointments.jobs import APPOINTMENTS_JOBS
 from app.features.appointments.router import router as appointments_router
+from app.features.assignments.jobs import ASSIGNMENTS_JOBS
 from app.features.assignments.router import router as assignments_router
 from app.features.attendance.jobs import ATTENDANCE_JOBS
 from app.features.attendance.router import (
@@ -210,6 +211,7 @@ def create_app() -> FastAPI:
             *ATTENDANCE_JOBS,
             *USERS_JOBS,
             *PROMOTIONS_JOBS,
+            *ASSIGNMENTS_JOBS,
         ],
     )
 

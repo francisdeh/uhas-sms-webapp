@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}New assignment: {{ title }}{% endblock %}
+{% block content %}
+<p style="margin:0 0 16px;color:#111827;font-size:15px;">Hi,</p>
+<p style="margin:0 0 20px;color:#111827;font-size:15px;line-height:1.5;">
+  A new assignment has been posted for <strong>{{ class_name }}</strong>: <strong>{{ title }}</strong>.{{ due_note }}
+</p>
+<p style="margin:0;">
+  <a href="{{ link }}" style="color:#1B6B3E;font-size:14px;">View assignment</a>
+</p>
+{% endblock %}
