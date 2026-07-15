@@ -43,6 +43,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       smsOnLeaveDecided: me.smsOnLeaveDecided,
       emailOnAttendanceAbsent: me.emailOnAttendanceAbsent,
       smsOnAttendanceAbsent: me.smsOnAttendanceAbsent,
+      emailOnAssignmentCreated: me.emailOnAssignmentCreated,
+      smsOnAssignmentCreated: me.smsOnAssignmentCreated,
     };
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {

@@ -97,6 +97,7 @@ class NotificationDefaults(BaseModel):
     # volume/sensitivity profile than the occasional, ad-hoc events
     # above. A school opts in explicitly rather than starting on.
     on_attendance_absent: bool = False
+    on_assignment_created: bool = True
 
 
 # ─── School-level schemas ────────────────────────────────────────────────────

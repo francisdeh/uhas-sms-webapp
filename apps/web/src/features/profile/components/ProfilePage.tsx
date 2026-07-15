@@ -384,7 +384,9 @@ type PreferenceField =
   | "emailOnLeaveDecided"
   | "smsOnLeaveDecided"
   | "emailOnAttendanceAbsent"
-  | "smsOnAttendanceAbsent";
+  | "smsOnAttendanceAbsent"
+  | "emailOnAssignmentCreated"
+  | "smsOnAssignmentCreated";
 
 type PreferenceRowConfig = {
   field: PreferenceField;
@@ -435,6 +437,16 @@ const PARENT_PREFERENCE_ROWS: PreferenceRowConfig[] = [
     field: "smsOnAttendanceAbsent",
     label: "SMS — Absence Alerts",
     description: "Receive a text message the first time your child is marked absent that day.",
+  },
+  {
+    field: "emailOnAssignmentCreated",
+    label: "Email — New Assignments",
+    description: "Receive an email when a new assignment is posted for your child's class.",
+  },
+  {
+    field: "smsOnAssignmentCreated",
+    label: "SMS — New Assignments",
+    description: "Receive a text message when a new assignment is posted for your child's class.",
   },
 ];
 

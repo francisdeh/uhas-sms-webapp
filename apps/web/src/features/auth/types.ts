@@ -45,6 +45,8 @@ export type SessionUser = {
   smsOnLeaveDecided: boolean;
   emailOnAttendanceAbsent: boolean;
   smsOnAttendanceAbsent: boolean;
+  emailOnAssignmentCreated: boolean;
+  smsOnAssignmentCreated: boolean;
 };
 
 export const ROLE_DASHBOARD: Record<UserRole, string> = {

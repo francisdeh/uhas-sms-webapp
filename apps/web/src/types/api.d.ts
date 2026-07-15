@@ -5063,6 +5063,16 @@ export interface components {
              * @default true
              */
             smsOnAttendanceAbsent: boolean;
+            /**
+             * Emailonassignmentcreated
+             * @default true
+             */
+            emailOnAssignmentCreated: boolean;
+            /**
+             * Smsonassignmentcreated
+             * @default true
+             */
+            smsOnAssignmentCreated: boolean;
         };
         /**
          * MeUpdate
@@ -5108,6 +5118,10 @@ export interface components {
             emailOnAttendanceAbsent?: boolean | null;
             /** Smsonattendanceabsent */
             smsOnAttendanceAbsent?: boolean | null;
+            /** Emailonassignmentcreated */
+            emailOnAssignmentCreated?: boolean | null;
+            /** Smsonassignmentcreated */
+            smsOnAssignmentCreated?: boolean | null;
         };
         /**
          * MfaResetResponse
@@ -5183,6 +5197,11 @@ export interface components {
              * @default false
              */
             onAttendanceAbsent: boolean;
+            /**
+             * Onassignmentcreated
+             * @default true
+             */
+            onAssignmentCreated: boolean;
         };
         /**
          * NotificationRead
@@ -6448,7 +6467,7 @@ export interface components {
              * Category
              * @enum {string}
              */
-            category: "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "leave" | "other";
+            category: "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "leave" | "assignment" | "other";
             /** Body */
             body: string;
             /**
@@ -13832,7 +13851,7 @@ export interface operations {
     list_sms_log_sms_log_get: {
         parameters: {
             query?: {
-                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "leave" | "other") | null;
+                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "leave" | "assignment" | "other") | null;
                 page?: number;
                 size?: number;
             };

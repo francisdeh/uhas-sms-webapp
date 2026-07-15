@@ -79,6 +79,9 @@ class UserPreferences(Base):
     # Parent-facing — their child was newly marked absent.
     email_on_attendance_absent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sms_on_attendance_absent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Parent-facing — a new assignment was published for their child's class.
+    email_on_assignment_created: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sms_on_assignment_created: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

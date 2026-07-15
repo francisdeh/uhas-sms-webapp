@@ -15,28 +15,142 @@ and schemes; the row stays for the eventual admin Trash UI.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
+import inngest
+import sentry_sdk
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from app.core.inngest import inngest_client
 from app.features.assignments.constants import DRAFT, PUBLISHED
 from app.features.assignments.model import Assignment
 from app.features.assignments.repository import AssignmentsRepository
 from app.features.assignments.schema import AssignmentCreate, AssignmentUpdate
 from app.features.classes.model import Class
 from app.features.classes.repository import ClassesRepository
-from app.features.notifications.audience import ParentsOfClassAudience
 from app.features.notifications.constants import ASSIGNMENT_CREATED
 from app.features.notifications.service import NotificationsService, NotifyPayload
+from app.features.schools.repository import SchoolsRepository
 from app.features.staff.model import Staff
 from app.features.subjects.model import Subject
 from app.features.subjects.repository import SubjectsRepository
+from app.features.users.model import User, UserPreferences
+
+logger = logging.getLogger(__name__)
 
 
 def _now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+async def _notify_assignment_created(
+    session: AsyncSession,
+    school_id: UUID | str,
+    *,
+    class_id: UUID | str,
+    class_name: str,
+    title: str,
+    due_note: str,
+) -> None:
+    """Fans out `ASSIGNMENT_CREATED` to every primary guardian of an
+    actively-enrolled student in `class_id` this academic year. One
+    in-app notification + one email + one SMS per guardian — same
+    shape as `attendance._notify_attendance_absences`, minus the
+    per-child batching (every recipient here shares the same single
+    assignment, not "however many of their children were marked
+    absent").
+    """
+    school = await SchoolsRepository.get_by_id(session, school_id)
+    defaults = (school.notification_defaults if school else None) or {}
+    if not defaults.get("on_assignment_created", True):
+        return
+
+    academic_year = school.academic_year if school else None
+    if not academic_year:
+        return
+
+    recipients = await AssignmentsRepository.list_primary_guardians_for_class(
+        session, school_id, class_id, academic_year=academic_year
+    )
+    if not recipients:
+        return
+
+    by_guardian: dict[UUID, tuple[User, UUID, str | None]] = {}
+    for _student, guardian, user in recipients:
+        if user is None:
+            continue
+        by_guardian[user.id] = (user, guardian.id, guardian.phone)
+
+    school_name = school.name if school else "UHAS SMS"
+    school_address = (school.address if school else None) or ""
+    school_contact_email = (
+        (school.email if school else None) or (school.email_reply_to if school else None) or ""
+    )
+    body = f"{title} ({class_name}).{due_note}"
+
+    for user, guardian_id, phone in by_guardian.values():
+        await NotificationsService.notify_user(
+            session,
+            school_id,
+            user_id=user.id,
+            payload=NotifyPayload(
+                kind=ASSIGNMENT_CREATED,
+                title="New assignment",
+                body=body,
+                link="/parent/assignments",
+            ),
+        )
+
+        prefs = await session.scalar(
+            select(UserPreferences).where(UserPreferences.user_id == user.id)
+        )
+        email_allowed = getattr(prefs, "email_on_assignment_created", True) if prefs else True
+        sms_allowed = getattr(prefs, "sms_on_assignment_created", True) if prefs else True
+
+        if user.email and email_allowed:
+            try:
+                await inngest_client.send(
+                    inngest.Event(
+                        name="email/assignment-created.requested",
+                        data={
+                            "guardian_email": user.email,
+                            "title": title,
+                            "class_name": class_name,
+                            "due_note": due_note,
+                            "link": "/parent/assignments",
+                            "school_name": school_name,
+                            "school_address": school_address,
+                            "school_contact_email": school_contact_email,
+                            "preferences_link": "/parent/profile?tab=notifications",
+                        },
+                    )
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to emit email/assignment-created.requested for school %s", school_id
+                )
+                sentry_sdk.capture_exception()
+
+        if phone and sms_allowed:
+            try:
+                await inngest_client.send(
+                    inngest.Event(
+                        name="sms/fanout.requested",
+                        data={
+                            "school_id": str(school_id),
+                            "category": "assignment",
+                            "body": f"{body} Check UHAS SMS for details.",
+                            "recipients": [{"phone": phone, "guardian_id": str(guardian_id)}],
+                        },
+                    )
+                )
+            except Exception:
+                logger.exception("Failed to emit assignment SMS fan-out for school %s", school_id)
+                sentry_sdk.capture_exception()
 
 
 class AssignmentsService:
@@ -170,16 +284,13 @@ class AssignmentsService:
         # Empty audience is a silent no-op — the assignment is still
         # published; parents just don't get a push.
         due_note = f" Due {row.due_date:%d %b}." if row.due_date else ""
-        await NotificationsService.notify_audience(
+        await _notify_assignment_created(
             session,
             school_id,
-            ParentsOfClassAudience(class_id=row.class_id),
-            NotifyPayload(
-                kind=ASSIGNMENT_CREATED,
-                title="New assignment",
-                body=f"{row.title} ({cls.name}).{due_note}",
-                link="/parent/assignments",
-            ),
+            class_id=row.class_id,
+            class_name=cls.name,
+            title=row.title,
+            due_note=due_note,
         )
         return await AssignmentsService.get(session, school_id, assignment_id)
 

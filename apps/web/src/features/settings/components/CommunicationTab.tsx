@@ -137,6 +137,13 @@ export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
             checked={prefs.onAttendanceAbsent}
             onToggle={() => togglePref("onAttendanceAbsent")}
           />
+          <Separator />
+          <NotifRow
+            label="Assignment published"
+            description="Parents of the class get an email and SMS when a teacher publishes a new assignment."
+            checked={prefs.onAssignmentCreated}
+            onToggle={() => togglePref("onAssignmentCreated")}
+          />
 
           <div>
             <Button onClick={onSave} disabled={saving} variant="brand">

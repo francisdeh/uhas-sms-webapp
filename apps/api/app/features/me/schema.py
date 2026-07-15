@@ -63,6 +63,8 @@ class MeRead(BaseModel):
     sms_on_leave_decided: bool = True
     email_on_attendance_absent: bool = True
     sms_on_attendance_absent: bool = True
+    email_on_assignment_created: bool = True
+    sms_on_assignment_created: bool = True
 
 
 class MeUpdate(BaseModel):
@@ -97,6 +99,8 @@ class MeUpdate(BaseModel):
     sms_on_leave_decided: bool | None = None
     email_on_attendance_absent: bool | None = None
     sms_on_attendance_absent: bool | None = None
+    email_on_assignment_created: bool | None = None
+    sms_on_assignment_created: bool | None = None
 
 
 class EmailChangeRequest(BaseModel):

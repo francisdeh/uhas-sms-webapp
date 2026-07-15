@@ -16,6 +16,7 @@ ANNOUNCEMENT: Final = "announcement"
 ONBOARDING: Final = "onboarding"
 APPOINTMENT: Final = "appointment"
 LEAVE: Final = "leave"
+ASSIGNMENT: Final = "assignment"
 OTHER: Final = "other"
 
 SmsCategory = Literal[
@@ -26,6 +27,7 @@ SmsCategory = Literal[
     "onboarding",
     "appointment",
     "leave",
+    "assignment",
     "other",
 ]
 
