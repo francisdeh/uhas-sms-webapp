@@ -178,6 +178,19 @@ class Settings(BaseSettings):
     hubtel_sender_id: str | None = Field(
         default=None, description='Approved Hubtel sender name, e.g. "UHAS".'
     )
+
+    # ── Supabase Auth "Send SMS" hook ──────────────────────────────────────
+    # Unlike every other "missing config isn't an error" setting in this
+    # file, this one fails CLOSED when unset — see
+    # app/features/auth/router.py's send_sms_hook. A missing secret here
+    # would mean the phone-OTP relay endpoint accepts unsigned requests.
+    send_sms_hook_secret: str | None = Field(
+        default=None,
+        description=(
+            'Supabase-generated Standard Webhooks secret, format "v1,whsec_<base64>". '
+            "From the hosted project's Auth settings once the Send SMS hook is registered."
+        ),
+    )
     app_url: str = Field(
         default="http://localhost:3000",
         description="Base URL for links embedded in outbound email (the Next.js app).",
