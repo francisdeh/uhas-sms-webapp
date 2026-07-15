@@ -30,6 +30,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   children: "Children",
   results: "Results",
   announcements: "Announcements",
+  promotions: "Promotions",
 };
 
 const NEW_LABELS: Record<string, string> = {

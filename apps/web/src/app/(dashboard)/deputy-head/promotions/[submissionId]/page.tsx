@@ -5,6 +5,7 @@ import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getDeputyHeadDivision } from "@/features/students/queries/get-deputy-head-division";
 import { getApi, ApiError } from "@/lib/api/server";
 import { PromotionDecisionTable } from "@/features/promotions/components/PromotionDecisionTable";
+import { PromotionCommentThread } from "@/features/promotions/components/PromotionCommentThread";
 import { ReviewFooter } from "@/features/promotions/components/ReviewFooter";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -95,13 +96,7 @@ export default async function DeputyHeadPromotionReviewPage({
         </Alert>
       )}
 
-      {detail.submission.status === PROMOTION_SUBMISSION_STATUS.SENT_BACK && detail.submission.reviewerComment && (
-        <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/20">
-          <AlertDescription>
-            <span className="font-medium">Sent back:</span> {detail.submission.reviewerComment}
-          </AlertDescription>
-        </Alert>
-      )}
+      <PromotionCommentThread comments={detail.comments} />
 
       <PromotionDecisionTable
         mode="readonly"

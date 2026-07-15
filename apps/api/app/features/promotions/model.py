@@ -60,15 +60,37 @@ class PromotionSubmission(Base):
         Uuid, ForeignKey("staff.id"), nullable=True
     )
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    reviewer_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed_by_id: Mapped[UUID | None] = mapped_column(Uuid, ForeignKey("staff.id"), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Cooldown stamp for the weekly unsubmitted-class reminder job —
+    # mirrors `learner_fees.last_reminder_sent_at`.
+    last_reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime, server_default=func.now(), nullable=True
     )
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime, server_default=func.now(), nullable=True
+    )
+
+
+class PromotionComment(Base):
+    """One comment in a submission's review thread. Append-only — the
+    service never mutates an existing row. Populated by `send_back`
+    (the reviewer explaining what to revise); replaces the old single
+    overwriting `reviewer_comment` column that lost history when a
+    class was sent back more than once."""
+
+    __tablename__ = "promotion_comments"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, server_default=func.gen_random_uuid())
+    submission_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("promotion_submissions.id"), nullable=False
+    )
+    author_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("staff.id"), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime, server_default=func.clock_timestamp(), nullable=True
     )
 
 

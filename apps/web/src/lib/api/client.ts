@@ -1049,6 +1049,13 @@ export function createApiClient(getAuthToken: TokenGetter) {
           getAuthToken,
           "/promotions/season",
         ),
+      /** Available even before a season row exists — unlike
+       *  `getSeason()`'s flag, which requires one. */
+      getTerm3ExamStatus: () =>
+        apiFetch<components["schemas"]["Term3ExamStatus"]>(
+          getAuthToken,
+          "/promotions/term3-exam-status",
+        ),
       openSeason: (payload: components["schemas"]["SeasonOpenRequest"]) =>
         apiFetch<components["schemas"]["SeasonOpenResponse"]>(
           getAuthToken,
@@ -1125,6 +1132,14 @@ export function createApiClient(getAuthToken: TokenGetter) {
         apiFetch<components["schemas"]["SubmissionRead"]>(
           getAuthToken,
           `/promotions/submissions/${id}/send-back`,
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      /** Best-effort — one bad submission id in the batch doesn't
+       *  block the rest; check each result's `success`/`error`. */
+      bulkApprove: (payload: components["schemas"]["BulkApproveRequest"]) =>
+        apiFetch<components["schemas"]["BulkApproveResponse"]>(
+          getAuthToken,
+          "/promotions/submissions/bulk-approve",
           { method: "POST", body: JSON.stringify(payload) },
         ),
     },

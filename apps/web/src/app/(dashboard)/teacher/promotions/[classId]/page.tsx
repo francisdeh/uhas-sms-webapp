@@ -1,9 +1,10 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Lock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi } from "@/lib/api/server";
 import { PromotionDecisionTable } from "@/features/promotions/components/PromotionDecisionTable";
+import { PromotionCommentThread } from "@/features/promotions/components/PromotionCommentThread";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -62,7 +63,6 @@ export default async function TeacherPromotionClassPage({
     submittedById: raw.submission.submittedById ?? null,
     submittedByName: raw.submission.submittedByName ?? null,
     submittedAt: raw.submission.submittedAt ?? null,
-    reviewerComment: raw.submission.reviewerComment ?? null,
     reviewedById: raw.submission.reviewedById ?? null,
     reviewedByName: raw.submission.reviewedByName ?? null,
     reviewedAt: raw.submission.reviewedAt ?? null,
@@ -91,6 +91,13 @@ export default async function TeacherPromotionClassPage({
     nextAcademicYear: raw.nextAcademicYear,
     nextYearClasses: raw.nextYearClasses.map((c) => ({ id: c.id, name: c.name })),
     decisions,
+    comments: raw.comments.map((c) => ({
+      id: c.id,
+      authorId: c.authorId,
+      authorName: c.authorName,
+      body: c.body,
+      createdAt: c.createdAt ?? null,
+    })),
   };
 
   const readonly = !myClass.isPrimary || detail.submission.status !== PROMOTION_SUBMISSION_STATUS.DRAFT;
@@ -141,15 +148,7 @@ export default async function TeacherPromotionClassPage({
         </Alert>
       )}
 
-      {isSentBack && detail.submission.reviewerComment && (
-        <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/20">
-          <AlertTriangle size={14} />
-          <AlertDescription>
-            <span className="font-medium">Deputy Head sent back:</span>{" "}
-            {detail.submission.reviewerComment}
-          </AlertDescription>
-        </Alert>
-      )}
+      {isSentBack && <PromotionCommentThread comments={detail.comments} />}
 
       {isSubmitted && (
         <Alert className="border-blue-200 bg-blue-50 text-blue-800">

@@ -1,6 +1,7 @@
 """HTTP routes for Promotions.
 
   GET  /promotions/season                    → current season header (any role)
+  GET  /promotions/term3-exam-status         → exam-published flag, available pre-season (any role)
   POST /promotions/season/open               → open (Admin)
   POST /promotions/season/close              → close (Admin)
 
@@ -15,6 +16,7 @@
   POST /promotions/submissions/{id}/submit   → submit (teacher/admin)
   POST /promotions/submissions/{id}/approve  → transactional approve (DH/Admin)
   POST /promotions/submissions/{id}/send-back → send back (DH/Admin)
+  POST /promotions/submissions/bulk-approve  → approve several at once, best-effort (DH/Admin)
 
 Role gates:
   * Admin — everything
@@ -45,6 +47,9 @@ from app.features.promotions.model import (
 )
 from app.features.promotions.repository import PromotionsRepository
 from app.features.promotions.schema import (
+    BulkApproveRequest,
+    BulkApproveResponse,
+    BulkApproveResult,
     ClassTeacherView,
     DecisionRead,
     DeputyHeadQueueResponse,
@@ -54,6 +59,7 @@ from app.features.promotions.schema import (
     NextYearClassOption,
     OverviewResponse,
     OverviewRow,
+    PromotionCommentRead,
     SaveDraftRequest,
     SeasonOpenRequest,
     SeasonOpenResponse,
@@ -64,6 +70,7 @@ from app.features.promotions.schema import (
     SubmitListRequest,
     TeacherClassesResponse,
     TeacherClassRow,
+    Term3ExamStatus,
 )
 from app.features.promotions.service import PromotionsService
 from app.features.schools.service import SchoolsService
@@ -77,7 +84,9 @@ router = APIRouter(prefix="/promotions", tags=["promotions"])
 # ─── Helpers ────────────────────────────────────────────────────────────────
 
 
-def _to_season_read(row: PromotionSeason, staff_by_id: dict[str, Staff]) -> SeasonRead:
+def _to_season_read(
+    row: PromotionSeason, staff_by_id: dict[str, Staff], *, has_published_term3_end_of_term: bool
+) -> SeasonRead:
     opened_by = staff_by_id.get(str(row.opened_by_id)) if row.opened_by_id else None
     closed_by = staff_by_id.get(str(row.closed_by_id)) if row.closed_by_id else None
     return SeasonRead(
@@ -92,6 +101,7 @@ def _to_season_read(row: PromotionSeason, staff_by_id: dict[str, Staff]) -> Seas
         closed_by_id=row.closed_by_id,
         closed_by_name=(f"{closed_by.first_name} {closed_by.last_name}" if closed_by else None),
         closed_at=row.closed_at,
+        has_published_term3_end_of_term=has_published_term3_end_of_term,
     )
 
 
@@ -109,7 +119,6 @@ def _to_submission_read(row: PromotionSubmission, staff_by_id: dict[str, Staff])
             f"{submitted_by.first_name} {submitted_by.last_name}" if submitted_by else None
         ),
         submitted_at=row.submitted_at,
-        reviewer_comment=row.reviewer_comment,
         reviewed_by_id=row.reviewed_by_id,
         reviewed_by_name=(
             f"{reviewed_by.first_name} {reviewed_by.last_name}" if reviewed_by else None
@@ -146,7 +155,32 @@ async def get_season(
     staff_by_id = await PromotionsRepository.staff_by_ids(
         session, [row.opened_by_id, row.closed_by_id]
     )
-    return _to_season_read(row, staff_by_id)
+    exam_published = await PromotionsRepository.has_published_term3_end_of_term(
+        session, school_id, row.academic_year
+    )
+    return _to_season_read(row, staff_by_id, has_published_term3_end_of_term=exam_published)
+
+
+@router.get(
+    "/term3-exam-status",
+    response_model=Term3ExamStatus,
+    response_model_by_alias=True,
+)
+async def get_term3_exam_status(
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> Term3ExamStatus:
+    """Available even before a season row exists — the Admin page
+    needs this to show the override warning before the first
+    `season/open` call of the year, when `GET /season` still returns
+    `null`."""
+    _ = user
+    school = await SchoolsService.get(session, school_id)
+    exam_published = await PromotionsRepository.has_published_term3_end_of_term(
+        session, school_id, school.academic_year
+    )
+    return Term3ExamStatus(has_published_term3_end_of_term=exam_published)
 
 
 @router.post(
@@ -170,9 +204,12 @@ async def open_season(
     staff_by_id = await PromotionsRepository.staff_by_ids(
         session, [row.opened_by_id, row.closed_by_id]
     )
+    exam_published = await PromotionsRepository.has_published_term3_end_of_term(
+        session, school_id, row.academic_year
+    )
     return SeasonOpenResponse(
         opened_with_override=opened_with_override,
-        season=_to_season_read(row, staff_by_id),
+        season=_to_season_read(row, staff_by_id, has_published_term3_end_of_term=exam_published),
     )
 
 
@@ -193,7 +230,10 @@ async def close_season(
     staff_by_id = await PromotionsRepository.staff_by_ids(
         session, [row.opened_by_id, row.closed_by_id]
     )
-    return _to_season_read(row, staff_by_id)
+    exam_published = await PromotionsRepository.has_published_term3_end_of_term(
+        session, school_id, row.academic_year
+    )
+    return _to_season_read(row, staff_by_id, has_published_term3_end_of_term=exam_published)
 
 
 # ─── Overview / queues ──────────────────────────────────────────────────────
@@ -426,6 +466,7 @@ async def _build_detail(
         session, [submission.submitted_by_id, submission.reviewed_by_id]
     )
     teachers = await PromotionsRepository.class_teachers_by_class(session, [cls.id])
+    comment_rows = await PromotionsRepository.list_comments_for_submission(session, submission.id)
 
     decision_reads = _sort_decisions(_decision_reads(decisions, students_by_id))
     return SubmissionDetail(
@@ -442,6 +483,16 @@ async def _build_detail(
                 is_primary=is_primary,
             )
             for t, is_primary in teachers.get(str(cls.id), [])
+        ],
+        comments=[
+            PromotionCommentRead(
+                id=c.id,
+                author_id=c.author_id,
+                author_name=f"{author.first_name} {author.last_name}",
+                body=c.body,
+                created_at=c.created_at,
+            )
+            for c, author in comment_rows
         ],
     )
 
@@ -636,3 +687,37 @@ async def send_back(
         session, [submission.submitted_by_id, submission.reviewed_by_id]
     )
     return _to_submission_read(submission, submission_staff)
+
+
+@router.post(
+    "/submissions/bulk-approve",
+    response_model=BulkApproveResponse,
+    response_model_by_alias=True,
+)
+async def bulk_approve_submissions(
+    payload: BulkApproveRequest,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
+) -> BulkApproveResponse:
+    """Approve several submitted lists in one call — e.g. a Deputy Head
+    clearing their whole queue at once. Best-effort: one bad row (wrong
+    division, missing target class) doesn't block the rest of the
+    batch — see `PromotionsService.bulk_approve`."""
+    _require_admin_or_deputy(user)
+    if not user.linked_id:
+        raise ForbiddenError("Reviewer identity missing.")
+    results = await PromotionsService.bulk_approve(
+        session,
+        school_id,
+        payload.submission_ids,
+        reviewer_staff_id=user.linked_id,
+        actor_user_id=user.user_id,
+        actor_role=user.role or "",
+    )
+    return BulkApproveResponse(
+        results=[
+            BulkApproveResult(submission_id=sid, class_name=cls_name, success=success, error=error)
+            for sid, cls_name, success, error in results
+        ]
+    )

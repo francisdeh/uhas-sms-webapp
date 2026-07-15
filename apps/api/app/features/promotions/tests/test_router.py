@@ -31,6 +31,7 @@ from app.features.promotions.tests.conftest import (
     DEPUTY_JHS_UUID,
     DEPUTY_KG_UUID,
     OTHER_TEACHER_UUID,
+    SCHOOL_UUID,
     STUDENT1_UUID,
     STUDENT2_UUID,
     STUDENT_JHS3_UUID,
@@ -60,6 +61,46 @@ async def test_season_get_returns_null_when_no_row(
     )
     assert res.status_code == 200
     assert res.json() is None
+
+
+async def test_term3_exam_status_available_before_season_exists(
+    client: AsyncClient,
+    seed_school: School,
+    seed_staff: dict[str, Staff],
+    seed_subjects: list[Subject],
+    seed_students_and_enrollments: None,
+    seed_term3_exam_and_scores: Exam,
+) -> None:
+    """The whole point of this endpoint: unlike `SeasonRead`'s flag,
+    this must work even when no season row exists yet."""
+    _ = (seed_school, seed_staff, seed_subjects, seed_students_and_enrollments)
+    _ = seed_term3_exam_and_scores
+    season = await client.get(
+        "/promotions/season",
+        headers=auth_header(role="Admin", linked_id=str(ADMIN_UUID)),
+    )
+    assert season.json() is None
+
+    res = await client.get(
+        "/promotions/term3-exam-status",
+        headers=auth_header(role="Admin", linked_id=str(ADMIN_UUID)),
+    )
+    assert res.status_code == 200
+    assert res.json()["hasPublishedTerm3EndOfTerm"] is True
+
+
+async def test_term3_exam_status_false_when_unpublished(
+    client: AsyncClient,
+    seed_school: School,
+    seed_staff: dict[str, Staff],
+) -> None:
+    _ = (seed_school, seed_staff)
+    res = await client.get(
+        "/promotions/term3-exam-status",
+        headers=auth_header(role="Admin", linked_id=str(ADMIN_UUID)),
+    )
+    assert res.status_code == 200
+    assert res.json()["hasPublishedTerm3EndOfTerm"] is False
 
 
 async def test_season_open_requires_admin(
@@ -369,6 +410,118 @@ async def test_submit_blocks_when_preflight_fails(
     assert res.status_code == 400
 
 
+async def test_manual_repeat_decision_auto_derives_target_class(
+    client: AsyncClient,
+    seed_school: School,
+    seed_classes: dict[str, Class],
+    seed_subjects: list[Subject],
+    seed_staff: dict[str, Staff],
+    seed_class_teachers: None,
+    seed_students_and_enrollments: None,
+    seed_term3_exam_and_scores: Exam,
+) -> None:
+    """A teacher manually switching a decision to Repeat never gets a
+    target-class picker in the UI (only Promote does) — the backend
+    must auto-derive "same class name, next year" the same way it
+    already does for the algorithmic suggestion. JHS 3 has a real
+    2026/2027 twin in the fixtures, unlike JHS 1."""
+    _ = (
+        seed_school,
+        seed_classes,
+        seed_subjects,
+        seed_staff,
+        seed_class_teachers,
+        seed_students_and_enrollments,
+        seed_term3_exam_and_scores,
+    )
+    await _open_season(client)
+    teacher_headers = auth_header(role="Teacher", linked_id=str(TEACHER_UUID))
+    ensure = await client.post(
+        "/promotions/submissions/ensure",
+        json={"classId": str(CLASS_JHS3_UUID)},
+        headers=teacher_headers,
+    )
+    submission_id = ensure.json()["submissionId"]
+
+    res = await client.post(
+        f"/promotions/submissions/{submission_id}/submit",
+        json={
+            "updates": [
+                {
+                    "studentId": str(STUDENT_JHS3_UUID),
+                    "decision": "repeat",
+                    "targetClassId": None,
+                    "reason": "Needs another year in JHS 3.",
+                },
+            ]
+        },
+        headers=teacher_headers,
+    )
+    assert res.status_code == 200, res.text
+
+    detail = await client.get(f"/promotions/submissions/{submission_id}", headers=teacher_headers)
+    decision = next(
+        d for d in detail.json()["decisions"] if d["studentId"] == str(STUDENT_JHS3_UUID)
+    )
+    assert decision["targetClassId"] == str(CLASS_JHS3_NEXT_UUID)
+
+
+async def test_submit_rejects_repeat_with_no_resolvable_target_class(
+    client: AsyncClient,
+    seed_school: School,
+    seed_classes: dict[str, Class],
+    seed_subjects: list[Subject],
+    seed_staff: dict[str, Staff],
+    seed_class_teachers: None,
+    seed_students_and_enrollments: None,
+    seed_term3_exam_and_scores: Exam,
+) -> None:
+    """JHS 1 has no 2026/2027 twin in the fixtures — a manual Repeat
+    with no explicit target class can't be auto-derived, so submit
+    must reject it at submit time (matching Promote's equivalent
+    check) rather than letting it reach approve and fail there."""
+    _ = (
+        seed_school,
+        seed_classes,
+        seed_subjects,
+        seed_staff,
+        seed_class_teachers,
+        seed_students_and_enrollments,
+        seed_term3_exam_and_scores,
+    )
+    await _open_season(client)
+    teacher_headers = auth_header(role="Teacher", linked_id=str(TEACHER_UUID))
+    ensure = await client.post(
+        "/promotions/submissions/ensure",
+        json={"classId": str(CLASS_JHS1_UUID)},
+        headers=teacher_headers,
+    )
+    submission_id = ensure.json()["submissionId"]
+
+    res = await client.post(
+        f"/promotions/submissions/{submission_id}/submit",
+        json={
+            "updates": [
+                {
+                    "studentId": str(STUDENT1_UUID),
+                    "decision": "repeat",
+                    "targetClassId": None,
+                    "reason": "Failed 3 core subjects",
+                },
+                {
+                    "studentId": str(STUDENT2_UUID),
+                    "decision": "promote",
+                    "targetClassId": str(CLASS_JHS2_NEXT_UUID),
+                    "reason": None,
+                },
+            ]
+        },
+        headers=teacher_headers,
+    )
+    assert res.status_code == 400
+    assert "No 2026/2027 class exists" in res.text
+
+
 async def test_approve_materialises_enrolments_and_writes_audit(
     client: AsyncClient,
     seed_school: School,
@@ -414,7 +567,10 @@ async def test_approve_materialises_enrolments_and_writes_audit(
     assert row.status == "Completed"
 
     audits = await db_session.execute(
-        select(AuditLog).where(AuditLog.action == "PROMOTION_APPROVED")
+        select(AuditLog).where(
+            AuditLog.school_id == SCHOOL_UUID,
+            AuditLog.action == "PROMOTION_APPROVED",
+        )
     )
     audit_row = audits.scalar_one()
     assert audit_row.after is not None
@@ -476,7 +632,15 @@ async def test_deputy_matching_division_can_send_back(
     )
     assert res.status_code == 200, res.text
     assert res.json()["status"] == "sent_back"
-    assert res.json()["reviewerComment"] == "Please re-check student1"
+
+    detail = await client.get(
+        f"/promotions/submissions/{submission_id}",
+        headers=auth_header(role="DeputyHead", linked_id=str(DEPUTY_JHS_UUID)),
+    )
+    comments = detail.json()["comments"]
+    assert len(comments) == 1
+    assert comments[0]["body"] == "Please re-check student1"
+    assert comments[0]["authorId"] == str(DEPUTY_JHS_UUID)
 
 
 async def test_send_back_requires_comment(

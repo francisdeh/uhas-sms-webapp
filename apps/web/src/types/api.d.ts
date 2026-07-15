@@ -1838,6 +1838,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/promotions/term3-exam-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Term3 Exam Status
+         * @description Available even before a season row exists — the Admin page
+         *     needs this to show the override warning before the first
+         *     `season/open` call of the year, when `GET /season` still returns
+         *     `null`.
+         */
+        get: operations["get_term3_exam_status_promotions_term3_exam_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/promotions/season/open": {
         parameters: {
             query?: never;
@@ -2051,6 +2074,29 @@ export interface paths {
         put?: never;
         /** Send Back */
         post: operations["send_back_promotions_submissions__submission_id__send_back_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/submissions/bulk-approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Approve Submissions
+         * @description Approve several submitted lists in one call — e.g. a Deputy Head
+         *     clearing their whole queue at once. Best-effort: one bad row (wrong
+         *     division, missing target class) doesn't block the rest of the
+         *     batch — see `PromotionsService.bulk_approve`.
+         */
+        post: operations["bulk_approve_submissions_promotions_submissions_bulk_approve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3308,6 +3354,38 @@ export interface components {
             unreadCount: number;
             /** Items */
             items: components["schemas"]["NotificationRead"][];
+        };
+        /**
+         * BulkApproveRequest
+         * @description POST /promotions/submissions/bulk-approve.
+         */
+        BulkApproveRequest: {
+            /** Submissionids */
+            submissionIds: string[];
+        };
+        /**
+         * BulkApproveResponse
+         * @description Best-effort — each submission is attempted independently so one
+         *     bad row (e.g. missing target class) doesn't block the rest of the
+         *     batch.
+         */
+        BulkApproveResponse: {
+            /** Results */
+            results: components["schemas"]["BulkApproveResult"][];
+        };
+        /** BulkApproveResult */
+        BulkApproveResult: {
+            /**
+             * Submissionid
+             * Format: uuid
+             */
+            submissionId: string;
+            /** Classname */
+            className: string;
+            /** Success */
+            success: boolean;
+            /** Error */
+            error?: string | null;
         };
         /**
          * CalendarEventCreate
@@ -5120,7 +5198,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "scheme_commented" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_sent_back" | "assignment_created" | "appointment_requested" | "appointment_decided" | "appointment_cancelled" | "fee_reminder";
+            kind: "lesson_plan_submitted" | "lesson_plan_reviewed" | "lesson_plan_advanced" | "scheme_submitted" | "scheme_acknowledged" | "scheme_commented" | "announcement_posted" | "attendance_absent" | "results_published" | "leave_request_submitted" | "leave_request_decided" | "promotion_season_opened" | "promotion_submitted" | "promotion_sent_back" | "promotion_approved" | "promotion_reminder" | "assignment_created" | "appointment_requested" | "appointment_decided" | "appointment_cancelled" | "fee_reminder";
             /** Title */
             title: string;
             /** Body */
@@ -5269,6 +5347,30 @@ export interface components {
             classesCreated: number;
             /** Termscreated */
             termsCreated: number;
+        };
+        /**
+         * PromotionCommentRead
+         * @description One entry in a submission's review-comment thread, with author
+         *     display fields. Populated by `send_back` — replaces the old single
+         *     overwriting `reviewer_comment` column.
+         */
+        PromotionCommentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Authorid
+             * Format: uuid
+             */
+            authorId: string;
+            /** Authorname */
+            authorName: string;
+            /** Body */
+            body: string;
+            /** Createdat */
+            createdAt?: string | null;
         };
         /** PscClassRow */
         PscClassRow: {
@@ -6243,6 +6345,11 @@ export interface components {
          * @description Current-year season row. `openedWithOverride=True` means Admin
          *     opened the season before the Term-3 EndOfTerm exam was published;
          *     UI hides algorithmic suggestions for that case.
+         *
+         *     `hasPublishedTerm3EndOfTerm` is computed fresh on every read (not
+         *     stored) — it reflects whether the exam is published *now*, which can
+         *     change after the season was opened (e.g. opened with override, exam
+         *     published later).
          */
         SeasonRead: {
             /**
@@ -6276,6 +6383,11 @@ export interface components {
             closedByName?: string | null;
             /** Closedat */
             closedAt?: string | null;
+            /**
+             * Haspublishedterm3Endofterm
+             * @default false
+             */
+            hasPublishedTerm3EndOfTerm: boolean;
         };
         /**
          * SendBackRequest
@@ -7254,6 +7366,8 @@ export interface components {
             decisions: components["schemas"]["DecisionRead"][];
             /** Classteachers */
             classTeachers: components["schemas"]["ClassTeacherView"][];
+            /** Comments */
+            comments: components["schemas"]["PromotionCommentRead"][];
         };
         /**
          * SubmissionRead
@@ -7289,8 +7403,6 @@ export interface components {
             submittedByName?: string | null;
             /** Submittedat */
             submittedAt?: string | null;
-            /** Reviewercomment */
-            reviewerComment?: string | null;
             /** Reviewedbyid */
             reviewedById?: string | null;
             /** Reviewedbyname */
@@ -7362,6 +7474,17 @@ export interface components {
         TeacherOptionsResponse: {
             /** Items */
             items: components["schemas"]["TeacherOption"][];
+        };
+        /**
+         * Term3ExamStatus
+         * @description GET /promotions/term3-exam-status — available even before a
+         *     season row exists, unlike `SeasonRead.hasPublishedTerm3EndOfTerm`.
+         *     Lets the Admin page show the override warning before the first
+         *     `open_season` call of the year.
+         */
+        Term3ExamStatus: {
+            /** Haspublishedterm3Endofterm */
+            hasPublishedTerm3EndOfTerm: boolean;
         };
         /**
          * TermInput
@@ -12224,6 +12347,37 @@ export interface operations {
             };
         };
     };
+    get_term3_exam_status_promotions_term3_exam_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Term3ExamStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     open_season_promotions_season_open_post: {
         parameters: {
             query?: never;
@@ -12615,6 +12769,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubmissionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_approve_submissions_promotions_submissions_bulk_approve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkApproveResponse"];
                 };
             };
             /** @description Validation Error */

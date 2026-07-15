@@ -11,6 +11,10 @@ export type NotificationKind =
   | "leave_request_submitted"
   | "leave_request_decided"
   | "promotion_season_opened"
+  | "promotion_submitted"
+  | "promotion_sent_back"
+  | "promotion_approved"
+  | "promotion_reminder"
   | "assignment_created";
 
 // Audience spec — what `notifyAudience(...)` accepts. Each shape is

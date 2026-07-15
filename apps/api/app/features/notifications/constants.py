@@ -37,7 +37,10 @@ LEAVE_REQUEST_DECIDED: Final = "leave_request_decided"
 
 # ─── Promotions ─────────────────────────────────────────────────────────────
 PROMOTION_SEASON_OPENED: Final = "promotion_season_opened"
+PROMOTION_SUBMITTED: Final = "promotion_submitted"
 PROMOTION_SENT_BACK: Final = "promotion_sent_back"
+PROMOTION_APPROVED: Final = "promotion_approved"
+PROMOTION_REMINDER: Final = "promotion_reminder"
 
 # ─── Assignments ────────────────────────────────────────────────────────────
 ASSIGNMENT_CREATED: Final = "assignment_created"
@@ -64,7 +67,10 @@ NotificationKind = Literal[
     "leave_request_submitted",
     "leave_request_decided",
     "promotion_season_opened",
+    "promotion_submitted",
     "promotion_sent_back",
+    "promotion_approved",
+    "promotion_reminder",
     "assignment_created",
     "appointment_requested",
     "appointment_decided",
