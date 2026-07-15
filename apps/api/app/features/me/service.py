@@ -135,6 +135,12 @@ class MeService:
             sms_on_scheme_activity=_pref("sms_on_scheme_activity"),
             email_on_scheme_decided=_pref("email_on_scheme_decided"),
             sms_on_scheme_decided=_pref("sms_on_scheme_decided"),
+            email_on_promotion_season=_pref("email_on_promotion_season"),
+            sms_on_promotion_season=_pref("sms_on_promotion_season"),
+            email_on_promotion_activity=_pref("email_on_promotion_activity"),
+            sms_on_promotion_activity=_pref("sms_on_promotion_activity"),
+            email_on_promotion_decided=_pref("email_on_promotion_decided"),
+            sms_on_promotion_decided=_pref("sms_on_promotion_decided"),
         )
 
     @staticmethod
@@ -176,6 +182,12 @@ class MeService:
             "sms_on_scheme_activity",
             "email_on_scheme_decided",
             "sms_on_scheme_decided",
+            "email_on_promotion_season",
+            "sms_on_promotion_season",
+            "email_on_promotion_activity",
+            "sms_on_promotion_activity",
+            "email_on_promotion_decided",
+            "sms_on_promotion_decided",
         )
         pref_changes = {f: changes[f] for f in pref_fields if changes.get(f) is not None}
 

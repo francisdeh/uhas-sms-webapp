@@ -51,6 +51,12 @@ export type SessionUser = {
   smsOnSchemeActivity: boolean;
   emailOnSchemeDecided: boolean;
   smsOnSchemeDecided: boolean;
+  emailOnPromotionSeason: boolean;
+  smsOnPromotionSeason: boolean;
+  emailOnPromotionActivity: boolean;
+  smsOnPromotionActivity: boolean;
+  emailOnPromotionDecided: boolean;
+  smsOnPromotionDecided: boolean;
 };
 
 export const ROLE_DASHBOARD: Record<UserRole, string> = {

@@ -5093,6 +5093,36 @@ export interface components {
              * @default true
              */
             smsOnSchemeDecided: boolean;
+            /**
+             * Emailonpromotionseason
+             * @default true
+             */
+            emailOnPromotionSeason: boolean;
+            /**
+             * Smsonpromotionseason
+             * @default true
+             */
+            smsOnPromotionSeason: boolean;
+            /**
+             * Emailonpromotionactivity
+             * @default true
+             */
+            emailOnPromotionActivity: boolean;
+            /**
+             * Smsonpromotionactivity
+             * @default true
+             */
+            smsOnPromotionActivity: boolean;
+            /**
+             * Emailonpromotiondecided
+             * @default true
+             */
+            emailOnPromotionDecided: boolean;
+            /**
+             * Smsonpromotiondecided
+             * @default true
+             */
+            smsOnPromotionDecided: boolean;
         };
         /**
          * MeUpdate
@@ -5150,6 +5180,18 @@ export interface components {
             emailOnSchemeDecided?: boolean | null;
             /** Smsonschemedecided */
             smsOnSchemeDecided?: boolean | null;
+            /** Emailonpromotionseason */
+            emailOnPromotionSeason?: boolean | null;
+            /** Smsonpromotionseason */
+            smsOnPromotionSeason?: boolean | null;
+            /** Emailonpromotionactivity */
+            emailOnPromotionActivity?: boolean | null;
+            /** Smsonpromotionactivity */
+            smsOnPromotionActivity?: boolean | null;
+            /** Emailonpromotiondecided */
+            emailOnPromotionDecided?: boolean | null;
+            /** Smsonpromotiondecided */
+            smsOnPromotionDecided?: boolean | null;
         };
         /**
          * MfaResetResponse
@@ -5240,6 +5282,21 @@ export interface components {
              * @default true
              */
             onSchemeDecided: boolean;
+            /**
+             * Onpromotionseason
+             * @default true
+             */
+            onPromotionSeason: boolean;
+            /**
+             * Onpromotionactivity
+             * @default true
+             */
+            onPromotionActivity: boolean;
+            /**
+             * Onpromotiondecided
+             * @default true
+             */
+            onPromotionDecided: boolean;
         };
         /**
          * NotificationRead
@@ -6505,7 +6562,7 @@ export interface components {
              * Category
              * @enum {string}
              */
-            category: "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "leave" | "assignment" | "scheme" | "other";
+            category: "absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "leave" | "assignment" | "scheme" | "promotion" | "other";
             /** Body */
             body: string;
             /**
@@ -13889,7 +13946,7 @@ export interface operations {
     list_sms_log_sms_log_get: {
         parameters: {
             query?: {
-                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "leave" | "assignment" | "scheme" | "other") | null;
+                category?: ("absence" | "results" | "fee_reminder" | "announcement" | "onboarding" | "appointment" | "leave" | "assignment" | "scheme" | "promotion" | "other") | null;
                 page?: number;
                 size?: number;
             };

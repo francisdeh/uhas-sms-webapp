@@ -49,6 +49,12 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       smsOnSchemeActivity: me.smsOnSchemeActivity,
       emailOnSchemeDecided: me.emailOnSchemeDecided,
       smsOnSchemeDecided: me.smsOnSchemeDecided,
+      emailOnPromotionSeason: me.emailOnPromotionSeason,
+      smsOnPromotionSeason: me.smsOnPromotionSeason,
+      emailOnPromotionActivity: me.emailOnPromotionActivity,
+      smsOnPromotionActivity: me.smsOnPromotionActivity,
+      emailOnPromotionDecided: me.emailOnPromotionDecided,
+      smsOnPromotionDecided: me.smsOnPromotionDecided,
     };
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {

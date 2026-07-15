@@ -88,6 +88,15 @@ class UserPreferences(Base):
     # Teacher-facing — their own scheme was acknowledged, or a reviewer commented.
     email_on_scheme_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sms_on_scheme_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # All-teachers broadcast — the promotion season opened.
+    email_on_promotion_season: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sms_on_promotion_season: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Reviewer-facing (Admin/DeputyHead) — a class's promotion list was submitted.
+    email_on_promotion_activity: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sms_on_promotion_activity: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Teacher-facing — their own list was sent back, approved, or a reminder to submit.
+    email_on_promotion_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sms_on_promotion_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

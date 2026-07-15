@@ -390,7 +390,13 @@ type PreferenceField =
   | "emailOnSchemeActivity"
   | "smsOnSchemeActivity"
   | "emailOnSchemeDecided"
-  | "smsOnSchemeDecided";
+  | "smsOnSchemeDecided"
+  | "emailOnPromotionSeason"
+  | "smsOnPromotionSeason"
+  | "emailOnPromotionActivity"
+  | "smsOnPromotionActivity"
+  | "emailOnPromotionDecided"
+  | "smsOnPromotionDecided";
 
 type PreferenceRowConfig = {
   field: PreferenceField;
@@ -434,6 +440,26 @@ const TEACHER_PREFERENCE_ROWS: PreferenceRowConfig[] = [
     label: "SMS — Your Scheme Reviews",
     description: "Receive a text message when your own scheme is acknowledged or a reviewer comments.",
   },
+  {
+    field: "emailOnPromotionSeason",
+    label: "Email — Promotion Season Opened",
+    description: "Receive an email when a promotion season opens for your students.",
+  },
+  {
+    field: "smsOnPromotionSeason",
+    label: "SMS — Promotion Season Opened",
+    description: "Receive a text message when a promotion season opens for your students.",
+  },
+  {
+    field: "emailOnPromotionDecided",
+    label: "Email — Your Promotion List",
+    description: "Receive an email when your own promotion list is sent back, approved, or still pending.",
+  },
+  {
+    field: "smsOnPromotionDecided",
+    label: "SMS — Your Promotion List",
+    description: "Receive a text message when your own promotion list is sent back, approved, or still pending.",
+  },
 ];
 
 const PARENT_PREFERENCE_ROWS: PreferenceRowConfig[] = [
@@ -474,10 +500,11 @@ const PARENT_PREFERENCE_ROWS: PreferenceRowConfig[] = [
   },
 ];
 
-// Shared by Admin and Deputy Head — both are leave approvers, and both
-// can also submit their own leave request as a staff member, so both
-// directions (activity + decided) apply to either role identically.
-const LEAVE_APPROVER_PREFERENCE_ROWS: PreferenceRowConfig[] = [
+// Shared by Admin and Deputy Head — both are leave AND promotion
+// approvers, and both can also submit their own leave request as a
+// staff member, so all these directions apply to either role
+// identically.
+const ADMIN_DEPUTY_PREFERENCE_ROWS: PreferenceRowConfig[] = [
   {
     field: "emailOnLeaveActivity",
     label: "Email — Leave Requests Submitted",
@@ -498,6 +525,16 @@ const LEAVE_APPROVER_PREFERENCE_ROWS: PreferenceRowConfig[] = [
     label: "SMS — Your Leave Requests",
     description: "Receive a text message when your own leave request is approved or rejected.",
   },
+  {
+    field: "emailOnPromotionActivity",
+    label: "Email — Promotion Lists Submitted",
+    description: "Receive an email when a class's promotion list is submitted for review.",
+  },
+  {
+    field: "smsOnPromotionActivity",
+    label: "SMS — Promotion Lists Submitted",
+    description: "Receive a text message when a class's promotion list is submitted for review.",
+  },
 ];
 
 function NotificationsTab({ user }: { user: SessionUser }) {
@@ -507,7 +544,7 @@ function NotificationsTab({ user }: { user: SessionUser }) {
       : user.role === PARENT
         ? PARENT_PREFERENCE_ROWS
         : user.role === ADMIN || user.role === DEPUTY_HEAD
-          ? LEAVE_APPROVER_PREFERENCE_ROWS
+          ? ADMIN_DEPUTY_PREFERENCE_ROWS
           : [];
 
   return (

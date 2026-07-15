@@ -25,14 +25,19 @@ so historic queries still work.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
+import inngest
+import sentry_sdk
 from sqlalchemy import and_, literal, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from app.core.inngest import inngest_client
 from app.core.roles import ADMIN, DEPUTY_HEAD, TEACHER
 from app.features.audit.actions import PROMOTION_APPROVED as AUDIT_PROMOTION_APPROVED
 from app.features.audit.service import write_audit_log
@@ -53,6 +58,7 @@ from app.features.notifications.constants import (
     PROMOTION_SEASON_OPENED,
     PROMOTION_SENT_BACK,
     PROMOTION_SUBMITTED,
+    NotificationKind,
 )
 from app.features.notifications.service import NotificationsService, NotifyPayload
 from app.features.promotions.academic_year import next_academic_year
@@ -91,9 +97,12 @@ from app.features.promotions.suggestion import (
     compute_suggestion,
 )
 from app.features.schools.service import SchoolsService
+from app.features.staff.model import Staff
 from app.features.staff.repository import StaffRepository
 from app.features.students.model import Student
-from app.features.users.model import User
+from app.features.users.model import User, UserPreferences
+
+logger = logging.getLogger(__name__)
 
 
 def _now() -> datetime:
@@ -170,17 +179,7 @@ class PromotionsService:
             await session.flush()
 
         # Notify every Teacher in the school. Empty audience → no-op.
-        await NotificationsService.notify_audience(
-            session,
-            school_id,
-            AllTeachersAudience(),
-            NotifyPayload(
-                kind=PROMOTION_SEASON_OPENED,
-                title="Promotion season opened",
-                body=f"Submit promotion decisions for your students in {year}.",
-                link="/teacher/promotions",
-            ),
-        )
+        await _notify_promotion_season_opened(session, school_id, academic_year=year)
         return season_row, opened_with_override
 
     @staticmethod
@@ -396,21 +395,18 @@ class PromotionsService:
         # it) but be defensive: `send_back` can run on rows written by
         # tests or migrations that skip the submit step.
         if submission.submitted_by_id is not None:
-            teacher_user = await NotificationsService.find_user_for_linked(
-                session, school_id, submission.submitted_by_id
+            body = f"{cls.name}: {comment.strip()}"
+            await _notify_promotion_teacher(
+                session,
+                school_id,
+                teacher_id=submission.submitted_by_id,
+                kind=PROMOTION_SENT_BACK,
+                title="Promotion list sent back",
+                body=body,
+                link=f"/teacher/promotions/{submission.class_id}",
+                email_event="email/promotion-sent-back.requested",
+                email_data={"class_name": cls.name, "comment": comment.strip()},
             )
-            if teacher_user is not None:
-                await NotificationsService.notify_user(
-                    session,
-                    school_id,
-                    user_id=teacher_user.id,
-                    payload=NotifyPayload(
-                        kind=PROMOTION_SENT_BACK,
-                        title="Promotion list sent back",
-                        body=f"{cls.name}: {comment.strip()}",
-                        link=f"/teacher/promotions/{submission.class_id}",
-                    ),
-                )
         return submission
 
     @staticmethod
@@ -529,21 +525,18 @@ class PromotionsService:
         # Notify the teacher who submitted the list. Skip if there's no
         # `submitted_by_id` — same defensive check as `send_back`.
         if submission.submitted_by_id is not None:
-            teacher_user = await NotificationsService.find_user_for_linked(
-                session, school_id, submission.submitted_by_id
+            body = f"{cls.name}'s promotion list was approved."
+            await _notify_promotion_teacher(
+                session,
+                school_id,
+                teacher_id=submission.submitted_by_id,
+                kind=NOTIF_PROMOTION_APPROVED,
+                title="Promotion list approved",
+                body=body,
+                link=f"/teacher/promotions/{submission.class_id}",
+                email_event="email/promotion-approved.requested",
+                email_data={"class_name": cls.name},
             )
-            if teacher_user is not None:
-                await NotificationsService.notify_user(
-                    session,
-                    school_id,
-                    user_id=teacher_user.id,
-                    payload=NotifyPayload(
-                        kind=NOTIF_PROMOTION_APPROVED,
-                        title="Promotion list approved",
-                        body=f"{cls.name}'s promotion list was approved.",
-                        link=f"/teacher/promotions/{submission.class_id}",
-                    ),
-                )
         return submission
 
     @staticmethod
@@ -617,21 +610,17 @@ class PromotionsService:
 
             class_teachers = await PromotionsRepository.class_teachers_by_class(session, [cls.id])
             for staff, _is_primary in class_teachers.get(str(cls.id), []):
-                teacher_user = await NotificationsService.find_user_for_linked(
-                    session, school_id, staff.id
-                )
-                if teacher_user is None:
-                    continue
-                await NotificationsService.notify_user(
+                body = f"{cls.name}'s promotion list hasn't been submitted yet."
+                await _notify_promotion_teacher(
                     session,
                     school_id,
-                    user_id=teacher_user.id,
-                    payload=NotifyPayload(
-                        kind=PROMOTION_REMINDER,
-                        title="Promotion list still pending",
-                        body=f"{cls.name}'s promotion list hasn't been submitted yet.",
-                        link=f"/teacher/promotions/{cls.id}",
-                    ),
+                    teacher_id=staff.id,
+                    kind=PROMOTION_REMINDER,
+                    title="Promotion list still pending",
+                    body=body,
+                    link=f"/teacher/promotions/{cls.id}",
+                    email_event="email/promotion-reminder.requested",
+                    email_data={"class_name": cls.name},
                 )
 
             submission.last_reminder_sent_at = now
@@ -650,6 +639,137 @@ _PROMOTION_REVIEW_PATH: dict[str, str] = {
     ADMIN: "/admin/promotions/{id}",
     DEPUTY_HEAD: "/deputy-head/promotions/{id}",
 }
+_PROMOTION_PREFS_PATH: dict[str, str] = {
+    ADMIN: "/admin/profile?tab=notifications",
+    DEPUTY_HEAD: "/deputy-head/profile?tab=notifications",
+}
+_TEACHER_PROMOTIONS_LINK = "/teacher/promotions"
+_TEACHER_PREFS_LINK = "/teacher/profile?tab=notifications"
+
+
+async def _notify_promotion_channels(
+    session: AsyncSession,
+    school_id: UUID | str,
+    *,
+    recipient_user: User,
+    recipient_phone: str | None,
+    preferences_link: str,
+    direction: str,
+    email_event: str,
+    email_data: dict[str, Any],
+    sms_body: str,
+) -> None:
+    """Email + SMS fan-out for a single promotion recipient, on top of
+    the in-app notification the caller already writes. `direction` is
+    `"season"` (all-teachers broadcast), `"activity"` (reviewer-facing
+    — submit), or `"decided"` (teacher-facing — sent-back/approved/
+    reminder); it selects both the school-level `notification_defaults`
+    toggle and the per-user `user_preferences` columns to check.
+    Structurally identical to `leave_requests.service._notify_leave_channels`.
+    """
+    school = await SchoolsService.get(session, school_id)
+    defaults = school.notification_defaults or {}
+    if not defaults.get(f"on_promotion_{direction}", True):
+        return
+
+    prefs = await session.scalar(
+        select(UserPreferences).where(UserPreferences.user_id == recipient_user.id)
+    )
+    email_allowed = getattr(prefs, f"email_on_promotion_{direction}", True) if prefs else True
+    sms_allowed = getattr(prefs, f"sms_on_promotion_{direction}", True) if prefs else True
+
+    if recipient_user.email and email_allowed:
+        try:
+            await inngest_client.send(
+                inngest.Event(
+                    name=email_event,
+                    data={
+                        **email_data,
+                        "recipient_email": recipient_user.email,
+                        "school_name": school.name,
+                        "school_address": school.address or "",
+                        "school_contact_email": school.email or school.email_reply_to or "",
+                        "preferences_link": preferences_link,
+                    },
+                )
+            )
+        except Exception:
+            logger.exception("Failed to emit %s for school %s", email_event, school_id)
+            sentry_sdk.capture_exception()
+
+    if recipient_phone and sms_allowed:
+        try:
+            await inngest_client.send(
+                inngest.Event(
+                    name="sms/fanout.requested",
+                    data={
+                        "school_id": str(school_id),
+                        "category": "promotion",
+                        "body": sms_body,
+                        "recipients": [{"phone": recipient_phone, "guardian_id": None}],
+                    },
+                )
+            )
+        except Exception:
+            logger.exception("Failed to emit promotion SMS fan-out for school %s", school_id)
+            sentry_sdk.capture_exception()
+
+
+async def _notify_promotion_season_opened(
+    session: AsyncSession,
+    school_id: UUID | str,
+    *,
+    academic_year: str,
+) -> None:
+    """Fans out `PROMOTION_SEASON_OPENED` to every teacher in the school
+    — in-app + email + SMS, direction `"season"`. A mass broadcast
+    (unlike every other direction here, which targets a small,
+    specific set of recipients), but infrequent — once or twice a year
+    at term boundaries — so the same two-tier gate applies rather than
+    carving out an exception."""
+    user_ids = await resolve_audience(
+        session, school_id, AllTeachersAudience(), academic_year=academic_year
+    )
+    if not user_ids:
+        return
+
+    recipients = (await session.execute(select(User).where(User.id.in_(user_ids)))).scalars().all()
+    linked_ids = [u.linked_id for u in recipients if u.linked_id]
+    staff_by_id: dict[UUID, Staff] = {}
+    if linked_ids:
+        staff_rows = (
+            (await session.execute(select(Staff).where(Staff.id.in_(linked_ids)))).scalars().all()
+        )
+        staff_by_id = {s.id: s for s in staff_rows}
+
+    body = f"Submit promotion decisions for your students in {academic_year}."
+    for user in recipients:
+        await NotificationsService.notify_user(
+            session,
+            school_id,
+            user_id=user.id,
+            payload=NotifyPayload(
+                kind=PROMOTION_SEASON_OPENED,
+                title="Promotion season opened",
+                body=body,
+                link=_TEACHER_PROMOTIONS_LINK,
+            ),
+        )
+        staff = staff_by_id.get(user.linked_id) if user.linked_id else None
+        await _notify_promotion_channels(
+            session,
+            school_id,
+            recipient_user=user,
+            recipient_phone=staff.phone if staff else None,
+            preferences_link=_TEACHER_PREFS_LINK,
+            direction="season",
+            email_event="email/promotion-season-opened.requested",
+            email_data={
+                "academic_year": academic_year,
+                "link": _TEACHER_PROMOTIONS_LINK,
+            },
+            sms_body=f"{body} Check UHAS SMS for details.",
+        )
 
 
 async def _notify_promotion_reviewers(
@@ -665,9 +785,7 @@ async def _notify_promotion_reviewers(
     Deputy Head of the class's division plus every Admin, both
     simultaneously eligible to approve/send-back (mirrors
     `LeaveRequestsService`'s dual-eligibility approver audience). In-app
-    only — promotions predates the email/SMS notification initiative,
-    so this matches the existing `PROMOTION_SEASON_OPENED`/
-    `PROMOTION_SENT_BACK` calls rather than introducing a new channel."""
+    + email + SMS, direction `"activity"`."""
     approver_ids: set[UUID] = set(
         await resolve_audience(
             session,
@@ -685,11 +803,20 @@ async def _notify_promotion_reviewers(
     approvers = (
         (await session.execute(select(User).where(User.id.in_(approver_ids)))).scalars().all()
     )
+    linked_ids = [a.linked_id for a in approvers if a.linked_id]
+    staff_by_id: dict[UUID, Staff] = {}
+    if linked_ids:
+        staff_rows = (
+            (await session.execute(select(Staff).where(Staff.id.in_(linked_ids)))).scalars().all()
+        )
+        staff_by_id = {s.id: s for s in staff_rows}
+
     body = f"{class_name} submitted their promotion list for review."
     for approver in approvers:
         path_template = _PROMOTION_REVIEW_PATH.get(approver.role)
         if not path_template:
             continue
+        review_path = path_template.format(id=submission_id)
         await NotificationsService.notify_user(
             session,
             school_id,
@@ -698,9 +825,69 @@ async def _notify_promotion_reviewers(
                 kind=PROMOTION_SUBMITTED,
                 title="Promotion list submitted",
                 body=body,
-                link=path_template.format(id=submission_id),
+                link=review_path,
             ),
         )
+        preferences_path = _PROMOTION_PREFS_PATH.get(approver.role)
+        if not preferences_path:
+            continue
+        approver_staff = staff_by_id.get(approver.linked_id) if approver.linked_id else None
+        await _notify_promotion_channels(
+            session,
+            school_id,
+            recipient_user=approver,
+            recipient_phone=approver_staff.phone if approver_staff else None,
+            preferences_link=preferences_path,
+            direction="activity",
+            email_event="email/promotion-submitted.requested",
+            email_data={
+                "class_name": class_name,
+                "link": review_path,
+            },
+            sms_body=f"{body} Check UHAS SMS to review.",
+        )
+
+
+async def _notify_promotion_teacher(
+    session: AsyncSession,
+    school_id: UUID | str,
+    *,
+    teacher_id: UUID | str,
+    kind: NotificationKind,
+    title: str,
+    body: str,
+    link: str,
+    email_event: str,
+    email_data: dict[str, Any],
+) -> None:
+    """Notifies the class teacher about their own submission — in-app +
+    email + SMS, direction `"decided"`. Single recipient, shared by
+    `send_back`, `approve`, and `send_unsubmitted_reminders` — those 3
+    events are all "about the teacher's own list" (an outcome or a
+    nudge to submit), so they share one preference pair rather than
+    each getting their own."""
+    teacher_user = await NotificationsService.find_user_for_linked(session, school_id, teacher_id)
+    if teacher_user is None:
+        return
+
+    await NotificationsService.notify_user(
+        session,
+        school_id,
+        user_id=teacher_user.id,
+        payload=NotifyPayload(kind=kind, title=title, body=body, link=link),
+    )
+    teacher_staff = await StaffRepository.get_by_id(session, school_id, teacher_id)
+    await _notify_promotion_channels(
+        session,
+        school_id,
+        recipient_user=teacher_user,
+        recipient_phone=teacher_staff.phone if teacher_staff else None,
+        preferences_link=_TEACHER_PREFS_LINK,
+        direction="decided",
+        email_event=email_event,
+        email_data={**email_data, "link": link},
+        sms_body=f"{body} Check UHAS SMS for details.",
+    )
 
 
 def _to_uuid(value: UUID | str) -> UUID:
