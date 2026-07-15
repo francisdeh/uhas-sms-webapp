@@ -42,6 +42,11 @@ dependencies = [
     "jinja2>=3.1.6",
     "slowapi>=0.1.10",
     "redis>=8.0.1",
+    # Verifies the Standard Webhooks HMAC signature on Supabase Auth's
+    # "Send SMS" hook calls (app/features/auth/router.py's
+    # /auth/send-sms-hook) — same open spec Supabase itself implements,
+    # not a Supabase-specific SDK.
+    "standardwebhooks>=1.0.1",
 ]
 
 [dependency-groups]

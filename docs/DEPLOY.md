@@ -32,7 +32,10 @@ Target stack: **Next.js + FastAPI on Railway** + **Supabase (Postgres, Auth, Sto
 
 - [ ] Real Supabase project's Auth is configured — Dashboard → Authentication.
 - [ ] **Site URL** + **Redirect URLs** include the Railway web service's real URL (and any custom domain).
-- [ ] **Email/password sign-in** enabled for staff; **phone (SMS OTP) sign-in** enabled for parents, with a real SMS provider configured in Supabase Auth settings (Twilio or similar — separate from the app's own Hubtel integration, which handles notification SMS, not OTP delivery).
+- [ ] **Email/password sign-in** enabled for staff; **phone (SMS OTP) sign-in** enabled for parents. OTP delivery is relayed through the app's own Hubtel integration via a custom **Send SMS hook** — not a native Supabase provider (Twilio/MessageBird/Vonage), which the app doesn't use for OTP at all:
+  - [ ] Dashboard → Authentication → Hooks → **Send SMS** → point it at `https://<api-service-url>/auth/send-sms-hook`. Supabase generates a signing secret when you register it — copy it.
+  - [ ] Railway env var on `apps/api`: `SEND_SMS_HOOK_SECRET=<the secret from the step above>`, format `v1,whsec_<base64>`. Fails **closed** if unset — the endpoint returns 500 rather than accepting unsigned requests, so phone-OTP sign-in silently stops working (not silently insecure) if this is forgotten.
+  - [ ] The `[auth.sms.twilio]` block in `supabase/config.toml` stays `enabled = true` with dummy/unset credentials — it only exists to satisfy Supabase's "at least one provider" requirement; the Send SMS hook intercepts every real send before Twilio's own path is ever reached.
 - [ ] Railway env vars set on both services, from Supabase Dashboard → Project Settings → API:
   - `apps/api`: `SUPABASE_URL`, `SUPABASE_JWT_SECRET` (must match what Supabase Auth signs tokens with — Project Settings → API → JWT Secret), `SUPABASE_SERVICE_ROLE_KEY`
   - `apps/web`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-side only — signed URLs, admin ops), `NEXT_PUBLIC_API_URL` (the `api` service's Railway URL)

@@ -2,6 +2,22 @@
 
 Full development history for the UHAS SMS project, newest first. `README.md`'s Development Phases table is a slim index into this file — this is the canonical place for detailed "what shipped and why" narrative.
 
+## Supabase Send SMS hook — relay phone-OTP through Hubtel — ✅ Done
+
+Second of two provider-wiring PRs, deliberately kept separate from the first (Brevo/Hubtel precedence swap) since this one adds a genuinely new piece — a public, unauthenticated webhook endpoint — rather than a simple factory-precedence change.
+
+**The gap**: Supabase Auth's phone-OTP sign-in (the Parent login path) has always used a placeholder `[auth.sms.twilio]` block in `supabase/config.toml` with unset credentials, existing only to satisfy Supabase's "at least one provider must be enabled" requirement — a comment in that file even flagged this as "Phase 3 — not implemented here" months ago. Real OTP delivery never actually worked; only the pinned `test_otp` numbers did.
+
+**The fix**: a new `POST /auth/send-sms-hook` endpoint (`app/features/auth/router.py`) registered as Supabase's custom **Send SMS hook** — Supabase now calls this instead of Twilio whenever it needs to deliver an OTP, and the endpoint relays the send through the app's own `get_sms_provider()` (Hubtel, per the previous PR). Every request is verified against the Standard Webhooks HMAC signature (new `standardwebhooks` dependency — the same open spec Supabase itself implements, not a Supabase-specific SDK) using a shared secret Supabase generates when you register the hook. Reads the **raw** request body before any JSON parsing, since signature verification must be over the exact bytes sent, not a re-serialized version.
+
+**Deliberately fails closed**: unlike every other provider setting in this codebase ("missing config isn't an error, just skip"), a missing `SEND_SMS_HOOK_SECRET` here returns a 500 rather than silently accepting unsigned requests — this is the one place where "safe to skip" would actually mean "anyone who finds the URL can relay arbitrary SMS through the school's Hubtel account."
+
+**Scope decision**: hook-triggered OTP sends do *not* get logged to `sms_log` like every other domain's SMS (fee reminders, leave notifications). Supabase's hook payload may not yet include our own custom `app_metadata.school_id` claim on a brand-new signup (it only reliably has Supabase's own `provider`/`providers` fields at that point), which would make `school_id` resolution unreliable for logging purposes — Hubtel's own dashboard already covers delivery/cost auditing for this flow, so the endpoint calls the provider directly rather than routing through `SmsService.send()`'s DB-logging wrapper.
+
+**Testable locally, not just in production**: Supabase's local Auth container (running in Docker) reaches the FastAPI dev server via `http://host.docker.internal:8000/auth/send-sms-hook` on macOS — new `[auth.hook.send_sms]` block in `supabase/config.toml`. Real Hubtel OTP delivery can be exercised from a developer's own machine the same way production will.
+
+Backend: `ruff check`/`ruff format --check`/`mypy`/`pytest` all clean (899 passed). New tests build real, validly-signed webhook requests using the same `standardwebhooks` library the endpoint verifies against (`Webhook.sign`), rather than mocking verification away — covering valid relay, wrong signature, signature from a different secret, unconfigured secret (fails closed), provider-reported failure, and malformed payloads. The endpoint is excluded from the OpenAPI schema (`include_in_schema=False`, confirmed via a fresh `/openapi.json` diff) — Supabase is the only caller, so there's no reason for it to appear in the frontend's generated API client.
+
 ## Brevo email + Hubtel SMS provider wiring — ✅ Done
 
 First of two PRs kicking off an "email/SMS delivery gaps" initiative (Announcements/Assignments/Promotions/Schemes each still lack email or SMS — see the migration plan's item 8). This PR is the foundational piece: making the school's actually-chosen providers the real, primary ones, since every domain PR after this one will send through whichever provider is active.
