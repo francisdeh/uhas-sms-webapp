@@ -17,7 +17,8 @@ Event payload shape:
     {
       "school_id": "<uuid>",
       "category": "absence" | "results" | "fee_reminder" | "announcement"
-        | "onboarding" | "appointment" | "leave" | "assignment" | "scheme" | "other",
+        | "onboarding" | "appointment" | "leave" | "assignment" | "scheme"
+        | "promotion" | "other",
       "body": "<message text>",
       "recipients": [{"phone": "+233...", "guardian_id": "<uuid> | null"}, ...]
     }

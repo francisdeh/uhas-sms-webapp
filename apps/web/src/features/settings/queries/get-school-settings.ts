@@ -42,6 +42,9 @@ const DEFAULT_NOTIFICATIONS: ApiNotificationDefaults = {
   onAssignmentCreated: true,
   onSchemeActivity: true,
   onSchemeDecided: true,
+  onPromotionSeason: true,
+  onPromotionActivity: true,
+  onPromotionDecided: true,
 };
 
 export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {

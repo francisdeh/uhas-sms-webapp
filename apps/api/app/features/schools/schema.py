@@ -100,6 +100,9 @@ class NotificationDefaults(BaseModel):
     on_assignment_created: bool = True
     on_scheme_activity: bool = True
     on_scheme_decided: bool = True
+    on_promotion_season: bool = True
+    on_promotion_activity: bool = True
+    on_promotion_decided: bool = True
 
 
 # ─── School-level schemas ────────────────────────────────────────────────────

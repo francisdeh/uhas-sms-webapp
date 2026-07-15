@@ -158,6 +158,27 @@ export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
             checked={prefs.onSchemeDecided}
             onToggle={() => togglePref("onSchemeDecided")}
           />
+          <Separator />
+          <NotifRow
+            label="Promotion season opened"
+            description="Every teacher gets an email and SMS when a promotion season opens."
+            checked={prefs.onPromotionSeason}
+            onToggle={() => togglePref("onPromotionSeason")}
+          />
+          <Separator />
+          <NotifRow
+            label="Promotion list submitted"
+            description="Admin and the relevant Deputy Head get an email and SMS when a class's promotion list is submitted for review."
+            checked={prefs.onPromotionActivity}
+            onToggle={() => togglePref("onPromotionActivity")}
+          />
+          <Separator />
+          <NotifRow
+            label="Promotion list sent back, approved, or reminded"
+            description="The submitting teacher gets an email and SMS when their promotion list is sent back, approved, or still pending."
+            checked={prefs.onPromotionDecided}
+            onToggle={() => togglePref("onPromotionDecided")}
+          />
 
           <div>
             <Button onClick={onSave} disabled={saving} variant="brand">

@@ -35,6 +35,9 @@ export type NotificationDefaults = {
   onAssignmentCreated: boolean;
   onSchemeActivity: boolean;
   onSchemeDecided: boolean;
+  onPromotionSeason: boolean;
+  onPromotionActivity: boolean;
+  onPromotionDecided: boolean;
 };
 
 export type SchoolTerm = {
