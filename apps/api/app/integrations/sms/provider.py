@@ -1,9 +1,10 @@
 """`SmsProvider` interface, the no-op `StubSmsProvider`, and the real
-`ArkeselSmsProvider`/`HubtelSmsProvider` — same "missing config isn't
+`HubtelSmsProvider`/`ArkeselSmsProvider` — same "missing config isn't
 an error" contract as `app/integrations/email/provider.py`:
-`get_sms_provider()` falls back through Arkesel -> Hubtel -> the stub
+`get_sms_provider()` falls back through Hubtel -> Arkesel -> the stub
 depending on which credentials are set, so every environment (dev, CI,
-tests) runs the same code path without a live account.
+tests) runs the same code path without a live account. Hubtel is the
+school's chosen provider and takes precedence when configured.
 """
 
 from __future__ import annotations
@@ -141,15 +142,15 @@ class ArkeselSmsProvider:
 
 
 def get_sms_provider() -> SmsProvider:
-    if settings.arkesel_api_key and settings.arkesel_sender_id:
-        return ArkeselSmsProvider(
-            api_key=settings.arkesel_api_key,
-            sender_id=settings.arkesel_sender_id,
-        )
     if settings.hubtel_client_id and settings.hubtel_client_secret and settings.hubtel_sender_id:
         return HubtelSmsProvider(
             client_id=settings.hubtel_client_id,
             client_secret=settings.hubtel_client_secret,
             sender_id=settings.hubtel_sender_id,
+        )
+    if settings.arkesel_api_key and settings.arkesel_sender_id:
+        return ArkeselSmsProvider(
+            api_key=settings.arkesel_api_key,
+            sender_id=settings.arkesel_sender_id,
         )
     return StubSmsProvider()
