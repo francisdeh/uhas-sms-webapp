@@ -12,9 +12,12 @@ Coverage groups:
 from __future__ import annotations
 
 from datetime import date, timedelta
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.appointments.constants import CLASS_TEACHER_SENTINEL
 from app.features.appointments.tests.conftest import (
@@ -26,11 +29,15 @@ from app.features.appointments.tests.conftest import (
     OTHER_GUARDIAN_UUID,
     OTHER_TEACHER_STAFF,
     OTHER_TEACHER_USER,
+    SCHOOL_UUID,
     STUDENT_UUID,
     TEACHER_STAFF,
     TEACHER_USER,
     auth_header,
 )
+from app.features.classes.model import Class, ClassTeacher
+from app.features.enrollments.model import Enrollment
+from app.features.staff.model import Staff
 
 pytestmark = pytest.mark.asyncio
 
@@ -63,6 +70,71 @@ async def test_teachers_picker_returns_class_and_subject_dedupe(
     assert len(items) == 1
     assert items[0]["id"] == str(TEACHER_STAFF)
     assert set(items[0]["subjects"]) == {CLASS_TEACHER_SENTINEL, "Mathematics"}
+
+
+async def test_teachers_picker_uses_next_year_class_when_promoted_but_not_activated(
+    client: AsyncClient, seed: None, db_session: AsyncSession
+) -> None:
+    """Regression test: a student promoted (an Active enrollment for
+    2026/2027 already exists via Promotions' `approve()`) but the school
+    hasn't formally activated 2026/2027 yet must still resolve teachers
+    from their real (next-year) class, not return an empty picker."""
+    _ = seed
+    next_year_class = UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeee0103")
+    next_year_teacher = UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeee0304")
+
+    # Close out the current-year enrollment (what promotion approval does).
+    await db_session.execute(
+        update(Enrollment)
+        .where(Enrollment.student_id == STUDENT_UUID, Enrollment.academic_year == "2025/2026")
+        .values(status="Completed")
+    )
+    db_session.add(
+        Class(
+            id=next_year_class,
+            slug="jhs2-appt-2027",
+            school_id=SCHOOL_UUID,
+            name="JHS 2",
+            division="JHS",
+            academic_year="2026/2027",
+        )
+    )
+    db_session.add(
+        Staff(
+            id=next_year_teacher,
+            slug="STAFF-t3-appt",
+            school_id=SCHOOL_UUID,
+            first_name="Yaw",
+            last_name="NextYear",
+            system_role="Teacher",
+            division="JHS",
+            email="t3@appt.test",
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ClassTeacher(class_id=next_year_class, staff_id=next_year_teacher, is_primary=True),
+            Enrollment(
+                student_id=STUDENT_UUID,
+                class_id=next_year_class,
+                academic_year="2026/2027",
+                status="Active",
+                enrollment_date=date(2026, 9, 1),
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    res = await client.get(
+        f"/appointments/teachers-for-student?studentId={STUDENT_UUID}",
+        headers=auth_header(role="Parent", user_id=GUARDIAN_USER, linked_id=GUARDIAN_UUID),
+    )
+    assert res.status_code == 200
+    items = res.json()["items"]
+    assert len(items) == 1
+    assert items[0]["id"] == str(next_year_teacher)
 
 
 async def test_teachers_picker_rejects_foreign_student(client: AsyncClient, seed: None) -> None:

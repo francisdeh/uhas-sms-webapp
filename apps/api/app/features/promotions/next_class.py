@@ -91,9 +91,3 @@ def auto_pick_target_class(
         if c.name == target:
             return c.id
     return None
-
-
-def division_has_next_year_classes(division: str, candidate_classes: Iterable[ClassLike]) -> bool:
-    """Pre-flight for `submit`: refuse if Admin hasn't set up next-year
-    classes for this division yet."""
-    return any(c.division == division for c in candidate_classes)

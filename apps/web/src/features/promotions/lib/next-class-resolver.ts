@@ -34,11 +34,3 @@ export function autoPickTargetClass(
   if (!target) return null;
   return candidateClasses.find((c) => c.name === target)?.id ?? null;
 }
-
-// Used by the pre-flight: does the division have at least one next-year class?
-export function divisionHasNextYearClasses(
-  division: string,
-  candidateClasses: ClassLike[]
-): boolean {
-  return candidateClasses.some((c) => c.division === division);
-}

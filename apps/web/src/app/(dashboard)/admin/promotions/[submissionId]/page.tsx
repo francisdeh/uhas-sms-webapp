@@ -5,10 +5,13 @@ import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi, ApiError } from "@/lib/api/server";
 import { PromotionDecisionTable } from "@/features/promotions/components/PromotionDecisionTable";
 import { PromotionCommentThread } from "@/features/promotions/components/PromotionCommentThread";
+import { ReviewFooter } from "@/features/promotions/components/ReviewFooter";
 import { Badge } from "@/components/ui/badge";
-import type {
-  DecisionRowView,
-  PromotionSubmission,
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  PROMOTION_SUBMISSION_STATUS,
+  type DecisionRowView,
+  type PromotionSubmission,
 } from "@/features/promotions/types";
 import { ADMIN } from "@/features/auth/types";
 
@@ -29,6 +32,7 @@ export default async function AdminPromotionDetailPage({
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
+  const isSubmitted = raw.submission.status === PROMOTION_SUBMISSION_STATUS.SUBMITTED;
 
   const submission: PromotionSubmission = {
     id: raw.submission.id,
@@ -110,6 +114,18 @@ export default async function AdminPromotionDetailPage({
         </p>
       </div>
 
+      {detail.submission.status === PROMOTION_SUBMISSION_STATUS.APPROVED && (
+        <Alert className="border-green-200 bg-green-50 text-green-800">
+          <AlertDescription>
+            Approved on{" "}
+            {detail.submission.reviewedAt
+              ? new Date(detail.submission.reviewedAt).toLocaleString()
+              : "—"}{" "}
+            — enrollments recorded.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <PromotionCommentThread comments={detail.comments} />
 
       <PromotionDecisionTable
@@ -121,6 +137,14 @@ export default async function AdminPromotionDetailPage({
         nextYearClasses={detail.nextYearClasses}
         initial={detail.decisions}
       />
+
+      {isSubmitted && (
+        <ReviewFooter
+          submissionId={detail.submission.id}
+          reviewedById={user.linkedId ?? ""}
+          redirectTo="/admin/promotions"
+        />
+      )}
     </div>
   );
 }

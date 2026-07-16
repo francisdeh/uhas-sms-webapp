@@ -87,7 +87,6 @@ from app.features.promotions.next_class import (
     JHS_3,
     ClassLike,
     auto_pick_target_class,
-    division_has_next_year_classes,
 )
 from app.features.promotions.repository import PromotionsRepository
 from app.features.promotions.schema import DecisionUpdate
@@ -305,15 +304,17 @@ class PromotionsService:
             raise NotFoundError("Class not found.")
 
         next_year = next_academic_year(cls.academic_year)
-        next_year_classes = await PromotionsRepository.next_year_classes_for_division(
-            session, school_id, next_year, cls.division
+        # School-wide, not filtered by the current class's own division —
+        # a cross-division promotion (e.g. Primary 6 → JHS 1) needs the
+        # TARGET class, which lives in a different division entirely.
+        # `auto_pick_target_class` matches by name, so the full school-wide
+        # candidate list is what it (and the manual dropdown) need to see.
+        next_year_classes = await PromotionsRepository.classes_for_school_year(
+            session, school_id, next_year
         )
-        if not division_has_next_year_classes(
-            cls.division,
-            [ClassLike(id=c.id, name=c.name, division=c.division) for c in next_year_classes],
-        ):
+        if not next_year_classes:
             raise ValidationError(
-                f"No {next_year} classes exist for {cls.division}. Ask Admin to set them up first."
+                f"No {next_year} classes exist yet. Ask Admin to set them up first."
             )
 
         await _apply_decision_updates(session, school_id, submission, updates)
@@ -985,8 +986,10 @@ async def _apply_decision_updates(
     cls = await session.get(Class, submission.class_id)
     class_likes: list[ClassLike] = []
     if cls is not None:
-        next_year_classes = await PromotionsRepository.next_year_classes_for_division(
-            session, school_id, next_academic_year(submission.academic_year), cls.division
+        # School-wide — see the comment in `submit_list` on why this can't
+        # be filtered by `cls.division`.
+        next_year_classes = await PromotionsRepository.classes_for_school_year(
+            session, school_id, next_academic_year(submission.academic_year)
         )
         class_likes = [
             ClassLike(id=c.id, name=c.name, division=c.division) for c in next_year_classes
@@ -1033,8 +1036,10 @@ async def _ensure_decisions_for_roster(
     core_subjects = await PromotionsRepository.core_subjects_for_division(
         session, school_id, cls.division
     )
-    next_year_classes = await PromotionsRepository.next_year_classes_for_division(
-        session, school_id, next_academic_year(cls.academic_year), cls.division
+    # School-wide — see the comment in `submit_list` on why this can't be
+    # filtered by `cls.division`.
+    next_year_classes = await PromotionsRepository.classes_for_school_year(
+        session, school_id, next_academic_year(cls.academic_year)
     )
     class_likes = [ClassLike(id=c.id, name=c.name, division=c.division) for c in next_year_classes]
 

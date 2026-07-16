@@ -35,7 +35,7 @@ from app.features.exams.constants import (
     DEFAULT_SCORE_WEIGHTS,
 )
 from app.features.promotions.academic_year import next_academic_year
-from app.features.promotions.constants import SEASON_OPEN
+from app.features.promotions.constants import SEASON_OPEN, SUB_APPROVED
 from app.features.promotions.repository import PromotionsRepository
 from app.features.school_terms.model import SchoolTerm
 from app.features.school_terms.repository import SchoolTermsRepository
@@ -277,9 +277,13 @@ class SchoolsService:
         enrolments but never touches `schools.academic_year`.
 
         Guarded: refuses while a promotion season is still open for the
-        current year, so a school can't roll over with students not yet
-        promoted. Resets `current_term`/`current_term_override` so the
-        date-based auto-pick starts fresh for the new year.
+        current year, AND refuses unless every one of the current year's
+        classes has an approved promotion submission — a school with
+        classes still un-promoted must not roll over, since that leaves
+        every student in those classes with no current-year enrolment
+        anywhere in the app until their class is separately promoted.
+        Resets `current_term`/`current_term_override` so the date-based
+        auto-pick starts fresh for the new year.
         """
         school = await SchoolsService.get(session, school_id)
         current_year = school.academic_year
@@ -290,6 +294,24 @@ class SchoolsService:
             raise ValidationError(
                 f"Promotion season for {current_year} is still open — "
                 f"close it before activating {target_year}."
+            )
+
+        classes = await PromotionsRepository.classes_for_school_year(
+            session, school_id, current_year
+        )
+        submissions = await PromotionsRepository.list_submissions_for_school(
+            session, school_id, current_year
+        )
+        approved_class_ids = {s.class_id for s in submissions if s.status == SUB_APPROVED}
+        unpromoted = sorted(
+            (c.name for c in classes if c.id not in approved_class_ids),
+        )
+        if unpromoted:
+            names = ", ".join(unpromoted)
+            raise ValidationError(
+                f"{len(unpromoted)} of {len(classes)} class(es) don't have an approved "
+                f"promotion yet: {names}. Every class must be promoted before activating "
+                f"{target_year}."
             )
 
         before = {"academic_year": current_year, "current_term": school.current_term}
