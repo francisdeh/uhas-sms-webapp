@@ -36,7 +36,7 @@ import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { api, ApiError } from "@/lib/api/browser";
 import { useStaffMutations } from "@/features/staff/hooks/use-staff";
-import { STAFF_SYSTEM_ROLES, ADMIN, DEPUTY_HEAD, TEACHER, ROLE_LABELS, DIVISIONS } from "@/features/auth/types";
+import { STAFF_SYSTEM_ROLES, ADMIN, TEACHER, ROLE_LABELS, DIVISIONS } from "@/features/auth/types";
 import { TEACHER_RANKS } from "@/features/staff/types";
 
 const schema = z
@@ -61,7 +61,7 @@ const schema = z
   })
   .refine(
     (data) => {
-      if (data.systemRole === DEPUTY_HEAD || data.systemRole === TEACHER) {
+      if (data.systemRole !== ADMIN) {
         return !!data.division;
       }
       return true;
@@ -110,7 +110,7 @@ export default function StaffRegistrationForm({
 
   const systemRole = useWatch({ control, name: "systemRole" });
   const isUnitHead = useWatch({ control, name: "isUnitHead" });
-  const showDivision = systemRole === DEPUTY_HEAD || systemRole === TEACHER;
+  const showDivision = !!systemRole && systemRole !== ADMIN;
   const canBeUnitHead = systemRole === TEACHER;
 
   async function onSubmit(values: FormValues) {
@@ -260,9 +260,11 @@ export default function StaffRegistrationForm({
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={ADMIN}>{ROLE_LABELS[ADMIN]}</SelectItem>
-                          <SelectItem value={DEPUTY_HEAD}>{ROLE_LABELS[DEPUTY_HEAD]}</SelectItem>
-                          <SelectItem value={TEACHER}>{ROLE_LABELS[TEACHER]}</SelectItem>
+                          {STAFF_SYSTEM_ROLES.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {ROLE_LABELS[role]}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}

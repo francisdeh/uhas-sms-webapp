@@ -21,7 +21,7 @@ from app.core.errors import ConflictError, ForbiddenError, NotFoundError, Valida
 from app.core.roles import ACCOUNTANT, ADMIN, DEPUTY_HEAD, TEACHER
 from app.core.security import CurrentUser
 from app.core.slug import insert_with_sequential_slug, per_school_slug_resolver
-from app.features.audit.actions import ROLE_CHANGE
+from app.features.audit.actions import ROLE_CHANGE, USER_DEACTIVATED, USER_REACTIVATED
 from app.features.audit.service import write_audit_log
 from app.features.notifications.service import NotificationsService
 from app.features.staff.model import Staff, StaffDocument, StaffQualification
@@ -36,6 +36,7 @@ from app.features.staff.schema import (
 )
 from app.features.subjects.model import Subject
 from app.features.subjects.repository import SubjectsRepository
+from app.features.users.service import UsersService
 from app.features.users.supabase_admin import SupabaseAdminClient
 
 _SELF_SERVICE_ROLES = frozenset({DEPUTY_HEAD, TEACHER, ACCOUNTANT})
@@ -179,9 +180,20 @@ class StaffService:
         staff_id: UUID | str,
         payload: StaffRoleChange,
         *,
+        supabase: SupabaseAdminClient,
         actor_user_id: UUID | str,
     ) -> Staff:
-        """Apply a role change + clear unit-head flags + audit log."""
+        """Apply a role change + clear unit-head flags + audit log.
+
+        Also syncs the linked login's role — `staff.system_role` isn't
+        what actually gates access; the JWT's `app_metadata.role` is.
+        Without this, "changing" a staff member's role here left their
+        real login role (and thus their dashboard/permissions) unchanged
+        until a separate, nonexistent admin flow updated it — the two
+        could silently disagree forever. `app_metadata` is Supabase's
+        replace-not-merge, so the full object (role/school_id/linked_id)
+        is resent, matching `UsersService.provision_login`'s shape.
+        """
         row = await StaffService.get(session, school_id, staff_id)
         if payload.system_role != ADMIN and not payload.division:
             raise ValidationError("Division is required for this role.")
@@ -194,6 +206,19 @@ class StaffService:
             row.unit_head_of = None
 
         if before_role != payload.system_role:
+            linked_user = await NotificationsService.find_user_for_linked(
+                session, school_id, staff_id
+            )
+            if linked_user is not None:
+                linked_user.role = payload.system_role
+                await supabase.update_user_by_id(
+                    linked_user.id,
+                    app_metadata={
+                        "role": payload.system_role,
+                        "school_id": str(school_id),
+                        "linked_id": str(staff_id),
+                    },
+                )
             await write_audit_log(
                 session,
                 school_id=school_id,
@@ -232,13 +257,36 @@ class StaffService:
         staff_id: UUID | str,
         *,
         active: bool,
+        supabase: SupabaseAdminClient,
+        actor_user_id: UUID | str,
     ) -> Staff:
-        """Deactivate / reactivate — soft delete in effect."""
+        """Deactivate / reactivate — soft delete in effect.
+
+        Also flips the linked `users` row (if this staff member has a
+        login) via `UsersService.set_active`, which sets the real
+        Supabase ban — without this, a deactivated staff member's
+        session and login kept working indefinitely, since `staff.is_active`
+        alone was never enforced anywhere. A staff row created ahead of
+        its login being provisioned (no linked `users` row yet) just
+        skips this step; there's no session to revoke.
+        """
         row = await StaffService.get(session, school_id, staff_id)
         if row.is_active == active:
             raise ConflictError(f"Staff member is already {'active' if active else 'inactive'}.")
         row.is_active = active
         await session.flush()
+
+        linked_user = await NotificationsService.find_user_for_linked(session, school_id, staff_id)
+        if linked_user is not None:
+            await UsersService.set_active(
+                session,
+                school_id,
+                linked_user.id,
+                active=active,
+                supabase=supabase,
+                actor_user_id=actor_user_id,
+                action=USER_REACTIVATED if active else USER_DEACTIVATED,
+            )
         return row
 
     # ── subject expertise ───────────────────────────────────────────────

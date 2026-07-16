@@ -38,7 +38,7 @@ import {
 import type { SchoolClass } from "@/features/classes/types";
 import type { StaffSystemRole } from "@/features/staff/types";
 import { STAFF_ROLE_AVATAR, STAFF_ROLE_PILL } from "@/features/staff/role-styles";
-import { ROLE_LABELS, ADMIN, DEPUTY_HEAD, TEACHER, type Division } from "@/features/auth/types";
+import { ROLE_LABELS, STAFF_SYSTEM_ROLES, TEACHER, type Division } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
 type RoleFilter = StaffSystemRole | "All";
@@ -323,7 +323,7 @@ export default function StaffTable({
         {/* Filter pills */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {(["All", ADMIN, DEPUTY_HEAD, TEACHER] as RoleFilter[]).map((r) => (
+            {(["All", ...STAFF_SYSTEM_ROLES] as RoleFilter[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setRoleFilter(r)}
@@ -386,7 +386,7 @@ export default function StaffTable({
               Deactivate {deactivateTarget?.firstName} {deactivateTarget?.lastName}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              They will be marked inactive. You can reactivate at any time.
+              They will lose system access. You can reactivate at any time.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -24,12 +24,13 @@ from uuid import UUID
 
 import inngest
 import sentry_sdk
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.inngest import inngest_client
-from app.core.roles import PARENT
+from app.core.roles import ADMIN, PARENT
 from app.features.audit.actions import USER_CREATED, USER_MFA_RESET, AuditAction
 from app.features.audit.service import write_audit_log
 from app.features.schools.service import SchoolsService
@@ -463,8 +464,35 @@ class UsersService:
 
         The Supabase ban is the real enforcement — nothing in the app
         consults `is_active` on its own — so both must move together.
+
+        Deactivating an Admin is refused if it would lock the school out
+        entirely: an actor can't deactivate their own admin account (the
+        self-service `/me/deactivate` path already blocks this for any
+        Admin unconditionally — this is the admin-panel-initiated
+        equivalent, for the case where an admin targets their own row
+        via `/users/{id}/deactivate` instead), and an Admin can't be
+        deactivated if they're the school's last active one. Non-admin
+        roles have no such restriction — self-deactivating out of a
+        Teacher/DeputyHead/Accountant account doesn't orphan anything.
         """
         row = await UsersService._get_or_404(session, school_id, user_id)
+        if not active and row.role == ADMIN:
+            if str(row.id) == str(actor_user_id):
+                raise ValidationError("You cannot deactivate your own admin account.")
+            other_active_admins = await session.scalar(
+                select(func.count())
+                .select_from(User)
+                .where(
+                    and_(
+                        User.school_id == school_id,
+                        User.role == ADMIN,
+                        User.is_active.is_(True),
+                        User.id != user_id,
+                    )
+                )
+            )
+            if not other_active_admins:
+                raise ValidationError("Cannot deactivate the last active Admin in the school.")
         before = row.is_active
         await supabase.update_user_by_id(
             row.id,

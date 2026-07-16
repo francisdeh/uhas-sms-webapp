@@ -70,11 +70,17 @@ export async function proxy(request: NextRequest) {
 
   // 2FA step-up gate: a user with a verified factor who hasn't cleared
   // it this session must finish at /verify-2fa before any dashboard.
-  // This is what makes 2FA un-bypassable — the login-form challenge
-  // handles the normal path, but an abandoned-then-direct-navigation
-  // aal1 session is caught here. Exempt /verify-2fa itself (else it
-  // redirects to itself) and /change-password (a first-login user
-  // hasn't enrolled yet, but keep it reachable regardless).
+  // This is a UI-navigation gate ONLY — it stops the Next.js dashboard
+  // routes, not the FastAPI backend. A client holding a still-valid
+  // aal1 bearer token can call any apps/api endpoint directly; FastAPI
+  // never reads the JWT's `aal`/`amr` claims today, so it can't tell
+  // an unenrolled account from one that skipped step-up. Real API-layer
+  // enforcement needs a persisted "has this account enrolled" signal
+  // (there isn't one — enrollment status is only ever derived live via
+  // the Supabase client SDK) and is tracked as separate follow-up work,
+  // not implemented here. Exempt /verify-2fa itself (else it redirects
+  // to itself) and /change-password (a first-login user hasn't enrolled
+  // yet, but keep it reachable regardless).
   if (needsMfa && pathname !== "/verify-2fa") {
     return NextResponse.redirect(new URL("/verify-2fa", request.url));
   }

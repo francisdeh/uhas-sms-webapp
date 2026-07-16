@@ -56,7 +56,7 @@ import { api, ApiError } from "@/lib/api/browser";
 import { TEACHER_RANKS, type Staff } from "@/features/staff/types";
 import { formatStudentDate } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
-import { STAFF_SYSTEM_ROLES, ROLE_LABELS, ADMIN, DEPUTY_HEAD, TEACHER, DIVISIONS } from "@/features/auth/types";
+import { STAFF_SYSTEM_ROLES, ROLE_LABELS, ADMIN, DIVISIONS } from "@/features/auth/types";
 import { STAFF_ROLE_AVATAR, STAFF_ROLE_PILL } from "@/features/staff/role-styles";
 import { useBreadcrumbLabel } from "@/features/shell/breadcrumb-context";
 import { SubjectExpertiseCard } from "@/features/staff/components/SubjectExpertiseCard";
@@ -84,7 +84,7 @@ const changeRoleSchema = z
   })
   .refine(
     (data) => {
-      if (data.systemRole === DEPUTY_HEAD || data.systemRole === TEACHER) {
+      if (data.systemRole !== ADMIN) {
         return !!data.division;
       }
       return true;
@@ -151,7 +151,7 @@ export default function StaffDetail({ staff, readOnly = false }: StaffDetailProp
   });
 
   const watchedRole = useWatch({ control: roleForm.control, name: "systemRole" });
-  const showDivision = watchedRole === DEPUTY_HEAD || watchedRole === TEACHER;
+  const showDivision = !!watchedRole && watchedRole !== ADMIN;
 
   const editMutation = useMutation({
     mutationFn: (data: EditFormValues) =>
@@ -553,9 +553,11 @@ export default function StaffDetail({ staff, readOnly = false }: StaffDetailProp
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={ADMIN}>{ROLE_LABELS[ADMIN]}</SelectItem>
-                        <SelectItem value={DEPUTY_HEAD}>{ROLE_LABELS[DEPUTY_HEAD]}</SelectItem>
-                        <SelectItem value={TEACHER}>{ROLE_LABELS[TEACHER]}</SelectItem>
+                        {STAFF_SYSTEM_ROLES.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            {ROLE_LABELS[role]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}
