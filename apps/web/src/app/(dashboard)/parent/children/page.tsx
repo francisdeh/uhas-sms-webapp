@@ -51,7 +51,7 @@ export default async function ParentChildrenPage() {
       religion: s.religion,
       photoUrl: s.photoUrl,
     },
-    className: s.className ?? "",
+    className: s.className ?? "—",
     guardians: guardianLists[i],
   }));
 

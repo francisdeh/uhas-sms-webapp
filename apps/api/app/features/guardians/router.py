@@ -33,11 +33,17 @@ router = APIRouter(prefix="/guardians", tags=["guardians"])
 _SupabaseDep = Annotated[SupabaseAdminClient, Depends(get_supabase_admin_client)]
 
 
-def _to_student_read(student: Student, cls: Class | None) -> StudentRead:
+def _to_student_read(student: Student, cls: Class | None, fallback_year: str | None) -> StudentRead:
     read = StudentRead.model_validate(student)
     if cls:
+        # `fallback_year` is set when this class comes from a later,
+        # already-prepared academic year rather than the current one
+        # (see StudentsRepository.list_for_guardian) — label it so a
+        # promoted-but-not-yet-activated child still shows a real class
+        # instead of a blank one, without looking like it's current.
+        class_name = f"{cls.name} ({fallback_year})" if fallback_year else cls.name
         return read.model_copy(
-            update={"class_id": cls.id, "class_name": cls.name, "division": cls.division}
+            update={"class_id": cls.id, "class_name": class_name, "division": cls.division}
         )
     return read
 
@@ -79,7 +85,7 @@ async def list_guardian_children(
     """A Parent may only look up their own linked guardian row — every
     other role can look up any guardian, matching `/guardians/{id}/login`."""
     rows = await StudentsService.list_for_guardian(session, school_id, guardian_id, user=user)
-    return GuardianChildrenResponse(items=[_to_student_read(s, c) for (s, c) in rows])
+    return GuardianChildrenResponse(items=[_to_student_read(s, c, fy) for (s, c, fy) in rows])
 
 
 @router.post(

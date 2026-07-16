@@ -72,6 +72,27 @@ class ReportCardRepository:
         return (await session.execute(stmt)).scalar_one_or_none()
 
     @staticmethod
+    async def count_active_enrollments_in_class(
+        session: AsyncSession,
+        *,
+        class_id: UUID | str,
+        academic_year: str,
+    ) -> int:
+        """ "Number on roll" — class size for the report card's info row."""
+        stmt = (
+            select(func.count())
+            .select_from(Enrollment)
+            .where(
+                and_(
+                    Enrollment.class_id == class_id,
+                    Enrollment.academic_year == academic_year,
+                    Enrollment.status == ACTIVE,
+                )
+            )
+        )
+        return (await session.execute(stmt)).scalar_one()
+
+    @staticmethod
     async def list_scored_rows(
         session: AsyncSession,
         *,

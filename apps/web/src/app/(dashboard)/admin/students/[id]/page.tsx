@@ -24,6 +24,7 @@ export default async function AdminStudentDetailPage({
     throw err;
   }
 
+  const schoolRead = await api.school.get();
   const classesResp = await api.classes.list({ size: 200 });
   const classes: ClassRecord[] = classesResp.items.map((c) => ({
     id: c.id,
@@ -62,6 +63,12 @@ export default async function AdminStudentDetailPage({
   };
 
   return (
-    <StudentDetail student={student} classes={classes} basePath="/admin/students" exams={exams} />
+    <StudentDetail
+      student={student}
+      classes={classes}
+      basePath="/admin/students"
+      exams={exams}
+      school={{ name: schoolRead.name, logoUrl: schoolRead.logoUrl ?? null }}
+    />
   );
 }

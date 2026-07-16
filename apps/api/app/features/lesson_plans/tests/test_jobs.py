@@ -30,11 +30,14 @@ def test_job_completes_and_reports_skipped_without_smtp_config(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Not-configured email provider — proves the job doesn't crash.
-    Explicitly clears `smtp_host` rather than relying on it being unset
-    in the ambient environment: a developer's local `.env` (e.g. a
-    Mailpit `SMTP_HOST=localhost` for manual testing) would otherwise
-    make this "unconfigured" case untestable, same fix already applied
-    in `integrations/email/tests/test_provider.py`."""
+    Explicitly clears `brevo_api_key`/`smtp_host` rather than relying on
+    them being unset in the ambient environment: a developer's local
+    `.env` (e.g. real Brevo creds for manual provider testing, or a
+    Mailpit `SMTP_HOST=localhost`) would otherwise make this
+    "unconfigured" case untestable — or worse, send a real email during
+    a test run. Same fix already applied in
+    `integrations/email/tests/test_provider.py`."""
+    monkeypatch.setattr(settings, "brevo_api_key", None)
     monkeypatch.setattr(settings, "smtp_host", None)
     event = inngest.Event(
         name="email/lesson-plan-rejected.requested",
@@ -56,6 +59,7 @@ def test_job_completes_and_reports_skipped_without_smtp_config(
 
 
 def test_job_handles_missing_comment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "brevo_api_key", None)
     monkeypatch.setattr(settings, "smtp_host", None)
     event = inngest.Event(
         name="email/lesson-plan-rejected.requested",

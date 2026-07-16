@@ -32,6 +32,7 @@ from app.core.inngest import inngest_client
 from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT, TEACHER
 from app.core.school_structure import KG
 from app.core.security import CurrentUser
+from app.features.attendance.service import AttendanceService
 from app.features.classes.model import Class
 from app.features.classes.repository import ClassesRepository
 from app.features.exams.compute import compute_aggregate
@@ -46,6 +47,7 @@ from app.features.exams.schema import (
     ReportCardScoreRow,
     ReportCardStudent,
 )
+from app.features.school_terms.model import SchoolTerm
 from app.features.schools.repository import SchoolsRepository
 from app.features.schools.schema import GradingBand
 from app.features.staff.repository import StaffRepository
@@ -133,6 +135,13 @@ class ReportCardService:
             session, school_id=school_id, academic_year=next_year, term=next_term
         )
 
+        number_on_roll = await ReportCardRepository.count_active_enrollments_in_class(
+            session, class_id=cls.id, academic_year=exam.academic_year
+        )
+        attendance_attended, attendance_total = await _attendance_counts(
+            session, school_id, user, student_id=student.id, this_term=this_term
+        )
+
         return ReportCardResponse(
             student=ReportCardStudent(
                 id=student.id,
@@ -152,7 +161,9 @@ class ReportCardService:
                 academic_year=exam.academic_year,
                 is_published=bool(exam.is_published),
             ),
-            school=ReportCardSchool(id=school.id, name=school.name, logo_url=school.logo_url),
+            school=ReportCardSchool(
+                id=school.id, name=school.name, logo_url=school.logo_url, motto=school.motto
+            ),
             scores=scores,
             grading_bands=[
                 GradingBand(**band) for band in (school.grading_bands or DEFAULT_GRADE_BANDS)
@@ -161,12 +172,49 @@ class ReportCardService:
             class_teachers=class_teachers,
             class_teacher_remark=(remark.class_teacher_remark if remark else None),
             head_of_school_comment=(report.head_of_school_comment if report else None),
+            head_of_school_name=school.principal_name,
             kg_observations=(remark.kg_observations if remark and cls.division == KG else None),
             conduct_ratings=(remark.conduct_ratings if remark else None),
             interests_co_curricular=(remark.interests_co_curricular if remark else None),
             vacation_date=(this_term.end_date if this_term else None),
             reopening_date=(following_term.start_date if following_term else None),
+            number_on_roll=number_on_roll,
+            attendance_attended=attendance_attended,
+            attendance_total=attendance_total,
         )
+
+
+async def _attendance_counts(
+    session: AsyncSession,
+    school_id: UUID | str,
+    user: CurrentUser,
+    *,
+    student_id: UUID | str,
+    this_term: SchoolTerm | None,
+) -> tuple[int, int]:
+    """`(attended, total)` over the exam's term window — "attended" counts
+    Present + Late (they were physically there, just not on time);
+    Excused/Absent aren't. Stays `(0, 0)` when the term's dates aren't
+    configured, or if `AttendanceService`'s own role gate (same shape as
+    this feature's `_assert_can_view`, but keyed off the *current*
+    school year rather than the exam's) happens to reject a caller
+    viewing a report card for a past year — missing attendance isn't
+    worth failing the whole report card over.
+    """
+    if this_term is None:
+        return 0, 0
+    try:
+        summary = await AttendanceService.get_student_summary(
+            session,
+            school_id,
+            user,
+            student_id=student_id,
+            term_start=this_term.start_date,
+            term_end=this_term.end_date,
+        )
+    except (ForbiddenError, NotFoundError):
+        return 0, 0
+    return summary.present_count + summary.late_count, summary.total_days
 
 
 def _next_term(academic_year: str, term: int) -> tuple[str, int]:

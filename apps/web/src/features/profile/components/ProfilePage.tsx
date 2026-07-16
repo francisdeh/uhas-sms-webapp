@@ -18,6 +18,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { isLocalNoProviderError } from "@/features/auth/phone";
 import { TwoFactorCard } from "@/features/profile/components/TwoFactorCard";
 import { PhoneChangeCard } from "@/features/profile/components/PhoneChangeCard";
 import { EmailChangeCard } from "@/features/profile/components/EmailChangeCard";
@@ -52,8 +54,22 @@ const passwordSchema = z
     path: ["confirmPassword"],
   });
 
+// Phone-only accounts (parents who signed in via OTP, no email on file)
+// have no "current password" to re-enter — a fresh OTP to their own
+// on-file phone is the re-authentication step instead.
+const phonePasswordSchema = z
+  .object({
+    newPassword: z.string().min(8, { message: "Must be at least 8 characters" }),
+    confirmPassword: z.string().min(1, { message: "Please confirm your password" }),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 type ProfileValues = z.infer<typeof profileSchema>;
 type PasswordValues = z.infer<typeof passwordSchema>;
+type PhonePasswordValues = z.infer<typeof phonePasswordSchema>;
 
 interface ProfilePageProps {
   user: SessionUser;
@@ -107,7 +123,7 @@ function ProfilePageContent({ user }: ProfilePageProps) {
         <TabsContent value="security">
           <AnimatePresence mode="wait">
             <motion.div key="security" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
-              <SecurityTab />
+              <SecurityTab user={user} />
             </motion.div>
           </AnimatePresence>
         </TabsContent>
@@ -217,7 +233,7 @@ function ProfileTab({ user }: { user: SessionUser }) {
   );
 }
 
-function SecurityTab() {
+function SecurityTab({ user }: { user: SessionUser }) {
   const [signOutOthersOpen, setSignOutOthersOpen] = useState(false);
   const [signingOutOthers, setSigningOutOthers] = useState(false);
 
@@ -282,37 +298,41 @@ function SecurityTab() {
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-t-none border-t-0">
-        <CardHeader>
-          <CardTitle className="text-base">Change Password</CardTitle>
-          <CardDescription>Use a strong password you don&apos;t use elsewhere.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onPasswordSubmit)}>
-            <FieldGroup className="gap-4 max-w-sm">
-              <Field>
-                <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
-                <Input id="currentPassword" type="password" className="rounded-md" autoComplete="current-password" suppressHydrationWarning {...register("currentPassword")} />
-                <FieldError errors={[errors.currentPassword]} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
-                <Input id="newPassword" type="password" className="rounded-md" autoComplete="new-password" suppressHydrationWarning {...register("newPassword")} />
-                <FieldError errors={[errors.newPassword]} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
-                <Input id="confirmPassword" type="password" className="rounded-md" autoComplete="new-password" suppressHydrationWarning {...register("confirmPassword")} />
-                <FieldError errors={[errors.confirmPassword]} />
-              </Field>
-              <Button type="submit" variant="ink" className="px-5 py-2 h-auto text-sm" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : null}
-                Update Password
-              </Button>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
+      {user.email ? (
+        <Card className="rounded-t-none border-t-0">
+          <CardHeader>
+            <CardTitle className="text-base">Change Password</CardTitle>
+            <CardDescription>Use a strong password you don&apos;t use elsewhere.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onPasswordSubmit)}>
+              <FieldGroup className="gap-4 max-w-sm">
+                <Field>
+                  <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
+                  <Input id="currentPassword" type="password" className="rounded-md" autoComplete="current-password" suppressHydrationWarning {...register("currentPassword")} />
+                  <FieldError errors={[errors.currentPassword]} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
+                  <Input id="newPassword" type="password" className="rounded-md" autoComplete="new-password" suppressHydrationWarning {...register("newPassword")} />
+                  <FieldError errors={[errors.newPassword]} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
+                  <Input id="confirmPassword" type="password" className="rounded-md" autoComplete="new-password" suppressHydrationWarning {...register("confirmPassword")} />
+                  <FieldError errors={[errors.confirmPassword]} />
+                </Field>
+                <Button type="submit" variant="ink" className="px-5 py-2 h-auto text-sm" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : null}
+                  Update Password
+                </Button>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+      ) : (
+        <PhoneOnlyPasswordCard phone={user.phone} />
+      )}
 
       <TwoFactorCard />
 
@@ -369,6 +389,157 @@ function SecurityTab() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+/**
+ * Phone-only accounts (no email on file) have no "current password" to
+ * re-enter — a fresh OTP to their own on-file phone number re-proves
+ * identity instead, then `updateUser({password})` sets it, same as the
+ * email flow's final step. Also covers setting a password for the
+ * first time, since a pure-OTP parent may never have had one.
+ */
+function PhoneOnlyPasswordCard({ phone }: { phone: string | null }) {
+  const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
+  const [otp, setOtp] = useState("");
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PhonePasswordValues>({ resolver: zodResolver(phonePasswordSchema) });
+
+  async function handleSendCode() {
+    if (!phone) {
+      toast.error("No phone number on file. Contact your administrator.");
+      return;
+    }
+    setIsSendingCode(true);
+    const supabase = createSupabaseClient();
+    const { error } = await supabase.auth.signInWithOtp({ phone });
+    setIsSendingCode(false);
+
+    if (error && !isLocalNoProviderError(error.message)) {
+      toast.error(error.message || "Couldn't send verification code.");
+      return;
+    }
+    setOtpSentTo(phone);
+    if (error) {
+      toast.message("Using test code (dev mode). Enter the configured OTP below.");
+    } else {
+      toast.success("Verification code sent.");
+    }
+  }
+
+  async function onSubmit({ newPassword }: PhonePasswordValues) {
+    if (!otpSentTo || otp.length !== 6) {
+      toast.error("Enter the 6-digit code sent to your phone.");
+      return;
+    }
+    setIsVerifying(true);
+    const supabase = createSupabaseClient();
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      phone: otpSentTo,
+      token: otp,
+      type: "sms",
+    });
+    if (verifyError) {
+      setIsVerifying(false);
+      toast.error("Incorrect or expired code. Try again.");
+      return;
+    }
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    setIsVerifying(false);
+    if (updateError) {
+      if (updateError.code === "weak_password") {
+        toast.error("Password is too weak. Try a longer, less common phrase.");
+      } else {
+        toast.error("Failed to update password. Please try again.");
+      }
+      return;
+    }
+    toast.success("Password updated successfully.");
+    reset();
+    setOtpSentTo(null);
+    setOtp("");
+  }
+
+  return (
+    <Card className="rounded-t-none border-t-0">
+      <CardHeader>
+        <CardTitle className="text-base">Set / Change Password</CardTitle>
+        <CardDescription>
+          Your account has no email on file, so verification happens by text message to{" "}
+          {phone ?? "your phone"} instead of a current password.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!otpSentTo ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="px-5 py-2 h-auto text-sm"
+            onClick={handleSendCode}
+            disabled={isSendingCode || !phone}
+          >
+            {isSendingCode && <Loader2 size={14} className="mr-2 animate-spin" />}
+            Send verification code
+          </Button>
+        ) : (
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <FieldGroup className="gap-4 max-w-sm">
+              <Field>
+                <FieldLabel htmlFor="phoneOtp">Verification code</FieldLabel>
+                <InputOTP id="phoneOtp" maxLength={6} value={otp} onChange={(v) => setOtp(v)}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
+                <Input id="newPassword" type="password" className="rounded-md" autoComplete="new-password" suppressHydrationWarning {...register("newPassword")} />
+                <FieldError errors={[errors.newPassword]} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
+                <Input id="confirmPassword" type="password" className="rounded-md" autoComplete="new-password" suppressHydrationWarning {...register("confirmPassword")} />
+                <FieldError errors={[errors.confirmPassword]} />
+              </Field>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="submit"
+                  variant="ink"
+                  className="px-5 py-2 h-auto text-sm"
+                  disabled={isVerifying || otp.length !== 6}
+                >
+                  {isVerifying && <Loader2 size={14} className="mr-2 animate-spin" />}
+                  Verify and Update Password
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpSentTo(null);
+                    setOtp("");
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            </FieldGroup>
+          </form>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

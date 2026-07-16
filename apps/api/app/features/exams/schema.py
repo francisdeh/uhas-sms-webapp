@@ -342,13 +342,14 @@ class ReportCardScoreRow(BaseModel):
 
 
 class ReportCardSchool(BaseModel):
-    """School masthead — name + logo."""
+    """School masthead — name + logo + motto."""
 
     model_config = _CAMEL_CONFIG
 
     id: UUID
     name: str
     logo_url: str | None = None
+    motto: str | None = None
 
 
 class ReportCardResponse(BaseModel):
@@ -370,6 +371,10 @@ class ReportCardResponse(BaseModel):
     class_teachers: list[str]
     class_teacher_remark: str | None = None
     head_of_school_comment: str | None = None
+    # Real name for the signature-line label — the school's Identity tab
+    # already collects this (`schools.principal_name`); previously
+    # fetched but never passed through to the report card at all.
+    head_of_school_name: str | None = None
     # KG only — populated instead of `scores` when the student's class
     # division is KG (see `ReportCardService.get`); null for everyone
     # else. Conduct/interests apply to every division.
@@ -382,6 +387,14 @@ class ReportCardResponse(BaseModel):
     # date isn't set — the card omits the line rather than failing.
     vacation_date: date | None = None
     reopening_date: date | None = None
+    # Class size for the exam's academic year — was previously always
+    # rendered as a hardcoded 0.
+    number_on_roll: int = 0
+    # Attendance over the exam's term window (school_terms.start_date to
+    # end_date). Both stay 0 when the term's dates aren't configured —
+    # same "missing data isn't an error" posture as vacation/reopening.
+    attendance_attended: int = 0
+    attendance_total: int = 0
 
 
 # ─── Batch report-card print ─────────────────────────────────────────────────

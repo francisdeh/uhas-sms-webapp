@@ -109,7 +109,6 @@ class NotificationDefaults(BaseModel):
 
 
 GradingScale = Literal["GES_STANDARD", "CUSTOM"]
-ColorScheme = Literal["default", "uhas"]
 
 
 class SchoolBase(BaseModel):
@@ -146,8 +145,6 @@ class SchoolBase(BaseModel):
     pass_mark: Annotated[int, Field(ge=0, le=100)] = DEFAULT_PASS_MARK
 
     # Communication
-    email_from_name: Annotated[str | None, Field(default=None, max_length=255)]
-    email_reply_to: EmailStr | None = None
     notification_defaults: NotificationDefaults | None = None
 
     # Security — read-only today (see SchoolUpdate docstring on this
@@ -155,10 +152,6 @@ class SchoolBase(BaseModel):
     # doesn't accept them, but they're still surfaced for display.
     password_min_length: Annotated[int, Field(ge=6, le=64)] = 8
     force_password_change_on_first_login: bool = True
-
-    # Branding
-    default_color_scheme: ColorScheme = "uhas"
-    sidebar_accent_hex: Annotated[str | None, Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")]
 
     # Leave — only Casual leave gets a balance; see leave_requests docs.
     casual_leave_annual_days: Annotated[int, Field(ge=0, le=365)] = 21
@@ -208,8 +201,6 @@ class SchoolUpdate(BaseModel):
     pass_mark: Annotated[int | None, Field(default=None, ge=0, le=100)] = None
 
     # Communication
-    email_from_name: Annotated[str | None, Field(default=None, max_length=255)] = None
-    email_reply_to: EmailStr | None = None
     notification_defaults: NotificationDefaults | None = None
 
     # No Security fields here — password_min_length and
@@ -217,12 +208,6 @@ class SchoolUpdate(BaseModel):
     # yet (see SchoolBase), so PATCH doesn't accept them; session_timeout
     # was removed outright (Supabase Auth controls session expiry, not
     # this app).
-
-    # Branding
-    default_color_scheme: ColorScheme | None = None
-    sidebar_accent_hex: Annotated[str | None, Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")] = (
-        None
-    )
 
     # Leave
     casual_leave_annual_days: Annotated[int | None, Field(default=None, ge=0, le=365)] = None

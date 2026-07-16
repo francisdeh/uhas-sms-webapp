@@ -66,12 +66,17 @@ class HubtelSmsProvider:
     """Real provider — Hubtel's Quick Send API
     (https://businessdocs-developers.hubtel.com/docs/simple-messaging).
 
-    `GET {_HUBTEL_SEND_URL}?From=&To=&Content=`, authenticated with
-    HTTP Basic (ClientId as username, ClientSecret as password) rather
-    than the query-param credential variant Hubtel also supports —
-    keeps secrets out of URLs that might land in logs. A successful
-    response is JSON `{"Status": 0, "MessageId": "...", ...}`; any
-    other `Status`, a non-2xx response, or a network error is `failed`.
+    `GET {_HUBTEL_SEND_URL}?clientid=&clientsecret=&from=&to=&content=`.
+    HTTP Basic auth (ClientId/ClientSecret as username/password) looks
+    like the safer option — keeps secrets out of the URL — but this
+    endpoint rejects it outright (`"Client ID is null or empty"`,
+    confirmed against a live account); query params are the only
+    credential mechanism it actually accepts. Because that puts the
+    secret in the request URL, `send()` deliberately never logs the
+    raised exception object itself (`httpx.HTTPStatusError.__str__`
+    embeds the full request URL) — only a fixed message + phone number.
+    A successful response is JSON `{"Status": 0, "MessageId": "...", ...}`;
+    any other `Status`, a non-2xx response, or a network error is `failed`.
     """
 
     name: SmsProviderName = HUBTEL
@@ -86,13 +91,18 @@ class HubtelSmsProvider:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.get(
                     _HUBTEL_SEND_URL,
-                    params={"From": self._sender_id, "To": phone, "Content": body},
-                    auth=(self._client_id, self._client_secret),
+                    params={
+                        "clientid": self._client_id,
+                        "clientsecret": self._client_secret,
+                        "from": self._sender_id,
+                        "to": phone,
+                        "content": body,
+                    },
                 )
             resp.raise_for_status()
             data = resp.json()
-        except httpx.HTTPError as exc:
-            logger.error("[sms] Hubtel send to %s failed: %s", phone, exc)
+        except httpx.HTTPError:
+            logger.error("[sms] Hubtel send to %s failed", phone)
             return SmsSendResult(provider_message_id=None, status="failed")
 
         if data.get("Status") == 0:

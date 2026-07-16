@@ -24,6 +24,8 @@ export default async function TeacherStudentDetailPage({
     throw err;
   }
 
+  const schoolRead = await api.school.get();
+
   const student: Student = {
     id: studentRead.id,
     slug: studentRead.slug,
@@ -51,6 +53,7 @@ export default async function TeacherStudentDetailPage({
       classes={[]}
       basePath="/teacher/students"
       canEdit={false}
+      school={{ name: schoolRead.name, logoUrl: schoolRead.logoUrl ?? null }}
     />
   );
 }

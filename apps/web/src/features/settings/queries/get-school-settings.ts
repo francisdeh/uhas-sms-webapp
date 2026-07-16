@@ -80,13 +80,9 @@ export const getSchoolSettings = cache(async (): Promise<SchoolSettings> => {
     gradingBands: school.gradingBands!,
     scoreWeights: school.scoreWeights!,
     passMark: school.passMark,
-    emailFromName: school.emailFromName ?? null,
-    emailReplyTo: school.emailReplyTo ?? null,
     notificationDefaults: school.notificationDefaults ?? DEFAULT_NOTIFICATIONS,
     passwordMinLength: school.passwordMinLength ?? 8,
     forcePasswordChangeOnFirstLogin: school.forcePasswordChangeOnFirstLogin ?? true,
-    defaultColorScheme: school.defaultColorScheme ?? "uhas",
-    sidebarAccentHex: school.sidebarAccentHex ?? null,
     casualLeaveAnnualDays: school.casualLeaveAnnualDays,
   };
 });

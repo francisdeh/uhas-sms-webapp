@@ -120,9 +120,7 @@ async def _notify_attendance_absences(
 
     school_name = school.name if school else "UHAS SMS"
     school_address = (school.address if school else None) or ""
-    school_contact_email = (
-        (school.email if school else None) or (school.email_reply_to if school else None) or ""
-    )
+    school_contact_email = (school.email if school else None) or ""
 
     for user, guardian_id, phone, names in by_guardian.values():
         student_names, was_were = _format_names(names)

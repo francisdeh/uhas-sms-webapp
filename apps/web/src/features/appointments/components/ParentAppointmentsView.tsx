@@ -234,14 +234,14 @@ export function ParentAppointmentsView({
                         <SelectValue placeholder="Select a child">
                           {(value: string) => {
                             const c = childOptions.find((c) => c.id === value);
-                            return c ? `${c.name} — ${c.className}` : "";
+                            return c ? `${c.name} — ${c.className || "—"}` : "";
                           }}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {childOptions.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
-                            {c.name} — {c.className}
+                            {c.name} — {c.className || "—"}
                           </SelectItem>
                         ))}
                       </SelectContent>

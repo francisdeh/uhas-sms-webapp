@@ -155,8 +155,18 @@ class StudentsRepository:
         guardian_id: UUID | str,
         *,
         academic_year: str,
-    ) -> list[tuple[Student, Class | None]]:
-        """Every student linked to this guardian, with current-year class."""
+    ) -> list[tuple[Student, Class | None, str | None]]:
+        """Every student linked to this guardian, with current-year class.
+
+        The third tuple element is set when a student has no active
+        enrollment in `academic_year` but does have one in a later,
+        already-prepared year (e.g. promoted via Promotions' `approve()`
+        ahead of that year actually being activated) — the nearest such
+        year, so the caller can show "JHS 2 (2026/2027)" instead of
+        nothing during that transition window. `academic_year` strings
+        sort lexicographically the same as chronologically (`"YYYY/YYYY"`,
+        zero-padded), so a plain `>` comparison is safe.
+        """
         base: Any = (
             select(Student, Class)
             .join(StudentGuardian, StudentGuardian.student_id == Student.id)
@@ -178,7 +188,37 @@ class StudentsRepository:
             .order_by(asc(Student.last_name), asc(Student.id))
         )
         result = (await session.execute(base)).all()
-        return [(s, c) for s, c in result]
+
+        missing_ids = [s.id for s, c in result if c is None]
+        fallback: dict[UUID, tuple[Class, str]] = {}
+        if missing_ids:
+            fallback_stmt = (
+                select(Enrollment.student_id, Class, Enrollment.academic_year)
+                .join(Class, Class.id == Enrollment.class_id)
+                .where(
+                    and_(
+                        Enrollment.student_id.in_(missing_ids),
+                        Enrollment.status == ACTIVE,
+                        Enrollment.academic_year > academic_year,
+                    )
+                )
+                .order_by(asc(Enrollment.student_id), asc(Enrollment.academic_year))
+            )
+            for student_id, cls, year in (await session.execute(fallback_stmt)).all():
+                # First row per student_id (order_by above) is the
+                # nearest future year — keep only that one.
+                fallback.setdefault(student_id, (cls, year))
+
+        rows: list[tuple[Student, Class | None, str | None]] = []
+        for s, c in result:
+            if c is not None:
+                rows.append((s, c, None))
+            elif s.id in fallback:
+                fb_class, fb_year = fallback[s.id]
+                rows.append((s, fb_class, fb_year))
+            else:
+                rows.append((s, None, None))
+        return rows
 
     @staticmethod
     async def list_guardians(

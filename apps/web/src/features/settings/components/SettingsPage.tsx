@@ -7,7 +7,6 @@ import {
   GraduationCap,
   ShieldCheck,
   Bell as BellIcon,
-  Palette,
   CalendarOff,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -18,7 +17,6 @@ import { CalendarTab } from "./CalendarTab";
 import { GradingTab } from "./GradingTab";
 import { CommunicationTab } from "./CommunicationTab";
 import { SecurityTab } from "./SecurityTab";
-import { BrandingTab } from "./BrandingTab";
 import { LeaveTab } from "./LeaveTab";
 
 const TABS = [
@@ -28,7 +26,6 @@ const TABS = [
   { id: "communication", label: "Communication", icon: BellIcon },
   { id: "leave", label: "Leave", icon: CalendarOff },
   { id: "security", label: "Security", icon: ShieldCheck },
-  { id: "branding", label: "Branding", icon: Palette },
 ] as const;
 
 export function SettingsPage({
@@ -90,11 +87,6 @@ export function SettingsPage({
         <TabsContent value="security">
           <AnimateIn>
             <SecurityTab settings={settings} />
-          </AnimateIn>
-        </TabsContent>
-        <TabsContent value="branding">
-          <AnimateIn>
-            <BrandingTab settings={settings} />
           </AnimateIn>
         </TabsContent>
       </Tabs>

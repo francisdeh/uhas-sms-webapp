@@ -108,31 +108,6 @@ async def test_create_email_event_carries_school_footer_fields(
     assert data["preferences_link"] == "/teacher/profile?tab=notifications"
 
 
-async def test_create_email_event_falls_back_to_reply_to_when_no_school_email(
-    client: AsyncClient,
-    db_session: AsyncSession,
-    monkeypatch: pytest.MonkeyPatch,
-    seed: None,
-) -> None:
-    """`school.email` (Identity tab) wins when set; `email_reply_to`
-    (Communication tab) is the fallback — never send an empty
-    contact-email footer line if either is configured."""
-    _ = seed
-    school = await db_session.get(School, SCHOOL_UUID)
-    assert school is not None
-    school.email = None
-    school.email_reply_to = "noreply@appt-test.edu.gh"
-    await db_session.flush()
-
-    fake_send = _FakeSend()
-    monkeypatch.setattr(inngest_client, "send", fake_send)
-
-    await _create_appointment(client)
-
-    data = dict(_events_named(fake_send, "email/appointment-requested.requested")[0].data)
-    assert data["school_contact_email"] == "noreply@appt-test.edu.gh"
-
-
 # ─── Two-tier gate: create → teacher (direction "activity") ────────────────
 
 

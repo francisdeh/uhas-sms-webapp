@@ -4,23 +4,27 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 
 type Props = {
   student: Student;
+  school: { name: string; logoUrl: string | null };
 };
 
-export function StudentIdCard({ student }: Props) {
+export function StudentIdCard({ student, school }: Props) {
   const formattedDob = formatStudentDate(student.dob);
 
   return (
     <div id="id-card-print-area">
       <div className="bg-white border border-border rounded-lg overflow-hidden flex flex-row w-full shadow-sm">
-        <div className="flex w-8 shrink-0 items-center justify-center bg-brand">
-          <span className="rotate-180 text-[10px] font-semibold tracking-widest text-white [writing-mode:vertical-rl]">
-            UHAS
-          </span>
+        <div className="flex w-8 shrink-0 items-center justify-center bg-brand overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element -- print-only card, not a routed page Next can optimize */}
+          <img
+            src={school.logoUrl ?? "/logo.png"}
+            alt=""
+            className="w-full h-full object-cover"
+          />
         </div>
 
         <div className="flex flex-1 flex-col gap-1.5 px-3 py-3">
           <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-            UHAS Basic School
+            {school.name}
           </p>
 
           <UserAvatar
@@ -45,9 +49,7 @@ export function StudentIdCard({ student }: Props) {
 
           <hr />
 
-          <p className="text-xs text-center text-muted-foreground">
-            UHAS Basic School · Ghana
-          </p>
+          <p className="text-xs text-center text-muted-foreground">{school.name} · Ghana</p>
         </div>
       </div>
     </div>

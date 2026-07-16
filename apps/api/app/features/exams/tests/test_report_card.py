@@ -17,6 +17,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.attendance.model import AttendanceRecord, AttendanceSession
 from app.features.classes.model import ClassSubject
 from app.features.exams.model import (
     ClassReportSubmission,
@@ -374,6 +375,50 @@ async def test_report_includes_hos_comment_when_present(
     assert res.json()["headOfSchoolComment"] == "Well done everyone."
 
 
+async def test_report_includes_school_masthead_and_hos_name_when_set(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    seed_actors: None,
+) -> None:
+    """`school.motto`/`logo_url` and `school.principal_name` are real
+    Identity-tab fields — previously fetched into the response's `school`
+    object (or ignored entirely, for `principal_name`) but never
+    surfaced. Confirms they now round-trip onto the wire."""
+    seed_school.motto = "Knowledge, Character, Service"
+    seed_school.logo_url = "https://example.test/logo.png"
+    seed_school.principal_name = "Mawuli Agbenyega"
+    await db_session.flush()
+
+    exam = await _seed_exam(db_session)
+    res = await client.get(
+        _url(STUDENT_A_UUID, exam.id),
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["school"]["motto"] == "Knowledge, Character, Service"
+    assert body["school"]["logoUrl"] == "https://example.test/logo.png"
+    assert body["headOfSchoolName"] == "Mawuli Agbenyega"
+
+
+async def test_report_masthead_and_hos_name_null_when_unset(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    exam = await _seed_exam(db_session)
+    res = await client.get(
+        _url(STUDENT_A_UUID, exam.id),
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["school"]["motto"] is None
+    assert body["school"]["logoUrl"] is None
+    assert body["headOfSchoolName"] is None
+
+
 async def test_report_includes_per_student_remark_when_present(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -482,6 +527,88 @@ async def test_term_three_reopening_rolls_to_next_year(
     body = res.json()
     assert body["vacationDate"] == "2026-08-01"
     assert body["reopeningDate"] == "2026-09-08"
+
+
+# ─── Number on roll + attendance (previously hardcoded to 0) ────────────────
+
+
+async def test_number_on_roll_counts_active_enrollments_in_class(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    """`seed_students` enrolls 3 students (A, B, C) in `CLASS_UUID` for
+    2025/2026 — the exam's class-size line should reflect that, not 0."""
+    exam = await _seed_exam(db_session)
+    res = await client.get(_url(STUDENT_A_UUID, exam.id), headers=auth_header(role="Admin"))
+    assert res.status_code == 200, res.text
+    assert res.json()["numberOnRoll"] == 3
+
+
+async def test_attendance_zero_when_term_dates_unset(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    """No `school_terms` row for the exam's (year, term) — attendance
+    stays 0/0 rather than erroring, same posture as vacation/reopening."""
+    exam = await _seed_exam(db_session)
+    res = await client.get(_url(STUDENT_A_UUID, exam.id), headers=auth_header(role="Admin"))
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["attendanceAttended"] == 0
+    assert body["attendanceTotal"] == 0
+
+
+async def test_attendance_counts_present_and_late_within_term_window(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    """Present + Late count as "attended"; Absent/Excused don't. Only
+    sessions inside the term's [start, end] window count at all."""
+    exam = await _seed_exam(db_session)  # term 2, 2025/2026
+    await _seed_term(
+        db_session,
+        academic_year="2025/2026",
+        term=2,
+        start=date(2026, 1, 6),
+        end=date(2026, 4, 10),
+    )
+
+    session_1 = AttendanceSession(
+        school_id=SCHOOL_UUID, class_id=CLASS_UUID, date=date(2026, 1, 10), term=2
+    )
+    session_2 = AttendanceSession(
+        school_id=SCHOOL_UUID, class_id=CLASS_UUID, date=date(2026, 1, 11), term=2
+    )
+    session_3 = AttendanceSession(
+        school_id=SCHOOL_UUID, class_id=CLASS_UUID, date=date(2026, 1, 12), term=2
+    )
+    # Outside the term window entirely — must not be counted.
+    session_out_of_range = AttendanceSession(
+        school_id=SCHOOL_UUID, class_id=CLASS_UUID, date=date(2025, 12, 1), term=1
+    )
+    db_session.add_all([session_1, session_2, session_3, session_out_of_range])
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            AttendanceRecord(session_id=session_1.id, student_id=STUDENT_A_UUID, status="Present"),
+            AttendanceRecord(session_id=session_2.id, student_id=STUDENT_A_UUID, status="Late"),
+            AttendanceRecord(session_id=session_3.id, student_id=STUDENT_A_UUID, status="Absent"),
+            AttendanceRecord(
+                session_id=session_out_of_range.id, student_id=STUDENT_A_UUID, status="Present"
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    res = await client.get(_url(STUDENT_A_UUID, exam.id), headers=auth_header(role="Admin"))
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["attendanceAttended"] == 2  # Present + Late
+    assert body["attendanceTotal"] == 3  # Present + Late + Absent, not the out-of-range session
 
 
 async def test_dates_null_when_terms_unset(

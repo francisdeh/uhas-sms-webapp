@@ -415,7 +415,7 @@ class MeService:
                         "new_link": new_link["action_link"],
                         "school_name": school.name,
                         "school_address": school.address or "",
-                        "school_contact_email": school.email or school.email_reply_to or "",
+                        "school_contact_email": school.email or "",
                     },
                 )
             )

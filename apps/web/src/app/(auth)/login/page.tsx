@@ -15,7 +15,7 @@ export default async function LoginPage() {
       <AuthBrandPanel settings={settings} />
 
       <div className="flex-1 flex items-center justify-center bg-background px-6 py-12">
-        <LoginForm />
+        <LoginForm settings={settings} />
       </div>
     </div>
   );

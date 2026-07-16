@@ -6,10 +6,9 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Field, FieldLabel, FieldGroup } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { api, ApiError } from "@/lib/api/browser";
 import type { SchoolSettings, NotificationDefaults } from "@/features/settings/types";
@@ -17,8 +16,6 @@ import type { SchoolSettings, NotificationDefaults } from "@/features/settings/t
 export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [fromName, setFromName] = useState(settings.emailFromName ?? "");
-  const [replyTo, setReplyTo] = useState(settings.emailReplyTo ?? "");
   const [prefs, setPrefs] = useState<NotificationDefaults>(settings.notificationDefaults);
 
   function togglePref(key: keyof NotificationDefaults) {
@@ -29,8 +26,6 @@ export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
     setSaving(true);
     try {
       await api.school.patch({
-        emailFromName: fromName || null,
-        emailReplyTo: replyTo || null,
         notificationDefaults: prefs,
       });
     } catch (err) {
@@ -48,36 +43,12 @@ export function CommunicationTab({ settings }: { settings: SchoolSettings }) {
       <CardHeader>
         <CardTitle className="text-base">Communication</CardTitle>
         <CardDescription>
-          Outbound email sender + the per-event notification toggles that gate whether the school
-          sends an email (and, for appointments, SMS too) when something happens.
+          The per-event notification toggles that gate whether the school sends an email (and, for
+          appointments, SMS too) when something happens.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <FieldGroup className="gap-5 max-w-xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field>
-              <FieldLabel htmlFor="fromName">From name</FieldLabel>
-              <Input
-                id="fromName"
-                value={fromName}
-                onChange={(e) => setFromName(e.target.value)}
-                placeholder="UHAS Basic School"
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="replyTo">Reply-to email</FieldLabel>
-              <Input
-                id="replyTo"
-                type="email"
-                value={replyTo}
-                onChange={(e) => setReplyTo(e.target.value)}
-                placeholder="info@school.edu.gh"
-              />
-            </Field>
-          </div>
-
-          <Separator />
-
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Send email when…
           </p>

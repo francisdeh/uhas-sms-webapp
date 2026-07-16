@@ -8,6 +8,7 @@ from typing import Any
 from uuid import UUID
 
 import jwt
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,24 @@ SCHOOL_UUID = UUID("40404040-4040-4409-8409-404040400001")
 OTHER_SCHOOL_UUID = UUID("40404040-4040-4409-8409-404040400002")
 GUARDIAN_UUID = UUID("40404040-4040-4409-8409-404040400301")
 USER_UUID = UUID("40404040-4040-4409-8409-404040400401")
+
+
+@pytest.fixture(autouse=True)
+def _stub_sms_provider_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force `get_sms_provider()` to fall through to `StubSmsProvider`
+    for every test in this package unless a test explicitly opts into a
+    real provider (e.g. `test_provider.py`'s factory tests, which
+    monkeypatch their own values afterward and so override this).
+    Without this, a developer's local `.env` with real Hubtel/Arkesel
+    credentials (e.g. for manual provider testing) would make every
+    SMS-service/router/job test in this package a real, paid network
+    call — same class of gap the email side already guards against in
+    `integrations/email/tests/test_provider.py`."""
+    monkeypatch.setattr(settings, "hubtel_client_id", None)
+    monkeypatch.setattr(settings, "hubtel_client_secret", None)
+    monkeypatch.setattr(settings, "hubtel_sender_id", None)
+    monkeypatch.setattr(settings, "arkesel_api_key", None)
+    monkeypatch.setattr(settings, "arkesel_sender_id", None)
 
 
 @pytest_asyncio.fixture
