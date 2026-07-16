@@ -552,6 +552,18 @@ export function createApiClient(getAuthToken: TokenGetter) {
             `/classes/${classId}/teachers/${staffId}`,
             { method: "DELETE" },
           ),
+        /** Atomic — removes whichever teacher currently holds
+         *  `isPrimary` and assigns the new one in one backend
+         *  transaction. Pass `staffId: null` to just clear it. */
+        replacePrimary: (
+          classId: string,
+          payload: components["schemas"]["ClassPrimaryTeacherUpdate"],
+        ) =>
+          apiFetch<components["schemas"]["ClassTeacherRead"] | null>(
+            getAuthToken,
+            `/classes/${classId}/teachers/primary`,
+            { method: "PUT", body: JSON.stringify(payload) },
+          ),
       },
     },
     enrollments: {
@@ -559,6 +571,14 @@ export function createApiClient(getAuthToken: TokenGetter) {
         apiFetch<components["schemas"]["EnrollmentRead"]>(
           getAuthToken,
           "/enrollments",
+          { method: "POST", body: JSON.stringify(payload) },
+        ),
+      /** Atomic — closes the student's current enrollment and opens the
+       *  new one in one backend transaction. */
+      transfer: (payload: components["schemas"]["EnrollmentTransferRequest"]) =>
+        apiFetch<components["schemas"]["EnrollmentRead"]>(
+          getAuthToken,
+          "/enrollments/transfer",
           { method: "POST", body: JSON.stringify(payload) },
         ),
       changeStatus: (

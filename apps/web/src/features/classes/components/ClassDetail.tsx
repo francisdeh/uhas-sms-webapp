@@ -33,9 +33,8 @@ import {
   useClassSubjects,
   useClassTeachers,
   useAssignClassSubject,
-  useAssignClassTeacher,
   useRemoveClassSubject,
-  useRemoveClassTeacher,
+  useReplacePrimaryClassTeacher,
   useSetClassSubjectTeacher,
   useUpdateClass,
 } from "@/features/classes/hooks/use-classes";
@@ -173,8 +172,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const updateClass = useUpdateClass(classId);
-  const assignClassTeacher = useAssignClassTeacher(classId);
-  const removeClassTeacher = useRemoveClassTeacher(classId);
+  const replacePrimaryClassTeacher = useReplacePrimaryClassTeacher(classId);
   const assignSubject = useAssignClassSubject(classId);
   const removeSubject = useRemoveClassSubject(classId);
   const setSubjectTeacher = useSetClassSubjectTeacher(classId);
@@ -193,14 +191,12 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
 
   async function onTeacherSubmit(data: SelectFormValues) {
     try {
-      // Sequential: remove the old primary if there is one, then assign
-      // the new one. Matches the legacy "one primary at a time" UX.
-      if (primaryClassTeacher && primaryClassTeacher.staffId !== data.value) {
-        await removeClassTeacher.mutateAsync(primaryClassTeacher.staffId);
-      }
-      if (data.value !== "none") {
-        await assignClassTeacher.mutateAsync({ staffId: data.value, isPrimary: true });
-      }
+      // One atomic backend call — removing the old primary and
+      // assigning the new one both happen in the same transaction, so
+      // a failure can't leave the class with no teacher at all.
+      await replacePrimaryClassTeacher.mutateAsync({
+        staffId: data.value === "none" ? null : data.value,
+      });
       toast.success("Class teacher updated.");
       setTeacherOpen(false);
     } catch (err) {
@@ -345,8 +341,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
   }
 
   const division = schoolClass.division as Division;
-  const isTeacherOpMutating =
-    assignClassTeacher.isPending || removeClassTeacher.isPending;
+  const isTeacherOpMutating = replacePrimaryClassTeacher.isPending;
 
   return (
     <div className="space-y-5">

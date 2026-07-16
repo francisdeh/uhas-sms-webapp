@@ -201,15 +201,11 @@ export default function StudentDetail({
   });
 
   const transferMutation = useMutation({
-    mutationFn: async ({ classId }: { classId: string }) => {
-      // Find the active enrollment for this student to close it out first.
-      const list = await api.students.enrollments(student.id);
-      const active = list.items.find((e) => e.status === "Active");
-      if (active) {
-        await api.enrollments.changeStatus(active.id, { status: "Withdrawn" });
-      }
-      return api.enrollments.create({ studentId: student.id, classId });
-    },
+    // One atomic backend call — closing the old enrollment and opening
+    // the new one both happen in the same transaction, so a failure
+    // can't leave the student with no active enrollment anywhere.
+    mutationFn: ({ classId }: { classId: string }) =>
+      api.enrollments.transfer({ studentId: student.id, classId }),
     onSuccess: () => {
       setConfirmTransfer(false);
       setTransferOpen(false);

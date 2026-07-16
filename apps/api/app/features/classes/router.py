@@ -29,6 +29,7 @@ from app.features.classes.model import Class, ClassSubject, ClassTeacher
 from app.features.classes.schema import (
     ClassCreate,
     ClassesListResponse,
+    ClassPrimaryTeacherUpdate,
     ClassRead,
     ClassSubjectAssignRequest,
     ClassSubjectLookupResponse,
@@ -275,6 +276,27 @@ async def assign_class_teacher(
     user: RequireAdmin,
 ) -> ClassTeacherRead:
     ct, staff = await ClassTeachersService.assign(session, school_id, class_id, payload)
+    return _to_class_teacher_read(ct, staff)
+
+
+@router.put(
+    "/{class_id}/teachers/primary",
+    response_model=ClassTeacherRead | None,
+    response_model_by_alias=True,
+)
+async def replace_primary_class_teacher(
+    class_id: UUID,
+    payload: ClassPrimaryTeacherUpdate,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> ClassTeacherRead | None:
+    result = await ClassTeachersService.replace_primary(
+        session, school_id, class_id, new_staff_id=payload.staff_id
+    )
+    if result is None:
+        return None
+    ct, staff = result
     return _to_class_teacher_read(ct, staff)
 
 

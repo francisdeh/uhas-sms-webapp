@@ -828,6 +828,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/classes/{class_id}/teachers/primary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Primary Class Teacher */
+        put: operations["replace_primary_class_teacher_classes__class_id__teachers_primary_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/classes/{class_id}/teachers/{staff_id}": {
         parameters: {
             query?: never;
@@ -873,6 +890,23 @@ export interface paths {
         put?: never;
         /** Enroll Student */
         post: operations["enroll_student_enrollments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/enrollments/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer Student */
+        post: operations["transfer_student_enrollments_transfer_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3510,6 +3544,19 @@ export interface components {
             /** Division */
             division: string;
         };
+        /**
+         * ClassPrimaryTeacherUpdate
+         * @description `PUT /classes/{id}/teachers/primary` — atomically swap whichever
+         *     staff member currently holds `is_primary=True` for a new one (or
+         *     `null` to just clear it). Replaces the two-call client-orchestrated
+         *     "remove old, then assign new" sequence, which could leave a class
+         *     with no teacher at all if the second call failed after the first
+         *     succeeded.
+         */
+        ClassPrimaryTeacherUpdate: {
+            /** Staffid */
+            staffId: string | null;
+        };
         /** ClassRead */
         ClassRead: {
             /** Name */
@@ -4072,8 +4119,9 @@ export interface components {
          * @description `PATCH /enrollments/{id}` — narrow endpoint just for status changes.
          *
          *     Uses `Field(...)` (required) — no partial-update semantics; the
-         *     caller states the target status explicitly. Promotion + transfer
-         *     flows drive this.
+         *     caller states the target status explicitly. The promotion flow
+         *     drives this; class transfers use `EnrollmentTransferRequest` instead
+         *     so withdraw-old + create-new happen in one transaction.
          */
         EnrollmentStatusUpdate: {
             /**
@@ -4081,6 +4129,27 @@ export interface components {
              * @enum {string}
              */
             status: "Active" | "Repeating" | "Withdrawn";
+        };
+        /**
+         * EnrollmentTransferRequest
+         * @description `POST /enrollments/transfer` — move a student to a different class
+         *     within the current academic year. Closes their current Active
+         *     enrollment (if any) and opens a new one atomically — replaces what
+         *     used to be a two-call client-orchestrated sequence (withdraw, then
+         *     create) that could leave a student with no active enrollment
+         *     anywhere if the second call failed after the first succeeded.
+         */
+        EnrollmentTransferRequest: {
+            /**
+             * Studentid
+             * Format: uuid
+             */
+            studentId: string;
+            /**
+             * Classid
+             * Format: uuid
+             */
+            classId: string;
         };
         /**
          * EnrollmentsListResponse
@@ -9973,6 +10042,43 @@ export interface operations {
             };
         };
     };
+    replace_primary_class_teacher_classes__class_id__teachers_primary_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassPrimaryTeacherUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassTeacherRead"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     remove_class_teacher_classes__class_id__teachers__staff_id__delete: {
         parameters: {
             query?: never;
@@ -10056,6 +10162,41 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfer_student_enrollments_transfer_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

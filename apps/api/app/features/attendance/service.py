@@ -210,35 +210,36 @@ class AttendanceService:
             raise ValidationError("Class not found in this school.")
         await ClassesService.assert_can_access_class(session, school_id, user, cls)
 
-        # Validate every studentId is actually enrolled — prevents typos +
-        # cross-school leakage via a fabricated UUID.
-        roster = await _class_roster_student_ids(session, payload.class_id, academic_year)
-        payload_ids = {r.student_id for r in payload.records}
-        stray = payload_ids - roster
-        if stray:
-            raise ValidationError(
-                f"{len(stray)} record(s) reference students not enrolled in this class."
-            )
-
         existing = await AttendanceRepository.find_session(
             session, school_id, class_id=payload.class_id, date=payload.date
         )
         previous_status: dict[UUID, str] = {}
         if existing:
+            previous_status = {
+                rec.student_id: rec.status
+                for rec, _student in await AttendanceRepository.list_records(session, existing.id)
+            }
+
+        # Validate every studentId is either currently enrolled OR already
+        # had a record in THIS session — the latter covers editing a
+        # historical session (e.g. Admin correcting a past date) where a
+        # student has since transferred out or been deactivated. Without
+        # this, resubmitting an old session for correction would silently
+        # drop that student's record entirely (the roster it validates
+        # against is always "enrolled today", not "enrolled on that date").
+        roster = await _class_roster_student_ids(session, payload.class_id, academic_year)
+        valid_ids = roster | previous_status.keys()
+        payload_ids = {r.student_id for r in payload.records}
+        stray = payload_ids - valid_ids
+        if stray:
+            raise ValidationError(
+                f"{len(stray)} record(s) reference students not enrolled in this class."
+            )
+
+        if existing:
             existing.term = payload.term
             existing.submitted_by_id = actor_staff_id  # type: ignore[assignment]
             attendance_session = existing
-            # Captured before the delete — `upsert_session` replaces the
-            # whole session on every save, so this is the only way to
-            # tell "still absent from last save" (silent) apart from
-            # "newly absent this save" (notifies) — see
-            # `_notify_attendance_absences`.
-            previous_status = {
-                rec.student_id: rec.status
-                for rec, _student in await AttendanceRepository.list_records(
-                    session, attendance_session.id
-                )
-            }
             await AttendanceRepository.delete_records(session, attendance_session.id)
         else:
             attendance_session = AttendanceSession(

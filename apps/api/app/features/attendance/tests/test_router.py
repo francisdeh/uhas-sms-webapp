@@ -9,6 +9,8 @@ from __future__ import annotations
 from typing import Any
 
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.attendance.tests.conftest import (
     CLASS_UUID,
@@ -17,6 +19,7 @@ from app.features.attendance.tests.conftest import (
     auth_header,
 )
 from app.features.classes.model import Class
+from app.features.enrollments.model import Enrollment
 from app.features.schools.model import School
 from app.features.staff.model import Staff
 from app.features.students.model import Student
@@ -241,3 +244,64 @@ async def test_get_by_id_returns_records(
     )
     assert res.status_code == 200
     assert len(res.json()["records"]) == 2
+
+
+async def test_resubmit_preserves_record_for_student_withdrawn_since_save(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    seed_class: Class,
+    seed_students: tuple[Student, Student],
+    seed_staff: Staff,
+) -> None:
+    """Student B is withdrawn from the class after the session is first
+    saved (transferred out / deactivated). Re-saving the same historical
+    session must not silently drop their existing record even though
+    they've fallen off the current active roster."""
+    await client.post(
+        "/attendance/sessions",
+        json=_payload(status_a="Present", status_b="Absent"),
+        headers=auth_header(role="Teacher"),
+    )
+
+    enrollment_b = await db_session.scalar(
+        select(Enrollment).where(Enrollment.student_id == STUDENT_B_UUID)
+    )
+    assert enrollment_b is not None
+    enrollment_b.status = "Withdrawn"
+    await db_session.flush()
+
+    res = await client.post(
+        "/attendance/sessions",
+        json=_payload(status_a="Late", status_b="Excused"),
+        headers=auth_header(role="Teacher"),
+    )
+    assert res.status_code == 200, res.text
+    statuses_by_id = {r["studentId"]: r["status"] for r in res.json()["records"]}
+    assert statuses_by_id[str(STUDENT_A_UUID)] == "Late"
+    assert statuses_by_id[str(STUDENT_B_UUID)] == "Excused"
+
+
+async def test_resubmit_still_rejects_student_never_in_this_session(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    seed_class: Class,
+    seed_students: tuple[Student, Student],
+    seed_staff: Staff,
+) -> None:
+    """The relaxed validation only forgives students already present in
+    the existing session's records — a genuinely unrelated stray ID
+    (never enrolled, never part of this session) is still rejected."""
+    await client.post(
+        "/attendance/sessions",
+        json=_payload(),
+        headers=auth_header(role="Teacher"),
+    )
+
+    bad = _payload()
+    bad["records"].append(
+        {"studentId": "11111111-1111-4111-8111-111111111111", "status": "Present"}
+    )
+    res = await client.post("/attendance/sessions", json=bad, headers=auth_header(role="Teacher"))
+    assert res.status_code == 400

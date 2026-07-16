@@ -424,3 +424,79 @@ async def test_remove_class_teacher(
         headers=auth_header(role="Admin"),
     )
     assert res.status_code == 204
+
+
+async def test_replace_primary_class_teacher_swaps_atomically(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    seed_teacher: Staff,
+) -> None:
+    """One call replaces what used to be remove-old-then-assign-new —
+    the old primary's row is gone and the new one is primary, both from
+    a single request."""
+    other_staff_id = UUID("77777777-7777-4777-8777-777777777803")
+    db_session.add(
+        Staff(
+            id=other_staff_id,
+            slug="STAFF-CLS-002",
+            school_id=SCHOOL_UUID,
+            first_name="Kojo",
+            last_name="Second",
+            system_role="Teacher",
+            division="JHS",
+            email="kojo.cls@uhas.edu.gh",
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+
+    cls = (
+        await client.post("/classes", json=_CLASS_BODY, headers=auth_header(role="Admin"))
+    ).json()
+    await client.post(
+        f"/classes/{cls['id']}/teachers",
+        json={"staffId": str(STAFF_UUID), "isPrimary": True},
+        headers=auth_header(role="Admin"),
+    )
+
+    res = await client.put(
+        f"/classes/{cls['id']}/teachers/primary",
+        json={"staffId": str(other_staff_id)},
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["staffId"] == str(other_staff_id)
+    assert res.json()["isPrimary"] is True
+
+    listed = (
+        await client.get(f"/classes/{cls['id']}/teachers", headers=auth_header(role="Admin"))
+    ).json()["items"]
+    assert len(listed) == 1
+    assert listed[0]["staffId"] == str(other_staff_id)
+
+
+async def test_replace_primary_class_teacher_clears_with_null(
+    client: AsyncClient, seed_school: School, seed_teacher: Staff
+) -> None:
+    cls = (
+        await client.post("/classes", json=_CLASS_BODY, headers=auth_header(role="Admin"))
+    ).json()
+    await client.post(
+        f"/classes/{cls['id']}/teachers",
+        json={"staffId": str(STAFF_UUID), "isPrimary": True},
+        headers=auth_header(role="Admin"),
+    )
+
+    res = await client.put(
+        f"/classes/{cls['id']}/teachers/primary",
+        json={"staffId": None},
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200
+    assert res.json() is None
+
+    listed = (
+        await client.get(f"/classes/{cls['id']}/teachers", headers=auth_header(role="Admin"))
+    ).json()["items"]
+    assert listed == []

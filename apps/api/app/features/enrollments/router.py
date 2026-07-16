@@ -2,7 +2,7 @@
 
 GET   /enrollments                          → 400 (must scope by student or class)
 POST  /enrollments                          → enrol student in class (Admin)
-GET   /enrollments/{id}                     → fetch
+POST  /enrollments/transfer                 → move a student to a different class (Admin)
 PATCH /enrollments/{id}                     → change status (Admin)
 
 GET   /students/{student_id}/enrollments    → history for a student
@@ -26,6 +26,7 @@ from app.features.enrollments.schema import (
     EnrollmentRead,
     EnrollmentsListResponse,
     EnrollmentStatusUpdate,
+    EnrollmentTransferRequest,
 )
 from app.features.enrollments.service import EnrollmentsService
 from app.features.students.model import Student
@@ -68,6 +69,23 @@ async def enroll_student(
     user: RequireAdmin,
 ) -> EnrollmentRead:
     enrollment, cls, student = await EnrollmentsService.enroll(session, school_id, payload)
+    return _to_read(enrollment, cls, student)
+
+
+@router.post(
+    "/transfer",
+    response_model=EnrollmentRead,
+    response_model_by_alias=True,
+)
+async def transfer_student(
+    payload: EnrollmentTransferRequest,
+    school_id: CurrentSchoolIdDep,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    user: RequireAdmin,
+) -> EnrollmentRead:
+    enrollment, cls, student = await EnrollmentsService.transfer_student(
+        session, school_id, payload.student_id, payload.class_id
+    )
     return _to_read(enrollment, cls, student)
 
 
