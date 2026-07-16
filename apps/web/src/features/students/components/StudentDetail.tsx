@@ -125,6 +125,9 @@ interface Props {
    *  preserve existing Admin/DeputyHead behavior unchanged; the new
    *  read-only Teacher view passes `false`. */
   canEdit?: boolean;
+  /** For the printable ID card — real school identity instead of a
+   *  hardcoded name/logo. */
+  school: { name: string; logoUrl: string | null };
 }
 
 function InfoRow({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
@@ -142,6 +145,7 @@ export default function StudentDetail({
   basePath,
   exams = [],
   canEdit = true,
+  school,
 }: Props) {
   useBreadcrumbLabel(student.id, `${student.firstName} ${student.lastName}`);
 
@@ -482,7 +486,7 @@ export default function StudentDetail({
 
       {/* Print-only ID card */}
       <div className="hidden print:block">
-        <StudentIdCard student={student} />
+        <StudentIdCard student={student} school={school} />
       </div>
 
       {/* Edit Dialog */}

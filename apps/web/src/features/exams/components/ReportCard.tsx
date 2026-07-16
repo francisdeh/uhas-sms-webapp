@@ -48,17 +48,23 @@ export function ReportCard({ data, variant = REPORT_CARD_VARIANT.SUMMARY }: Repo
     <div id="report-card-print-area" className="bg-white text-black w-full max-w-[210mm] mx-auto p-8 font-serif">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
-        <div className="w-20 h-20 rounded-full bg-emerald-100 border-2 border-emerald-700 flex items-center justify-center text-emerald-800 text-xs font-bold text-center leading-tight">
-          UHAS<br />CREST
+        <div className="w-20 h-20 rounded-full border-2 border-emerald-700 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element -- report card is a print/PDF surface, not a routed page Next can optimize */}
+          <img
+            src={data.schoolLogoUrl ?? "/logo.png"}
+            alt=""
+            className="w-full h-full object-cover"
+          />
         </div>
         <div className="text-center flex-1 px-4">
-          <h1 className="text-2xl font-bold tracking-wide">UHAS BASIC SCHOOL</h1>
+          <h1 className="text-2xl font-bold tracking-wide">{data.schoolName.toUpperCase()}</h1>
           <p className="text-base font-bold mt-1">{title}</p>
           <p className="text-sm mt-0.5">{monthYear}</p>
         </div>
-        <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-700 flex items-center justify-center text-emerald-800 text-[10px] font-bold text-center leading-tight">
-          UHAS<br />SEAL
-        </div>
+        {/* Balances the crest's width so the title block stays visually
+            centered — there's no second real image (no school-seal
+            field exists in the data model) to show here. */}
+        <div className="w-20 h-20" />
       </div>
 
       {/* Student info row */}
@@ -190,6 +196,10 @@ export function ReportCard({ data, variant = REPORT_CARD_VARIANT.SUMMARY }: Repo
             </td>
           </tr>
           <tr>
+            <td className="border border-black p-1.5 font-bold">Head of School&apos;s Name</td>
+            <td colSpan={4} className="border border-black p-1.5">{data.headOfSchoolName || "—"}</td>
+          </tr>
+          <tr>
             <td className="border border-black p-1.5 font-bold">Head of School&apos;s Signature</td>
             <td colSpan={4} className="border border-black p-1.5 h-8"></td>
           </tr>
@@ -203,7 +213,7 @@ export function ReportCard({ data, variant = REPORT_CARD_VARIANT.SUMMARY }: Repo
           <tr className="border-b border-black">
             {data.gradingBands.map((band) => (
               <th key={band.grade} className="px-1 py-0.5 font-normal text-center">
-                {band.max}-{band.min}
+                {band.min}-{band.max}
               </th>
             ))}
           </tr>
@@ -226,7 +236,7 @@ export function ReportCard({ data, variant = REPORT_CARD_VARIANT.SUMMARY }: Repo
         </tbody>
       </table>
 
-      <p className="text-center italic mt-6 text-sm">Learning Today, Leading Tomorrow</p>
+      {data.schoolMotto && <p className="text-center italic mt-6 text-sm">{data.schoolMotto}</p>}
     </div>
   );
 }

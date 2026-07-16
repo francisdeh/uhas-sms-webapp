@@ -174,7 +174,7 @@ class StudentsService:
         guardian_id: UUID | str,
         *,
         user: CurrentUser,
-    ) -> list[tuple[Student, Class | None]]:
+    ) -> list[tuple[Student, Class | None, str | None]]:
         """Every child linked to `guardian_id`. A Parent may only look up
         their own linked guardian row — every other role can look up any
         guardian, matching the existing open-read posture on `/guardians`."""

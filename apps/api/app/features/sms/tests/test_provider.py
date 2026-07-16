@@ -91,6 +91,9 @@ def test_factory_returns_arkesel_provider_when_configured(
 ) -> None:
     monkeypatch.setattr(settings, "arkesel_api_key", "key")
     monkeypatch.setattr(settings, "arkesel_sender_id", "UHAS")
+    monkeypatch.setattr(settings, "hubtel_client_id", None)
+    monkeypatch.setattr(settings, "hubtel_client_secret", None)
+    monkeypatch.setattr(settings, "hubtel_sender_id", None)
     assert isinstance(get_sms_provider(), ArkeselSmsProvider)
 
 
@@ -136,7 +139,11 @@ async def test_hubtel_provider_failed_on_http_error() -> None:
 
 
 @respx.mock
-async def test_hubtel_provider_authenticates_with_basic_auth_not_query_params() -> None:
+async def test_hubtel_provider_authenticates_with_query_params_not_basic_auth() -> None:
+    """Basic auth looks safer (keeps secrets out of the URL) but this
+    endpoint actually rejects it — confirmed against a live Hubtel
+    account, which returned `"Client ID is null or empty"` for Basic
+    auth and only accepted `clientid`/`clientsecret` as query params."""
     route = respx.get(_HUBTEL_SEND_URL).mock(
         return_value=httpx.Response(200, json={"Status": 0, "MessageId": "msg-456"})
     )
@@ -144,8 +151,25 @@ async def test_hubtel_provider_authenticates_with_basic_auth_not_query_params() 
     await provider.send(phone="+233241110001", body="Body")
 
     request = route.calls.last.request
-    assert "clientsecret" not in str(request.url).lower()
-    assert request.headers["authorization"].startswith("Basic ")
+    assert "authorization" not in request.headers
+    query = str(request.url)
+    assert "clientid=myid" in query
+    assert "clientsecret=mysecret" in query
+
+
+@respx.mock
+async def test_hubtel_provider_failure_log_never_includes_the_request_url(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The request URL carries the client secret in a query param — a
+    failure log must never embed it (e.g. by stringifying the raised
+    httpx exception, whose __str__ includes the full URL)."""
+    respx.get(_HUBTEL_SEND_URL).mock(return_value=httpx.Response(500))
+    provider = HubtelSmsProvider(client_id="myid", client_secret="mysecret", sender_id="UHAS")
+    with caplog.at_level("ERROR"):
+        await provider.send(phone="+233241110001", body="Body")
+
+    assert "mysecret" not in caplog.text
 
 
 def test_hubtel_name_is_hubtel() -> None:

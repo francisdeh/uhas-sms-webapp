@@ -379,9 +379,7 @@ async def _notify_results_published(
     email_enabled = bool(defaults.get("on_results_published", True))
     school_name = school.name if school else "UHAS SMS"
     school_address = (school.address if school else None) or ""
-    school_contact_email = (
-        (school.email if school else None) or (school.email_reply_to if school else None) or ""
-    )
+    school_contact_email = (school.email if school else None) or ""
 
     by_guardian_user: dict[UUID, tuple[str | None, list[str]]] = {}
     for student, _guardian, user in recipients:

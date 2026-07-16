@@ -13,6 +13,7 @@ pytest fixture, auto-discovered from conftest by parameter name.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 from httpx import AsyncClient
@@ -20,9 +21,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import REPORT_CARD_PDF_LIMIT
+from app.core.security import CurrentUser
 from app.features.exams.model import ReportCardPdfCache
+from app.features.exams.report_card_pdf import _render_html
+from app.features.exams.report_card_svc import ReportCardService
 from app.features.exams.tests.conftest import (
     GUARDIAN_UUID,
+    SCHOOL_UUID,
     STUDENT_A_UUID,
     SUBJECT_UUID,
     FakeStorageClient,
@@ -30,6 +35,7 @@ from app.features.exams.tests.conftest import (
     _seed_score,
     auth_header,
 )
+from app.features.schools.model import School
 
 # `seed_actors` is used as a fixture parameter below — it's a pytest
 # fixture auto-discovered from conftest.py by name, no import needed.
@@ -259,3 +265,56 @@ async def test_exceeding_the_pdf_rate_limit_returns_429(
     assert res.status_code == 429
     body = res.json()
     assert body["error"]["code"] == "rate_limited"
+
+
+# ─── Crest fallback (no logo uploaded yet) ──────────────────────────────────
+
+
+async def test_crest_falls_back_to_default_logo_when_school_has_none(
+    db_session: AsyncSession,
+    seed_school: School,
+    seed_actors: None,
+) -> None:
+    """No `logo_url` on the school row — the crest `<img>` must fall
+    back to the app's own default logo (`app_url("/logo.png")`), same
+    fallback the navbar/login page use, not a text placeholder."""
+    _ = seed_actors
+    assert seed_school.logo_url is None
+    exam = await _seed_exam(db_session)
+    user = CurrentUser(
+        user_id="00000000-0000-0000-0000-000000000001",
+        email=None,
+        phone=None,
+        role="Admin",
+        school_id=str(SCHOOL_UUID),
+        linked_id=None,
+    )
+    data = await ReportCardService.get(
+        db_session, SCHOOL_UUID, user, student_id=STUDENT_A_UUID, exam_id=exam.id
+    )
+    html = _render_html(data, exam.created_at or datetime.now(UTC), full=False)
+    assert '<img src="http://localhost:3000/logo.png" alt="">' in html
+
+
+async def test_crest_uses_real_logo_when_school_has_one(
+    db_session: AsyncSession,
+    seed_school: School,
+    seed_actors: None,
+) -> None:
+    _ = seed_actors
+    seed_school.logo_url = "https://example.test/crest.png"
+    await db_session.flush()
+    exam = await _seed_exam(db_session)
+    user = CurrentUser(
+        user_id="00000000-0000-0000-0000-000000000001",
+        email=None,
+        phone=None,
+        role="Admin",
+        school_id=str(SCHOOL_UUID),
+        linked_id=None,
+    )
+    data = await ReportCardService.get(
+        db_session, SCHOOL_UUID, user, student_id=STUDENT_A_UUID, exam_id=exam.id
+    )
+    html = _render_html(data, exam.created_at or datetime.now(UTC), full=False)
+    assert '<img src="https://example.test/crest.png" alt="">' in html

@@ -35,6 +35,7 @@ export default async function DeputyHeadStudentDetailPage({
     notFound();
   }
 
+  const schoolRead = await api.school.get();
   const classesPage = await api.classes.list({ division, size: 200 });
 
   const student: Student = {
@@ -70,6 +71,7 @@ export default async function DeputyHeadStudentDetailPage({
       classes={classes}
       basePath="/deputy-head/students"
       canEdit={false}
+      school={{ name: schoolRead.name, logoUrl: schoolRead.logoUrl ?? null }}
     />
   );
 }

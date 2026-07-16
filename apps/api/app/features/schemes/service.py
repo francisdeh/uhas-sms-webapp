@@ -102,7 +102,7 @@ async def _notify_scheme_channels(
                         "recipient_email": recipient_user.email,
                         "school_name": school.name,
                         "school_address": school.address or "",
-                        "school_contact_email": school.email or school.email_reply_to or "",
+                        "school_contact_email": school.email or "",
                         "preferences_link": _SCHEME_PREFS_LINK,
                     },
                 )

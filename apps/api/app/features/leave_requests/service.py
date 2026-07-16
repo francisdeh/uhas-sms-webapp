@@ -151,7 +151,7 @@ async def _notify_leave_channels(
                         **email_data,
                         "school_name": school.name,
                         "school_address": school.address or "",
-                        "school_contact_email": school.email or school.email_reply_to or "",
+                        "school_contact_email": school.email or "",
                         "preferences_link": preferences_link,
                     },
                 )

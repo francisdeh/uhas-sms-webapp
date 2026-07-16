@@ -133,8 +133,6 @@ vi.mock("@/lib/api/server", () => ({
           projectWork: 10,
         },
         passMark: 40,
-        emailFromName: "UHAS Basic School",
-        emailReplyTo: "info@uhas.edu.gh",
         notificationDefaults: {
           onLessonPlanRejected: true,
           onAnnouncementPosted: true,
@@ -143,8 +141,6 @@ vi.mock("@/lib/api/server", () => ({
         sessionTimeoutMinutes: 480,
         passwordMinLength: 8,
         forcePasswordChangeOnFirstLogin: true,
-        defaultColorScheme: "uhas",
-        sidebarAccentHex: null,
         isActive: true,
         createdAt: null,
       })),

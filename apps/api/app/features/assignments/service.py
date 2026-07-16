@@ -87,9 +87,7 @@ async def _notify_assignment_created(
 
     school_name = school.name if school else "UHAS SMS"
     school_address = (school.address if school else None) or ""
-    school_contact_email = (
-        (school.email if school else None) or (school.email_reply_to if school else None) or ""
-    )
+    school_contact_email = (school.email if school else None) or ""
     body = f"{title} ({class_name}).{due_note}"
 
     for user, guardian_id, phone in by_guardian.values():

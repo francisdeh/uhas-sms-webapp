@@ -39,6 +39,7 @@ from app.features.exams.constants import (
 from app.features.exams.model import Exam, ReportCardPdfCache
 from app.features.exams.report_card_svc import ReportCardService
 from app.features.exams.schema import ReportCardResponse
+from app.integrations.email.provider import app_url
 from app.integrations.storage import StorageClient
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -91,12 +92,13 @@ def _render_html(data: ReportCardResponse, exam_created_at: datetime, *, full: b
         grade_bands=data.grading_bands,
         kg_domains=[(d, KG_DOMAIN_LABELS[d]) for d in KG_DOMAINS],
         conduct_traits=[(t, CONDUCT_TRAIT_LABELS[t]) for t in CONDUCT_TRAITS],
-        # Placeholders — the assembled ReportCardResponse doesn't carry
-        # roll count or attendance yet. Matches the same gap already
-        # shipped in the admin browser-print route.
-        number_on_roll=0,
-        attendance_attended=0,
-        attendance_total=0,
+        # Same fallback the app's own navbar/login-page logo uses
+        # (`schoolLogoUrl ?? "/logo.png"` in Sidebar.tsx) when no school
+        # has uploaded a custom logo yet.
+        default_logo_url=app_url("/logo.png"),
+        number_on_roll=data.number_on_roll,
+        attendance_attended=data.attendance_attended,
+        attendance_total=data.attendance_total,
     )
 
 

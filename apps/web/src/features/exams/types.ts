@@ -186,11 +186,15 @@ export type ReportCardData = {
   classTeacherNames: string[];
   classTeacherRemark: string | null;
   headOfSchoolComment: string | null;
+  headOfSchoolName: string | null;
   kgObservations: Partial<Record<KgDomain, Rating>> | null;
   conductRatings: Partial<Record<ConductTrait, Rating>> | null;
   interestsCoCurricular: string | null;
   vacationDate: string | null;
   reopeningDate: string | null;
+  schoolName: string;
+  schoolLogoUrl: string | null;
+  schoolMotto: string | null;
 };
 
 export const BATCH_JOB_STATUS = {

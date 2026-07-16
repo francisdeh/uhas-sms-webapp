@@ -5689,6 +5689,8 @@ export interface components {
             classTeacherRemark?: string | null;
             /** Headofschoolcomment */
             headOfSchoolComment?: string | null;
+            /** Headofschoolname */
+            headOfSchoolName?: string | null;
             /** Kgobservations */
             kgObservations?: {
                 [key: string]: "Excellent" | "Good" | "Needs Improvement";
@@ -5703,10 +5705,25 @@ export interface components {
             vacationDate?: string | null;
             /** Reopeningdate */
             reopeningDate?: string | null;
+            /**
+             * Numberonroll
+             * @default 0
+             */
+            numberOnRoll: number;
+            /**
+             * Attendanceattended
+             * @default 0
+             */
+            attendanceAttended: number;
+            /**
+             * Attendancetotal
+             * @default 0
+             */
+            attendanceTotal: number;
         };
         /**
          * ReportCardSchool
-         * @description School masthead — name + logo.
+         * @description School masthead — name + logo + motto.
          */
         ReportCardSchool: {
             /**
@@ -5718,6 +5735,8 @@ export interface components {
             name: string;
             /** Logourl */
             logoUrl?: string | null;
+            /** Motto */
+            motto?: string | null;
         };
         /**
          * ReportCardScoreRow
@@ -6116,10 +6135,6 @@ export interface components {
              * @default 40
              */
             passMark: number;
-            /** Emailfromname */
-            emailFromName?: string | null;
-            /** Emailreplyto */
-            emailReplyTo?: string | null;
             notificationDefaults?: components["schemas"]["NotificationDefaults"] | null;
             /**
              * Passwordminlength
@@ -6131,14 +6146,6 @@ export interface components {
              * @default true
              */
             forcePasswordChangeOnFirstLogin: boolean;
-            /**
-             * Defaultcolorscheme
-             * @default uhas
-             * @enum {string}
-             */
-            defaultColorScheme: "default" | "uhas";
-            /** Sidebaraccenthex */
-            sidebarAccentHex?: string | null;
             /**
              * Casualleaveannualdays
              * @default 21
@@ -6228,15 +6235,7 @@ export interface components {
             scoreWeights?: components["schemas"]["ScoreWeights"] | null;
             /** Passmark */
             passMark?: number | null;
-            /** Emailfromname */
-            emailFromName?: string | null;
-            /** Emailreplyto */
-            emailReplyTo?: string | null;
             notificationDefaults?: components["schemas"]["NotificationDefaults"] | null;
-            /** Defaultcolorscheme */
-            defaultColorScheme?: ("default" | "uhas") | null;
-            /** Sidebaraccenthex */
-            sidebarAccentHex?: string | null;
             /** Casualleaveannualdays */
             casualLeaveAnnualDays?: number | null;
         };

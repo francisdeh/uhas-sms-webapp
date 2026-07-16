@@ -73,8 +73,6 @@ export type SchoolSettings = {
   scoreWeights: ScoreWeights;
   passMark: number;
   // Communication
-  emailFromName: string | null;
-  emailReplyTo: string | null;
   notificationDefaults: NotificationDefaults;
   // Security — read-only today, not yet enforced by anything (see
   // SecurityTab.tsx)
@@ -82,9 +80,6 @@ export type SchoolSettings = {
   forcePasswordChangeOnFirstLogin: boolean;
   // Leave
   casualLeaveAnnualDays: number;
-  // Branding
-  defaultColorScheme: string;
-  sidebarAccentHex: string | null;
 };
 
 export type { ActionResult } from "@/lib/action-result";

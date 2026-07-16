@@ -64,8 +64,6 @@ class School(Base):
     pass_mark: Mapped[int | None] = mapped_column(Integer, nullable=True, default=DEFAULT_PASS_MARK)
 
     # Communication tab
-    email_from_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    email_reply_to: Mapped[str | None] = mapped_column(String(255), nullable=True)
     notification_defaults: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Security tab
@@ -73,12 +71,6 @@ class School(Base):
     force_password_change_on_first_login: Mapped[bool | None] = mapped_column(
         Boolean, nullable=True, default=True
     )
-
-    # Branding tab
-    default_color_scheme: Mapped[str | None] = mapped_column(
-        String(20), nullable=True, default="uhas"
-    )
-    sidebar_accent_hex: Mapped[str | None] = mapped_column(String(7), nullable=True)
 
     # Leave tab — only Casual leave gets a balance (see leave_requests
     # feature docs); the other types don't work as a fixed annual quota.

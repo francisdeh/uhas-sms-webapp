@@ -366,7 +366,7 @@ class FeesService:
         children = await StudentsService.list_for_guardian(
             session, school_id, user.linked_id, user=user
         )
-        student_ids = [student.id for student, _cls in children]
+        student_ids = [student.id for student, _cls, _fallback_year in children]
         rows = await FeesRepository.list_learner_fees_for_students(session, school_id, student_ids)
 
         learner_fee_ids = [lf.id for lf, _st, _fi in rows]
@@ -380,7 +380,7 @@ class FeesService:
             rows_by_student.setdefault(st.id, []).append((lf, fi))
 
         result: list[ChildFeesRead] = []
-        for student, _cls in children:
+        for student, _cls, _fallback_year in children:
             student_rows = rows_by_student.get(student.id, [])
             fees = [
                 ParentLearnerFeeRead(

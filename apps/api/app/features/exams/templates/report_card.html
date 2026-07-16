@@ -24,22 +24,18 @@
     justify-content: space-between;
     margin-bottom: 1.25rem;
   }
-  .crest, .seal {
+  .crest {
     width: 60pt;
     height: 60pt;
     border-radius: 50%;
     border: 1.5pt solid #047857;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-weight: bold;
-    font-size: 8pt;
-    color: #065f46;
-    line-height: 1.1;
+    overflow: hidden;
   }
-  .crest { background: #d1fae5; }
-  .seal { background: #ecfdf5; font-size: 7pt; }
+  .crest img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  /* Balances the crest's width on the other side so the title block
+     stays visually centered — there's no second real image (no school-
+     seal field exists in the data model) to put here. */
+  .header-spacer { width: 60pt; }
   .title-block { flex: 1; text-align: center; padding: 0 1rem; }
   .title-block h1 { font-size: 16pt; margin: 0; letter-spacing: 0.02em; }
   .title-block p { margin: 0.15rem 0 0; }
@@ -75,13 +71,15 @@
 <body>
 
   <div class="header">
-    <div class="crest">UHAS<br>CREST</div>
+    <div class="crest">
+      <img src="{{ data.school.logo_url or default_logo_url }}" alt="">
+    </div>
     <div class="title-block">
       <h1>{{ data.school.name.upper() }}</h1>
       <p class="report-title">{{ title }}</p>
       <p>{{ month_year }}</p>
     </div>
-    <div class="seal">UHAS<br>SEAL</div>
+    <div class="header-spacer"></div>
   </div>
 
   <div class="info-section">
@@ -223,6 +221,10 @@
         <td colspan="4">{{ data.head_of_school_comment or "" }}</td>
       </tr>
       <tr>
+        <td class="field-label">Head of School&rsquo;s Name</td>
+        <td colspan="4">{{ data.head_of_school_name or "—" }}</td>
+      </tr>
+      <tr>
         <td class="field-label">Head of School&rsquo;s Signature</td>
         <td colspan="4" class="sig-blank"></td>
       </tr>
@@ -233,7 +235,7 @@
   <table class="legend-table">
     <thead>
       <tr>
-        {% for band in grade_bands %}<th>{{ band.max }}-{{ band.min }}</th>{% endfor %}
+        {% for band in grade_bands %}<th>{{ band.min }}-{{ band.max }}</th>{% endfor %}
       </tr>
       <tr class="interp-row">
         {% for band in grade_bands %}<th>{{ band.interpretation }}</th>{% endfor %}
@@ -246,7 +248,9 @@
     </tbody>
   </table>
 
-  <p class="tagline">Learning Today, Leading Tomorrow</p>
+  {% if data.school.motto %}
+  <p class="tagline">{{ data.school.motto }}</p>
+  {% endif %}
 
 </body>
 </html>

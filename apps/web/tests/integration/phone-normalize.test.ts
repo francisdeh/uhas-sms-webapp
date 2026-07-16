@@ -1,15 +1,17 @@
 /**
- * Tests for the phone normalisation helper exported from LoginForm.
+ * Tests for the shared phone normalisation helper — used by both
+ * LoginForm (phone+OTP sign-in) and ResetPasswordForm (phone+OTP
+ * password recovery).
  *
- * The actual UI form is exercised end-to-end by Playwright; this Vitest
- * suite locks the input → E.164 mapping that LoginForm's submit handler
- * relies on, so future tweaks to country-code handling can't silently
- * regress (e.g. accidentally treating `0200000001` as a US number).
+ * The actual UI forms are exercised end-to-end by Playwright; this
+ * Vitest suite locks the input → E.164 mapping both forms rely on, so
+ * future tweaks to country-code handling can't silently regress (e.g.
+ * accidentally treating `0200000001` as a US number).
  */
 
 import { describe, expect, it } from "vitest";
 
-import { normalizePhone } from "@/features/auth/components/LoginForm";
+import { normalizePhone } from "@/features/auth/phone";
 
 describe("normalizePhone", () => {
   it("passes through canonical E.164", () => {
