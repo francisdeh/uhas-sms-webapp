@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.deps import CurrentSchoolIdDep, RequireAdmin
+from app.core.deps import CurrentSchoolIdDep, CurrentUserDep, RequireAdmin
 from app.features.classes.model import Class
 from app.features.enrollments.model import Enrollment
 from app.features.enrollments.schema import (
@@ -97,11 +97,12 @@ async def list_student_enrollments(
     student_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> EnrollmentsListResponse:
     rows, total = await EnrollmentsService.list_for_student(
-        session, school_id, student_id, page=page, size=size
+        session, school_id, student_id, user, page=page, size=size
     )
     return EnrollmentsListResponse(
         items=[_to_read(e, c, s) for (e, c, s) in rows],
@@ -119,6 +120,7 @@ async def list_class_enrollments(
     class_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     # A class roster is bounded by school size like classes/staff — the
@@ -126,7 +128,7 @@ async def list_class_enrollments(
     size: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> EnrollmentsListResponse:
     rows, total = await EnrollmentsService.list_for_class(
-        session, school_id, class_id, status=status_filter, page=page, size=size
+        session, school_id, class_id, user, status=status_filter, page=page, size=size
     )
     return EnrollmentsListResponse(
         items=[_to_read(e, c, s) for (e, c, s) in rows],

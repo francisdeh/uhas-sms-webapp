@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.classes.tests.conftest import (
     OTHER_SCHOOL_UUID,
@@ -293,6 +296,50 @@ async def test_list_class_subjects(
     assert len(res.json()["items"]) == 1
 
 
+async def test_list_class_subjects_forbidden_for_teacher_who_does_not_teach_class(
+    client: AsyncClient, seed_school: School, seed_subject: Subject, seed_teacher: Staff
+) -> None:
+    cls = (
+        await client.post("/classes", json=_CLASS_BODY, headers=auth_header(role="Admin"))
+    ).json()
+    res = await client.get(
+        f"/classes/{cls['id']}/subjects",
+        headers=auth_header(role="Teacher", linked_id=str(STAFF_UUID)),
+    )
+    assert res.status_code == 403
+
+
+async def test_list_class_subjects_forbidden_for_deputy_of_other_division(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    seed_subject: Subject,
+) -> None:
+    cls = (
+        await client.post("/classes", json=_CLASS_BODY, headers=auth_header(role="Admin"))
+    ).json()
+    deputy_id = UUID("77777777-7777-4777-8777-777777777802")
+    db_session.add(
+        Staff(
+            id=deputy_id,
+            slug="STAFF-DEPUTY",
+            school_id=SCHOOL_UUID,
+            first_name="Yaa",
+            last_name="Deputy",
+            system_role="DeputyHead",
+            division="Lower Primary",
+            email="deputy@uhas.edu.gh",
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+    res = await client.get(
+        f"/classes/{cls['id']}/subjects",
+        headers=auth_header(role="DeputyHead", linked_id=str(deputy_id)),
+    )
+    assert res.status_code == 403
+
+
 async def test_remove_class_subject(
     client: AsyncClient, seed_school: School, seed_subject: Subject
 ) -> None:
@@ -346,6 +393,19 @@ async def test_list_class_teachers(
     )
     res = await client.get(f"/classes/{cls['id']}/teachers", headers=auth_header(role="Admin"))
     assert len(res.json()["items"]) == 1
+
+
+async def test_list_class_teachers_forbidden_for_teacher_who_does_not_teach_class(
+    client: AsyncClient, seed_school: School, seed_teacher: Staff
+) -> None:
+    cls = (
+        await client.post("/classes", json=_CLASS_BODY, headers=auth_header(role="Admin"))
+    ).json()
+    res = await client.get(
+        f"/classes/{cls['id']}/teachers",
+        headers=auth_header(role="Teacher", linked_id=str(STAFF_UUID)),
+    )
+    assert res.status_code == 403
 
 
 async def test_remove_class_teacher(

@@ -28,7 +28,7 @@ from app.features.attendance.tests.conftest import (
     STUDENT_B_UUID,
     auth_header,
 )
-from app.features.classes.model import Class, ClassTeacher
+from app.features.classes.model import Class
 from app.features.guardians.model import Guardian
 from app.features.schools.model import School
 from app.features.staff.model import Staff
@@ -119,17 +119,14 @@ async def seed_extra_actors(
     db_session.add_all([parent, unrelated, admin, deputy_jhs, deputy_lp, other_teacher])
     await db_session.flush()
 
+    # Note: STAFF_UUID's ClassTeacher row for CLASS_UUID is already seeded
+    # by the suite-wide autouse `seed_class_teacher` fixture in conftest.py.
     db_session.add_all(
         [
             StudentGuardian(
                 student_id=STUDENT_A_UUID,
                 guardian_id=GUARDIAN_UUID,
                 relation="mother",
-                is_primary=True,
-            ),
-            ClassTeacher(
-                class_id=CLASS_UUID,
-                staff_id=STAFF_UUID,
                 is_primary=True,
             ),
         ]

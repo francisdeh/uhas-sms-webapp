@@ -102,6 +102,44 @@ class ClassesService:
         return row
 
     @staticmethod
+    async def assert_can_access_class(
+        session: AsyncSession,
+        school_id: UUID | str,
+        user: CurrentUser,
+        cls: Class,
+    ) -> None:
+        """Role gate for endpoints that expose or mutate a single class's
+        full roster / grade-entry surface (attendance, scores,
+        class-subjects and class-teachers lists, enrollment rosters).
+
+        * Admin — any class.
+        * DeputyHead — only classes in their own division.
+        * Teacher — only classes they class-teach or subject-teach.
+        * Parent / Accountant — always forbidden; those roles use the
+          single-student views elsewhere, never a whole-class surface.
+
+        Caller resolves `cls` first so a bad class_id still 404s instead
+        of being swallowed into a 403.
+        """
+        role = user.role
+        if role == ADMIN:
+            return
+        if role == DEPUTY_HEAD:
+            own_division = await ClassesService._deputy_division(session, school_id, user)
+            if cls.division != own_division:
+                raise ForbiddenError("You may only access classes in your division.")
+            return
+        if role == TEACHER:
+            if not user.linked_id:
+                raise ForbiddenError("Teacher identity missing.")
+            if not await ClassesRepository.staff_teaches_class(
+                session, staff_id=user.linked_id, class_id=cls.id
+            ):
+                raise ForbiddenError("You may only access classes you teach.")
+            return
+        raise ForbiddenError("Not permitted.")
+
+    @staticmethod
     async def create(
         session: AsyncSession,
         school_id: UUID | str,
@@ -174,10 +212,12 @@ class ClassSubjectsService:
         session: AsyncSession,
         school_id: UUID | str,
         class_id: UUID | str,
+        user: CurrentUser,
     ) -> list[tuple[ClassSubject, Subject, Staff | None]]:
         # 404 the parent first so a caller with a bad class_id doesn't
         # get an empty list.
-        await ClassesService.get(session, school_id, class_id)
+        cls = await ClassesService.get(session, school_id, class_id)
+        await ClassesService.assert_can_access_class(session, school_id, user, cls)
         return await ClassSubjectsRepository.list_for_class(session, class_id)
 
     @staticmethod
@@ -310,8 +350,10 @@ class ClassTeachersService:
         session: AsyncSession,
         school_id: UUID | str,
         class_id: UUID | str,
+        user: CurrentUser,
     ) -> list[tuple[ClassTeacher, Staff]]:
-        await ClassesService.get(session, school_id, class_id)
+        cls = await ClassesService.get(session, school_id, class_id)
+        await ClassesService.assert_can_access_class(session, school_id, user, cls)
         return await ClassTeachersRepository.list_for_class(session, class_id)
 
     @staticmethod

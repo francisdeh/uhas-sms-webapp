@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import engine, get_session
-from app.features.classes.model import Class
+from app.features.classes.model import Class, ClassSubject
 from app.features.enrollments.model import Enrollment
 from app.features.guardians.model import Guardian
 from app.features.schools.model import School
@@ -170,6 +170,31 @@ async def seed_staff(
     db_session.add_all([teacher, other, deputy, admin])
     await db_session.flush()
     return teacher, other, deputy, admin
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def seed_class_subject(
+    db_session: AsyncSession,
+    seed_classes: tuple[Class, Class],
+    seed_subject: Subject,
+    seed_staff: tuple[Staff, Staff, Staff, Staff],
+) -> None:
+    """`TEACHER_UUID` teaches `SUBJECT_UUID` in both seeded classes — every
+    `_create_assignment`/`_create_and_publish` call across this suite
+    creates for `TEACHER_UUID` against `SUBJECT_UUID` in `CLASS_UUID` or
+    `CLASS_OTHER_UUID`, and `AssignmentsService.create`/`update` now
+    require the acting teacher to actually be assigned to teach the
+    (class, subject) pair. `OTHER_TEACHER_UUID` is deliberately left
+    unassigned so the non-owner tests still exercise a real denial."""
+    db_session.add_all(
+        [
+            ClassSubject(class_id=CLASS_UUID, subject_id=SUBJECT_UUID, teacher_id=TEACHER_UUID),
+            ClassSubject(
+                class_id=CLASS_OTHER_UUID, subject_id=SUBJECT_UUID, teacher_id=TEACHER_UUID
+            ),
+        ]
+    )
+    await db_session.flush()
 
 
 @pytest_asyncio.fixture

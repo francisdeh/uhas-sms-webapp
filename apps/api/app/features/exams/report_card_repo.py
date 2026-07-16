@@ -17,7 +17,8 @@ from uuid import UUID
 from sqlalchemy import and_, asc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.classes.model import Class, ClassSubject, ClassTeacher
+from app.features.classes.model import Class, ClassTeacher
+from app.features.classes.repository import ClassesRepository
 from app.features.enrollments.constants import ACTIVE
 from app.features.enrollments.model import Enrollment
 from app.features.exams.model import (
@@ -232,22 +233,12 @@ class ReportCardRepository:
         session: AsyncSession, *, staff_id: UUID | str, class_id: UUID | str
     ) -> bool:
         """True if the staff member class-teaches or subject-teaches
-        `class_id`. Matches the teacher gate used in `AttendanceService`."""
-        ct_stmt = select(ClassTeacher.class_id).where(
-            and_(
-                ClassTeacher.class_id == class_id,
-                ClassTeacher.staff_id == staff_id,
-            )
+        `class_id`. Thin alias over the shared primitive in
+        `ClassesRepository` — kept here too since call sites in this
+        module already import `ReportCardRepository`."""
+        return await ClassesRepository.staff_teaches_class(
+            session, staff_id=staff_id, class_id=class_id
         )
-        if (await session.execute(ct_stmt)).first() is not None:
-            return True
-        cs_stmt = select(ClassSubject.class_id).where(
-            and_(
-                ClassSubject.class_id == class_id,
-                ClassSubject.teacher_id == staff_id,
-            )
-        )
-        return (await session.execute(cs_stmt)).first() is not None
 
 
 class ReportCardBatchJobsRepository:

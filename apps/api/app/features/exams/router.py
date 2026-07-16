@@ -213,11 +213,12 @@ async def get_scores_grid(
     exam_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
     class_id: Annotated[UUID, Query(alias="classId")],
     subject_id: Annotated[UUID, Query(alias="subjectId")],
 ) -> ScoresGridResponse:
     rows = await ScoresService.get_grid(
-        session, school_id, exam_id=exam_id, class_id=class_id, subject_id=subject_id
+        session, school_id, user, exam_id=exam_id, class_id=class_id, subject_id=subject_id
     )
     return ScoresGridResponse(
         exam_id=exam_id,
@@ -242,13 +243,14 @@ async def upsert_scores(
     user: CurrentUserDep,
 ) -> ScoresGridResponse:
     await ScoresService.upsert_batch(
-        session, school_id, exam_id, payload, actor_user_id=user.user_id
+        session, school_id, exam_id, payload, user, actor_user_id=user.user_id
     )
     # Re-read the grid so the response reflects the freshly-recomputed
     # positions across ALL students, not just the payload rows.
     rows = await ScoresService.get_grid(
         session,
         school_id,
+        user,
         exam_id=exam_id,
         class_id=payload.class_id,
         subject_id=payload.subject_id,

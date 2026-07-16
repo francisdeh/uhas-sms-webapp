@@ -908,8 +908,9 @@ export interface paths {
         put?: never;
         /**
          * Batch-save attendance for a class on a date
-         * @description Any authenticated staff (Teacher/DeputyHead/Admin) can save; the
-         *     role gate is soft on POST — teachers save their own classes.
+         * @description Admin/DeputyHead (own division)/Teacher (own classes) can save;
+         *     Parent/Accountant are rejected. See
+         *     `ClassesService.assert_can_access_class` for the exact gate.
          */
         post: operations["upsert_session_attendance_sessions_post"];
         delete?: never;

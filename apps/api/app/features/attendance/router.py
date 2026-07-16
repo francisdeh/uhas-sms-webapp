@@ -117,8 +117,9 @@ async def upsert_session(
     session: Annotated[AsyncSession, Depends(get_session)],
     user: CurrentUserDep,
 ) -> AttendanceSessionRead:
-    """Any authenticated staff (Teacher/DeputyHead/Admin) can save; the
-    role gate is soft on POST — teachers save their own classes.
+    """Admin/DeputyHead (own division)/Teacher (own classes) can save;
+    Parent/Accountant are rejected. See
+    `ClassesService.assert_can_access_class` for the exact gate.
     """
     school = await SchoolsRepository.get_by_id(session, school_id)
     if not school:
@@ -129,6 +130,7 @@ async def upsert_session(
         session,
         school_id,
         payload,
+        user=user,
         actor_staff_id=actor_staff_id,
         academic_year=school.academic_year,
     )

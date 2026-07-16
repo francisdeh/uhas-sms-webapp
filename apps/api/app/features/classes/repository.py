@@ -143,6 +143,30 @@ class ClassesRepository:
         return (await session.execute(stmt)).scalar_one_or_none()
 
     @staticmethod
+    async def staff_teaches_class(
+        session: AsyncSession, *, staff_id: UUID | str, class_id: UUID | str
+    ) -> bool:
+        """True if the staff member class-teaches or subject-teaches
+        `class_id`. Shared ownership primitive for any endpoint that
+        exposes a whole class's roster or grade-entry surface (used by
+        `ClassesService.assert_can_access_class`, attendance, scores)."""
+        ct_stmt = select(ClassTeacher.class_id).where(
+            and_(
+                ClassTeacher.class_id == class_id,
+                ClassTeacher.staff_id == staff_id,
+            )
+        )
+        if (await session.execute(ct_stmt)).first() is not None:
+            return True
+        cs_stmt = select(ClassSubject.class_id).where(
+            and_(
+                ClassSubject.class_id == class_id,
+                ClassSubject.teacher_id == staff_id,
+            )
+        )
+        return (await session.execute(cs_stmt)).first() is not None
+
+    @staticmethod
     async def list_plain_for_year(
         session: AsyncSession, school_id: UUID | str, academic_year: str
     ) -> list[Class]:

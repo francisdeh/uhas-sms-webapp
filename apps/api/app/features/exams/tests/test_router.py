@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.audit.model import AuditLog
-from app.features.classes.model import Class
+from app.features.classes.model import Class, ClassSubject
 from app.features.exams.tests.conftest import (
     CLASS_UUID,
     STUDENT_A_UUID,
@@ -19,8 +21,45 @@ from app.features.exams.tests.conftest import (
     auth_header,
 )
 from app.features.schools.model import School
+from app.features.staff.model import Staff
 from app.features.students.model import Student
 from app.features.subjects.model import Subject
+
+# Distinct from `conftest.py`'s CLASS_TEACHER_A/B_UUID (report-card suite's
+# own fixture graph) — this file's scores tests need only one teacher who
+# is actually assigned to teach (CLASS_UUID, SUBJECT_UUID), since
+# `ScoresService.get_grid`/`upsert_batch` now enforce that ownership.
+TEACHER_UUID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccc0901")
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def seed_scores_teacher(
+    db_session: AsyncSession, seed_school: School, seed_class: Class, seed_subject: Subject
+) -> None:
+    _ = seed_school
+    db_session.add(
+        Staff(
+            id=TEACHER_UUID,
+            slug="STAFF-SCORES-001",
+            school_id=seed_class.school_id,
+            first_name="Kwabena",
+            last_name="Scores",
+            system_role="Teacher",
+            division="JHS",
+            email="kwabena.scores@uhas.edu.gh",
+            rank="Teacher",
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+    db_session.add(
+        ClassSubject(class_id=CLASS_UUID, subject_id=SUBJECT_UUID, teacher_id=TEACHER_UUID)
+    )
+    await db_session.flush()
+
+
+def _teacher_header() -> dict[str, str]:
+    return auth_header(role="Teacher", linked_id=str(TEACHER_UUID))
 
 
 def _exam_payload(**overrides: Any) -> dict[str, Any]:
@@ -161,12 +200,49 @@ async def test_grid_returns_row_per_student_even_without_scores(
     ).json()
     res = await client.get(
         f"/exams/{exam['id']}/scores?classId={CLASS_UUID}&subjectId={SUBJECT_UUID}",
-        headers=auth_header(role="Teacher"),
+        headers=_teacher_header(),
     )
     assert res.status_code == 200
     items = res.json()["items"]
     assert len(items) == 3
     assert all(item["totalScore"] is None for item in items)
+
+
+async def test_grid_rejects_teacher_who_does_not_teach_subject(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_subject: Subject,
+    seed_students: tuple[Student, Student, Student],
+) -> None:
+    _ = (seed_class, seed_subject, seed_students)
+    exam = (
+        await client.post("/exams", json=_exam_payload(), headers=auth_header(role="Admin"))
+    ).json()
+    res = await client.get(
+        f"/exams/{exam['id']}/scores?classId={CLASS_UUID}&subjectId={SUBJECT_UUID}",
+        headers=auth_header(role="Teacher", linked_id="cccccccc-cccc-4ccc-8ccc-cccccccc0999"),
+    )
+    assert res.status_code == 403
+
+
+async def test_upsert_rejects_parent(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_subject: Subject,
+    seed_students: tuple[Student, Student, Student],
+) -> None:
+    _ = (seed_class, seed_subject, seed_students)
+    exam = (
+        await client.post("/exams", json=_exam_payload(), headers=auth_header(role="Admin"))
+    ).json()
+    res = await client.put(
+        f"/exams/{exam['id']}/scores",
+        json=_scores_payload(),
+        headers=auth_header(role="Parent"),
+    )
+    assert res.status_code == 403
 
 
 async def test_upsert_computes_totals_grades_and_positions(
@@ -183,7 +259,7 @@ async def test_upsert_computes_totals_grades_and_positions(
     res = await client.put(
         f"/exams/{exam['id']}/scores",
         json=_scores_payload(),
-        headers=auth_header(role="Teacher"),
+        headers=_teacher_header(),
     )
     assert res.status_code == 200
     items_by_student = {i["studentId"]: i for i in res.json()["items"]}
@@ -213,9 +289,7 @@ async def test_upsert_rejects_student_not_in_class(
     ).json()
     bad = _scores_payload()
     bad["records"].append({"studentId": "11111111-1111-4111-8111-111111111111", "examScore": 50})
-    res = await client.put(
-        f"/exams/{exam['id']}/scores", json=bad, headers=auth_header(role="Teacher")
-    )
+    res = await client.put(f"/exams/{exam['id']}/scores", json=bad, headers=_teacher_header())
     assert res.status_code == 400
 
 
@@ -232,9 +306,7 @@ async def test_upsert_422_on_duplicate_student_ids(
     ).json()
     bad = _scores_payload()
     bad["records"].append(bad["records"][0].copy())  # dup Ama
-    res = await client.put(
-        f"/exams/{exam['id']}/scores", json=bad, headers=auth_header(role="Teacher")
-    )
+    res = await client.put(f"/exams/{exam['id']}/scores", json=bad, headers=_teacher_header())
     assert res.status_code == 422
 
 
@@ -254,16 +326,14 @@ async def test_score_edit_after_publish_writes_score_override_audit(
     await client.put(
         f"/exams/{exam['id']}/scores",
         json=_scores_payload(),
-        headers=auth_header(role="Teacher"),
+        headers=_teacher_header(),
     )
     await client.post(f"/exams/{exam['id']}/publish", headers=auth_header(role="Admin"))
 
     # Edit Ama's exam score down from 90 to 70.
     edited = _scores_payload()
     edited["records"][0]["examScore"] = 70
-    await client.put(
-        f"/exams/{exam['id']}/scores", json=edited, headers=auth_header(role="Teacher")
-    )
+    await client.put(f"/exams/{exam['id']}/scores", json=edited, headers=_teacher_header())
 
     audit_rows = (
         (await db_session.execute(select(AuditLog).where(AuditLog.action == "SCORE_OVERRIDE")))
@@ -294,14 +364,12 @@ async def test_score_edit_before_publish_does_not_audit(
     await client.put(
         f"/exams/{exam['id']}/scores",
         json=_scores_payload(),
-        headers=auth_header(role="Teacher"),
+        headers=_teacher_header(),
     )
     # Edit before publish — draft edits are silent.
     edited = _scores_payload()
     edited["records"][0]["examScore"] = 40
-    await client.put(
-        f"/exams/{exam['id']}/scores", json=edited, headers=auth_header(role="Teacher")
-    )
+    await client.put(f"/exams/{exam['id']}/scores", json=edited, headers=_teacher_header())
     audit_rows = (
         (await db_session.execute(select(AuditLog).where(AuditLog.action == "SCORE_OVERRIDE")))
         .scalars()
@@ -328,7 +396,7 @@ async def test_midterm_uses_raw_exam_score(
     res = await client.put(
         f"/exams/{midterm['id']}/scores",
         json=_scores_payload(),
-        headers=auth_header(role="Teacher"),
+        headers=_teacher_header(),
     )
     assert res.status_code == 200
     items_by_student = {i["studentId"]: i for i in res.json()["items"]}

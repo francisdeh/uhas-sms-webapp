@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import engine, get_session
-from app.features.classes.model import Class
+from app.features.classes.model import Class, ClassTeacher
 from app.features.enrollments.model import Enrollment
 from app.features.schools.model import School
 from app.features.staff.model import Staff
@@ -151,6 +151,17 @@ async def seed_staff(db_session: AsyncSession, seed_school: School) -> Staff:
     db_session.add(staff)
     await db_session.flush()
     return staff
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def seed_class_teacher(
+    db_session: AsyncSession, seed_class: Class, seed_staff: Staff
+) -> None:
+    """`STAFF_UUID` (the default "Teacher" caller in `mint_jwt`) class-
+    teaches `CLASS_UUID` — `AttendanceService.upsert_session` now
+    requires the acting teacher to actually own the class."""
+    db_session.add(ClassTeacher(class_id=CLASS_UUID, staff_id=STAFF_UUID, is_primary=True))
+    await db_session.flush()
 
 
 @pytest_asyncio.fixture

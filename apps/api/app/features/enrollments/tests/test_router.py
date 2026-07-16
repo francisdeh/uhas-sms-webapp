@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.classes.model import Class
 from app.features.enrollments.tests.conftest import (
     CLASS_UUID,
     NEXT_CLASS_UUID,
+    SCHOOL_UUID,
     STUDENT_UUID,
     auth_header,
 )
 from app.features.schools.model import School
+from app.features.staff.model import Staff
 from app.features.students.model import Student
 
 
@@ -105,6 +110,84 @@ async def test_list_by_student(
     items = res.json()["items"]
     assert len(items) == 1
     assert items[0]["className"] == "JHS 1"
+
+
+async def test_list_by_student_rejects_unrelated_parent(
+    client: AsyncClient, seed_school: School, seed_class: Class, seed_student: Student
+) -> None:
+    body = {"studentId": str(STUDENT_UUID), "classId": str(CLASS_UUID)}
+    await client.post("/enrollments", json=body, headers=auth_header(role="Admin"))
+
+    res = await client.get(
+        f"/students/{STUDENT_UUID}/enrollments",
+        headers=auth_header(role="Parent", linked_id="88888888-8888-4888-8888-888888888b01"),
+    )
+    assert res.status_code == 403
+
+
+async def test_list_by_student_rejects_teacher_who_does_not_teach_student(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    seed_class: Class,
+    seed_student: Student,
+) -> None:
+    body = {"studentId": str(STUDENT_UUID), "classId": str(CLASS_UUID)}
+    await client.post("/enrollments", json=body, headers=auth_header(role="Admin"))
+
+    other_teacher_id = UUID("88888888-8888-4888-8888-888888888c01")
+    db_session.add(
+        Staff(
+            id=other_teacher_id,
+            slug="STAFF-ENR-001",
+            school_id=SCHOOL_UUID,
+            first_name="Kojo",
+            last_name="Mensah",
+            system_role="Teacher",
+            division="JHS",
+            email="kojo.enr@uhas.edu.gh",
+            rank="Teacher",
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+
+    res = await client.get(
+        f"/students/{STUDENT_UUID}/enrollments",
+        headers=auth_header(role="Teacher", linked_id=str(other_teacher_id)),
+    )
+    assert res.status_code == 403
+
+
+async def test_list_by_class_rejects_teacher_who_does_not_teach_class(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    seed_class: Class,
+    seed_student: Student,
+) -> None:
+    other_teacher_id = UUID("88888888-8888-4888-8888-888888888c02")
+    db_session.add(
+        Staff(
+            id=other_teacher_id,
+            slug="STAFF-ENR-002",
+            school_id=SCHOOL_UUID,
+            first_name="Yaw",
+            last_name="Asante",
+            system_role="Teacher",
+            division="JHS",
+            email="yaw.enr@uhas.edu.gh",
+            rank="Teacher",
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+
+    res = await client.get(
+        f"/classes/{CLASS_UUID}/enrollments",
+        headers=auth_header(role="Teacher", linked_id=str(other_teacher_id)),
+    )
+    assert res.status_code == 403
 
 
 async def test_list_by_class_filters_by_status(

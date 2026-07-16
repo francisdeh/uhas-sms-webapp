@@ -31,9 +31,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.inngest import inngest_client
+from app.core.security import CurrentUser
 from app.features.audit.actions import EXAM_PUBLISH, EXAM_UNPUBLISH, SCORE_OVERRIDE
 from app.features.audit.service import write_audit_log
 from app.features.classes.repository import ClassesRepository
+from app.features.classes.service import ClassesService
 from app.features.exams.compute import (
     ComponentScores,
     assign_positions,
@@ -203,16 +205,22 @@ class ScoresService:
     async def get_grid(
         session: AsyncSession,
         school_id: UUID | str,
+        user: CurrentUser,
         *,
         exam_id: UUID | str,
         class_id: UUID | str,
         subject_id: UUID | str,
     ) -> list[tuple[Any, Any, Score | None]]:
-        """Rows for the (exam, class, subject) grid — one per student."""
+        """Rows for the (exam, class, subject) grid — one per student.
+
+        Role gate: same as `upsert_batch` — see
+        `ClassesService.assert_can_access_class`.
+        """
         await ExamsService.get(session, school_id, exam_id)
         cls = await ClassesRepository.get_by_id(session, school_id, class_id)
         if not cls:
             raise ValidationError("Class not found in this school.")
+        await ClassesService.assert_can_access_class(session, school_id, user, cls)
         return await ScoresRepository.list_grid(
             session,
             exam_id=exam_id,
@@ -227,6 +235,7 @@ class ScoresService:
         school_id: UUID | str,
         exam_id: UUID | str,
         payload: ScoresUpsertRequest,
+        user: CurrentUser,
         *,
         actor_user_id: UUID | str,
     ) -> list[Score]:
@@ -235,6 +244,7 @@ class ScoresService:
         cls = await ClassesRepository.get_by_id(session, school_id, payload.class_id)
         if not cls:
             raise ValidationError("Class not found in this school.")
+        await ClassesService.assert_can_access_class(session, school_id, user, cls)
         subject = await SubjectsRepository.get_by_id(session, school_id, payload.subject_id)
         if not subject:
             raise ValidationError("Subject not found in this school.")
