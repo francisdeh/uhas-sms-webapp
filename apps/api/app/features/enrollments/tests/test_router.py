@@ -5,9 +5,11 @@ from __future__ import annotations
 from uuid import UUID
 
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.classes.model import Class
+from app.features.enrollments.model import Enrollment
 from app.features.enrollments.tests.conftest import (
     CLASS_UUID,
     NEXT_CLASS_UUID,
@@ -95,6 +97,87 @@ async def test_change_status_transitions_and_409_on_repeat(
         headers=auth_header(role="Admin"),
     )
     assert res2.status_code == 409
+
+
+async def test_transfer_moves_student_atomically(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_next_class: Class,
+    seed_student: Student,
+    db_session: AsyncSession,
+) -> None:
+    """One call replaces what used to be withdraw-then-create — the old
+    enrollment ends up Withdrawn and a new Active one exists in the
+    target class, both from a single request."""
+    body = {"studentId": str(STUDENT_UUID), "classId": str(CLASS_UUID)}
+    original = (
+        await client.post("/enrollments", json=body, headers=auth_header(role="Admin"))
+    ).json()
+
+    res = await client.post(
+        "/enrollments/transfer",
+        json={"studentId": str(STUDENT_UUID), "classId": str(NEXT_CLASS_UUID)},
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200, res.text
+    body_new = res.json()
+    assert body_new["classId"] == str(NEXT_CLASS_UUID)
+    assert body_new["status"] == "Active"
+
+    old_row = await db_session.scalar(
+        select(Enrollment).where(Enrollment.id == UUID(original["id"]))
+    )
+    assert old_row is not None
+    assert old_row.status == "Withdrawn"
+
+
+async def test_transfer_requires_admin(
+    client: AsyncClient, seed_school: School, seed_class: Class, seed_next_class: Class
+) -> None:
+    res = await client.post(
+        "/enrollments/transfer",
+        json={"studentId": str(STUDENT_UUID), "classId": str(NEXT_CLASS_UUID)},
+        headers=auth_header(role="Teacher"),
+    )
+    assert res.status_code == 403
+
+
+async def test_transfer_rejects_transfer_to_same_class(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_student: Student,
+) -> None:
+    body = {"studentId": str(STUDENT_UUID), "classId": str(CLASS_UUID)}
+    await client.post("/enrollments", json=body, headers=auth_header(role="Admin"))
+
+    res = await client.post(
+        "/enrollments/transfer",
+        json={"studentId": str(STUDENT_UUID), "classId": str(CLASS_UUID)},
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 409
+
+
+async def test_transfer_400_for_unknown_class(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_student: Student,
+) -> None:
+    body = {"studentId": str(STUDENT_UUID), "classId": str(CLASS_UUID)}
+    await client.post("/enrollments", json=body, headers=auth_header(role="Admin"))
+
+    res = await client.post(
+        "/enrollments/transfer",
+        json={
+            "studentId": str(STUDENT_UUID),
+            "classId": "99999999-9999-4999-8999-999999999999",
+        },
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 400
 
 
 async def test_list_by_student(

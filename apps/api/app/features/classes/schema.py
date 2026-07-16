@@ -151,6 +151,20 @@ class ClassTeacherAssignRequest(BaseModel):
     is_primary: bool = False
 
 
+class ClassPrimaryTeacherUpdate(BaseModel):
+    """`PUT /classes/{id}/teachers/primary` — atomically swap whichever
+    staff member currently holds `is_primary=True` for a new one (or
+    `null` to just clear it). Replaces the two-call client-orchestrated
+    "remove old, then assign new" sequence, which could leave a class
+    with no teacher at all if the second call failed after the first
+    succeeded.
+    """
+
+    model_config = _CAMEL_CONFIG
+
+    staff_id: UUID | None
+
+
 class ClassTeacherRead(BaseModel):
     """A row of `class_teachers` with embedded staff name."""
 

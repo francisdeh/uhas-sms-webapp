@@ -154,3 +154,17 @@ export function useRemoveClassTeacher(classId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: classKeys.teachers(classId) }),
   });
 }
+
+/** Atomic swap of the class's primary teacher — one backend call
+ *  instead of orchestrating a remove-then-assign sequence client-side. */
+export function useReplacePrimaryClassTeacher(classId: string) {
+  const qc = useQueryClient();
+  return useMutation<
+    components["schemas"]["ClassTeacherRead"] | null,
+    ApiError,
+    components["schemas"]["ClassPrimaryTeacherUpdate"]
+  >({
+    mutationFn: (payload) => api.classes.teachers.replacePrimary(classId, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: classKeys.teachers(classId) }),
+  });
+}

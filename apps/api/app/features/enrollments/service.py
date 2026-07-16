@@ -25,7 +25,7 @@ from app.core.security import CurrentUser
 from app.features.classes.model import Class, ClassSubject, ClassTeacher
 from app.features.classes.repository import ClassesRepository
 from app.features.classes.service import ClassesService
-from app.features.enrollments.constants import ACTIVE
+from app.features.enrollments.constants import ACTIVE, WITHDRAWN
 from app.features.enrollments.model import Enrollment
 from app.features.enrollments.repository import EnrollmentsRepository
 from app.features.enrollments.schema import EnrollmentCreate, EnrollmentStatusUpdate
@@ -217,6 +217,51 @@ class EnrollmentsService:
         enrollment = Enrollment(
             student_id=payload.student_id,
             class_id=payload.class_id,
+            academic_year=year,
+            status=ACTIVE,
+            enrollment_date=datetime.now(UTC).date(),
+        )
+        session.add(enrollment)
+        await session.flush()
+        return enrollment, cls, student
+
+    @staticmethod
+    async def transfer_student(
+        session: AsyncSession,
+        school_id: UUID | str,
+        student_id: UUID | str,
+        new_class_id: UUID | str,
+    ) -> tuple[Enrollment, Class, Student]:
+        """Move a student to a different class within the same academic
+        year — closes their current Active enrollment (if any) and opens
+        a new one, both inside this one request's transaction. Replaces
+        a two-call client-orchestrated sequence (withdraw, then create)
+        that could leave the student with no active enrollment anywhere
+        if the second call failed after the first succeeded.
+        """
+        year = await _academic_year(session, school_id)
+
+        student_row = await StudentsRepository.get_by_id(
+            session, school_id, student_id, academic_year=year
+        )
+        if not student_row:
+            raise ValidationError("Student not found in this school.")
+        student, _ = student_row
+        cls = await ClassesRepository.get_by_id(session, school_id, new_class_id)
+        if not cls:
+            raise ValidationError("Class not found in this school.")
+
+        current = await EnrollmentsRepository.get_active_for_student(
+            session, school_id, student_id, year
+        )
+        if current is not None:
+            if str(current.class_id) == str(new_class_id):
+                raise ConflictError("Student is already enrolled in this class.")
+            current.status = WITHDRAWN
+
+        enrollment = Enrollment(
+            student_id=student_id,
+            class_id=new_class_id,
             academic_year=year,
             status=ACTIVE,
             enrollment_date=datetime.now(UTC).date(),

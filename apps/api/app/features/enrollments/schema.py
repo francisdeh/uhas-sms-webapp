@@ -62,13 +62,29 @@ class EnrollmentStatusUpdate(BaseModel):
     """`PATCH /enrollments/{id}` — narrow endpoint just for status changes.
 
     Uses `Field(...)` (required) — no partial-update semantics; the
-    caller states the target status explicitly. Promotion + transfer
-    flows drive this.
+    caller states the target status explicitly. The promotion flow
+    drives this; class transfers use `EnrollmentTransferRequest` instead
+    so withdraw-old + create-new happen in one transaction.
     """
 
     model_config = _CAMEL_CONFIG
 
     status: EnrollmentStatus = Field(...)
+
+
+class EnrollmentTransferRequest(BaseModel):
+    """`POST /enrollments/transfer` — move a student to a different class
+    within the current academic year. Closes their current Active
+    enrollment (if any) and opens a new one atomically — replaces what
+    used to be a two-call client-orchestrated sequence (withdraw, then
+    create) that could leave a student with no active enrollment
+    anywhere if the second call failed after the first succeeded.
+    """
+
+    model_config = _CAMEL_CONFIG
+
+    student_id: UUID
+    class_id: UUID
 
 
 class EnrollmentsListResponse(Paginated[EnrollmentRead]):

@@ -89,6 +89,34 @@ export default async function AdminAttendanceClassPage({
         note: r.note ?? undefined,
       })),
     };
+
+    // Preserve records for students who no longer appear in the current
+    // active roster (transferred out or deactivated since this session
+    // was saved) — this page lets Admin correct any past date, and
+    // without this, resubmitting an old session would silently drop
+    // their attendance entirely (the backend replaces the whole
+    // session's records on every save). `sess.records` already carries
+    // the joined name/slug, so no extra lookup is needed.
+    const rosterIds = new Set(students.map((s) => s.id));
+    for (const r of sess.records) {
+      if (!rosterIds.has(r.studentId)) {
+        students.push({
+          id: r.studentId,
+          slug: r.studentSlug,
+          schoolId: schoolClass.schoolId,
+          firstName: r.studentFirstName,
+          lastName: r.studentLastName,
+          dob: "",
+          gender: MALE,
+          classId,
+          className: schoolClass.name,
+          division: schoolClass.division as Division,
+          isActive: false,
+          createdAt: new Date().toISOString(),
+        });
+        rosterIds.add(r.studentId);
+      }
+    }
   } catch (err) {
     if (!(err instanceof ApiError) || err.status !== 404) throw err;
   }

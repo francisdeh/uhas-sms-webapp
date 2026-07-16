@@ -394,3 +394,57 @@ class ClassTeachersService:
             raise NotFoundError("Staff member is not assigned to this class.")
         await session.delete(row)
         await session.flush()
+
+    @staticmethod
+    async def replace_primary(
+        session: AsyncSession,
+        school_id: UUID | str,
+        class_id: UUID | str,
+        *,
+        new_staff_id: UUID | str | None,
+    ) -> tuple[ClassTeacher, Staff] | None:
+        """Atomically swap whichever staff member currently holds
+        `is_primary=True` for this class for a new one (or `None` to
+        just clear it) — both the removal and the assignment happen in
+        this one transaction, replacing a two-call client-orchestrated
+        "remove old, then assign new" sequence that could leave a class
+        with no teacher at all if the second call failed after the
+        first succeeded. Returns `None` when clearing with no
+        replacement.
+        """
+        await ClassesService.get(session, school_id, class_id)
+
+        current_rows = await ClassTeachersRepository.list_for_class(session, class_id)
+        current_primary = next((ct for ct, _s in current_rows if ct.is_primary), None)
+
+        if (
+            current_primary is not None
+            and new_staff_id is not None
+            and str(current_primary.staff_id) == str(new_staff_id)
+        ):
+            # Already primary — nothing to change.
+            staff = await StaffRepository.get_by_id(session, school_id, new_staff_id)
+            assert staff, "class_teachers references a staff row that vanished"
+            return current_primary, staff
+
+        if current_primary is not None:
+            await session.delete(current_primary)
+            await session.flush()
+
+        if new_staff_id is None:
+            return None
+
+        staff = await StaffRepository.get_by_id(session, school_id, new_staff_id)
+        if not staff:
+            raise ValidationError("Staff member not found in this school.")
+
+        existing = await ClassTeachersRepository.get(session, class_id, new_staff_id)
+        if existing is not None:
+            existing.is_primary = True
+            await session.flush()
+            return existing, staff
+
+        row = ClassTeacher(class_id=class_id, staff_id=new_staff_id, is_primary=True)
+        session.add(row)
+        await session.flush()
+        return row, staff
