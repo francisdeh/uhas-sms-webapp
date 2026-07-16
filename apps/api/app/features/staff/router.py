@@ -188,9 +188,10 @@ async def change_role(
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
     user: RequireAdmin,
+    supabase: _SupabaseDep,
 ) -> StaffRead:
     row = await StaffService.change_role(
-        session, school_id, staff_id, payload, actor_user_id=user.user_id
+        session, school_id, staff_id, payload, supabase=supabase, actor_user_id=user.user_id
     )
     return StaffRead.model_validate(row)
 
@@ -213,8 +214,11 @@ async def activate_staff(
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
     user: RequireAdmin,
+    supabase: _SupabaseDep,
 ) -> StaffRead:
-    row = await StaffService.set_active(session, school_id, staff_id, active=True)
+    row = await StaffService.set_active(
+        session, school_id, staff_id, active=True, supabase=supabase, actor_user_id=user.user_id
+    )
     return StaffRead.model_validate(row)
 
 
@@ -224,8 +228,11 @@ async def deactivate_staff(
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
     user: RequireAdmin,
+    supabase: _SupabaseDep,
 ) -> StaffRead:
-    row = await StaffService.set_active(session, school_id, staff_id, active=False)
+    row = await StaffService.set_active(
+        session, school_id, staff_id, active=False, supabase=supabase, actor_user_id=user.user_id
+    )
     return StaffRead.model_validate(row)
 
 

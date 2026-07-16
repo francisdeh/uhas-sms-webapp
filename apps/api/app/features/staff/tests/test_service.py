@@ -325,6 +325,7 @@ async def test_change_role_writes_audit_row(db_session: AsyncSession, seed_schoo
         SCHOOL_UUID,
         row.id,
         StaffRoleChange(system_role="Admin"),
+        supabase=_FakeSupabase(),
         actor_user_id=USER_UUID,
     )
 
@@ -349,6 +350,7 @@ async def test_change_role_skips_audit_when_unchanged(
         SCHOOL_UUID,
         row.id,
         StaffRoleChange(system_role="Teacher", division="JHS"),
+        supabase=_FakeSupabase(),
         actor_user_id=USER_UUID,
     )
     audit_count = (
@@ -368,9 +370,47 @@ async def test_change_role_to_admin_clears_division(
         SCHOOL_UUID,
         row.id,
         StaffRoleChange(system_role="Admin"),
+        supabase=_FakeSupabase(),
         actor_user_id=USER_UUID,
     )
     assert updated.division is None
+
+
+async def test_change_role_syncs_linked_login_role_and_jwt(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """The staff row's system_role changing must also update the
+    linked login's `users.role` and Supabase `app_metadata.role` — the
+    JWT is what actually gates access, not `staff.system_role`."""
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    login = User(
+        id=uuid4(),
+        school_id=SCHOOL_UUID,
+        email=row.email,
+        role="Teacher",
+        linked_id=row.id,
+        is_active=True,
+    )
+    db_session.add(login)
+    await db_session.flush()
+
+    fake = _FakeSupabase()
+    await StaffService.change_role(
+        db_session,
+        SCHOOL_UUID,
+        row.id,
+        StaffRoleChange(system_role="DeputyHead", division="JHS"),
+        supabase=fake,
+        actor_user_id=USER_UUID,
+    )
+
+    await db_session.refresh(login)
+    assert login.role == "DeputyHead"
+    assert len(fake.update_calls) == 1
+    call = fake.update_calls[0]
+    assert call["user_id"] == login.id
+    assert call["app_metadata"]["role"] == "DeputyHead"
+    assert call["app_metadata"]["linked_id"] == str(row.id)
 
 
 async def test_toggle_unit_head_requires_teacher_role(
@@ -405,12 +445,70 @@ async def test_toggle_unit_head_requires_unit_when_enabling(
 
 async def test_set_active_toggles(db_session: AsyncSession, seed_school: School) -> None:
     row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
-    updated = await StaffService.set_active(db_session, SCHOOL_UUID, row.id, active=False)
+    updated = await StaffService.set_active(
+        db_session,
+        SCHOOL_UUID,
+        row.id,
+        active=False,
+        supabase=_FakeSupabase(),
+        actor_user_id=USER_UUID,
+    )
     assert updated.is_active is False
 
     with pytest.raises(ConflictError):
         # Already inactive — second call should error.
-        await StaffService.set_active(db_session, SCHOOL_UUID, row.id, active=False)
+        await StaffService.set_active(
+            db_session,
+            SCHOOL_UUID,
+            row.id,
+            active=False,
+            supabase=_FakeSupabase(),
+            actor_user_id=USER_UUID,
+        )
+
+
+async def test_set_active_revokes_linked_login(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """Deactivating a staff member with a linked login must also
+    deactivate that `users` row (and thus ban them in Supabase) — this
+    is the actual enforcement mechanism; `staff.is_active` alone was
+    never consulted anywhere."""
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    login = User(
+        id=uuid4(),
+        school_id=SCHOOL_UUID,
+        email=row.email,
+        role="Teacher",
+        linked_id=row.id,
+        is_active=True,
+    )
+    db_session.add(login)
+    await db_session.flush()
+
+    fake = _FakeSupabase()
+    await StaffService.set_active(
+        db_session, SCHOOL_UUID, row.id, active=False, supabase=fake, actor_user_id=USER_UUID
+    )
+
+    await db_session.refresh(login)
+    assert login.is_active is False
+    assert len(fake.update_calls) == 1
+    assert fake.update_calls[0]["user_id"] == login.id
+
+
+async def test_set_active_skips_linked_login_step_when_no_login_exists(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """A staff row with no linked `users` row (login not provisioned
+    yet) just skips the cascade — nothing to revoke."""
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    fake = _FakeSupabase()
+    updated = await StaffService.set_active(
+        db_session, SCHOOL_UUID, row.id, active=False, supabase=fake, actor_user_id=USER_UUID
+    )
+    assert updated.is_active is False
+    assert fake.update_calls == []
 
 
 async def test_get_raises_not_found_for_missing_id(

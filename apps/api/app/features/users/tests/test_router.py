@@ -14,6 +14,7 @@ from app.features.schools.model import School
 from app.features.staff.model import Staff
 from app.features.users.model import User
 from app.features.users.tests.conftest import (
+    CALLER_USER_UUID,
     GUARDIAN_UUID_A,
     STAFF_UUID_A,
     STAFF_UUID_B,
@@ -461,6 +462,135 @@ async def test_activate_flips_is_active_true(
     assert audit is not None
     assert audit.target_id == row.id
     assert audit.after == {"isActive": True}
+
+
+async def test_deactivate_rejects_own_admin_account(
+    client: AsyncClient,
+    seed_school: School,
+    db_session: AsyncSession,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    """The default `auth_header(role="Admin")` caller is `CALLER_USER_UUID`
+    — targeting that same id via the admin-panel deactivate endpoint must
+    be rejected, not just the self-service `/me/deactivate` path."""
+    admin_staff = await _seed_staff(
+        db_session,
+        seed_school.id,
+        staff_id=STAFF_UUID_A,
+        first="Self",
+        last="Admin",
+        email="self-admin@example.com",
+    )
+    caller_row = await _seed_user(
+        db_session,
+        seed_school.id,
+        user_id=CALLER_USER_UUID,
+        email="self-admin@example.com",
+        role="Admin",
+        linked_id=admin_staff.id,
+    )
+
+    res = await client.post(
+        f"/users/{caller_row.id}/deactivate",
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 400
+    assert "own admin account" in res.json()["error"]["message"]
+
+    await db_session.refresh(caller_row)
+    assert caller_row.is_active is True
+    assert fake_supabase.update_calls == []
+
+
+async def test_deactivate_rejects_last_active_admin(
+    client: AsyncClient,
+    seed_school: School,
+    db_session: AsyncSession,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    """The caller authenticates purely via the JWT's `role` claim — no
+    `users` row of their own needs to exist for `RequireAdmin` to pass.
+    The target is the ONLY Admin `users` row in the school, so
+    deactivating them would leave zero active admins."""
+    target_staff = await _seed_staff(
+        db_session,
+        seed_school.id,
+        staff_id=STAFF_UUID_B,
+        first="Target",
+        last="Admin",
+        email="target-admin@example.com",
+    )
+    target_row = await _seed_user(
+        db_session,
+        seed_school.id,
+        user_id=USER_UUID_1,
+        email="target-admin@example.com",
+        role="Admin",
+        linked_id=target_staff.id,
+    )
+
+    res = await client.post(
+        f"/users/{target_row.id}/deactivate",
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 400
+    assert "last active Admin" in res.json()["error"]["message"]
+
+    await db_session.refresh(target_row)
+    assert target_row.is_active is True
+    assert fake_supabase.update_calls == []
+
+
+async def test_deactivate_admin_succeeds_when_another_admin_remains(
+    client: AsyncClient,
+    seed_school: School,
+    db_session: AsyncSession,
+    fake_supabase: FakeSupabaseAdminClient,
+) -> None:
+    """Same shape as the "last admin" test, but a second Admin `users`
+    row exists in the school — deactivating the target must succeed
+    since the school isn't left without an active admin."""
+    other_staff = await _seed_staff(
+        db_session,
+        seed_school.id,
+        staff_id=STAFF_UUID_A,
+        first="Other",
+        last="Admin",
+        email="other-admin@example.com",
+    )
+    await _seed_user(
+        db_session,
+        seed_school.id,
+        user_id=USER_UUID_2,
+        email="other-admin@example.com",
+        role="Admin",
+        linked_id=other_staff.id,
+    )
+    target_staff = await _seed_staff(
+        db_session,
+        seed_school.id,
+        staff_id=STAFF_UUID_B,
+        first="Target",
+        last="Admin",
+        email="target-admin2@example.com",
+    )
+    target_row = await _seed_user(
+        db_session,
+        seed_school.id,
+        user_id=USER_UUID_3,
+        email="target-admin2@example.com",
+        role="Admin",
+        linked_id=target_staff.id,
+    )
+
+    res = await client.post(
+        f"/users/{target_row.id}/deactivate",
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200
+
+    await db_session.refresh(target_row)
+    assert target_row.is_active is False
 
 
 async def test_reset_mfa_clears_factors_and_audits(
