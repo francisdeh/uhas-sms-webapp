@@ -230,6 +230,7 @@ async def review_lesson_plan(
         payload,
         actor_staff_id=user.linked_id,
         actor_role=actor_role,
+        actor_user_id=user.user_id,
     )
     return _to_read(plan, teacher, subject, cls, reviewer, comment, reviewed_at)
 

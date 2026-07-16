@@ -84,7 +84,7 @@ async def transfer_student(
     user: RequireAdmin,
 ) -> EnrollmentRead:
     enrollment, cls, student = await EnrollmentsService.transfer_student(
-        session, school_id, payload.student_id, payload.class_id
+        session, school_id, payload.student_id, payload.class_id, actor_user_id=user.user_id
     )
     return _to_read(enrollment, cls, student)
 
@@ -98,7 +98,7 @@ async def change_enrollment_status(
     user: RequireAdmin,
 ) -> EnrollmentRead:
     enrollment, cls, student = await EnrollmentsService.change_status(
-        session, school_id, enrollment_id, payload
+        session, school_id, enrollment_id, payload, actor_user_id=user.user_id
     )
     return _to_read(enrollment, cls, student)
 

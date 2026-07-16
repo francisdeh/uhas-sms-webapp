@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.slug import insert_with_sequential_slug, per_school_slug_resolver
+from app.features.audit.actions import GUARDIAN_EDIT
+from app.features.audit.service import write_audit_log
 from app.features.guardians.model import Guardian
 from app.features.guardians.repository import GuardiansRepository
 from app.features.guardians.schema import GuardianCreate, GuardianUpdate
@@ -95,6 +97,7 @@ class GuardiansService:
         payload: GuardianUpdate,
         *,
         supabase: SupabaseAdminClient,
+        actor_user_id: UUID | str,
     ) -> Guardian:
         """Admin-driven edit — trusted the same way Admin is already
         trusted to set the initial phone/email at account creation, so
@@ -104,9 +107,26 @@ class GuardiansService:
         which only ever mirror what Supabase already confirmed)."""
         row = await GuardiansService.get(session, school_id, guardian_id)
         changes = payload.model_dump(exclude_unset=True)
+        before_snapshot: dict[str, object | None] = {}
+        after_snapshot: dict[str, object | None] = {}
         for field, value in changes.items():
-            setattr(row, field, value)
+            old_value = getattr(row, field)
+            if old_value != value:
+                before_snapshot[field] = old_value
+                after_snapshot[field] = value
+                setattr(row, field, value)
         await session.flush()
+        if before_snapshot:
+            await write_audit_log(
+                session,
+                school_id=school_id,
+                user_id=actor_user_id,
+                action=GUARDIAN_EDIT,
+                target_table="guardians",
+                target_id=row.id,
+                before=before_snapshot,
+                after=after_snapshot,
+            )
 
         new_phone = changes.get("phone")
         new_email = changes.get("email")

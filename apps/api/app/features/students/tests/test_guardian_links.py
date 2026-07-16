@@ -14,9 +14,10 @@ from uuid import UUID
 
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.audit.model import AuditLog
 from app.features.classes.model import Class
 from app.features.enrollments.model import Enrollment
 from app.features.guardians.model import Guardian
@@ -235,6 +236,44 @@ async def test_setting_primary_clears_others(client: AsyncClient, seed_links: No
     primaries = [g for g in add_second.json() if g["isPrimary"]]
     assert len(primaries) == 1
     assert primaries[0]["id"] == str(GUARDIAN_EXISTING)
+
+
+async def test_update_guardian_link_writes_audit_log(
+    client: AsyncClient, db_session: AsyncSession, seed_links: None
+) -> None:
+    await client.post(
+        f"/students/{STUDENT_A}/guardians",
+        json={"relation": "Father", "guardianId": str(GUARDIAN_EXISTING), "isPrimary": False},
+        headers=auth_header(role="Admin"),
+    )
+
+    res = await client.patch(
+        f"/students/{STUDENT_A}/guardians/{GUARDIAN_EXISTING}",
+        json={"relation": "Guardian", "isPrimary": True},
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200, res.text
+    updated = next(g for g in res.json() if g["id"] == str(GUARDIAN_EXISTING))
+    assert updated["relationship"] == "Guardian"
+    assert updated["isPrimary"] is True
+
+    rows = (
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    and_(
+                        AuditLog.action == "GUARDIAN_LINK_UPDATED",
+                        AuditLog.target_id == STUDENT_A,
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].before == {"relation": "Father", "isPrimary": False}
+    assert rows[0].after == {"relation": "Guardian", "isPrimary": True}
 
 
 async def test_unlink_keeps_guardian_row(

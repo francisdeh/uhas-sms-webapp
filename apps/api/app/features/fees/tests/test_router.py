@@ -7,7 +7,10 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.audit.model import AuditLog
 from app.features.fees.tests.conftest import (
     ACADEMIC_YEAR,
     CLASS_JHS1_UUID,
@@ -123,6 +126,29 @@ async def test_get_list_and_update_fee_item(client: AsyncClient) -> None:
     assert updated.json()["amountMinor"] == 7500
 
 
+async def test_update_fee_item_writes_audit_log(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    create = await client.post("/fees/items", json=_school_fee_item(), headers=auth_header())
+    item_id = create.json()["id"]
+
+    await client.patch(f"/fees/items/{item_id}", json={"amountMinor": 9000}, headers=auth_header())
+
+    rows = (
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    and_(AuditLog.action == "FEE_ITEM_UPDATED", AuditLog.target_id == item_id)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].after == {"amount_minor": 9000}
+
+
 async def test_get_fee_item_not_found(client: AsyncClient) -> None:
     resp = await client.get(
         "/fees/items/00000000-0000-4000-8000-000000000000", headers=auth_header()
@@ -193,6 +219,33 @@ async def test_update_learner_fee_amount_recomputes_balance(client: AsyncClient)
     assert resp.json()["balanceMinor"] == 3000
 
 
+async def test_update_learner_fee_writes_audit_log(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    learner_fee_id = await _assign_one(client, student_id=STUDENT1_UUID)
+
+    await client.patch(
+        f"/fees/learner-fees/{learner_fee_id}", json={"amountMinor": 3000}, headers=auth_header()
+    )
+
+    rows = (
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    and_(
+                        AuditLog.action == "LEARNER_FEE_UPDATED",
+                        AuditLog.target_id == learner_fee_id,
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].after == {"amountMinor": 3000}
+
+
 async def test_waive_learner_fee(client: AsyncClient) -> None:
     learner_fee_id = await _assign_one(client, student_id=STUDENT1_UUID)
 
@@ -200,6 +253,32 @@ async def test_waive_learner_fee(client: AsyncClient) -> None:
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "waived"
     assert resp.json()["balanceMinor"] == 0
+
+
+async def test_waive_learner_fee_writes_audit_log(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    learner_fee_id = await _assign_one(client, student_id=STUDENT1_UUID)
+
+    await client.post(f"/fees/learner-fees/{learner_fee_id}/waive", headers=auth_header())
+
+    rows = (
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    and_(
+                        AuditLog.action == "LEARNER_FEE_WAIVED",
+                        AuditLog.target_id == learner_fee_id,
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].before == {"balanceMinor": 5000}
+    assert rows[0].after == {"balanceMinor": 0}
 
 
 async def test_cannot_edit_a_waived_fee(client: AsyncClient) -> None:
@@ -227,6 +306,32 @@ async def test_exclude_learner_fee_without_payments(client: AsyncClient) -> None
     assert learner_fee_id not in {lf["id"] for lf in roster.json()}
 
 
+async def test_exclude_learner_fee_writes_audit_log(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    learner_fee_id = await _assign_one(client, student_id=STUDENT1_UUID)
+
+    await client.delete(f"/fees/learner-fees/{learner_fee_id}", headers=auth_header())
+
+    rows = (
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    and_(
+                        AuditLog.action == "LEARNER_FEE_EXCLUDED",
+                        AuditLog.target_id == learner_fee_id,
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].before == {"amountMinor": 5000}
+    assert rows[0].after is None
+
+
 async def test_exclude_learner_fee_with_payments_conflicts(client: AsyncClient) -> None:
     learner_fee_id = await _assign_one(client, student_id=STUDENT1_UUID)
     await client.post(
@@ -237,6 +342,35 @@ async def test_exclude_learner_fee_with_payments_conflicts(client: AsyncClient) 
 
     resp = await client.delete(f"/fees/learner-fees/{learner_fee_id}", headers=auth_header())
     assert resp.status_code == 409
+
+
+async def test_record_payment_writes_audit_log(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    learner_fee_id = await _assign_one(client, student_id=STUDENT1_UUID)
+
+    await client.post(
+        f"/fees/learner-fees/{learner_fee_id}/payments",
+        json={"amountMinor": 2000, "method": "momo", "reference": "MOMO123"},
+        headers=auth_header(),
+    )
+
+    rows = (
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    and_(
+                        AuditLog.action == "FEE_PAYMENT_RECORDED",
+                        AuditLog.target_id == learner_fee_id,
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].after == {"amountMinor": 2000, "method": "momo", "reference": "MOMO123"}
 
 
 async def test_record_partial_then_full_payment(client: AsyncClient) -> None:

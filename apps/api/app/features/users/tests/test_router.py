@@ -683,6 +683,14 @@ async def test_patch_email(
     assert len(fake_supabase.update_calls) == 1
     assert fake_supabase.update_calls[0]["email"] == "ivy.new@example.com"
 
+    audit_row = (
+        await db_session.execute(
+            select(AuditLog).where(AuditLog.action == "USER_EDIT", AuditLog.target_id == row.id)
+        )
+    ).scalar_one()
+    assert audit_row.before == {"email": "ivy@example.com"}
+    assert audit_row.after == {"email": "ivy.new@example.com"}
+
 
 async def test_patch_display_name_updates_linked_staff(
     client: AsyncClient,

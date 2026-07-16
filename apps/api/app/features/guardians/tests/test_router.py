@@ -16,6 +16,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.audit.model import AuditLog
 from app.features.guardians.model import Guardian
 from app.features.guardians.tests.conftest import (
     OTHER_SCHOOL_UUID,
@@ -104,6 +105,28 @@ async def test_patch_updates_basic_fields(
     )
     assert res.status_code == 200
     assert res.json()["firstName"] == "Akua"
+
+
+async def test_patch_writes_audit_log(
+    client: AsyncClient, db_session: AsyncSession, seed_school: School
+) -> None:
+    guardian = await _seed_guardian(db_session)
+
+    await client.patch(
+        f"/guardians/{guardian.id}",
+        json={"firstName": "Akua"},
+        headers=auth_header(role="Admin"),
+    )
+
+    audit_row = (
+        await db_session.execute(
+            select(AuditLog).where(
+                AuditLog.action == "GUARDIAN_EDIT", AuditLog.target_id == guardian.id
+            )
+        )
+    ).scalar_one()
+    assert audit_row.before == {"first_name": "Abena"}
+    assert audit_row.after == {"first_name": "Akua"}
 
 
 async def test_patch_requires_admin(

@@ -31,7 +31,7 @@ from app.core.config import settings
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.inngest import inngest_client
 from app.core.roles import ADMIN, PARENT
-from app.features.audit.actions import USER_CREATED, USER_MFA_RESET, AuditAction
+from app.features.audit.actions import USER_CREATED, USER_EDIT, USER_MFA_RESET, AuditAction
 from app.features.audit.service import write_audit_log
 from app.features.schools.service import SchoolsService
 from app.features.users.model import User
@@ -404,23 +404,44 @@ class UsersService:
         payload: UserUpdate,
         *,
         supabase: SupabaseAdminClient,
+        actor_user_id: UUID | str,
     ) -> UserRead:
         row = await UsersService._get_or_404(session, school_id, user_id)
         changes = payload.model_dump(exclude_unset=True)
+        before_snapshot: dict[str, object | None] = {}
+        after_snapshot: dict[str, object | None] = {}
 
         supabase_kwargs: dict[str, Any] = {}
         if "email" in changes and changes["email"] is not None:
+            if changes["email"] != row.email:
+                before_snapshot["email"] = row.email
+                after_snapshot["email"] = changes["email"]
             row.email = changes["email"]
             supabase_kwargs["email"] = changes["email"]
 
         display_name = changes.get("display_name")
         if display_name is not None:
+            # No cheap "before" value — display_name isn't a column on
+            # `users`, it's derived live from the linked staff/guardian
+            # row `_apply_display_name` is about to overwrite.
+            after_snapshot["displayName"] = display_name
             await UsersService._apply_display_name(session, school_id, row, display_name)
             supabase_kwargs["user_metadata"] = {"display_name": display_name}
 
         if supabase_kwargs:
             await supabase.update_user_by_id(row.id, **supabase_kwargs)
         await session.flush()
+        if before_snapshot or after_snapshot:
+            await write_audit_log(
+                session,
+                school_id=school_id,
+                user_id=actor_user_id,
+                action=USER_EDIT,
+                target_table="users",
+                target_id=user_id,
+                before=before_snapshot,
+                after=after_snapshot,
+            )
         return await UsersService._read_or_404(session, school_id, user_id)
 
     @staticmethod

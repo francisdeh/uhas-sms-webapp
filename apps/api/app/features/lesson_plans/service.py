@@ -29,6 +29,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.core.inngest import inngest_client
 from app.core.roles import ADMIN, DEPUTY_HEAD, TEACHER
+from app.features.audit.actions import LESSON_PLAN_REVIEWED as AUDIT_LESSON_PLAN_REVIEWED
+from app.features.audit.service import write_audit_log
 from app.features.classes.model import Class
 from app.features.classes.repository import ClassesRepository
 from app.features.lesson_plans.constants import (
@@ -276,6 +278,7 @@ class LessonPlansService:
         *,
         actor_staff_id: UUID | str | None,
         actor_role: str,
+        actor_user_id: UUID | str,
     ) -> tuple[
         LessonPlan,
         Staff,
@@ -310,6 +313,7 @@ class LessonPlansService:
 
         if not actor_staff_id:
             raise ForbiddenError("A staff identity is required to record a review.")
+        before_status = row.status
 
         # Append a new review row instead of overwriting a single-column
         # snapshot. `insert_review` handles the FK + created_at defaults.
@@ -323,6 +327,16 @@ class LessonPlansService:
         row.status = decision
         row.updated_at = _now()
         await session.flush()
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=AUDIT_LESSON_PLAN_REVIEWED,
+            target_table="lesson_plans",
+            target_id=row.id,
+            before={"status": before_status},
+            after={"status": decision, "comment": payload.comment},
+        )
 
         # Fan out notifications. Three triggers based on `decision`:
         #   * `unit_head_approved` — advances to Deputy review; notify

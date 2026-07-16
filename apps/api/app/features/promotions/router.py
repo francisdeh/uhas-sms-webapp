@@ -685,6 +685,7 @@ async def send_back(
         comment=payload.comment,
         reviewer_staff_id=user.linked_id,
         actor_role=user.role or "",
+        actor_user_id=user.user_id,
     )
     submission_staff = await PromotionsRepository.staff_by_ids(
         session, [submission.submitted_by_id, submission.reviewed_by_id]

@@ -50,6 +50,37 @@ LEAVE_DECIDED: Final = "LEAVE_DECIDED"
 # year" rollover step) — distinct from SCHOOL_SETTINGS_UPDATE since this
 # is a guarded, one-way-in-practice transition, not an ordinary field edit.
 SCHOOL_YEAR_ACTIVATED: Final = "SCHOOL_YEAR_ACTIVATED"
+# A promotion list was sent back to the submitting teacher for revision
+# — the sibling of PROMOTION_APPROVED on the same review decision.
+PROMOTION_SENT_BACK: Final = "PROMOTION_SENT_BACK"
+# A lesson plan review decision (approve/reject at any stage of the
+# Unit Head → Deputy Head chain).
+LESSON_PLAN_REVIEWED: Final = "LESSON_PLAN_REVIEWED"
+# Admin-driven edit of a staff member's own record fields (phone/email/
+# rank/etc — not the role, which has its own ROLE_CHANGE).
+STAFF_EDIT: Final = "STAFF_EDIT"
+STAFF_DEACTIVATED: Final = "STAFF_DEACTIVATED"
+STAFF_REACTIVATED: Final = "STAFF_REACTIVATED"
+# Unit Head standing granted/revoked on a Teacher — review authority,
+# same weight class as a role change but a distinct flag.
+UNIT_HEAD_TOGGLED: Final = "UNIT_HEAD_TOGGLED"
+STUDENT_DEACTIVATED: Final = "STUDENT_DEACTIVATED"
+STUDENT_REACTIVATED: Final = "STUDENT_REACTIVATED"
+# A student↔guardian link's relation/primary flag was edited in place
+# (as opposed to GUARDIAN_LINKED/UNLINKED, which cover add/remove).
+GUARDIAN_LINK_UPDATED: Final = "GUARDIAN_LINK_UPDATED"
+# Admin-driven edit of a login's email/display name.
+USER_EDIT: Final = "USER_EDIT"
+# Admin-driven edit of a guardian's own record fields (phone/email/etc).
+GUARDIAN_EDIT: Final = "GUARDIAN_EDIT"
+ENROLLMENT_TRANSFERRED: Final = "ENROLLMENT_TRANSFERRED"
+ENROLLMENT_STATUS_CHANGED: Final = "ENROLLMENT_STATUS_CHANGED"
+# Fees domain — money mutations, previously entirely unaudited.
+FEE_ITEM_UPDATED: Final = "FEE_ITEM_UPDATED"
+LEARNER_FEE_UPDATED: Final = "LEARNER_FEE_UPDATED"
+LEARNER_FEE_WAIVED: Final = "LEARNER_FEE_WAIVED"
+LEARNER_FEE_EXCLUDED: Final = "LEARNER_FEE_EXCLUDED"
+FEE_PAYMENT_RECORDED: Final = "FEE_PAYMENT_RECORDED"
 
 AuditAction = Literal[
     "EXAM_PUBLISH",
@@ -70,6 +101,24 @@ AuditAction = Literal[
     "USER_CREATED",
     "LEAVE_DECIDED",
     "SCHOOL_YEAR_ACTIVATED",
+    "PROMOTION_SENT_BACK",
+    "LESSON_PLAN_REVIEWED",
+    "STAFF_EDIT",
+    "STAFF_DEACTIVATED",
+    "STAFF_REACTIVATED",
+    "UNIT_HEAD_TOGGLED",
+    "STUDENT_DEACTIVATED",
+    "STUDENT_REACTIVATED",
+    "GUARDIAN_LINK_UPDATED",
+    "USER_EDIT",
+    "GUARDIAN_EDIT",
+    "ENROLLMENT_TRANSFERRED",
+    "ENROLLMENT_STATUS_CHANGED",
+    "FEE_ITEM_UPDATED",
+    "LEARNER_FEE_UPDATED",
+    "LEARNER_FEE_WAIVED",
+    "LEARNER_FEE_EXCLUDED",
+    "FEE_PAYMENT_RECORDED",
 ]
 """All audit_log.action values the API writes. Add new actions here
 *and* on the TS side before introducing them."""

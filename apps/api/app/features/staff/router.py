@@ -204,7 +204,9 @@ async def toggle_unit_head(
     session: Annotated[AsyncSession, Depends(get_session)],
     user: RequireAdmin,
 ) -> StaffRead:
-    row = await StaffService.toggle_unit_head(session, school_id, staff_id, payload)
+    row = await StaffService.toggle_unit_head(
+        session, school_id, staff_id, payload, actor_user_id=user.user_id
+    )
     return StaffRead.model_validate(row)
 
 

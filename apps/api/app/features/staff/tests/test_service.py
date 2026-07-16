@@ -139,6 +139,54 @@ async def test_update_only_touches_present_fields(
     assert updated.first_name == row.first_name  # untouched
 
 
+async def test_update_writes_staff_edit_audit_row(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    row = await StaffService.update(
+        db_session,
+        SCHOOL_UUID,
+        (await StaffService.create(db_session, SCHOOL_UUID, _create_payload())).id,
+        StaffUpdate(phone="+233500000000"),
+        user=_admin_user(),
+        supabase=_FakeSupabase(),
+    )
+    audit_row = (
+        await db_session.execute(
+            select(AuditLog).where(AuditLog.action == "STAFF_EDIT", AuditLog.target_id == row.id)
+        )
+    ).scalar_one()
+    assert audit_row.before == {"phone": "+233241112233"}
+    assert audit_row.after == {"phone": "+233500000000"}
+
+
+async def test_update_self_service_photo_skips_audit(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    self_user = CurrentUser(
+        user_id=str(uuid4()),
+        email="teacher.one@uhas.edu.gh",
+        phone=None,
+        role="Teacher",
+        school_id=str(SCHOOL_UUID),
+        linked_id=str(row.id),
+    )
+    await StaffService.update(
+        db_session,
+        SCHOOL_UUID,
+        row.id,
+        StaffUpdate(photo_url="https://example.com/photo.jpg"),
+        user=self_user,
+        supabase=_FakeSupabase(),
+    )
+    audit_rows = (
+        (await db_session.execute(select(AuditLog).where(AuditLog.action == "STAFF_EDIT")))
+        .scalars()
+        .all()
+    )
+    assert audit_rows == []
+
+
 async def test_update_phone_syncs_supabase_when_login_exists(
     db_session: AsyncSession, seed_school: School
 ) -> None:
@@ -427,6 +475,7 @@ async def test_toggle_unit_head_requires_teacher_role(
             SCHOOL_UUID,
             row.id,
             StaffUnitHeadToggle(is_unit_head=True, unit_head_of="JHS"),
+            actor_user_id=USER_UUID,
         )
 
 
@@ -440,7 +489,32 @@ async def test_toggle_unit_head_requires_unit_when_enabling(
             SCHOOL_UUID,
             row.id,
             StaffUnitHeadToggle(is_unit_head=True),
+            actor_user_id=USER_UUID,
         )
+
+
+async def test_toggle_unit_head_writes_audit_row(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload())
+    updated = await StaffService.toggle_unit_head(
+        db_session,
+        SCHOOL_UUID,
+        row.id,
+        StaffUnitHeadToggle(is_unit_head=True, unit_head_of="JHS"),
+        actor_user_id=USER_UUID,
+    )
+    assert updated.is_unit_head is True
+
+    audit_row = (
+        await db_session.execute(
+            select(AuditLog).where(
+                AuditLog.action == "UNIT_HEAD_TOGGLED", AuditLog.target_id == row.id
+            )
+        )
+    ).scalar_one()
+    assert audit_row.before == {"isUnitHead": False, "unitHeadOf": None}
+    assert audit_row.after == {"isUnitHead": True, "unitHeadOf": "JHS"}
 
 
 async def test_set_active_toggles(db_session: AsyncSession, seed_school: School) -> None:
@@ -454,6 +528,16 @@ async def test_set_active_toggles(db_session: AsyncSession, seed_school: School)
         actor_user_id=USER_UUID,
     )
     assert updated.is_active is False
+
+    audit_row = (
+        await db_session.execute(
+            select(AuditLog).where(
+                AuditLog.action == "STAFF_DEACTIVATED", AuditLog.target_id == row.id
+            )
+        )
+    ).scalar_one()
+    assert audit_row.before == {"isActive": True}
+    assert audit_row.after == {"isActive": False}
 
     with pytest.raises(ConflictError):
         # Already inactive — second call should error.

@@ -8,6 +8,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.audit.model import AuditLog
 from app.features.classes.model import Class
 from app.features.enrollments.model import Enrollment
 from app.features.enrollments.tests.conftest import (
@@ -99,6 +100,41 @@ async def test_change_status_transitions_and_409_on_repeat(
     assert res2.status_code == 409
 
 
+async def test_change_status_writes_audit_log(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_student: Student,
+    db_session: AsyncSession,
+) -> None:
+    body = {"studentId": str(STUDENT_UUID), "classId": str(CLASS_UUID)}
+    created = (
+        await client.post("/enrollments", json=body, headers=auth_header(role="Admin"))
+    ).json()
+
+    await client.patch(
+        f"/enrollments/{created['id']}",
+        json={"status": "Repeating"},
+        headers=auth_header(role="Admin"),
+    )
+
+    rows = (
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    AuditLog.action == "ENROLLMENT_STATUS_CHANGED",
+                    AuditLog.target_id == UUID(created["id"]),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].before == {"status": "Active"}
+    assert rows[0].after == {"status": "Repeating"}
+
+
 async def test_transfer_moves_student_atomically(
     client: AsyncClient,
     seed_school: School,
@@ -130,6 +166,40 @@ async def test_transfer_moves_student_atomically(
     )
     assert old_row is not None
     assert old_row.status == "Withdrawn"
+
+
+async def test_transfer_writes_audit_log(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_next_class: Class,
+    seed_student: Student,
+    db_session: AsyncSession,
+) -> None:
+    body = {"studentId": str(STUDENT_UUID), "classId": str(CLASS_UUID)}
+    await client.post("/enrollments", json=body, headers=auth_header(role="Admin"))
+
+    await client.post(
+        "/enrollments/transfer",
+        json={"studentId": str(STUDENT_UUID), "classId": str(NEXT_CLASS_UUID)},
+        headers=auth_header(role="Admin"),
+    )
+
+    rows = (
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    AuditLog.action == "ENROLLMENT_TRANSFERRED",
+                    AuditLog.target_id == STUDENT_UUID,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].before == {"classId": str(CLASS_UUID)}
+    assert rows[0].after == {"classId": str(NEXT_CLASS_UUID)}
 
 
 async def test_transfer_requires_admin(

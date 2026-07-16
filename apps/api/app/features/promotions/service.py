@@ -40,6 +40,7 @@ from app.core.errors import ConflictError, ForbiddenError, NotFoundError, Valida
 from app.core.inngest import inngest_client
 from app.core.roles import ADMIN, DEPUTY_HEAD, TEACHER
 from app.features.audit.actions import PROMOTION_APPROVED as AUDIT_PROMOTION_APPROVED
+from app.features.audit.actions import PROMOTION_SENT_BACK as AUDIT_PROMOTION_SENT_BACK
 from app.features.audit.service import write_audit_log
 from app.features.classes.model import Class, ClassTeacher
 from app.features.enrollments.model import Enrollment
@@ -363,6 +364,7 @@ class PromotionsService:
         comment: str,
         reviewer_staff_id: UUID | str,
         actor_role: str,
+        actor_user_id: UUID | str,
     ) -> PromotionSubmission:
         school = await SchoolsService.get(session, school_id)
         await _assert_season_open(session, school_id, school.academic_year)
@@ -389,6 +391,15 @@ class PromotionsService:
             submission_id=submission.id,
             author_id=reviewer_staff_id,
             body=comment.strip(),
+        )
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=AUDIT_PROMOTION_SENT_BACK,
+            target_table="promotion_submissions",
+            target_id=submission.id,
+            after={"comment": comment.strip()},
         )
 
         # Notify the teacher who submitted the list. Skip if there's no

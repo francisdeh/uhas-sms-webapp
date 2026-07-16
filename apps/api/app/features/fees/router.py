@@ -205,9 +205,11 @@ async def update_fee_item(
     payload: FeeItemUpdate,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    _user: RequireAccountant,
+    user: RequireAccountant,
 ) -> FeeItemRead:
-    item = await FeesService.update_fee_item(session, school_id, fee_item_id, payload)
+    item = await FeesService.update_fee_item(
+        session, school_id, fee_item_id, payload, actor_user_id=user.user_id
+    )
     return _fee_item_read(item, await _scope_display(session, school_id, item))
 
 
@@ -285,10 +287,10 @@ async def update_learner_fee(
     payload: LearnerFeeUpdate,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    _user: RequireAccountant,
+    user: RequireAccountant,
 ) -> LearnerFeeRead:
     row, student, item = await FeesService.update_learner_fee(
-        session, school_id, learner_fee_id, payload
+        session, school_id, learner_fee_id, payload, actor_user_id=user.user_id
     )
     payments = await FeesService.list_payments(session, row.id)
     return _learner_fee_read(row, student, item, payments)
@@ -303,9 +305,11 @@ async def waive_learner_fee(
     learner_fee_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    _user: RequireAccountant,
+    user: RequireAccountant,
 ) -> LearnerFeeRead:
-    row, student, item = await FeesService.waive_learner_fee(session, school_id, learner_fee_id)
+    row, student, item = await FeesService.waive_learner_fee(
+        session, school_id, learner_fee_id, actor_user_id=user.user_id
+    )
     payments = await FeesService.list_payments(session, row.id)
     return _learner_fee_read(row, student, item, payments)
 
@@ -315,9 +319,11 @@ async def exclude_learner_fee(
     learner_fee_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    _user: RequireAccountant,
+    user: RequireAccountant,
 ) -> None:
-    await FeesService.exclude_learner_fee(session, school_id, learner_fee_id)
+    await FeesService.exclude_learner_fee(
+        session, school_id, learner_fee_id, actor_user_id=user.user_id
+    )
 
 
 @router.post(
@@ -336,7 +342,12 @@ async def record_payment(
     if not user.linked_id:
         raise ForbiddenError("Cannot record a payment without a staff identity.")
     row, student, item, payments = await FeesService.record_payment(
-        session, school_id, learner_fee_id, payload, actor_staff_id=user.linked_id
+        session,
+        school_id,
+        learner_fee_id,
+        payload,
+        actor_staff_id=user.linked_id,
+        actor_user_id=user.user_id,
     )
     return _learner_fee_read(row, student, item, payments)
 

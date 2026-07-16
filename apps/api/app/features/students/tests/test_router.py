@@ -182,6 +182,31 @@ async def test_set_active_toggles(
     assert res2.status_code == 409
 
 
+async def test_set_active_writes_audit_log(
+    client: AsyncClient, db_session: AsyncSession, seed_school: School, seed_class: Class
+) -> None:
+    created = (await client.post("/students", json=_BODY, headers=auth_header(role="Admin"))).json()
+    await client.post(f"/students/{created['id']}/deactivate", headers=auth_header(role="Admin"))
+
+    rows = (
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    and_(
+                        AuditLog.action == "STUDENT_DEACTIVATED",
+                        AuditLog.target_id == created["id"],
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].before == {"isActive": True}
+    assert rows[0].after == {"isActive": False}
+
+
 async def test_cross_school_scoping(
     client: AsyncClient, seed_school: School, seed_class: Class
 ) -> None:
