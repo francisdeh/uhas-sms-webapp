@@ -73,6 +73,7 @@ def _create_payload(
     last_name: str = "Mensah",
     system_role: str = "Teacher",
     division: str | None = "JHS",
+    uhas_id: str | None = None,
 ) -> StaffCreate:
     return StaffCreate(
         first_name=first_name,
@@ -82,6 +83,7 @@ def _create_payload(
         division=division,
         email=email,
         phone="+233241112233",
+        uhas_id=uhas_id,
     )
 
 
@@ -123,6 +125,31 @@ async def test_create_rejects_duplicate_email(
         await StaffService.create(db_session, SCHOOL_UUID, _create_payload(email="dup@u.gh"))
 
 
+async def test_create_rejects_duplicate_uhas_id(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """Regression test: a duplicate `uhas_id` must raise a clear
+    ConflictError, not fall through to `insert_with_sequential_slug`'s
+    generic retry-and-misreport-as-a-slug-collision path."""
+    await StaffService.create(
+        db_session, SCHOOL_UUID, _create_payload(email="a@u.gh", uhas_id="UHAS1141")
+    )
+    with pytest.raises(ConflictError, match="UHAS Staff ID"):
+        await StaffService.create(
+            db_session, SCHOOL_UUID, _create_payload(email="b@u.gh", uhas_id="UHAS1141")
+        )
+
+
+async def test_create_allows_blank_uhas_id_for_multiple_staff(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """`uhas_id` is optional — omitting it for multiple staff shouldn't
+    trip the duplicate check (None isn't a real collision)."""
+    await StaffService.create(db_session, SCHOOL_UUID, _create_payload(email="a@u.gh"))
+    row = await StaffService.create(db_session, SCHOOL_UUID, _create_payload(email="b@u.gh"))
+    assert row.uhas_id is None
+
+
 async def test_update_only_touches_present_fields(
     db_session: AsyncSession, seed_school: School
 ) -> None:
@@ -137,6 +164,49 @@ async def test_update_only_touches_present_fields(
     )
     assert updated.phone == "+233500000000"
     assert updated.first_name == row.first_name  # untouched
+
+
+async def test_update_rejects_duplicate_uhas_id(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """Regression test: patching `uhas_id` to a value another staff row
+    already has must raise ConflictError before the flush — `update`
+    has no IntegrityError handling at all, so without this pre-check
+    the collision would surface as a raw unhandled 500."""
+    await StaffService.create(
+        db_session, SCHOOL_UUID, _create_payload(email="a@u.gh", uhas_id="UHAS1141")
+    )
+    other = await StaffService.create(db_session, SCHOOL_UUID, _create_payload(email="b@u.gh"))
+    with pytest.raises(ConflictError, match="UHAS Staff ID"):
+        await StaffService.update(
+            db_session,
+            SCHOOL_UUID,
+            other.id,
+            StaffUpdate(uhas_id="UHAS1141"),
+            user=_admin_user(),
+            supabase=_FakeSupabase(),
+        )
+
+
+async def test_update_allows_resaving_own_unchanged_uhas_id(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """The duplicate check excludes the row being updated — re-saving a
+    staff member's own existing `uhas_id` (e.g. alongside an unrelated
+    field edit) isn't a collision with itself."""
+    row = await StaffService.create(
+        db_session, SCHOOL_UUID, _create_payload(email="a@u.gh", uhas_id="UHAS1141")
+    )
+    updated = await StaffService.update(
+        db_session,
+        SCHOOL_UUID,
+        row.id,
+        StaffUpdate(uhas_id="UHAS1141", phone="+233500000000"),
+        user=_admin_user(),
+        supabase=_FakeSupabase(),
+    )
+    assert updated.uhas_id == "UHAS1141"
+    assert updated.phone == "+233500000000"
 
 
 async def test_update_writes_staff_edit_audit_row(

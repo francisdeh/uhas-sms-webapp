@@ -131,9 +131,18 @@ def assign_positions(rows: list[tuple[Any, int | None]]) -> dict[Any, int | None
     return out
 
 
+_AGGREGATE_BEST_N = 6
+
+
 def compute_aggregate(grades: list[str | None]) -> int | None:
-    """BECE-style aggregate: sum of grade numbers across the student's
-    reported subjects. Lower is better.
+    """BECE-style aggregate: sum of the student's best 6 grades. Lower
+    is better. A student who scores well in more than 6 subjects isn't
+    penalised for the rest — this mirrors the real BECE aggregate,
+    which only ever counts a candidate's 6 best results (in practice
+    the 4 core subjects plus their best 2 electives; this simplified
+    version doesn't distinguish core from elective, since that flag
+    isn't tracked per subject yet — see `ReportCardScoreRow`'s
+    docstring in report_card_svc.py).
 
     `grades` is a list of grade strings (`"1"` through `"9"`); `None`
     entries (missing/pending scores) are skipped. Returns `None` when
@@ -142,7 +151,7 @@ def compute_aggregate(grades: list[str | None]) -> int | None:
 
     Mirrors `apps/web/src/features/exams/utils.ts::computeAggregate`.
     """
-    graded = [g for g in grades if g is not None]
+    graded = sorted(int(g) for g in grades if g is not None)
     if not graded:
         return None
-    return sum(int(g) for g in graded)
+    return sum(graded[:_AGGREGATE_BEST_N])

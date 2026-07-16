@@ -1,4 +1,4 @@
-import { EXAM_TYPE, type ExamType, type GradingBand, type Score, type ScoreInput, type ScoreWeights } from "./types";
+import { EXAM_TYPE, type ExamType, type GradingBand, type ScoreInput, type ScoreWeights } from "./types";
 
 // Both bands and weights are required, not defaulted — the school's
 // real values (GES defaults or a custom override) are always resolved
@@ -76,14 +76,6 @@ export function assignSubjectPositions<T extends { totalScore: number | null }>(
     ...s,
     subjectPosition: s.totalScore == null ? null : positionMap.get(s) ?? null,
   }));
-}
-
-// Aggregate (BECE-style): sum of grade numbers across the student's reported subjects.
-// Lower is better. Returns null when no graded scores exist.
-export function computeAggregate(scores: Pick<Score, "grade">[]): number | null {
-  const graded = scores.filter((s) => s.grade != null);
-  if (graded.length === 0) return null;
-  return graded.reduce((sum, s) => sum + Number(s.grade), 0);
 }
 
 export function hasAnyComponentScore(

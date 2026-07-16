@@ -19,6 +19,8 @@ import {
   HeartPulse,
   UserX,
   UserCheck,
+  Pencil,
+  ArrowLeftRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -301,9 +303,11 @@ export default function StudentDetail({
           {canEdit && (
             <>
               <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                <Pencil size={13} />
                 Edit
               </Button>
               <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>
+                <ArrowLeftRight size={13} />
                 Transfer Class
               </Button>
             </>

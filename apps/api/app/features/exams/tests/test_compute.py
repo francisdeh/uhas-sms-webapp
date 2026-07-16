@@ -127,3 +127,17 @@ def test_aggregate_returns_none_when_all_missing() -> None:
 
 def test_aggregate_single_grade() -> None:
     assert compute_aggregate(["7"]) == 7
+
+
+def test_aggregate_caps_at_best_6_when_more_subjects_are_graded() -> None:
+    """A student graded in 9 subjects isn't penalised for the worst 3 —
+    real BECE only ever counts the best 6. Regression test for a bug
+    where the naive "sum every subject" version inflated a genuine
+    student's aggregate from 43 to 69."""
+    grades: list[str | None] = ["7", "7", "8", "8", "9", "7", "9", "7", "7"]
+    assert compute_aggregate(grades) == 43
+
+
+def test_aggregate_sums_all_when_fewer_than_6_graded() -> None:
+    """Can't take the best 6 of fewer than 6 — sum whatever's there."""
+    assert compute_aggregate(["3", "5", None]) == 8

@@ -369,8 +369,8 @@ export default function StaffRegistrationForm({
                 />
                 <FieldError errors={[errors.phone]} />
                 <p className="text-xs text-muted-foreground">
-                  Used for this staff member&apos;s login (phone-OTP) once a login is provisioned
-                  — not just a contact number.
+                  Used for SMS notifications (e.g. leave-request decisions). Staff sign in with
+                  email + password, not phone-OTP.
                 </p>
               </Field>
 

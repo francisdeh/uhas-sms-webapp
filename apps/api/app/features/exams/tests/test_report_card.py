@@ -15,10 +15,13 @@ from uuid import UUID
 
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.attendance.model import AttendanceRecord, AttendanceSession
 from app.features.classes.model import ClassSubject
+from app.features.enrollments.constants import WITHDRAWN
+from app.features.enrollments.model import Enrollment
 from app.features.exams.model import (
     ClassReportSubmission,
     Exam,
@@ -46,6 +49,7 @@ from app.features.school_terms.model import SchoolTerm
 # `seed_actors` is a pytest fixture — conftest.py fixtures are
 # auto-discovered by parameter name, no import needed.
 from app.features.schools.model import School
+from app.features.students.model import Student
 from app.features.subjects.model import Subject
 from app.main import app  # noqa: F401 — kept to force router registration
 
@@ -650,6 +654,77 @@ async def test_missing_student_returns_404(
         headers=auth_header(role="Admin"),
     )
     assert res.status_code == 404
+
+
+async def test_report_renders_from_withdrawn_enrollment_when_no_active_one_exists(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    """A student withdrawn partway through the year (no Active enrollment
+    left for it) can still fall back to their most recent enrollment of
+    any status — the exam already happened in that class regardless of
+    the student's status today."""
+    exam = await _seed_exam(db_session)
+    await _seed_score(
+        db_session,
+        exam_id=exam.id,
+        student_id=STUDENT_A_UUID,
+        subject_id=SUBJECT_UUID,
+        total=80,
+        grade="2",
+        interpretation="Higher",
+    )
+    enrollment = (
+        await db_session.execute(
+            select(Enrollment).where(
+                Enrollment.student_id == STUDENT_A_UUID,
+                Enrollment.academic_year == "2025/2026",
+            )
+        )
+    ).scalar_one()
+    enrollment.status = WITHDRAWN
+    await db_session.flush()
+
+    res = await client.get(
+        _url(STUDENT_A_UUID, exam.id),
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["student"]["id"] == str(STUDENT_A_UUID)
+
+
+async def test_report_404s_with_no_enrollment_code_when_student_never_enrolled(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_actors: None,
+) -> None:
+    """A student with zero enrollment rows for the exam's academic year
+    (never placed in a class that year) gets a distinct `no_enrollment`
+    error code so the frontend can show an actionable notice instead of
+    a bare 404 page."""
+    exam = await _seed_exam(db_session)
+    unplaced_student_id = UUID("80808080-8080-4808-8808-080808080801")
+    db_session.add(
+        Student(
+            id=unplaced_student_id,
+            slug="UHAS-2025-0801",
+            school_id=SCHOOL_UUID,
+            first_name="Unplaced",
+            last_name="Student",
+            dob=date(2012, 1, 1),
+            gender="Male",
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+
+    res = await client.get(
+        _url(unplaced_student_id, exam.id),
+        headers=auth_header(role="Admin"),
+    )
+    assert res.status_code == 404
+    assert res.json()["error"]["code"] == "no_enrollment"
 
 
 async def test_parent_can_fetch_midterm_report(

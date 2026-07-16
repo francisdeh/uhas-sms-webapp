@@ -122,15 +122,28 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
     queryFn: () => api.guardians.list({ size: 200 }),
     enabled: dialogOpen && isParentRole,
   });
+  // Staff/guardians who already have an account shouldn't be offered
+  // again in the "New account" dropdown — picking them would either
+  // 409 against their existing account or silently create a second,
+  // divergent one for the same person.
+  const alreadyLinkedIds = new Set(users.map((u) => u.linkedId).filter(Boolean));
   const linkOptions = isParentRole
-    ? (guardiansData?.items ?? []).map((g) => ({
-        id: g.id,
-        label: `${g.firstName} ${g.lastName} (${g.slug})`,
-      }))
-    : (staffData?.items ?? []).map((s) => ({
-        id: s.id,
-        label: `${s.firstName} ${s.lastName} (${s.slug})`,
-      }));
+    ? (guardiansData?.items ?? [])
+        .filter((g) => editingUser?.linkedId === g.id || !alreadyLinkedIds.has(g.id))
+        .map((g) => ({
+          id: g.id,
+          label: `${g.firstName} ${g.lastName} (${g.slug})`,
+          email: g.email ?? "",
+          phone: g.phone ?? "",
+        }))
+    : (staffData?.items ?? [])
+        .filter((s) => editingUser?.linkedId === s.id || !alreadyLinkedIds.has(s.id))
+        .map((s) => ({
+          id: s.id,
+          label: `${s.firstName} ${s.lastName} (${s.slug})`,
+          email: s.email ?? "",
+          phone: s.phone ?? "",
+        }));
   const linkOptionsLoading = isParentRole ? guardiansLoading : staffLoading;
   // Base UI's <Select.Value> only resolves a label from <Select.Item>s
   // that have actually mounted (i.e. the dropdown has been opened at
@@ -569,6 +582,71 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
               </DialogHeader>
               <form onSubmit={handleSubmit}>
                 <FieldGroup className="gap-3 py-1">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field>
+                      <FieldLabel>Role</FieldLabel>
+                      <select
+                        value={form.role}
+                        disabled={!!editingUser}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...EMPTY_FORM,
+                            role: e.target.value as UserRole,
+                          }))
+                        }
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {ROLES.map((r) => (
+                          <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field>
+                      <FieldLabel>{isParentRole ? "Guardian" : "Staff"}</FieldLabel>
+                      <Select
+                        value={form.linkedId}
+                        onValueChange={(v) => {
+                          const selected = linkOptions.find((opt) => opt.id === v);
+                          setForm((f) => ({
+                            ...f,
+                            linkedId: v || "",
+                            displayName: selected
+                              ? selected.label.replace(/\s*\([^)]*\)$/, "")
+                              : f.displayName,
+                            email: selected ? selected.email : f.email,
+                            phone: selected ? selected.phone : f.phone,
+                          }));
+                        }}
+                        disabled={linkOptionsLoading || !!editingUser}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue
+                            placeholder={
+                              linkOptionsLoading
+                                ? "Loading…"
+                                : `Select a ${isParentRole ? "guardian" : "staff member"}`
+                            }
+                          >
+                            {(value: string) => linkOptionLabel(value)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {linkOptions.map((opt) => (
+                            <SelectItem key={opt.id} value={opt.id}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+                  {!editingUser && (
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      Only {isParentRole ? "guardians" : "staff"} without an existing account are
+                      listed. Picking one fills in their name, email, and phone below from their
+                      record — you can still edit them before creating the account.
+                    </p>
+                  )}
                   <Field>
                     <FieldLabel>Full name</FieldLabel>
                     <Input
@@ -608,54 +686,6 @@ export default function UsersTable({ initialUsers }: { initialUsers: ManagedUser
                       </p>
                     </Field>
                   )}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field>
-                      <FieldLabel>Role</FieldLabel>
-                      <select
-                        value={form.role}
-                        disabled={!!editingUser}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            role: e.target.value as UserRole,
-                            linkedId: "",
-                          }))
-                        }
-                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {ROLES.map((r) => (
-                          <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field>
-                      <FieldLabel>{isParentRole ? "Guardian" : "Staff"}</FieldLabel>
-                      <Select
-                        value={form.linkedId}
-                        onValueChange={(v) => setForm((f) => ({ ...f, linkedId: v || "" }))}
-                        disabled={linkOptionsLoading || !!editingUser}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue
-                            placeholder={
-                              linkOptionsLoading
-                                ? "Loading…"
-                                : `Select a ${isParentRole ? "guardian" : "staff member"}`
-                            }
-                          >
-                            {(value: string) => linkOptionLabel(value)}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {linkOptions.map((opt) => (
-                            <SelectItem key={opt.id} value={opt.id}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </div>
                   {editingUser && (
                     <p className="text-xs text-muted-foreground -mt-1">
                       Role and linked staff/guardian can&apos;t be changed here — deactivate and
