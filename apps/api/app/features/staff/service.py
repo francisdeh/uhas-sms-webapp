@@ -94,6 +94,11 @@ class StaffService:
         if existing:
             raise ConflictError("Email already registered.")
 
+        if payload.uhas_id:
+            existing_uhas_id = await StaffRepository.find_by_uhas_id(session, payload.uhas_id)
+            if existing_uhas_id:
+                raise ConflictError("This UHAS Staff ID is already in use.")
+
         return await insert_with_sequential_slug(
             session,
             next_seq=per_school_slug_resolver(session, school_id, StaffRepository.next_slug_number),
@@ -144,6 +149,14 @@ class StaffService:
 
         row = await StaffService.get(session, school_id, staff_id)
         changes = payload.model_dump(exclude_unset=True)
+
+        if changes.get("uhas_id"):
+            existing_uhas_id = await StaffRepository.find_by_uhas_id(
+                session, changes["uhas_id"], exclude_staff_id=staff_id
+            )
+            if existing_uhas_id:
+                raise ConflictError("This UHAS Staff ID is already in use.")
+
         before_snapshot: dict[str, object | None] = {}
         after_snapshot: dict[str, object | None] = {}
         for field, value in changes.items():

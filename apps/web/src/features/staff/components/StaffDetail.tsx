@@ -18,6 +18,7 @@ import {
   Pencil,
   RefreshCw,
   GraduationCap,
+  KeyRound,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -213,6 +214,21 @@ export default function StaffDetail({ staff, readOnly = false }: StaffDetailProp
     },
   });
 
+  const createLoginMutation = useMutation({
+    mutationFn: () => api.staff.createLogin(staff.id),
+    onSuccess: (result) => {
+      router.refresh();
+      toast.success(
+        result.email
+          ? `Login created — an invite email was sent to ${result.email}.`
+          : `Login created — ${staff.firstName} can now sign in with phone-OTP.`,
+      );
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to create login.");
+    },
+  });
+
   const editIsPending = editMutation.isPending;
   const roleIsPending =
     roleMutation.isPending || deactivateMutation.isPending || reactivateMutation.isPending;
@@ -231,6 +247,10 @@ export default function StaffDetail({ staff, readOnly = false }: StaffDetailProp
 
   function handleReactivate() {
     reactivateMutation.mutate();
+  }
+
+  function handleCreateLogin() {
+    createLoginMutation.mutate();
   }
 
   return (
@@ -295,6 +315,21 @@ export default function StaffDetail({ staff, readOnly = false }: StaffDetailProp
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil size={13} className="mr-1.5" /> Edit Info
             </Button>
+            {staff.isActive && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateLogin}
+                disabled={createLoginMutation.isPending}
+              >
+                {createLoginMutation.isPending ? (
+                  <Loader2 size={13} className="animate-spin mr-1.5" />
+                ) : (
+                  <KeyRound size={13} className="mr-1.5" />
+                )}
+                Create Login
+              </Button>
+            )}
             {staff.isActive ? (
               <Button
                 variant="destructive"

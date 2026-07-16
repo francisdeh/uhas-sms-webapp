@@ -85,6 +85,20 @@ class StaffRepository:
         return (await session.execute(stmt)).scalar_one_or_none()
 
     @staticmethod
+    async def find_by_uhas_id(
+        session: AsyncSession, uhas_id: str, *, exclude_staff_id: UUID | str | None = None
+    ) -> Staff | None:
+        """Used to dedupe before insert/update. Deliberately NOT scoped by
+        `school_id` — `Staff.uhas_id`'s DB constraint is a plain column-
+        level `unique=True`, global across every school, so the pre-check
+        has to match that same scope or it'd miss a real collision."""
+        conditions = [Staff.uhas_id == uhas_id]
+        if exclude_staff_id is not None:
+            conditions.append(Staff.id != exclude_staff_id)
+        stmt = select(Staff).where(and_(*conditions))
+        return (await session.execute(stmt)).scalar_one_or_none()
+
+    @staticmethod
     async def next_slug_number(
         session: AsyncSession, school_id: UUID | str, prefix: str = "STAFF-"
     ) -> int:

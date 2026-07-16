@@ -2,7 +2,6 @@ import { redirect, notFound } from "next/navigation";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi, ApiError } from "@/lib/api/server";
 import { ReportCardPage } from "@/features/exams/components/ReportCardPage";
-import { computeAggregate } from "@/features/exams/utils";
 import type { ReportCardData, Exam } from "@/features/exams/types";
 import { MALE, type Student } from "@/features/students/types";
 import type { Division } from "@/features/auth/types";
@@ -89,7 +88,7 @@ export default async function ParentReportCardRoute({ params }: PageProps) {
     coreRows: rows,
     electiveRows: [],
     gradingBands: card.gradingBands,
-    aggregate: card.aggregate ?? computeAggregate(rows),
+    aggregate: card.aggregate ?? null,
     attendance: { attended: card.attendanceAttended, total: card.attendanceTotal },
     classTeacherNames: card.classTeachers,
     classTeacherRemark: card.classTeacherRemark ?? null,

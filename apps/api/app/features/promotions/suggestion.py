@@ -1,9 +1,9 @@
 """Algorithmic promote/repeat/graduate suggestion.
 
-Mirrors `apps/web/src/features/promotions/lib/suggestion.ts` line-for-
-line so both sides suggest the same decision for the same input. Kept
-as a pure function of shaped inputs — the DB fetches happen in the
-service, this module only computes.
+Backend-only — the frontend has no copy of this logic and only ever
+displays `suggestedDecision`/`suggestedReason` from the API response.
+Kept as a pure function of shaped inputs — the DB fetches happen in
+the service, this module only computes.
 
 Rule set (per school policy):
   * If Term-3 EndOfTerm exam isn't published → no suggestion (`None`).

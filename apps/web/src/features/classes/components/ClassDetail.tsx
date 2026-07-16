@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Pencil, Loader2, Trash2 } from "lucide-react";
+import { Pencil, Loader2, Trash2, RefreshCw, Plus } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -381,7 +381,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
                 setTeacherOpen(true);
               }}
             >
-              Change Class Teacher
+              <RefreshCw size={13} className="mr-1.5" /> Change Class Teacher
             </Button>
           </div>
         )}
@@ -400,7 +400,7 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
                 setSubjectOpen(true);
               }}
             >
-              Add Subject
+              <Plus size={13} className="mr-1.5" /> Add Subject
             </Button>
           )}
         </CardHeader>

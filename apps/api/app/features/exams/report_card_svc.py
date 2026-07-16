@@ -80,7 +80,9 @@ class ReportCardService:
         )
         if cls is None:
             raise NotFoundError(
-                f"Student {student_id!r} has no active enrollment for {exam.academic_year}."
+                f"Student {student_id!r} has never been enrolled in a class for "
+                f"{exam.academic_year} — enroll them before generating a report card.",
+                code="no_enrollment",
             )
 
         await _assert_can_view(session, school_id, user, student, cls, exam)

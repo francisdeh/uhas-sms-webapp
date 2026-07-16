@@ -56,8 +56,15 @@ class ReportCardRepository:
         student_id: UUID | str,
         academic_year: str,
     ) -> Class | None:
-        """The class the student is actively enrolled in for the exam's
-        academic year — that's the roster the report card sits inside."""
+        """The class the student is enrolled in for the exam's academic
+        year — that's the roster the report card sits inside.
+
+        Prefers the student's currently-Active enrollment for that year,
+        but falls back to their most recent enrollment of any status
+        (e.g. Withdrawn) so a since-transferred-out or since-deactivated
+        student's historical report card still renders instead of 404ing
+        — the scores/exam already happened in that class regardless of
+        the student's status today."""
         stmt = (
             select(Class)
             .join(Enrollment, Enrollment.class_id == Class.id)
@@ -65,9 +72,9 @@ class ReportCardRepository:
                 and_(
                     Enrollment.student_id == student_id,
                     Enrollment.academic_year == academic_year,
-                    Enrollment.status == ACTIVE,
                 )
             )
+            .order_by((Enrollment.status == ACTIVE).desc(), Enrollment.enrollment_date.desc())
             .limit(1)
         )
         return (await session.execute(stmt)).scalar_one_or_none()

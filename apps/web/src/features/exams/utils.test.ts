@@ -3,7 +3,6 @@ import {
   computeGrade,
   computeTotalScore,
   assignSubjectPositions,
-  computeAggregate,
   hasAnyComponentScore,
 } from "./utils";
 import { EXAM_TYPE, type GradingBand, type ScoreWeights } from "./types";
@@ -157,25 +156,6 @@ describe("assignSubjectPositions", () => {
 
   it("empty list returns empty array", () => {
     expect(assignSubjectPositions([])).toEqual([]);
-  });
-});
-
-describe("computeAggregate", () => {
-  it("sums grade numbers across scored subjects", () => {
-    expect(
-      computeAggregate([{ grade: "1" }, { grade: "2" }, { grade: "3" }])
-    ).toBe(6);
-  });
-
-  it("ignores subjects without a grade", () => {
-    expect(
-      computeAggregate([{ grade: "4" }, { grade: null }, { grade: "5" }])
-    ).toBe(9);
-  });
-
-  it("returns null when nothing graded", () => {
-    expect(computeAggregate([])).toBeNull();
-    expect(computeAggregate([{ grade: null }])).toBeNull();
   });
 });
 

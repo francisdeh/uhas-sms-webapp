@@ -1,12 +1,15 @@
 import { redirect, notFound } from "next/navigation";
+import Link from "next/link";
+import { UserX } from "lucide-react";
 import { getSessionUser } from "@/features/auth/queries/get-session-user";
 import { getApi, ApiError } from "@/lib/api/server";
 import { ReportCardPage } from "@/features/exams/components/ReportCardPage";
-import { computeAggregate } from "@/features/exams/utils";
 import type { ReportCardData } from "@/features/exams/types";
 import { MALE, type Student } from "@/features/students/types";
 import type { Exam } from "@/features/exams/types";
 import type { Division } from "@/features/auth/types";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 
 interface PageProps {
   params: Promise<{ id: string; examId: string }>;
@@ -26,7 +29,30 @@ export default async function AdminReportCardRoute({ params }: PageProps) {
       api.exams.get(examId),
     ]);
   } catch (err) {
-    if (err instanceof ApiError && err.status === 404) notFound();
+    if (err instanceof ApiError && err.status === 404) {
+      if (err.code === "no_enrollment") {
+        return (
+          <div className="max-w-md mx-auto mt-12">
+            <EmptyState
+              icon={UserX}
+              title="No report card available"
+              description={err.message}
+              action={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  nativeButton={false}
+                  render={<Link href={`/admin/students/${id}`} />}
+                >
+                  Go to student profile
+                </Button>
+              }
+            />
+          </div>
+        );
+      }
+      notFound();
+    }
     throw err;
   }
 
@@ -86,7 +112,7 @@ export default async function AdminReportCardRoute({ params }: PageProps) {
     coreRows: rows,
     electiveRows: [],
     gradingBands: card.gradingBands,
-    aggregate: card.aggregate ?? computeAggregate(rows),
+    aggregate: card.aggregate ?? null,
     attendance: { attended: card.attendanceAttended, total: card.attendanceTotal },
     classTeacherNames: card.classTeachers,
     classTeacherRemark: card.classTeacherRemark ?? null,
