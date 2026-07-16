@@ -405,12 +405,11 @@ export default function StudentsTable({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate student?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Deactivate {deactivateTarget?.firstName} {deactivateTarget?.lastName}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>
-                {deactivateTarget?.firstName} {deactivateTarget?.lastName}
-              </strong>{" "}
-              will be marked inactive. You can reactivate at any time.
+              They will be marked inactive. You can reactivate at any time.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

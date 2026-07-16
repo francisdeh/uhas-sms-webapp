@@ -64,7 +64,7 @@ export function FeeItemRoster({ feeItem, initialRoster }: FeeItemRosterProps) {
     resolver: zodResolver(editSchema),
     defaultValues: {
       name: feeItem.name,
-      amount: (feeItem.amountMinor / 100).toString(),
+      amount: (feeItem.amountMinor / 100).toFixed(2),
       isActive: feeItem.isActive,
     },
   });
@@ -106,7 +106,7 @@ export function FeeItemRoster({ feeItem, initialRoster }: FeeItemRosterProps) {
             onClick={() => {
               editForm.reset({
                 name: feeItem.name,
-                amount: (feeItem.amountMinor / 100).toString(),
+                amount: (feeItem.amountMinor / 100).toFixed(2),
                 isActive: feeItem.isActive,
               });
               setEditOpen(true);

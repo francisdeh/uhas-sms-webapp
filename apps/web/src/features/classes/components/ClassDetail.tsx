@@ -410,8 +410,8 @@ export default function ClassDetail({ classId, readonly = false }: ClassDetailPr
               No subjects assigned to this class yet.
             </p>
           ) : (
-            <div className="rounded-md border border-border/60 overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="rounded-md border border-border/60 overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
                 <thead>
                   <tr className="bg-muted/40 border-b border-border/60">
                     <th className="text-left text-xs font-semibold px-4 py-2.5">Subject</th>

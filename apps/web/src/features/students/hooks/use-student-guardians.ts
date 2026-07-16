@@ -64,7 +64,8 @@ export function useUpdateStudentMedical(studentId: string) {
       toast.success("Medical info saved.");
       qc.invalidateQueries({ queryKey: medicalKey(studentId) });
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Something went wrong."),
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to save medical info."),
   });
 }
 
@@ -79,8 +80,6 @@ export function useStudentDocuments(studentId: string, enabled = true) {
 export function useStudentDocumentMutations(studentId: string) {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: documentsKey(studentId) });
-  const onError = (err: unknown) =>
-    toast.error(err instanceof ApiError ? err.message : "Something went wrong.");
 
   const add = useMutation({
     mutationFn: (payload: CreateStudentDocumentInput) => api.students.addDocument(studentId, payload),
@@ -88,7 +87,8 @@ export function useStudentDocumentMutations(studentId: string) {
       toast.success("Document uploaded.");
       invalidate();
     },
-    onError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to upload document."),
   });
 
   const remove = useMutation({
@@ -97,7 +97,8 @@ export function useStudentDocumentMutations(studentId: string) {
       toast.success("Document removed.");
       invalidate();
     },
-    onError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to remove document."),
   });
 
   return { add, remove };
@@ -109,8 +110,6 @@ export function useGuardianLinkMutations(studentId: string) {
     qc.invalidateQueries({ queryKey: guardianKey(studentId) });
     qc.invalidateQueries({ queryKey: siblingKey(studentId) });
   };
-  const onError = (err: unknown) =>
-    toast.error(err instanceof ApiError ? err.message : "Something went wrong.");
 
   const add = useMutation({
     mutationFn: (payload: components["schemas"]["StudentGuardianAddRequest"]) =>
@@ -119,7 +118,7 @@ export function useGuardianLinkMutations(studentId: string) {
       toast.success("Guardian added.");
       invalidate();
     },
-    onError,
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : "Failed to add guardian."),
   });
 
   const update = useMutation({
@@ -131,7 +130,8 @@ export function useGuardianLinkMutations(studentId: string) {
       payload: components["schemas"]["StudentGuardianUpdateRequest"];
     }) => api.students.updateGuardianLink(studentId, guardianId, payload),
     onSuccess: invalidate,
-    onError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to update guardian link."),
   });
 
   const remove = useMutation({
@@ -140,7 +140,8 @@ export function useGuardianLinkMutations(studentId: string) {
       toast.success("Guardian unlinked.");
       invalidate();
     },
-    onError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to unlink guardian."),
   });
 
   const createLogin = useMutation({
@@ -153,7 +154,8 @@ export function useGuardianLinkMutations(studentId: string) {
       );
       invalidate();
     },
-    onError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to create login."),
   });
 
   // Edits the guardian's own name/phone/email — distinct from `update`,
@@ -171,7 +173,8 @@ export function useGuardianLinkMutations(studentId: string) {
       toast.success("Guardian contact info updated.");
       invalidate();
     },
-    onError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to update guardian contact info."),
   });
 
   return { add, update, remove, createLogin, editContact };

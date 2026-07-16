@@ -1,4 +1,5 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatDateTime } from "@/lib/dates";
 
 type Comment = {
   id: string;
@@ -23,7 +24,7 @@ export function PromotionCommentThread({ comments }: { comments: Comment[] }) {
           <AlertDescription>
             <span className="font-medium">{c.authorName}</span>
             {c.createdAt ? (
-              <span className="text-xs opacity-75"> · {new Date(c.createdAt).toLocaleString()}</span>
+              <span className="text-xs opacity-75"> · {formatDateTime(c.createdAt)}</span>
             ) : null}
             <p className="mt-0.5">{c.body}</p>
           </AlertDescription>

@@ -18,9 +18,6 @@ const qualificationsKey = (staffId: string) =>
   [...staffKeys.detail(staffId), "qualifications"] as const;
 const documentsKey = (staffId: string) => [...staffKeys.detail(staffId), "documents"] as const;
 
-const onApiError = (err: unknown) =>
-  toast.error(err instanceof ApiError ? err.message : "Something went wrong.");
-
 export function useStaffSubjects(staffId: string, enabled = true) {
   return useQuery<SubjectExpertise[]>({
     queryKey: subjectsKey(staffId),
@@ -38,7 +35,8 @@ export function useReplaceStaffSubjects(staffId: string) {
       toast.success("Subject expertise saved.");
       qc.invalidateQueries({ queryKey: subjectsKey(staffId) });
     },
-    onError: onApiError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to save subject expertise."),
   });
 }
 
@@ -61,7 +59,8 @@ export function useStaffQualificationMutations(staffId: string) {
       toast.success("Qualification added.");
       invalidate();
     },
-    onError: onApiError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to add qualification."),
   });
 
   const remove = useMutation({
@@ -71,7 +70,8 @@ export function useStaffQualificationMutations(staffId: string) {
       toast.success("Qualification removed.");
       invalidate();
     },
-    onError: onApiError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to remove qualification."),
   });
 
   return { add, remove };
@@ -95,7 +95,8 @@ export function useStaffDocumentMutations(staffId: string) {
       toast.success("Document uploaded.");
       invalidate();
     },
-    onError: onApiError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to upload document."),
   });
 
   const remove = useMutation({
@@ -104,7 +105,8 @@ export function useStaffDocumentMutations(staffId: string) {
       toast.success("Document removed.");
       invalidate();
     },
-    onError: onApiError,
+    onError: (err) =>
+      toast.error(err instanceof ApiError ? err.message : "Failed to remove document."),
   });
 
   return { add, remove };

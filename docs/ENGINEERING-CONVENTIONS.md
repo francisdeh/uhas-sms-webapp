@@ -4,7 +4,7 @@ Working principles for the UHAS SMS codebase. These crystallize lessons from the
 
 Treat this doc as load-bearing: PR reviews can cite it, AI assistants reading the repo will follow it. The hard rules are in [CLAUDE.md](../CLAUDE.md) at the project root.
 
-Last reviewed: 2026-07-05 — updated for the post-Strategy-A stack (FastAPI + SQLAlchemy/Alembic + Supabase). The Drizzle/Server-Action-era rules this doc used to carry are gone; see `git log` on this file if you need the old versions for historical PRs.
+Last reviewed: 2026-07-16 — updated for the post-Strategy-A stack (FastAPI + SQLAlchemy/Alembic + Supabase). The Drizzle/Server-Action-era rules this doc used to carry are gone; see `git log` on this file if you need the old versions for historical PRs.
 
 ---
 
@@ -154,7 +154,30 @@ Drizzle and Next.js Server Action mutations are **fully decommissioned** as of P
 
 **`"use server"` is not banned outright** — it's reserved for the narrow set of things that genuinely aren't domain-data mutations: setting a cookie (the academic-year switcher), minting a Supabase Storage signed URL for a download click. If you're reaching for `"use server"` to create/update/delete a domain record, you want a FastAPI route + a TanStack Query hook instead.
 
-### 10. `ActionResult<T>` — only for the true Server Actions above
+### 10. Atomic multi-step mutations — one backend transaction, not a client-orchestrated sequence
+
+If a single user action requires more than one write (withdraw an old enrollment + create a new one; remove the old class teacher + assign the new one), that's **one new FastAPI service method** doing both inside the same DB session, not two sequential `useMutation` calls from the frontend. A client-orchestrated sequence can fail between the two calls and leave the record in a broken half-state (a student with no active enrollment anywhere; a class with no teacher) — and the frontend has no good way to roll back the first call once the second has failed.
+
+```python
+# ✅ one transaction — a failure after the withdraw rolls back the whole thing
+async def transfer_student(session, school_id, student_id, new_class_id, *, actor_user_id):
+    current = await EnrollmentsRepository.get_active_for_student(session, school_id, student_id, year)
+    if current is not None:
+        current.status = WITHDRAWN
+    session.add(Enrollment(student_id=student_id, class_id=new_class_id, status=ACTIVE, ...))
+    await session.flush()
+    ...
+```
+
+```ts
+// ❌ two independent calls — a failure between them leaves no active enrollment
+await api.enrollments.changeStatus(oldEnrollmentId, { status: "Withdrawn" });
+await api.enrollments.create({ studentId, classId: newClassId }); // if this 500s, student has nothing
+```
+
+This was found repeatedly during a correctness audit (student class transfer, class-teacher reassignment) — when reviewing a flow with 2+ related API calls fired back-to-back from one button click, ask whether a backend transaction should own the whole sequence instead.
+
+### 11. `ActionResult<T>` — only for the true Server Actions above
 
 The handful of remaining Server Actions (cookies, signed URLs) return `Promise<ActionResult<T>>` from [`apps/web/src/lib/action-result.ts`](../apps/web/src/lib/action-result.ts):
 
@@ -166,19 +189,21 @@ export type ActionResult<T = void> =
 
 **Don't throw from one** — catch internally and return the failure shape. Throwing crashes the route and falls through to the closest `error.tsx` boundary, which is correct for *unexpected* errors but wrong for *expected* ones ("not found", "not allowed").
 
-Client-side mutations against FastAPI (the dominant pattern — TanStack `useMutation`) don't use `ActionResult` at all: catch `ApiError` (from `@/lib/api/client`) and `toast.error(err instanceof ApiError ? err.message : "…")` on error; `queryClient.invalidateQueries(...)` on success.
+Client-side mutations against FastAPI (the dominant pattern — TanStack `useMutation`) don't use `ActionResult` at all: catch `ApiError` (from `@/lib/api/client`) and `toast.error(err instanceof ApiError ? err.message : "…")` on error; `queryClient.invalidateQueries(...)` on success. **The fallback string must name the specific action** ("Failed to update class.", "Failed to waive fee.") — never a bare `"Something went wrong."` The `ApiError` branch already carries a specific server-side message; the fallback only fires for network failures or unexpected exceptions, where the user still deserves to know *what* didn't work, not just that something didn't. When one `onError` handler is shared across several mutations in the same hook file (a `useMutation` per CRUD verb, one shared error callback), give each mutation its own handler with its own message instead — a shared generic handler is how this drifts in the first place.
 
-### 11. Audit-log sensitive mutations — on the FastAPI side
+### 12. Audit-log sensitive mutations — on the FastAPI side
 
-Any action that overrides defaults, deactivates a person, changes a role, or modifies academic records writes an `audit_log` row via `apps/api/app/features/audit/service.py`'s `write_audit_log`, inside the same transaction as the mutation. Already wired for: `SCORE_OVERRIDE`, `STUDENT_EDIT`, role changes, `PROMOTION_APPROVED`, `SCHOOL_SETTINGS_UPDATE`. See `app/features/audit/actions.py` for the closed set of action constants — `write_audit_log`'s `action` param requires one of them, not a bare string.
+Any action that overrides defaults, deactivates/reactivates a person, changes a role or standing (Unit Head, active status), modifies academic records, or touches money writes an `audit_log` row via `apps/api/app/features/audit/service.py`'s `write_audit_log`, inside the same transaction as the mutation. See `app/features/audit/actions.py` for the current closed set of action constants — `write_audit_log`'s `action` param requires one of them, not a bare string. New actions get added to **both** `actions.py` and `apps/web/src/features/audit-log/types.ts` (label + filter-pill colour) in the same PR.
 
-### 12. Never log auth tokens or session cookies
+**When adding a new mutation to an existing domain, check its siblings.** A correctness audit found this gap repeatedly: one method in a service file writes an audit row and the sibling right next to it — same authority level, same kind of decision — doesn't (`approve()` logged, `send_back()` didn't; `add_guardian()`/`remove_guardian()` logged, `update_guardian_link()` in between didn't). It's an easy miss because the audited sibling reads as "this is what audit logging for this domain looks like" and the unaudited one just never got the same treatment. Before shipping a new mutation, ask: does the analogous action elsewhere in this file get audited? If yes and this doesn't, that's a bug, not a stylistic choice. Also check whether a mutation only gets audited *indirectly* through a linked record (e.g. deactivating a Staff row only logged when it cascaded to a linked login) — the direct mutation on the primary row needs its own audit entry regardless of whether a cascade happens.
+
+### 13. Never log auth tokens or session cookies
 
 `console.log(idToken)`, `console.log(sessionCookies)`, etc. captures sensitive credentials. Railway / Sentry / any future error tracking will store them indefinitely.
 
 If you must debug auth, log the *decoded* `uid` or `email`, never the token.
 
-### 13. `revalidatePath` is now the rare exception, not the default
+### 14. `revalidatePath` is now the rare exception, not the default
 
 Most mutations are client-side TanStack `useMutation` calls, which handle freshness via `queryClient.invalidateQueries(...)` — no `revalidatePath` involved. Call `revalidatePath("/affected/route")` only from one of the few remaining true Server Actions (§10), when it mutates data a Server Component route reads.
 
@@ -186,11 +211,11 @@ Most mutations are client-side TanStack `useMutation` calls, which handle freshn
 
 ## UI
 
-### 14. Server Components by default
+### 15. Server Components by default
 
 Add `"use client"` only when you need interactivity, browser APIs, or hooks. Pushing more work to the server keeps bundles small and loading fast.
 
-### 15. Loading + error + not-found boundaries on data-fetching routes
+### 16. Loading + error + not-found boundaries on data-fetching routes
 
 For any route that fetches data in its Server Component, add sibling `loading.tsx` (skeleton) and `error.tsx` (graceful retry) files. The 4 role-dashboard routes are templates. Root-level `not-found.tsx` and `(dashboard)/not-found.tsx` handle unmatched routes — the dashboard variant preserves the sidebar/header shell, matching how `(dashboard)/error.tsx` handles thrown errors.
 
@@ -201,7 +226,9 @@ src/app/(dashboard)/admin/students/
 └── error.tsx         ← required when the page does any data read
 ```
 
-### 16. Memoize high-render-count components
+**When the same feature is shared across roles (e.g. a students list rendered at `/admin/students`, `/deputy-head/students`, `/teacher/students`), every role's route needs its own `loading.tsx`.** These are separate directories in the App Router, so adding the skeleton for Admin doesn't do anything for the other two — a real gap found this way left Deputy Head and Teacher with an unstyled blank flash where every other role showed the shared `PageSkeleton`. When you add a loading/error boundary to one role's copy of a shared page, grep for the other roles' equivalent routes in the same PR and check they have one too.
+
+### 17. Memoize high-render-count components
 
 Components that render 50+ rows (attendance sheets, score grids, audit log tables, students list) should:
 - Wrap row components in `React.memo`
@@ -210,19 +237,28 @@ Components that render 50+ rows (attendance sheets, score grids, audit log table
 
 For most components — skip this. It's noise without measurable benefit at low render counts.
 
-### 17. shadcn primitives only, no raw HTML form elements
+### 18. shadcn primitives only, no raw HTML form elements
 
 All inputs, buttons, selects, dialogs, etc. use `@/components/ui/*`. Add missing ones with `pnpm dlx shadcn@latest add <name> -y`.
 
-### 18. Mobile-responsive defaults
+### 19. Mobile-responsive defaults
 
-Page-header rows: `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`. Wide tables: `overflow-x-auto`. Report cards: `overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0` for side-scroll on phones with print-safe layout.
+Page-header rows: `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`. Report cards: `overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0` for side-scroll on phones with print-safe layout.
+
+**Wide tables: `overflow-x-auto` on the wrapping element — but this only happens automatically if you're using the shared `@/components/ui/table` primitive**, whose root wrapper already bakes in `overflow-x-auto`. A raw `<table>` element (used for a few lightweight card-style tables that predate `DataTable` adoption) gets none of that for free — it needs an explicit `overflow-x-auto` div, and clips silently on a phone without one. When you reach for a raw `<table>` instead of the shared component (acceptable for a small, non-sortable, non-paginated table), wrap it yourself: `<div className="overflow-x-auto"><table className="min-w-[...]">`.
+
+### 20. Confirmation-dialog copy: name the target in the title, be consistent about reversibility
+
+Every destructive/state-changing confirmation (`AlertDialog`) across the app should read as one voice, not one dialect per feature:
+- **Title names the specific target**: `"Deactivate {firstName} {lastName}?"`, not a generic `"Deactivate user?"` — the generic form makes a user re-check which row they clicked.
+- **Description states what happens and whether it's reversible**, in that order: `"They will be marked inactive. You can reactivate at any time."` for a reversible toggle; `"...This can't be undone."` for something genuinely permanent (a waived fee, an excluded record).
+- Don't invent a new verb/structure per domain for the same underlying action shape — a Deactivate dialog on Staff and a Deactivate dialog on Students should differ only in the entity-specific noun, not in title phrasing or paragraph structure. If you're adding a new destructive action, check how the closest existing one (usually Staff's) phrases it before writing new copy.
 
 ---
 
 ## File structure
 
-### 19. Feature-based modules
+### 21. Feature-based modules
 
 All domain code lives in `apps/web/src/features/<name>/`. Most features contain:
 
@@ -238,7 +274,7 @@ A handful of features with cookie-only or non-domain concerns (`shell`, `uploads
 
 Don't dump feature-specific components into `apps/web/src/components/`. That folder is for truly shared primitives (buttons, dialogs, the `DataTable`).
 
-### 20. Co-locate tests with what they test
+### 22. Co-locate tests with what they test
 
 **Web (Vitest + Playwright):**
 - **Unit tests live next to the source**: `src/features/<domain>/utils.test.ts`, `src/features/<domain>/lib/*.test.ts` — pure-logic tests, no DB, no mocked network. `vitest.config.ts`'s `include` picks up `src/**/*.test.ts` directly; there's no separate top-level `tests/unit/` folder.
@@ -257,7 +293,7 @@ The feature-local pattern enforces self-containment — porting, deleting, or ex
 
 ## FastAPI conventions
 
-### 21. Pydantic schemas — one file per domain, `Create` / `Update` / `Read` naming
+### 23. Pydantic schemas — one file per domain, `Create` / `Update` / `Read` naming
 
 All request and response bodies are typed Pydantic models in `apps/api/app/features/<domain>/schema.py`. Never accept or return raw `dict`s from routes (with the narrow exceptions called out below).
 
@@ -294,7 +330,7 @@ Rules:
 - **Variants when needed**: `StudentEnrollmentRead`, a narrow `SchoolPublicRead` for the one unauthenticated endpoint. Never `StudentReadV2` or `StudentReadAdmin` — branch on intent, not version or audience.
 - **List wrappers** for paged collections: `class StudentsListResponse(BaseModel): items: list[StudentRead]; total: int`. Never tuples / dicts / bare lists with side-data.
 
-### 22. Routes declare `response_model=` — always
+### 24. Routes declare `response_model=` — always
 
 Every router decorator sets `response_model`. The Python return type alone isn't enough — `response_model` does two things the annotation doesn't:
 
@@ -309,11 +345,11 @@ async def list_students(...) -> StudentsListResponse:
 
 Exceptions where a raw type is OK (rare): `/health` → `dict[str, str]`, no domain meaning; 204 No Content responses; streaming responses.
 
-### 23. Pagination — `size` caps scale to the domain, not a fixed default
+### 25. Pagination — `size` caps scale to the domain, not a fixed default
 
 Every list endpoint takes `page: int = 1` and `size: int` with an explicit `le=` upper bound. Most domains cap at 100 — but a handful of small-cardinality "lookup" resources (`classes`, `staff`, `calendar`) cap higher (500), because several frontend pages fetch "everything" for a dropdown in one page rather than implementing real pagination for a list that's bounded by school size, not by row-count risk. `audit`/`sms_log` cap at 200 for the same "genuinely higher volume" reason. When you add a new `size` param, check what the frontend caller actually needs before defaulting to 100 — a mismatch here 422s silently and was the cause of a real production-shaped bug this session (`/classes?size=200` against a `le=100` cap).
 
-### 24. Error shape is the `AppError` envelope
+### 26. Error shape is the `AppError` envelope
 
 Domain errors raise an `AppError` subclass from `app/core/errors.py` (`NotFoundError`, `ConflictError`, `ForbiddenError`, etc.). The global handler in `app/main.py` converts these into `{"error": {"code": "...", "message": "..."}}` with the right status code. Don't raise a bare `HTTPException` from feature code — use the typed error subclasses so the response shape stays uniform across the API. (FastAPI's own built-in validation errors — e.g. a query param outside its `le=` bound — still come back as `{"detail": [...]}`, a different shape; `apps/web/src/lib/api/client.ts`'s `apiFetch` only surfaces the `AppError` shape's message today, so a raw validation 422 currently shows a generic "HTTP 422" client-side rather than the real reason — worth keeping in mind when debugging a 422 that doesn't show a useful toast.)
 
@@ -321,7 +357,7 @@ Domain errors raise an `AppError` subclass from `app/core/errors.py` (`NotFoundE
 
 ## Dates and times
 
-### 25. Centralize date handling via `lib/dates.ts`
+### 27. Centralize date handling via `lib/dates.ts`
 
 Use the helpers in [`apps/web/src/lib/dates.ts`](../apps/web/src/lib/dates.ts), never raw `new Date(...)` for display. The helpers wrap `date-fns` and enforce consistent formatting.
 
@@ -341,23 +377,25 @@ Storage conventions:
 
 **Never write** `new Date(\`${date}T00:00:00\`).toLocaleDateString(...)` — string concat to local-midnight is timezone-fragile (in dev's TZ, a school in Accra would render midnight Accra; on a Railway pod in a different region, the date drifts). The helpers parse with `parseISO`, which is consistent regardless of server TZ.
 
+**Also avoid ad-hoc `.toLocaleDateString()` / `.toLocaleString()` without an explicit locale** even when the timezone issue doesn't apply — the rendered format (`MM/DD/YYYY` vs `DD/MM/YYYY` vs spelled-out month) depends on the *visiting browser's* locale setting, not the school's, so the same timestamp can render differently for two admins sitting in the same room. If a genuinely new format is needed that none of the named helpers cover, call `formatDate(value, "<date-fns tokens>")` with a custom token string rather than reaching for `toLocaleDateString` — that keeps parsing centralized even when the display format is one-off.
+
 ---
 
 ## CI / Quality
 
-### 26. Don't merge a PR with red CI
+### 28. Don't merge a PR with red CI
 
 Two required jobs in `.github/workflows/ci.yml`: `web` (lint + tsc + Vitest + build) and `api` (ruff + mypy + pytest + Alembic-upgrade-from-scratch + OpenAPI/TS drift check). Both must be green. The Playwright E2E job exists but is currently disabled (`if: false`) — not a merge gate until it's re-ported to the current auth/API stack. The Railway deploy is gated on the two enabled jobs.
 
 If a test fails for unrelated reasons, fix it in the PR — don't skip / mark `.skip` and "deal with it later".
 
-### 27. Don't commit secrets
+### 29. Don't commit secrets
 
 `.env.local` (web) and `.env` (api) are gitignored. Supabase service-role keys, SMTP passwords, Inngest signing keys, Sentry/Logfire tokens — all go in `.env.local`/`.env` (dev) or the Railway env (prod). Never in tracked files.
 
 Quick check before commit: `git check-ignore apps/web/.env.local apps/api/.env` should print both filenames.
 
-### 28. Direct commits to main only for emergency fixes
+### 30. Direct commits to main only for emergency fixes
 
 Doc-only changes and emergency rollbacks/CI-fixes can land on `main` directly. Everything else goes through a PR with at least the user's review (or AI's structured walk-through). CI is the safety net, but PRs are the design review.
 
