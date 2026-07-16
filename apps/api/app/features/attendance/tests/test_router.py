@@ -108,6 +108,37 @@ async def test_upsert_rejects_student_not_in_class(
     assert res.status_code == 400  # ValidationError → 400
 
 
+async def test_upsert_rejects_teacher_who_does_not_teach_class(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_students: tuple[Student, Student],
+    seed_staff: Staff,
+) -> None:
+    other_teacher_id = "99999999-9999-4999-8999-999999999302"
+    res = await client.post(
+        "/attendance/sessions",
+        json=_payload(),
+        headers=auth_header(role="Teacher", linked_id=other_teacher_id),
+    )
+    assert res.status_code == 403
+
+
+async def test_upsert_rejects_parent(
+    client: AsyncClient,
+    seed_school: School,
+    seed_class: Class,
+    seed_students: tuple[Student, Student],
+    seed_staff: Staff,
+) -> None:
+    res = await client.post(
+        "/attendance/sessions",
+        json=_payload(),
+        headers=auth_header(role="Parent"),
+    )
+    assert res.status_code == 403
+
+
 async def test_upsert_rejects_unknown_class(
     client: AsyncClient,
     seed_school: School,

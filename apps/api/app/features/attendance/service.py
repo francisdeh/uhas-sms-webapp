@@ -34,6 +34,7 @@ from app.features.attendance.schema import (
 )
 from app.features.classes.model import Class, ClassSubject, ClassTeacher
 from app.features.classes.repository import ClassesRepository
+from app.features.classes.service import ClassesService
 from app.features.enrollments.constants import ACTIVE as ACTIVE_ENROLLMENT
 from app.features.enrollments.model import Enrollment
 from app.features.notifications.constants import ATTENDANCE_ABSENT
@@ -192,14 +193,22 @@ class AttendanceService:
         school_id: UUID | str,
         payload: AttendanceSessionUpsertRequest,
         *,
+        user: CurrentUser,
         actor_staff_id: UUID | str | None,
         academic_year: str,
     ) -> AttendanceSession:
         """Create or update the session for `(class_id, date)` + replace
-        its records with `payload.records`."""
+        its records with `payload.records`.
+
+        Role gate: Admin any class; DeputyHead only their own division;
+        Teacher only classes they class-teach or subject-teach; Parent/
+        Accountant always forbidden — see
+        `ClassesService.assert_can_access_class`.
+        """
         cls = await ClassesRepository.get_by_id(session, school_id, payload.class_id)
         if not cls:
             raise ValidationError("Class not found in this school.")
+        await ClassesService.assert_can_access_class(session, school_id, user, cls)
 
         # Validate every studentId is actually enrolled — prevents typos +
         # cross-school leakage via a fabricated UUID.

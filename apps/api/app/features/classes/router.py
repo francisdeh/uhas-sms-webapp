@@ -175,8 +175,9 @@ async def list_class_subjects(
     class_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
 ) -> ClassSubjectsListResponse:
-    rows = await ClassSubjectsService.list_for_class(session, school_id, class_id)
+    rows = await ClassSubjectsService.list_for_class(session, school_id, class_id, user)
     return ClassSubjectsListResponse(
         items=[_to_class_subject_read(cs, s, t) for (cs, s, t) in rows]
     )
@@ -254,8 +255,9 @@ async def list_class_teachers(
     class_id: UUID,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
+    user: CurrentUserDep,
 ) -> ClassTeachersListResponse:
-    rows = await ClassTeachersService.list_for_class(session, school_id, class_id)
+    rows = await ClassTeachersService.list_for_class(session, school_id, class_id, user)
     return ClassTeachersListResponse(items=[_to_class_teacher_read(ct, s) for (ct, s) in rows])
 
 

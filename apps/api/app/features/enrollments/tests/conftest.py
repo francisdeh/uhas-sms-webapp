@@ -127,12 +127,15 @@ def mint_jwt(
     role: str = "Admin",
     school_id: UUID | str | None = SCHOOL_UUID,
     user_id: UUID | str = USER_UUID,
+    linked_id: UUID | str | None = None,
     expires_in: int = 3600,
 ) -> str:
     now = int(time.time())
     app_metadata: dict[str, Any] = {"role": role}
     if school_id is not None:
         app_metadata["school_id"] = str(school_id)
+    if linked_id is not None:
+        app_metadata["linked_id"] = str(linked_id)
     return jwt.encode(
         {
             "sub": str(user_id),

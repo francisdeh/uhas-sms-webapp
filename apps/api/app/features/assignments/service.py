@@ -31,7 +31,7 @@ from app.features.assignments.model import Assignment
 from app.features.assignments.repository import AssignmentsRepository
 from app.features.assignments.schema import AssignmentCreate, AssignmentUpdate
 from app.features.classes.model import Class
-from app.features.classes.repository import ClassesRepository
+from app.features.classes.repository import ClassesRepository, ClassSubjectsRepository
 from app.features.notifications.constants import ASSIGNMENT_CREATED
 from app.features.notifications.service import NotificationsService, NotifyPayload
 from app.features.schools.repository import SchoolsRepository
@@ -45,6 +45,23 @@ logger = logging.getLogger(__name__)
 
 def _now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+async def _assert_teaches_subject(
+    session: AsyncSession,
+    *,
+    teacher_id: UUID | str,
+    class_id: UUID | str,
+    subject_id: UUID | str,
+) -> None:
+    """An assignment is homework for one specific (class, subject) pair
+    — the acting teacher must be the `class_subjects.teacher_id` for
+    that exact pair, not merely someone connected to the class."""
+    cs = await ClassSubjectsRepository.get(session, class_id, subject_id)
+    if not cs or str(cs.teacher_id) != str(teacher_id):
+        raise ForbiddenError(
+            "You can only create or edit assignments for a class and subject you teach."
+        )
 
 
 async def _notify_assignment_created(
@@ -217,6 +234,12 @@ class AssignmentsService:
         subject = await SubjectsRepository.get_by_id(session, school_id, payload.subject_id)
         if not subject:
             raise ValidationError("Subject not found in this school.")
+        await _assert_teaches_subject(
+            session,
+            teacher_id=teacher_id,
+            class_id=payload.class_id,
+            subject_id=payload.subject_id,
+        )
 
         row = Assignment(
             school_id=school_id,
@@ -253,6 +276,23 @@ class AssignmentsService:
             cls = await ClassesRepository.get_by_id(session, school_id, patch["class_id"])
             if not cls:
                 raise ValidationError("Class not found in this school.")
+        # Same guard for subject_id — without this, a patched subject_id
+        # from a different school could pass through unvalidated (the
+        # join that renders it back has no school_id filter of its own).
+        if "subject_id" in patch and patch["subject_id"] is not None:
+            subject = await SubjectsRepository.get_by_id(session, school_id, patch["subject_id"])
+            if not subject:
+                raise ValidationError("Subject not found in this school.")
+        # Re-check ownership against the resolved (possibly just-patched)
+        # class/subject pair — the teacher who owns the assignment might
+        # not teach the NEW class/subject they're retargeting it to.
+        if "class_id" in patch or "subject_id" in patch:
+            await _assert_teaches_subject(
+                session,
+                teacher_id=actor_staff_id,
+                class_id=patch.get("class_id", row.class_id),
+                subject_id=patch.get("subject_id", row.subject_id),
+            )
         for field, value in patch.items():
             setattr(row, field, value)
         row.updated_at = _now()
