@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from httpx import AsyncClient
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.audit.model import AuditLog
 from app.features.classes.model import Class
 from app.features.lesson_plans.tests.conftest import (
     ADMIN_UUID,
@@ -260,6 +263,42 @@ async def test_unit_head_can_advance_to_unit_head_approved(
     assert res.status_code == 200
     assert res.json()["status"] == "unit_head_approved"
     assert res.json()["reviewedById"] == str(UNIT_HEAD_UUID)
+
+
+async def test_review_writes_audit_log(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_school: School,
+    seed_class: Class,
+    seed_subject: Subject,
+    seed_staff: tuple[Staff, Staff, Staff, Staff, Staff],
+) -> None:
+    _ = (seed_school, seed_class, seed_subject, seed_staff)
+    plan_id = await _create_plan(client)
+    await client.post(f"/lesson-plans/{plan_id}/submit", headers=auth_header(role="Teacher"))
+    await client.post(
+        f"/lesson-plans/{plan_id}/review",
+        json={"decision": "unit_head_approved", "comment": "Looks great."},
+        headers=auth_header(role="Teacher", linked_id=str(UNIT_HEAD_UUID)),
+    )
+
+    rows = (
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    and_(
+                        AuditLog.action == "LESSON_PLAN_REVIEWED",
+                        AuditLog.target_id == plan_id,
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].before == {"status": "submitted"}
+    assert rows[0].after == {"status": "unit_head_approved", "comment": "Looks great."}
 
 
 async def test_non_unit_head_teacher_cannot_advance(

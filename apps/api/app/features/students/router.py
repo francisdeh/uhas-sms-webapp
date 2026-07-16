@@ -167,7 +167,7 @@ async def update_student_guardian(
     user: RequireAdmin,
 ) -> list[StudentGuardianRead]:
     rows = await StudentsService.update_guardian_link(
-        session, school_id, student_id, guardian_id, payload
+        session, school_id, student_id, guardian_id, payload, actor_user_id=user.user_id
     )
     return [_guardian_to_read(g, rel, primary, has_login) for g, rel, primary, has_login in rows]
 
@@ -342,7 +342,9 @@ async def activate_student(
     session: Annotated[AsyncSession, Depends(get_session)],
     user: RequireAdmin,
 ) -> StudentRead:
-    student, cls = await StudentsService.set_active(session, school_id, student_id, active=True)
+    student, cls = await StudentsService.set_active(
+        session, school_id, student_id, active=True, actor_user_id=user.user_id
+    )
     return _to_read(student, cls)
 
 
@@ -353,5 +355,7 @@ async def deactivate_student(
     session: Annotated[AsyncSession, Depends(get_session)],
     user: RequireAdmin,
 ) -> StudentRead:
-    student, cls = await StudentsService.set_active(session, school_id, student_id, active=False)
+    student, cls = await StudentsService.set_active(
+        session, school_id, student_id, active=False, actor_user_id=user.user_id
+    )
     return _to_read(student, cls)

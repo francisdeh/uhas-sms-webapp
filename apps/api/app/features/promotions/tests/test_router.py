@@ -738,6 +738,7 @@ async def test_deputy_wrong_division_cannot_approve(
 
 async def test_deputy_matching_division_can_send_back(
     client: AsyncClient,
+    db_session: AsyncSession,
     seed_school: School,
     seed_classes: dict[str, Class],
     seed_subjects: list[Subject],
@@ -772,6 +773,16 @@ async def test_deputy_matching_division_can_send_back(
     assert len(comments) == 1
     assert comments[0]["body"] == "Please re-check student1"
     assert comments[0]["authorId"] == str(DEPUTY_JHS_UUID)
+
+    audits = await db_session.execute(
+        select(AuditLog).where(
+            AuditLog.school_id == SCHOOL_UUID,
+            AuditLog.action == "PROMOTION_SENT_BACK",
+            AuditLog.target_id == submission_id,
+        )
+    )
+    audit_row = audits.scalar_one()
+    assert audit_row.after == {"comment": "Please re-check student1"}
 
 
 async def test_send_back_requires_comment(

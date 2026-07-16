@@ -81,10 +81,12 @@ async def update_user(
     payload: UserUpdate,
     school_id: CurrentSchoolIdDep,
     session: Annotated[AsyncSession, Depends(get_session)],
-    _admin: RequireAdmin,
+    admin: RequireAdmin,
     supabase: _SupabaseDep,
 ) -> UserRead:
-    return await UsersService.update(session, school_id, user_id, payload, supabase=supabase)
+    return await UsersService.update(
+        session, school_id, user_id, payload, supabase=supabase, actor_user_id=admin.user_id
+    )
 
 
 @router.post(

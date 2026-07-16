@@ -18,6 +18,14 @@ from app.core.errors import ConflictError, ForbiddenError, NotFoundError, Valida
 from app.core.roles import PARENT
 from app.core.school_structure import DIVISIONS
 from app.core.security import CurrentUser
+from app.features.audit.actions import (
+    FEE_ITEM_UPDATED,
+    FEE_PAYMENT_RECORDED,
+    LEARNER_FEE_EXCLUDED,
+    LEARNER_FEE_UPDATED,
+    LEARNER_FEE_WAIVED,
+)
+from app.features.audit.service import write_audit_log
 from app.features.classes.repository import ClassesRepository
 from app.features.fees.constants import (
     OUTSTANDING,
@@ -113,12 +121,31 @@ class FeesService:
         school_id: UUID | str,
         fee_item_id: UUID | str,
         payload: FeeItemUpdate,
+        *,
+        actor_user_id: UUID | str,
     ) -> FeeItem:
         item = await FeesService.get_fee_item(session, school_id, fee_item_id)
+        before_snapshot: dict[str, object | None] = {}
+        after_snapshot: dict[str, object | None] = {}
         for field, value in payload.model_dump(exclude_unset=True).items():
-            setattr(item, field, value)
+            old_value = getattr(item, field)
+            if old_value != value:
+                before_snapshot[field] = old_value
+                after_snapshot[field] = value
+                setattr(item, field, value)
         item.updated_at = _now()
         await session.flush()
+        if before_snapshot:
+            await write_audit_log(
+                session,
+                school_id=school_id,
+                user_id=actor_user_id,
+                action=FEE_ITEM_UPDATED,
+                target_table="fee_items",
+                target_id=item.id,
+                before=before_snapshot,
+                after=after_snapshot,
+            )
         return item
 
     # ── assignment ───────────────────────────────────────────────────────
@@ -202,42 +229,90 @@ class FeesService:
         school_id: UUID | str,
         learner_fee_id: UUID | str,
         payload: LearnerFeeUpdate,
+        *,
+        actor_user_id: UUID | str,
     ) -> tuple[LearnerFee, Student, FeeItem]:
         row, student, item = await FeesService.get_learner_fee(session, school_id, learner_fee_id)
         if row.status == WAIVED:
             raise ConflictError("Cannot edit a waived fee.")
 
         changes = payload.model_dump(exclude_unset=True)
-        if "amount_minor" in changes:
+        before_snapshot: dict[str, object | None] = {}
+        after_snapshot: dict[str, object | None] = {}
+        if "amount_minor" in changes and changes["amount_minor"] != row.amount_minor:
+            before_snapshot["amountMinor"] = row.amount_minor
+            after_snapshot["amountMinor"] = changes["amount_minor"]
             paid_so_far = await FeesRepository.sum_paid_for_learner_fee(session, row.id)
             row.amount_minor = changes["amount_minor"]
             _recompute_balance_and_status(row, paid_so_far)
-        if "due_date" in changes:
+        if "due_date" in changes and changes["due_date"] != row.due_date:
+            before_snapshot["dueDate"] = str(row.due_date) if row.due_date else None
+            after_snapshot["dueDate"] = str(changes["due_date"]) if changes["due_date"] else None
             row.due_date = changes["due_date"]
         row.updated_at = _now()
         await session.flush()
+        if before_snapshot:
+            await write_audit_log(
+                session,
+                school_id=school_id,
+                user_id=actor_user_id,
+                action=LEARNER_FEE_UPDATED,
+                target_table="learner_fees",
+                target_id=row.id,
+                before=before_snapshot,
+                after=after_snapshot,
+            )
         return row, student, item
 
     @staticmethod
     async def waive_learner_fee(
-        session: AsyncSession, school_id: UUID | str, learner_fee_id: UUID | str
+        session: AsyncSession,
+        school_id: UUID | str,
+        learner_fee_id: UUID | str,
+        *,
+        actor_user_id: UUID | str,
     ) -> tuple[LearnerFee, Student, FeeItem]:
         row, student, item = await FeesService.get_learner_fee(session, school_id, learner_fee_id)
+        before_balance = row.balance_minor
         row.status = WAIVED
         row.balance_minor = 0
         row.updated_at = _now()
         await session.flush()
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=LEARNER_FEE_WAIVED,
+            target_table="learner_fees",
+            target_id=row.id,
+            before={"balanceMinor": before_balance},
+            after={"balanceMinor": 0},
+        )
         return row, student, item
 
     @staticmethod
     async def exclude_learner_fee(
-        session: AsyncSession, school_id: UUID | str, learner_fee_id: UUID | str
+        session: AsyncSession,
+        school_id: UUID | str,
+        learner_fee_id: UUID | str,
+        *,
+        actor_user_id: UUID | str,
     ) -> None:
         row, _student, _item = await FeesService.get_learner_fee(session, school_id, learner_fee_id)
         paid_so_far = await FeesRepository.sum_paid_for_learner_fee(session, row.id)
         if paid_so_far > 0:
             raise ConflictError("Cannot exclude a learner fee that already has payments recorded.")
         await FeesRepository.soft_delete_learner_fee(session, row, when=_now())
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=LEARNER_FEE_EXCLUDED,
+            target_table="learner_fees",
+            target_id=row.id,
+            before={"amountMinor": row.amount_minor},
+            after=None,
+        )
 
     # ── fee_payments ─────────────────────────────────────────────────────
 
@@ -249,6 +324,7 @@ class FeesService:
         payload: FeePaymentCreate,
         *,
         actor_staff_id: UUID | str,
+        actor_user_id: UUID | str,
     ) -> tuple[LearnerFee, Student, FeeItem, list[tuple[FeePayment, Staff]]]:
         row, student, item = await FeesService.get_learner_fee(session, school_id, learner_fee_id)
         if row.status == WAIVED:
@@ -273,6 +349,19 @@ class FeesService:
         _recompute_balance_and_status(row, paid_so_far + payload.amount_minor)
         row.updated_at = _now()
         await session.flush()
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=FEE_PAYMENT_RECORDED,
+            target_table="learner_fees",
+            target_id=row.id,
+            after={
+                "amountMinor": payload.amount_minor,
+                "method": payload.method,
+                "reference": payload.reference,
+            },
+        )
 
         payments = await FeesRepository.list_payments_for_learner_fee(session, row.id)
         return row, student, item, payments

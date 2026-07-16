@@ -23,7 +23,14 @@ from app.core.errors import ConflictError, ForbiddenError, NotFoundError, Valida
 from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT, TEACHER
 from app.core.security import CurrentUser
 from app.core.slug import insert_with_sequential_slug
-from app.features.audit.actions import GUARDIAN_LINKED, GUARDIAN_UNLINKED, STUDENT_EDIT
+from app.features.audit.actions import (
+    GUARDIAN_LINK_UPDATED,
+    GUARDIAN_LINKED,
+    GUARDIAN_UNLINKED,
+    STUDENT_DEACTIVATED,
+    STUDENT_EDIT,
+    STUDENT_REACTIVATED,
+)
 from app.features.audit.service import write_audit_log
 from app.features.classes.model import Class, ClassSubject, ClassTeacher
 from app.features.enrollments.constants import ACTIVE
@@ -373,11 +380,14 @@ class StudentsService:
         student_id: UUID | str,
         guardian_id: UUID | str,
         payload: StudentGuardianUpdateRequest,
+        *,
+        actor_user_id: UUID | str,
     ) -> list[tuple[Guardian, str | None, bool, bool]]:
         await StudentsService.get(session, school_id, student_id)  # 404 if missing
         link = await StudentsRepository.get_link(session, student_id, guardian_id)
         if link is None:
             raise NotFoundError("This guardian is not linked to the student.")
+        before = {"relation": link.relation, "isPrimary": link.is_primary}
         if payload.relation is not None:
             link.relation = payload.relation
         if payload.is_primary is not None:
@@ -388,6 +398,18 @@ class StudentsService:
                 session, student_id, except_guardian_id=guardian_id
             )
             await session.flush()
+        after = {"relation": link.relation, "isPrimary": link.is_primary}
+        if before != after:
+            await write_audit_log(
+                session,
+                school_id=school_id,
+                user_id=actor_user_id,
+                action=GUARDIAN_LINK_UPDATED,
+                target_table="student_guardians",
+                target_id=student_id,
+                before=before,
+                after=after,
+            )
         return await StudentsRepository.list_guardians(session, school_id, student_id)
 
     @staticmethod
@@ -443,12 +465,23 @@ class StudentsService:
         student_id: UUID | str,
         *,
         active: bool,
+        actor_user_id: UUID | str,
     ) -> tuple[Student, Class | None]:
         student, cls = await StudentsService.get(session, school_id, student_id)
         if student.is_active == active:
             raise ConflictError(f"Student is already {'active' if active else 'inactive'}.")
         student.is_active = active
         await session.flush()
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=STUDENT_REACTIVATED if active else STUDENT_DEACTIVATED,
+            target_table="students",
+            target_id=student.id,
+            before={"isActive": not active},
+            after={"isActive": active},
+        )
         return student, cls
 
     # ── medical info (Phase 6 item 1) ───────────────────────────────────

@@ -12,6 +12,7 @@ and let services compose the invariants.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -21,7 +22,15 @@ from app.core.errors import ConflictError, ForbiddenError, NotFoundError, Valida
 from app.core.roles import ACCOUNTANT, ADMIN, DEPUTY_HEAD, TEACHER
 from app.core.security import CurrentUser
 from app.core.slug import insert_with_sequential_slug, per_school_slug_resolver
-from app.features.audit.actions import ROLE_CHANGE, USER_DEACTIVATED, USER_REACTIVATED
+from app.features.audit.actions import (
+    ROLE_CHANGE,
+    STAFF_DEACTIVATED,
+    STAFF_EDIT,
+    STAFF_REACTIVATED,
+    UNIT_HEAD_TOGGLED,
+    USER_DEACTIVATED,
+    USER_REACTIVATED,
+)
 from app.features.audit.service import write_audit_log
 from app.features.notifications.service import NotificationsService
 from app.features.staff.model import Staff, StaffDocument, StaffQualification
@@ -135,9 +144,32 @@ class StaffService:
 
         row = await StaffService.get(session, school_id, staff_id)
         changes = payload.model_dump(exclude_unset=True)
+        before_snapshot: dict[str, object | None] = {}
+        after_snapshot: dict[str, object | None] = {}
         for field, value in changes.items():
-            setattr(row, field, value)
+            old_value = getattr(row, field)
+            if old_value != value:
+                before_snapshot[field] = (
+                    old_value.isoformat() if isinstance(old_value, date) else old_value
+                )
+                after_snapshot[field] = value.isoformat() if isinstance(value, date) else value
+                setattr(row, field, value)
         await session.flush()
+
+        # Only Admin-driven edits are audited — the self-service photo
+        # path (any staff member setting their own avatar) is routine
+        # and not the "sensitive mutation" this trail is for.
+        if before_snapshot and user.role == ADMIN:
+            await write_audit_log(
+                session,
+                school_id=school_id,
+                user_id=user.user_id,
+                action=STAFF_EDIT,
+                target_table="staff",
+                target_id=row.id,
+                before=before_snapshot,
+                after=after_snapshot,
+            )
 
         new_phone = changes.get("phone")
         new_email = changes.get("email")
@@ -238,6 +270,8 @@ class StaffService:
         school_id: UUID | str,
         staff_id: UUID | str,
         payload: StaffUnitHeadToggle,
+        *,
+        actor_user_id: UUID | str,
     ) -> Staff:
         """Set/clear the unit-head flag. Only Teachers can be Unit Heads."""
         row = await StaffService.get(session, school_id, staff_id)
@@ -245,9 +279,20 @@ class StaffService:
             raise ValidationError("Only teachers can be Unit Heads.")
         if payload.is_unit_head and not payload.unit_head_of:
             raise ValidationError("Pick which unit this staff heads.")
+        before = {"isUnitHead": row.is_unit_head, "unitHeadOf": row.unit_head_of}
         row.is_unit_head = payload.is_unit_head
         row.unit_head_of = payload.unit_head_of if payload.is_unit_head else None
         await session.flush()
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=UNIT_HEAD_TOGGLED,
+            target_table="staff",
+            target_id=row.id,
+            before=before,
+            after={"isUnitHead": row.is_unit_head, "unitHeadOf": row.unit_head_of},
+        )
         return row
 
     @staticmethod
@@ -275,6 +320,16 @@ class StaffService:
             raise ConflictError(f"Staff member is already {'active' if active else 'inactive'}.")
         row.is_active = active
         await session.flush()
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=STAFF_REACTIVATED if active else STAFF_DEACTIVATED,
+            target_table="staff",
+            target_id=row.id,
+            before={"isActive": not active},
+            after={"isActive": active},
+        )
 
         linked_user = await NotificationsService.find_user_for_linked(session, school_id, staff_id)
         if linked_user is not None:

@@ -2,6 +2,21 @@
 
 Full development history for the UHAS SMS project, newest first. `README.md`'s Development Phases table is a slim index into this file — this is the canonical place for detailed "what shipped and why" narrative.
 
+## 16-domain correctness audit — Tier 4 audit-log gaps — ✅ Done
+
+Fifth fix batch from the 16-domain correctness audit, closing Tier 4 — sensitive mutations across 8 domains that never wrote an audit-log entry, found by a dedicated research pass matching every mutation service method against CLAUDE.md's stated policy ("audit-log sensitive mutations — score overrides, student edits, role changes, promotion approvals, settings updates").
+
+- **The entire Fees domain was unaudited** — `update_fee_item`, `update_learner_fee`, `waive_learner_fee`, `exclude_learner_fee`, and `record_payment` all mutate money with zero trail. `waive_learner_fee` zeroing a balance with no record of who did it was the single highest-value gap in the whole audit. Fixed with 5 new audit actions (`FEE_ITEM_UPDATED`, `LEARNER_FEE_UPDATED`, `LEARNER_FEE_WAIVED`, `LEARNER_FEE_EXCLUDED`, `FEE_PAYMENT_RECORDED`).
+- **Promotions' `send_back` was the one sibling of `approve` that didn't log anything** — same review authority, same decision weight, only one branch of the same workflow was audited. New `PROMOTION_SENT_BACK` action closes the asymmetry.
+- **Students' `update_guardian_link` was the "3 of 4" gap** — `add_guardian`/`remove_guardian` both logged (`GUARDIAN_LINKED`/`GUARDIAN_UNLINKED`), but editing a link's relation/primary flag in place — the same shape of bug as Tier 1/3's pattern-break bugs — silently fell through. New `GUARDIAN_LINK_UPDATED` action.
+- **Staff/Student activation, Unit Head grants, and profile edits** — `StaffService.update` (Admin-driven phone/email/rank edits, syncing straight to Supabase Auth with no OTP challenge) and `toggle_unit_head` (review authority, same weight class as a role change) were both unaudited; `set_active` on both Staff and Students only cascaded an audit row through a *linked* user record, so deactivating a staff member with no login yet left zero trail of the actual `staff.is_active` flip. New actions: `STAFF_EDIT`, `STAFF_DEACTIVATED`/`STAFF_REACTIVATED`, `UNIT_HEAD_TOGGLED`, `STUDENT_DEACTIVATED`/`STUDENT_REACTIVATED`.
+- **Lesson plan reviews, Users/Guardians edits, and Enrollment transfers/status changes** — `LessonPlansService.review` (the approve/reject decision itself, explicitly named in CLAUDE.md's policy) was unaudited; `UsersService.update`/`GuardiansService.update` (both push straight to Supabase Auth, same shape as the Staff gap) had no trail; `EnrollmentsService.transfer_student`/`change_status` (the atomic endpoints built in Tier 3) never got audit coverage when they were created. New actions: `LESSON_PLAN_REVIEWED`, `USER_EDIT`, `GUARDIAN_EDIT`, `ENROLLMENT_TRANSFERRED`, `ENROLLMENT_STATUS_CHANGED`.
+- 17 new constants added to the closed `AuditAction` Literal enum on both `apps/api/app/features/audit/actions.py` and `apps/web/src/features/audit-log/types.ts`, each with a label and pill colour for the admin Audit Log page's filter dropdown.
+
+Backend: `ruff check`/`ruff format --check`/`mypy`/`alembic upgrade head`/`pytest` all clean (1016 passed, up from 1002 — 14 new tests, one per audited method plus a negative test confirming the Staff self-service photo path deliberately stays unaudited). Frontend: `lint`/`tsc --noEmit`/`vitest`/`build` all clean; `api.d.ts` regenerated and confirmed in sync (the `AuditAction` enum is part of the OpenAPI schema via the audit-log response model, so this PR's action-constant additions did require a real regen, unlike Tier 3). Manually verified end-to-end in the browser: edited a staff member's phone number, confirmed the new "Staff edit" entry appears in the Admin Audit Log with the correct label and a correct before/after JSON diff, then reverted the edit.
+
+Remaining tier from the same audit (Tier 5 — UX/data-quality polish) is tracked for a follow-up PR.
+
 ## 16-domain correctness audit — Tier 3 atomic mutations — ✅ Done
 
 Fourth fix batch from the 16-domain correctness audit, closing Tier 3 — non-atomic multi-step mutations that were orchestrated as sequential independent API calls from the frontend instead of one backend transaction, so a failure partway through could leave a record in a broken half-state.

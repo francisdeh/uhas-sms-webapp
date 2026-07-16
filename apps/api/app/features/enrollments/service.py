@@ -22,6 +22,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.core.roles import ADMIN, DEPUTY_HEAD, PARENT, TEACHER
 from app.core.security import CurrentUser
+from app.features.audit.actions import ENROLLMENT_STATUS_CHANGED, ENROLLMENT_TRANSFERRED
+from app.features.audit.service import write_audit_log
 from app.features.classes.model import Class, ClassSubject, ClassTeacher
 from app.features.classes.repository import ClassesRepository
 from app.features.classes.service import ClassesService
@@ -231,6 +233,8 @@ class EnrollmentsService:
         school_id: UUID | str,
         student_id: UUID | str,
         new_class_id: UUID | str,
+        *,
+        actor_user_id: UUID | str,
     ) -> tuple[Enrollment, Class, Student]:
         """Move a student to a different class within the same academic
         year — closes their current Active enrollment (if any) and opens
@@ -254,9 +258,11 @@ class EnrollmentsService:
         current = await EnrollmentsRepository.get_active_for_student(
             session, school_id, student_id, year
         )
+        before_class_id = None
         if current is not None:
             if str(current.class_id) == str(new_class_id):
                 raise ConflictError("Student is already enrolled in this class.")
+            before_class_id = current.class_id
             current.status = WITHDRAWN
 
         enrollment = Enrollment(
@@ -268,6 +274,16 @@ class EnrollmentsService:
         )
         session.add(enrollment)
         await session.flush()
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=ENROLLMENT_TRANSFERRED,
+            target_table="enrollments",
+            target_id=student_id,
+            before={"classId": str(before_class_id) if before_class_id else None},
+            after={"classId": str(new_class_id)},
+        )
         return enrollment, cls, student
 
     @staticmethod
@@ -276,10 +292,23 @@ class EnrollmentsService:
         school_id: UUID | str,
         enrollment_id: UUID | str,
         payload: EnrollmentStatusUpdate,
+        *,
+        actor_user_id: UUID | str,
     ) -> tuple[Enrollment, Class, Student]:
         enrollment, cls, student = await EnrollmentsService.get(session, school_id, enrollment_id)
         if enrollment.status == payload.status:
             raise ConflictError(f"Enrollment already has status {payload.status!r}.")
+        before_status = enrollment.status
         enrollment.status = payload.status
         await session.flush()
+        await write_audit_log(
+            session,
+            school_id=school_id,
+            user_id=actor_user_id,
+            action=ENROLLMENT_STATUS_CHANGED,
+            target_table="enrollments",
+            target_id=enrollment.id,
+            before={"status": before_status},
+            after={"status": payload.status},
+        )
         return enrollment, cls, student
