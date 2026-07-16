@@ -57,6 +57,8 @@ export type SessionUser = {
   smsOnPromotionActivity: boolean;
   emailOnPromotionDecided: boolean;
   smsOnPromotionDecided: boolean;
+  emailOnAnnouncementPosted: boolean;
+  smsOnAnnouncementPosted: boolean;
 };
 
 export const ROLE_DASHBOARD: Record<UserRole, string> = {

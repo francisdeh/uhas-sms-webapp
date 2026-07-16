@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.notifications.audience import (
     AllAdminsAudience,
     AllParentsAudience,
+    AllStaffAudience,
     AllTeachersAudience,
     ParentsInDivisionAudience,
     ParentsOfClassAudience,
@@ -161,6 +162,16 @@ async def test_all_admins(db_session: AsyncSession, seed_full: dict[str, object]
         db_session, SCHOOL_UUID, AllAdminsAudience(), academic_year=YEAR
     )
     assert result == [ADMIN_USER]
+
+
+async def test_all_staff(db_session: AsyncSession, seed_full: dict[str, object]) -> None:
+    _ = seed_full
+    result = await resolve_audience(db_session, SCHOOL_UUID, AllStaffAudience(), academic_year=YEAR)
+    # Every non-Parent role, active only — Admin, DeputyHead, Teacher x2
+    # (unit head + teacher). Inactive Teacher and the Parent are dropped.
+    assert set(result) == {ADMIN_USER, DEPUTY_JHS_USER, UNIT_HEAD_USER, TEACHER_USER}
+    assert PARENT_USER not in result
+    assert INACTIVE_USER not in result
 
 
 async def test_parents_of_students(db_session: AsyncSession, seed_full: dict[str, object]) -> None:

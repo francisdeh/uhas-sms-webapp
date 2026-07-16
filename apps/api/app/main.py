@@ -23,6 +23,7 @@ from app.core.errors import AppError
 from app.core.inngest import inngest_client
 from app.core.observability import init_observability, instrument_app
 from app.core.rate_limit import limiter
+from app.features.announcements.jobs import ANNOUNCEMENTS_JOBS
 from app.features.announcements.router import router as announcements_router
 from app.features.appointments.jobs import APPOINTMENTS_JOBS
 from app.features.appointments.router import router as appointments_router
@@ -214,6 +215,7 @@ def create_app() -> FastAPI:
             *PROMOTIONS_JOBS,
             *ASSIGNMENTS_JOBS,
             *SCHEMES_JOBS,
+            *ANNOUNCEMENTS_JOBS,
         ],
     )
 

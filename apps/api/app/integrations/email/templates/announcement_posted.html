@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ "⚠ " if is_critical }}{{ title }}{% endblock %}
+{% block content %}
+{% if is_critical %}
+<p style="margin:0 0 16px;padding:10px 14px;background-color:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991b1b;font-size:13px;font-weight:bold;">
+  ⚠ Critical announcement
+</p>
+{% endif %}
+<p style="margin:0 0 12px;color:#111827;font-size:16px;font-weight:bold;">{{ title }}</p>
+<p style="margin:0 0 20px;color:#111827;font-size:15px;line-height:1.6;white-space:pre-wrap;">{{ body }}</p>
+<p style="margin:0;">
+  <a href="{{ link }}" style="display:inline-block;background-color:#1B6B3E;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">View announcement</a>
+</p>
+{% endblock %}
