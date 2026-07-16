@@ -5123,6 +5123,16 @@ export interface components {
              * @default true
              */
             smsOnPromotionDecided: boolean;
+            /**
+             * Emailonannouncementposted
+             * @default true
+             */
+            emailOnAnnouncementPosted: boolean;
+            /**
+             * Smsonannouncementposted
+             * @default true
+             */
+            smsOnAnnouncementPosted: boolean;
         };
         /**
          * MeUpdate
@@ -5192,6 +5202,10 @@ export interface components {
             emailOnPromotionDecided?: boolean | null;
             /** Smsonpromotiondecided */
             smsOnPromotionDecided?: boolean | null;
+            /** Emailonannouncementposted */
+            emailOnAnnouncementPosted?: boolean | null;
+            /** Smsonannouncementposted */
+            smsOnAnnouncementPosted?: boolean | null;
         };
         /**
          * MfaResetResponse

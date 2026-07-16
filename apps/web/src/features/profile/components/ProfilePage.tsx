@@ -396,7 +396,9 @@ type PreferenceField =
   | "emailOnPromotionActivity"
   | "smsOnPromotionActivity"
   | "emailOnPromotionDecided"
-  | "smsOnPromotionDecided";
+  | "smsOnPromotionDecided"
+  | "emailOnAnnouncementPosted"
+  | "smsOnAnnouncementPosted";
 
 type PreferenceRowConfig = {
   field: PreferenceField;
@@ -460,6 +462,16 @@ const TEACHER_PREFERENCE_ROWS: PreferenceRowConfig[] = [
     label: "SMS — Your Promotion List",
     description: "Receive a text message when your own promotion list is sent back, approved, or still pending.",
   },
+  {
+    field: "emailOnAnnouncementPosted",
+    label: "Email — Announcements",
+    description: "Receive an email when a school, division, or class announcement is posted.",
+  },
+  {
+    field: "smsOnAnnouncementPosted",
+    label: "SMS — Announcements",
+    description: "Receive a text message when a school, division, or class announcement is posted.",
+  },
 ];
 
 const PARENT_PREFERENCE_ROWS: PreferenceRowConfig[] = [
@@ -498,6 +510,16 @@ const PARENT_PREFERENCE_ROWS: PreferenceRowConfig[] = [
     label: "SMS — New Assignments",
     description: "Receive a text message when a new assignment is posted for your child's class.",
   },
+  {
+    field: "emailOnAnnouncementPosted",
+    label: "Email — Announcements",
+    description: "Receive an email when a school, division, or class announcement is posted.",
+  },
+  {
+    field: "smsOnAnnouncementPosted",
+    label: "SMS — Announcements",
+    description: "Receive a text message when a school, division, or class announcement is posted.",
+  },
 ];
 
 // Shared by Admin and Deputy Head — both are leave AND promotion
@@ -534,6 +556,16 @@ const ADMIN_DEPUTY_PREFERENCE_ROWS: PreferenceRowConfig[] = [
     field: "smsOnPromotionActivity",
     label: "SMS — Promotion Lists Submitted",
     description: "Receive a text message when a class's promotion list is submitted for review.",
+  },
+  {
+    field: "emailOnAnnouncementPosted",
+    label: "Email — Announcements",
+    description: "Receive an email when a school, division, or class announcement is posted.",
+  },
+  {
+    field: "smsOnAnnouncementPosted",
+    label: "SMS — Announcements",
+    description: "Receive a text message when a school, division, or class announcement is posted.",
   },
 ];
 

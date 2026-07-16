@@ -97,6 +97,13 @@ class UserPreferences(Base):
     # Teacher-facing — their own list was sent back, approved, or a reminder to submit.
     email_on_promotion_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sms_on_promotion_decided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Shared by every role — an announcement can reach staff or parents
+    # depending on scope, so this is one toggle regardless of which
+    # role the recipient happens to be, not a role-specific pair.
+    email_on_announcement_posted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+    sms_on_announcement_posted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

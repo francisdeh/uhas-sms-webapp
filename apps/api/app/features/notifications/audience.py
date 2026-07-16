@@ -34,6 +34,8 @@ Kinds and their business meaning:
                                                   in the division
   * `AllParentsAudience()`                      — every user with
                                                   `role="Parent"`
+  * `AllStaffAudience()`                        — every user whose
+                                                  `role` isn't `"Parent"`
   * `SchoolWideAudience()`                      — every active user in
                                                   the school
 """
@@ -117,6 +119,11 @@ class AllParentsAudience:
 
 
 @dataclass(frozen=True)
+class AllStaffAudience:
+    pass
+
+
+@dataclass(frozen=True)
 class SchoolWideAudience:
     pass
 
@@ -133,6 +140,7 @@ AudienceSpec = (
     | ParentsOfClassAudience
     | ParentsInDivisionAudience
     | AllParentsAudience
+    | AllStaffAudience
     | SchoolWideAudience
 )
 
@@ -211,6 +219,10 @@ async def _resolve_candidate_ids(
 
         case AllParentsAudience():
             return await _user_ids_by_role(session, school_id, PARENT)
+
+        case AllStaffAudience():
+            stmt = select(User.id).where(and_(User.school_id == school_id, User.role != PARENT))
+            return list((await session.execute(stmt)).scalars())
 
         case SchoolWideAudience():
             stmt = select(User.id).where(User.school_id == school_id)

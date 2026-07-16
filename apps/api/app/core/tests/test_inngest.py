@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.core.inngest import inngest_client
+from app.features.announcements.jobs import ANNOUNCEMENTS_JOBS
 from app.features.appointments.jobs import APPOINTMENTS_JOBS
 from app.features.assignments.jobs import ASSIGNMENTS_JOBS
 from app.features.attendance.jobs import ATTENDANCE_JOBS
@@ -41,6 +42,7 @@ _ALL_JOBS = [
     *PROMOTIONS_JOBS,
     *ASSIGNMENTS_JOBS,
     *SCHEMES_JOBS,
+    *ANNOUNCEMENTS_JOBS,
 ]
 
 

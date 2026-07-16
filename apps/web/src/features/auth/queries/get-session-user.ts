@@ -55,6 +55,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       smsOnPromotionActivity: me.smsOnPromotionActivity,
       emailOnPromotionDecided: me.emailOnPromotionDecided,
       smsOnPromotionDecided: me.smsOnPromotionDecided,
+      emailOnAnnouncementPosted: me.emailOnAnnouncementPosted,
+      smsOnAnnouncementPosted: me.smsOnAnnouncementPosted,
     };
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {

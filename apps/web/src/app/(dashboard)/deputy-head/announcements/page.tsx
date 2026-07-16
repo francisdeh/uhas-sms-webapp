@@ -36,6 +36,10 @@ export default async function DeputyHeadAnnouncementsPage() {
 
   const audienceOptions: AudienceOption[] = [
     { value: divisionAudience(division), label: `Division — ${division}` },
+    {
+      value: divisionAudience(division, { staffOnly: true }),
+      label: `Division — ${division} (staff only)`,
+    },
   ];
 
   return (

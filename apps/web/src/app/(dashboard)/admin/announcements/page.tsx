@@ -5,7 +5,13 @@ import {
   AnnouncementsView,
   type AudienceOption,
 } from "@/features/announcements/components/AnnouncementsView";
-import { ALL_AUDIENCE, divisionAudience, classAudience, type Announcement } from "@/features/announcements/types";
+import {
+  ALL_AUDIENCE,
+  divisionAudience,
+  staffAllAudience,
+  classAudience,
+  type Announcement,
+} from "@/features/announcements/types";
 import { DIVISIONS } from "@/features/auth/types";
 
 export default async function AdminAnnouncementsPage() {
@@ -32,7 +38,12 @@ export default async function AdminAnnouncementsPage() {
 
   const audienceOptions: AudienceOption[] = [
     { value: ALL_AUDIENCE, label: "All school" },
+    { value: staffAllAudience(), label: "All school (staff only)" },
     ...DIVISIONS.map((d) => ({ value: divisionAudience(d), label: `Division — ${d}` })),
+    ...DIVISIONS.map((d) => ({
+      value: divisionAudience(d, { staffOnly: true }),
+      label: `Division — ${d} (staff only)`,
+    })),
     ...classes.map((c) => ({ value: classAudience(c.id), label: `Class — ${c.name}` })),
   ];
 
