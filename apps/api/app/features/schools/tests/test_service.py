@@ -18,7 +18,7 @@ from app.core.errors import NotFoundError, ValidationError
 from app.features.audit.model import AuditLog
 from app.features.classes.model import Class
 from app.features.classes.repository import ClassesRepository
-from app.features.promotions.model import PromotionSeason
+from app.features.promotions.model import PromotionSeason, PromotionSubmission
 from app.features.school_terms.model import SchoolTerm
 from app.features.school_terms.repository import SchoolTermsRepository
 from app.features.schools.model import School
@@ -251,6 +251,92 @@ async def test_activate_next_year_succeeds_when_no_season_ever_opened(
 ) -> None:
     """A school that never opened Promotions at all (no PromotionSeason
     row exists) is just as valid to activate as an explicitly closed one."""
+    updated = await SchoolsService.activate_next_year(db_session, SCHOOL_UUID, actor_user_id=ACTOR)
+    assert updated.academic_year == "2026/2027"
+
+
+async def test_activate_next_year_blocked_when_a_class_is_not_promoted(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    """Regression test: activating must refuse if even one class has no
+    approved promotion submission yet — this is exactly the scenario
+    that silently dropped 92/112 students' current enrolment in a live
+    incident before this guard existed."""
+    db_session.add(
+        PromotionSeason(school_id=SCHOOL_UUID, academic_year="2025/2026", status="closed")
+    )
+    db_session.add_all(
+        [
+            Class(
+                slug="class-jhs1",
+                school_id=SCHOOL_UUID,
+                name="JHS 1",
+                division="JHS",
+                academic_year="2025/2026",
+            ),
+            Class(
+                slug="class-jhs2",
+                school_id=SCHOOL_UUID,
+                name="JHS 2",
+                division="JHS",
+                academic_year="2025/2026",
+            ),
+        ]
+    )
+    await db_session.flush()
+    jhs1 = await ClassesRepository.find_by_slug(db_session, SCHOOL_UUID, "class-jhs1")
+    assert jhs1 is not None
+    # Only JHS 1 has been approved — JHS 2 was never even submitted.
+    db_session.add(
+        PromotionSubmission(
+            school_id=SCHOOL_UUID,
+            class_id=jhs1.id,
+            academic_year="2025/2026",
+            status="approved",
+        )
+    )
+    await db_session.flush()
+
+    try:
+        await SchoolsService.activate_next_year(db_session, SCHOOL_UUID, actor_user_id=ACTOR)
+    except ValidationError as exc:
+        assert "JHS 2" in exc.message
+        assert "1 of 2" in exc.message
+    else:
+        raise AssertionError("expected ValidationError")
+
+    refreshed = await SchoolsService.get(db_session, SCHOOL_UUID)
+    assert refreshed.academic_year == "2025/2026"
+
+
+async def test_activate_next_year_succeeds_when_every_class_is_approved(
+    db_session: AsyncSession, seed_school: School
+) -> None:
+    db_session.add(
+        PromotionSeason(school_id=SCHOOL_UUID, academic_year="2025/2026", status="closed")
+    )
+    db_session.add(
+        Class(
+            slug="class-jhs1",
+            school_id=SCHOOL_UUID,
+            name="JHS 1",
+            division="JHS",
+            academic_year="2025/2026",
+        )
+    )
+    await db_session.flush()
+    jhs1 = await ClassesRepository.find_by_slug(db_session, SCHOOL_UUID, "class-jhs1")
+    assert jhs1 is not None
+    db_session.add(
+        PromotionSubmission(
+            school_id=SCHOOL_UUID,
+            class_id=jhs1.id,
+            academic_year="2025/2026",
+            status="approved",
+        )
+    )
+    await db_session.flush()
+
     updated = await SchoolsService.activate_next_year(db_session, SCHOOL_UUID, actor_user_id=ACTOR)
     assert updated.academic_year == "2026/2027"
 

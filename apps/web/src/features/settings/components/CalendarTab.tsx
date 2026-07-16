@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, TriangleAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +16,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { api, ApiError } from "@/lib/api/browser";
 import { nextAcademicYear } from "@/features/promotions/lib/academic-year";
+import { usePromotionOverview } from "@/features/promotions/hooks/use-promotions";
 import type { SchoolSettings, SchoolTerm } from "@/features/settings/types";
 import { TERMS } from "@/features/exams/types";
 
@@ -200,8 +211,18 @@ function YearRolloverCard({ settings }: { settings: SchoolSettings }) {
   const router = useRouter();
   const [preparing, setPreparing] = useState(false);
   const [activating, setActivating] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const nextYear = nextAcademicYear(settings.academicYear);
   const nextYearPrepared = settings.terms.some((t) => t.academicYear === nextYear);
+  const { data: overview } = usePromotionOverview();
+
+  const classRows = overview?.items ?? [];
+  const totalClasses = classRows.length;
+  const unpromoted = classRows.filter((row) => row.submission?.status !== "approved");
+  // Only trust this as a real signal once we actually have promotions data
+  // to check — an empty/loading overview must never silently gate Activate.
+  const canCheckCompleteness = totalClasses > 0;
+  const allPromoted = !canCheckCompleteness || unpromoted.length === 0;
 
   async function onPrepare() {
     setPreparing(true);
@@ -221,6 +242,7 @@ function YearRolloverCard({ settings }: { settings: SchoolSettings }) {
   }
 
   async function onActivate() {
+    setConfirmOpen(false);
     setActivating(true);
     try {
       await api.school.activateNextYear();
@@ -247,16 +269,56 @@ function YearRolloverCard({ settings }: { settings: SchoolSettings }) {
           once every class&apos;s promotion decisions are approved.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col sm:flex-row gap-3">
-        <Button onClick={onPrepare} disabled={preparing} variant="outline">
-          {preparing && <Loader2 size={14} className="animate-spin mr-2" />}
-          Prepare {nextYear}
-        </Button>
-        <Button onClick={onActivate} disabled={activating || !nextYearPrepared} variant="brand">
-          {activating && <Loader2 size={14} className="animate-spin mr-2" />}
-          Activate {nextYear}
-        </Button>
+      <CardContent className="flex flex-col gap-3">
+        {canCheckCompleteness && (
+          <p
+            className={`text-sm flex items-center gap-1.5 ${
+              allPromoted ? "text-muted-foreground" : "text-destructive"
+            }`}
+          >
+            {!allPromoted && <TriangleAlert size={14} className="flex-shrink-0" />}
+            {totalClasses - unpromoted.length} of {totalClasses} classes promoted
+            {!allPromoted &&
+              ` — waiting on ${unpromoted.map((row) => row.className).join(", ")}`}
+          </p>
+        )}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button onClick={onPrepare} disabled={preparing} variant="outline">
+            {preparing && <Loader2 size={14} className="animate-spin mr-2" />}
+            Prepare {nextYear}
+          </Button>
+          <Button
+            onClick={() => setConfirmOpen(true)}
+            disabled={activating || !nextYearPrepared || !allPromoted}
+            variant="brand"
+          >
+            {activating && <Loader2 size={14} className="animate-spin mr-2" />}
+            Activate {nextYear}
+          </Button>
+        </div>
       </CardContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate {nextYear}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Every currently-enrolled student in {settings.academicYear} moves to whatever
+              enrollment Promotions already created for them for {nextYear}. This cannot be
+              undone — students in a class with no approved promotion would lose their current
+              enrollment everywhere in the app, which is why every class shows as promoted above
+              before this is enabled.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={activating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={onActivate} disabled={activating}>
+              {activating && <Loader2 size={14} className="animate-spin mr-1.5" />}
+              Activate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

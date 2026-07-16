@@ -16,7 +16,6 @@ from app.features.promotions.academic_year import next_academic_year
 from app.features.promotions.next_class import (
     ClassLike,
     auto_pick_target_class,
-    division_has_next_year_classes,
     next_level_name,
     same_level_name,
 )
@@ -78,15 +77,6 @@ class TestNextClassResolver:
             )
             is None
         )
-
-    def test_division_has_next_year_classes(self) -> None:
-        classes = [
-            ClassLike(id="a", name="JHS 1", division="JHS"),
-            ClassLike(id="b", name="KG 2", division="KG"),
-        ]
-        assert division_has_next_year_classes("JHS", classes) is True
-        assert division_has_next_year_classes("KG", classes) is True
-        assert division_has_next_year_classes("Lower Primary", classes) is False
 
 
 class TestSuggestion:

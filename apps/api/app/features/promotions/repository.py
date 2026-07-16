@@ -248,26 +248,6 @@ class PromotionsRepository:
         return list((await session.execute(stmt)).scalars())
 
     @staticmethod
-    async def next_year_classes_for_division(
-        session: AsyncSession,
-        school_id: UUID | str,
-        academic_year: str,
-        division: str,
-    ) -> list[Class]:
-        stmt = (
-            select(Class)
-            .where(
-                and_(
-                    Class.school_id == school_id,
-                    Class.academic_year == academic_year,
-                    Class.division == division,
-                )
-            )
-            .order_by(asc(Class.name))
-        )
-        return list((await session.execute(stmt)).scalars())
-
-    @staticmethod
     async def classes_for_school_year(
         session: AsyncSession, school_id: UUID | str, academic_year: str
     ) -> list[Class]:

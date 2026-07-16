@@ -30,6 +30,46 @@ class AppointmentsRepository:
     # ─── Read paths ────────────────────────────────────────────────────
 
     @staticmethod
+    async def _resolve_active_class_id(
+        session: AsyncSession, student_id: UUID | str, academic_year: str
+    ) -> UUID | None:
+        """Current-year active enrollment's class, or — during the gap
+        between a promotion being approved and the school year actually
+        being activated — the nearest future year's active enrollment's
+        class. Mirrors `StudentsRepository.list_for_guardian`'s
+        fallback, so a promoted-but-not-yet-activated student's
+        teacher/guardian views agree on which class is "current."
+        """
+        current = await session.execute(
+            select(Enrollment.class_id).where(
+                and_(
+                    Enrollment.student_id == student_id,
+                    Enrollment.academic_year == academic_year,
+                    Enrollment.status == ENROLLMENT_ACTIVE,
+                )
+            )
+        )
+        class_id = current.scalar_one_or_none()
+        if class_id is not None:
+            return class_id
+
+        # `academic_year` strings sort lexicographically the same as
+        # chronologically ("YYYY/YYYY", zero-padded), so `>` is safe.
+        fallback = await session.execute(
+            select(Enrollment.class_id)
+            .where(
+                and_(
+                    Enrollment.student_id == student_id,
+                    Enrollment.status == ENROLLMENT_ACTIVE,
+                    Enrollment.academic_year > academic_year,
+                )
+            )
+            .order_by(asc(Enrollment.academic_year))
+            .limit(1)
+        )
+        return fallback.scalar_one_or_none()
+
+    @staticmethod
     async def list_for_guardian(
         session: AsyncSession,
         school_id: UUID | str,
@@ -155,31 +195,24 @@ class AppointmentsRepository:
         academic_year: str,
     ) -> bool:
         """True if the teacher is either the class teacher or a subject
-        teacher for the class the student is currently active in.
-
-        One query using `EXISTS` — cheaper than two round trips just to
-        prove a teacher-student link."""
-        class_ids_subq = (
-            select(Enrollment.class_id)
-            .where(
-                and_(
-                    Enrollment.student_id == student_id,
-                    Enrollment.academic_year == academic_year,
-                    Enrollment.status == ENROLLMENT_ACTIVE,
-                )
-            )
-            .scalar_subquery()
+        teacher for the class the student is currently active in (or,
+        during the promotion-to-activation gap, their nearest future
+        active class — see `_resolve_active_class_id`)."""
+        class_id = await AppointmentsRepository._resolve_active_class_id(
+            session, student_id, academic_year
         )
+        if class_id is None:
+            return False
         ct_stmt = select(ClassTeacher.class_id).where(
             and_(
                 ClassTeacher.staff_id == teacher_id,
-                ClassTeacher.class_id.in_(class_ids_subq),
+                ClassTeacher.class_id == class_id,
             )
         )
         cs_stmt = select(ClassSubject.class_id).where(
             and_(
                 ClassSubject.teacher_id == teacher_id,
-                ClassSubject.class_id.in_(class_ids_subq),
+                ClassSubject.class_id == class_id,
             )
         )
         stmt = ct_stmt.union(cs_stmt)
@@ -199,17 +232,9 @@ class AppointmentsRepository:
 
         Sorted by teacher name so the FE picker doesn't need a re-sort.
         """
-        enrolment = (
-            await session.execute(
-                select(Enrollment.class_id).where(
-                    and_(
-                        Enrollment.student_id == student_id,
-                        Enrollment.academic_year == academic_year,
-                        Enrollment.status == ENROLLMENT_ACTIVE,
-                    )
-                )
-            )
-        ).scalar_one_or_none()
+        enrolment = await AppointmentsRepository._resolve_active_class_id(
+            session, student_id, academic_year
+        )
         if enrolment is None:
             return []
 

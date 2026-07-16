@@ -455,8 +455,11 @@ async def _build_detail(
     if not cls:
         raise NotFoundError("Class not found.")
     nx_year = next_academic_year(cls.academic_year)
-    next_year_classes = await PromotionsRepository.next_year_classes_for_division(
-        session, school_id, nx_year, cls.division
+    # School-wide, not filtered by this class's own division — a
+    # cross-division promotion (e.g. Primary 6 → JHS 1) needs the target
+    # class from a different division to actually appear in this dropdown.
+    next_year_classes = await PromotionsRepository.classes_for_school_year(
+        session, school_id, nx_year
     )
     decisions = await PromotionsRepository.list_decisions_for_submission(session, submission.id)
     students_by_id = await PromotionsRepository.students_by_ids(

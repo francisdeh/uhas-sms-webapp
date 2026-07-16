@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  nextLevelName,
-  sameLevelName,
-  autoPickTargetClass,
-  divisionHasNextYearClasses,
-} from "./next-class-resolver";
+import { nextLevelName, sameLevelName, autoPickTargetClass } from "./next-class-resolver";
 import { PROMOTION_DECISION_KIND } from "@/features/promotions/types";
 
 describe("nextLevelName", () => {
@@ -56,16 +51,5 @@ describe("autoPickTargetClass", () => {
 
   it("returns null when JHS 3 promotes (no successor)", () => {
     expect(autoPickTargetClass("JHS 3", candidates, PROMOTION_DECISION_KIND.PROMOTE)).toBeNull();
-  });
-});
-
-describe("divisionHasNextYearClasses", () => {
-  it("true when any candidate matches the division", () => {
-    const candidates = [{ id: "x", name: "Primary 1", division: "Lower Primary" }];
-    expect(divisionHasNextYearClasses("Lower Primary", candidates)).toBe(true);
-  });
-
-  it("false when none match", () => {
-    expect(divisionHasNextYearClasses("KG", [])).toBe(false);
   });
 });

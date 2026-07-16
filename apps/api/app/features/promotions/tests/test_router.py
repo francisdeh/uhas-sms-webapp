@@ -12,13 +12,17 @@ Coverage:
 
 from __future__ import annotations
 
+from datetime import date
+from uuid import UUID
+
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.audit.model import AuditLog
-from app.features.classes.model import Class
+from app.features.classes.model import Class, ClassTeacher
 from app.features.enrollments.model import Enrollment
 from app.features.exams.model import Exam
 from app.features.promotions.tests.conftest import (
@@ -44,6 +48,72 @@ from app.features.students.model import Student
 from app.features.subjects.model import Subject
 
 pytestmark = pytest.mark.asyncio
+
+# A genuine cross-division boundary (Upper Primary → JHS), unlike every
+# other fixture in this suite which stays inside JHS. Regression coverage
+# for the bug where target-class resolution filtered candidates by the
+# CURRENT class's division instead of considering the whole school.
+CLASS_PRIMARY6_UUID = UUID("ffffffff-ffff-4fff-8fff-ffffffff0104")
+CLASS_JHS1_NEXT_UUID = UUID("ffffffff-ffff-4fff-8fff-ffffffff0203")
+STUDENT_P6_UUID = UUID("ffffffff-ffff-4fff-8fff-ffffffff0505")
+
+
+@pytest_asyncio.fixture
+async def seed_cross_division_promotion(
+    db_session: AsyncSession,
+    seed_classes: dict[str, Class],
+    seed_staff: dict[str, Staff],
+) -> None:
+    """A Primary 6 class this year, a JHS 1 class next year (a different
+    division, and a different row from the current-year `CLASS_JHS1_UUID`
+    already in `seed_classes`), one enrolled student, and `TEACHER_UUID`
+    assigned as its class teacher."""
+    _ = seed_classes, seed_staff
+    db_session.add_all(
+        [
+            Class(
+                id=CLASS_PRIMARY6_UUID,
+                slug="p6-25",
+                school_id=SCHOOL_UUID,
+                name="Primary 6",
+                division="Upper Primary",
+                academic_year="2025/2026",
+            ),
+            Class(
+                id=CLASS_JHS1_NEXT_UUID,
+                slug="jhs1-26",
+                school_id=SCHOOL_UUID,
+                name="JHS 1",
+                division="JHS",
+                academic_year="2026/2027",
+            ),
+        ]
+    )
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ClassTeacher(class_id=CLASS_PRIMARY6_UUID, staff_id=TEACHER_UUID, is_primary=True),
+            Student(
+                id=STUDENT_P6_UUID,
+                slug="STUDENT-P6",
+                school_id=SCHOOL_UUID,
+                first_name="Abena",
+                last_name="Sixth",
+                is_active=True,
+            ),
+        ]
+    )
+    await db_session.flush()
+    db_session.add(
+        Enrollment(
+            student_id=STUDENT_P6_UUID,
+            class_id=CLASS_PRIMARY6_UUID,
+            academic_year="2025/2026",
+            status="Active",
+            enrollment_date=date(2025, 9, 1),
+        )
+    )
+    await db_session.flush()
 
 
 # ─── Season ─────────────────────────────────────────────────────────────────
@@ -235,6 +305,67 @@ async def test_ensure_submission_creates_and_prefills_suggestions(
     assert student2_row["suggestedDecision"] == "promote"
     # Auto-picked target for student2 (JHS 1 → JHS 2 next year).
     assert student2_row["targetClassId"] == str(CLASS_JHS2_NEXT_UUID)
+
+
+async def test_cross_division_promotion_resolves_and_submits(
+    client: AsyncClient,
+    seed_school: School,
+    seed_classes: dict[str, Class],
+    seed_subjects: list[Subject],
+    seed_staff: dict[str, Staff],
+    seed_class_teachers: None,
+    seed_students_and_enrollments: None,
+    seed_term3_exam_and_scores: Exam,
+    seed_cross_division_promotion: None,
+) -> None:
+    """Primary 6 → JHS 1 crosses a division boundary (Upper Primary →
+    JHS). Regression test for the bug where target-class candidates were
+    filtered by the CURRENT class's division, so a cross-division target
+    could never be auto-picked or even offered in the manual dropdown."""
+    _ = (
+        seed_school,
+        seed_classes,
+        seed_subjects,
+        seed_staff,
+        seed_class_teachers,
+        seed_students_and_enrollments,
+        seed_term3_exam_and_scores,
+        seed_cross_division_promotion,
+    )
+    await _open_season(client)
+    teacher_headers = auth_header(role="Teacher", linked_id=str(TEACHER_UUID))
+
+    ensure = await client.post(
+        "/promotions/submissions/ensure",
+        json={"classId": str(CLASS_PRIMARY6_UUID)},
+        headers=teacher_headers,
+    )
+    assert ensure.status_code == 200
+    submission_id = ensure.json()["submissionId"]
+
+    detail = await client.get(f"/promotions/submissions/{submission_id}", headers=teacher_headers)
+    assert detail.status_code == 200
+    body = detail.json()
+
+    # The manual-picker dropdown must offer the cross-division target —
+    # this is the exact list the old division-scoped query could never
+    # include JHS 1 in.
+    next_year_class_ids = {c["id"] for c in body["nextYearClasses"]}
+    assert str(CLASS_JHS1_NEXT_UUID) in next_year_class_ids
+
+    # No Term-3 score exists for this student, so the suggestion engine
+    # defaults to "promote" — the auto-pick must resolve to the real
+    # cross-division JHS 1 class, not leave targetClassId unset.
+    decision = next(d for d in body["decisions"] if d["studentId"] == str(STUDENT_P6_UUID))
+    assert decision["decision"] == "promote"
+    assert decision["targetClassId"] == str(CLASS_JHS1_NEXT_UUID)
+
+    submit = await client.post(
+        f"/promotions/submissions/{submission_id}/submit",
+        json={"updates": []},
+        headers=teacher_headers,
+    )
+    assert submit.status_code == 200, submit.text
 
 
 async def test_ensure_submission_is_idempotent(
