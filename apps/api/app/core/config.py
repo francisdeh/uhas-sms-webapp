@@ -178,6 +178,15 @@ class Settings(BaseSettings):
     hubtel_sender_id: str | None = Field(
         default=None, description='Approved Hubtel sender name, e.g. "UHAS".'
     )
+    sms_dev_allowlist: str | None = Field(
+        default=None,
+        description=(
+            "Outside production, only these comma-separated phone numbers ever get a real "
+            "SMS — every other number is logged and no-op'd instead (unlike email's "
+            "redirect-everything approach, since SMS is billed per-message and dev/demo data "
+            "shouldn't spend real credits on numbers nobody is actually checking)."
+        ),
+    )
 
     # ── Supabase Auth "Send SMS" hook ──────────────────────────────────────
     # Unlike every other "missing config isn't an error" setting in this

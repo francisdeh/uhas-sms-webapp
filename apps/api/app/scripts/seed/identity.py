@@ -192,7 +192,7 @@ async def seed_identity(session: AsyncSession) -> IdentityResult:
                 is_unit_head=False,
                 unit_head_of=None,
                 phone=f"+23320001{i:04d}",
-                email=f"{first.lower()}.{last.lower()}@uhas.edu.gh",
+                email=f"{first.lower()}.{last.lower()}{i}@example.com",
                 is_active=True,
             )
         )
