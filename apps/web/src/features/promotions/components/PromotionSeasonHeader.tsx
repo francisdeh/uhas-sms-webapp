@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ApiError } from "@/lib/api/browser";
+import { formatDate } from "@/lib/dates";
 import {
   useOpenPromotionSeason,
   useClosePromotionSeason,
@@ -108,7 +109,7 @@ export function PromotionSeasonHeader({
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {isOpen
-                  ? `Opened by ${season.openedByName ?? "—"} on ${new Date(season.openedAt!).toLocaleDateString()}`
+                  ? `Opened by ${season.openedByName ?? "—"} on ${formatDate(season.openedAt!)}`
                   : "Class teachers can only act on promotion lists while the season is open."}
               </p>
             </div>

@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useBulkApprovePromotionSubmissions } from "@/features/promotions/hooks/use-promotions";
+import { formatDate } from "@/lib/dates";
 import {
   PROMOTION_SUBMISSION_STATUS,
   type PromotionSubmissionStatus,
@@ -142,7 +143,7 @@ export function PromotionReviewQueue({ queue }: { queue: QueueRow[] }) {
                     )}
                     {row.submission.submittedAt && (
                       <span className="text-xs text-muted-foreground">
-                        · {new Date(row.submission.submittedAt).toLocaleDateString()}
+                        · {formatDate(row.submission.submittedAt)}
                       </span>
                     )}
                   </div>

@@ -200,10 +200,12 @@ export function LearnerFeesTable({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Waive this fee?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle>
               {action?.type === "waive" &&
-                `${action.row.studentFirstName} ${action.row.studentLastName}'s ${action.row.feeItemName} will be marked waived. This can't be undone.`}
+                `Waive ${action.row.studentFirstName} ${action.row.studentLastName}'s ${action.row.feeItemName}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The balance will be marked waived. This can&apos;t be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -233,10 +235,13 @@ export function LearnerFeesTable({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Exclude this learner?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle>
               {action?.type === "exclude" &&
-                `${action.row.studentFirstName} ${action.row.studentLastName} will be removed from this fee. Only possible if no payments have been recorded yet.`}
+                `Exclude ${action.row.studentFirstName} ${action.row.studentLastName} from ${action.row.feeItemName}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They will be removed from this fee. Only possible if no payments have been recorded
+              yet.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

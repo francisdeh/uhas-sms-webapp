@@ -24,8 +24,7 @@ function fullName(firstName: string, middleName: string | undefined, lastName: s
 }
 
 function formatExamMonth(createdAt: string): string {
-  const d = new Date(createdAt);
-  return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" }).toUpperCase();
+  return formatDate(createdAt, "MMMM yyyy").toUpperCase();
 }
 
 function isMidTerm(reportType: string): boolean {
@@ -77,7 +76,7 @@ export function ReportCard({ data, variant = REPORT_CARD_VARIANT.SUMMARY }: Repo
         </div>
         <div className="grid grid-cols-3 gap-x-6">
           <InfoRow label="YEAR" value={data.exam.academicYear} />
-          <InfoRow label="DATE" value={new Date().toLocaleDateString("en-GB")} />
+          <InfoRow label="DATE" value={formatDate(new Date(), "dd/MM/yyyy")} />
           <InfoRow label="AGGREGATE" value={data.aggregate != null ? String(data.aggregate) : "—"} />
         </div>
         {(data.vacationDate || data.reopeningDate) && (

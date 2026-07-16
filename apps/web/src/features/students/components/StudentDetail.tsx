@@ -17,6 +17,8 @@ import {
   Phone,
   Users,
   HeartPulse,
+  UserX,
+  UserCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,6 +156,7 @@ export default function StudentDetail({
   const [editOpen, setEditOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [confirmTransfer, setConfirmTransfer] = useState(false);
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
 
   const editForm = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
@@ -217,8 +220,32 @@ export default function StudentDetail({
     },
   });
 
+  const deactivateMutation = useMutation({
+    mutationFn: () => api.students.deactivate(student.id),
+    onSuccess: () => {
+      setDeactivateOpen(false);
+      router.refresh();
+      toast.success("Student deactivated");
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to deactivate student.");
+    },
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: () => api.students.activate(student.id),
+    onSuccess: () => {
+      router.refresh();
+      toast.success("Student reactivated");
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : "Failed to reactivate student.");
+    },
+  });
+
   const editIsPending = editMutation.isPending;
   const transferIsPending = transferMutation.isPending;
+  const activationIsPending = deactivateMutation.isPending || reactivateMutation.isPending;
 
   function onEditSubmit(data: EditFormValues) {
     editMutation.mutate(data);
@@ -281,6 +308,27 @@ export default function StudentDetail({
               </Button>
             </>
           )}
+          {isAdmin &&
+            (student.isActive ? (
+              <Button variant="destructive" size="sm" onClick={() => setDeactivateOpen(true)}>
+                <UserX size={13} />
+                Deactivate
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => reactivateMutation.mutate()}
+                disabled={activationIsPending}
+              >
+                {activationIsPending ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <UserCheck size={13} />
+                )}
+                Reactivate
+              </Button>
+            ))}
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer size={14} />
             Print ID Card
@@ -628,6 +676,31 @@ export default function StudentDetail({
             <AlertDialogAction onClick={handleConfirmTransfer} disabled={transferIsPending}>
               {transferIsPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
               Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Deactivate confirmation */}
+      <AlertDialog open={deactivateOpen} onOpenChange={setDeactivateOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Deactivate {student.firstName} {student.lastName}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They will be marked inactive. You can reactivate at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive-solid"
+              onClick={() => deactivateMutation.mutate()}
+              disabled={activationIsPending}
+            >
+              {activationIsPending && <Loader2 size={14} className="animate-spin mr-1.5" />}
+              Deactivate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
