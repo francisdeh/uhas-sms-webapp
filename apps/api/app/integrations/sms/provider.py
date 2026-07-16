@@ -151,16 +151,48 @@ class ArkeselSmsProvider:
         return SmsSendResult(provider_message_id=message_id, status="sent")
 
 
+class AllowlistSmsProvider:
+    """Wraps a real provider so only allowlisted numbers ever get a real
+    send — every other number is logged and handed the same synthetic
+    `sent` result `StubSmsProvider` returns, with no network call and
+    no cost. Unlike email's `dev_redirect` (which resends everything to
+    one address so nothing is lost), SMS is billed per-message, so the
+    right behavior for dev/demo traffic is to suppress it entirely
+    rather than reroute it — the point is to spend zero credits on
+    numbers nobody is actually going to check, while still exercising
+    the real provider end-to-end for the numbers that matter."""
+
+    def __init__(self, *, wrapped: SmsProvider, allowlist: frozenset[str]) -> None:
+        self._wrapped = wrapped
+        self._allowlist = allowlist
+        self.name = wrapped.name
+
+    async def send(self, *, phone: str, body: str) -> SmsSendResult:
+        if phone in self._allowlist:
+            return await self._wrapped.send(phone=phone, body=body)
+        logger.info("[sms] dev allowlist: suppressed real send to %s", phone)
+        return SmsSendResult(
+            provider_message_id=f"dev-suppressed-{uuid.uuid4().hex[:12]}", status="sent"
+        )
+
+
 def get_sms_provider() -> SmsProvider:
+    provider: SmsProvider
     if settings.hubtel_client_id and settings.hubtel_client_secret and settings.hubtel_sender_id:
-        return HubtelSmsProvider(
+        provider = HubtelSmsProvider(
             client_id=settings.hubtel_client_id,
             client_secret=settings.hubtel_client_secret,
             sender_id=settings.hubtel_sender_id,
         )
-    if settings.arkesel_api_key and settings.arkesel_sender_id:
-        return ArkeselSmsProvider(
+    elif settings.arkesel_api_key and settings.arkesel_sender_id:
+        provider = ArkeselSmsProvider(
             api_key=settings.arkesel_api_key,
             sender_id=settings.arkesel_sender_id,
         )
-    return StubSmsProvider()
+    else:
+        return StubSmsProvider()
+
+    if settings.env != "production" and settings.sms_dev_allowlist:
+        allowlist = frozenset(p.strip() for p in settings.sms_dev_allowlist.split(",") if p.strip())
+        return AllowlistSmsProvider(wrapped=provider, allowlist=allowlist)
+    return provider
